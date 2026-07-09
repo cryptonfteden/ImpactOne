@@ -12,6 +12,7 @@ router.get("/news", getNewsController);
 router.get("/watchlist", getWatchlist);
 router.get("/market", getMarket);
 router.get("/ai/analyze", analyze);
+router.post("/ai/analyze", analyze);
 router.get("/portfolio", getPortfolio);
 router.get("/quote", getQuoteController);
 

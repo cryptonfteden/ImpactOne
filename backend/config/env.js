@@ -6,6 +6,9 @@ const envCandidates = [
   path.resolve(__dirname, "..", "..", ".env"),
   path.resolve(__dirname, "..", "..", "frontend", ".env"),
   path.resolve(__dirname, "..", ".env"),
+  path.resolve(__dirname, "..", "..", "backend", ".env"),
+  path.resolve(__dirname, "..", "..", "frontend", ".env.local"),
+  path.resolve(__dirname, "..", "..", "backend", ".env.local"),
 ];
 
 envCandidates.forEach((candidate) => {
