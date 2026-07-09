@@ -1,0 +1,25 @@
+const path = require("path");
+const fs = require("fs");
+const dotenv = require("dotenv");
+
+const envCandidates = [
+  path.resolve(__dirname, "..", "..", ".env"),
+  path.resolve(__dirname, "..", "..", "frontend", ".env"),
+  path.resolve(__dirname, "..", ".env"),
+];
+
+envCandidates.forEach((candidate) => {
+  if (fs.existsSync(candidate)) {
+    dotenv.config({ path: candidate });
+  }
+});
+
+module.exports = {
+  PORT: process.env.PORT || 5000,
+  NODE_ENV: process.env.NODE_ENV || "development",
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
+  FINNHUB_API_KEY: process.env.FINNHUB_API_KEY || "",
+  POLYGON_API_KEY: process.env.POLYGON_API_KEY || "",
+  NEWS_API_KEY: process.env.NEWS_API_KEY || "",
+  ALPHA_VANTAGE_API_KEY: process.env.ALPHA_VANTAGE_API_KEY || "",
+};

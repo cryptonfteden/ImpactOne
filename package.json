@@ -1,0 +1,20 @@
+{
+  "name": "impactone",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "node backend/server.js",
+    "client": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build"
+  },
+  "dependencies": {
+    "axios": "^1.18.1",
+    "cors": "^2.8.0",
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0",
+    "react-router-dom": "^7.18.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  }
+}
