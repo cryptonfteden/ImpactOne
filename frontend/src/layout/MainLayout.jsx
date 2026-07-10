@@ -9,12 +9,12 @@ import AlertsScreen from "../screens/AlertsScreen";
 import PortfolioScreen from "../screens/PortfolioScreen";
 
 const screenMap = {
-  Dashboard: <DashboardScreen />,
-  "Market News": <MarketNewsScreen />,
-  "AI Analysis": <AiAnalysisScreen />,
-  Watchlist: <WatchlistScreen />,
-  Alerts: <AlertsScreen />,
-  Portfolio: <PortfolioScreen />,
+  Dashboard: DashboardScreen,
+  "Market News": MarketNewsScreen,
+  "AI Analysis": AiAnalysisScreen,
+  Watchlist: WatchlistScreen,
+  Alerts: AlertsScreen,
+  Portfolio: PortfolioScreen,
 };
 
 export default function MainLayout() {
@@ -47,7 +47,10 @@ export default function MainLayout() {
       <Sidebar activeView={activeView} onNavigate={setActiveView} favorites={favorites} onSelectFavorite={handleSelectFavorite} />
       <div className="main-panel">
         <Header />
-        {screenMap[activeView]}
+        {(() => {
+          const ActiveScreen = screenMap[activeView] || DashboardScreen;
+          return <ActiveScreen />;
+        })()}
       </div>
     </div>
   );
