@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Sidebar from "./Sidebar";
 import Header from "../components/Header";
 import ScreenErrorBoundary from "../components/ScreenErrorBoundary";
+import useWatchlist from "../hooks/useWatchlist";
 import DashboardScreen from "../screens/DashboardScreen";
 import AiAnalysisScreen from "../screens/AiAnalysisScreen";
 import MarketNewsScreen from "../screens/MarketNewsScreen";
@@ -20,23 +21,7 @@ const screenMap = {
 
 export default function MainLayout() {
   const [activeView, setActiveView] = useState("Dashboard");
-  const [favorites, setFavorites] = useState(() => {
-    if (typeof window === "undefined") {
-      return [];
-    }
-
-    try {
-      return JSON.parse(localStorage.getItem("impactone-favorites") || "[]");
-    } catch (error) {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("impactone-favorites", JSON.stringify(favorites));
-    }
-  }, [favorites]);
+  const { watchlist } = useWatchlist();
 
   const handleSelectFavorite = (ticker) => {
     setActiveView("AI Analysis");
@@ -45,7 +30,7 @@ export default function MainLayout() {
 
   return (
     <div className="app-shell">
-      <Sidebar activeView={activeView} onNavigate={setActiveView} favorites={favorites} onSelectFavorite={handleSelectFavorite} />
+      <Sidebar activeView={activeView} onNavigate={setActiveView} favorites={watchlist} onSelectFavorite={handleSelectFavorite} />
       <div className="main-panel">
         <Header />
         {(() => {

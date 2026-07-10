@@ -23,6 +23,16 @@ Last updated: 2026-07-10 (Sprint 4)
   - Returns bounded confidence score (0-100)
 - Watchlist intelligence is live:
   - Saved favorites are evaluated with latest price, daily change, AI rating, AI score, and alert badge (Risk/Opportunity/Monitor)
+- Sprint 4 productization pass is now live:
+  - Shared watchlist state is centralized via `frontend/src/hooks/useWatchlist.js`
+  - Watchlist add/remove now persists in localStorage and syncs across screens
+  - Sidebar watchlist tickers can be clicked to jump directly into AI Analysis for that symbol
+  - Dashboard KPI cards are now driven by user watchlist intelligence:
+    - Tracked tickers count
+    - Strongest opportunity
+    - Highest risk
+    - Latest analyzed ticker + timestamp
+  - AI Analysis now shows report "Last updated" timestamp and clearer provider/partial-data notices
 - Provider-resilient error handling is in place:
   - Finnhub failures return user-friendly messages
   - OpenAI failures expose user-friendly notice and fallback report instead of crashing UI
@@ -173,25 +183,47 @@ curl "http://localhost:5000/api/watchlist?symbols=AAPL,PLTR,NVDA"
 - Add AI prompt/versioning controls and report history.
 - Expand market impact logic with sector-specific catalyst patterns and event history.
 
-## 8. Known Issues
+## 8. Watchlist Behavior (Productized)
+- Storage model:
+  - Canonical key: `impactone-watchlist`
+  - Backward-compatible mirror key: `impactone-favorites`
+- Cross-screen sync:
+  - Uses browser `storage` event for cross-tab updates
+  - Uses custom event `impactone:watchlist-updated` for in-tab sync
+- User actions:
+  - Add ticker from Watchlist screen input
+  - Remove ticker from Watchlist screen table/cards
+  - Toggle ticker from AI Analysis
+  - Click ticker in Sidebar or Watchlist screen to route context into AI Analysis
+- Intelligence data:
+  - Watchlist and Dashboard both call `/api/watchlist?symbols=...` using saved user symbols.
+
+## 9. Known Issues
 - OpenAI may fail due to quota/credentials. App now falls back safely but premium generation quality depends on valid quota.
 - Some providers return sparse payloads for less-covered tickers, which can reduce report richness.
 - Port 5000 collisions can still occur on local machines if stale node processes are running.
 - Development logs are verbose by design for debugging and can be reduced in production hardening.
+- Watchlist persistence is browser-local only (no server account sync yet).
+- "Highest risk" currently uses lowest AI score heuristic; it is not yet event-factor weighted.
 
-## 9. Recommended Sprint 4
+## 10. Sprint 4 Status
 
-Sprint 4 execution status: delivered the market impact engine and event-driven investment workflow on top of the Sprint 3 foundation.
+Sprint 4 execution status: delivered market impact engine plus productization for daily usability.
 
 Sprint 4 outcomes:
 - Market Impact Score now summarizes the event signal for each ticker.
 - AI Analysis now includes a "Why is this stock moving today?" explanation.
 - Sector impact and market opportunity cards are available for the selected ticker.
 - AI loading state now shows an explicit analysis animation.
+- Watchlist UX now supports direct add/remove and cross-screen persistence.
+- Dashboard now reflects user watchlist intelligence instead of static KPI placeholders.
+- AI report UX now surfaces timestamp and clearer provider state messaging.
 
-Remaining Sprint 4 hardening tasks:
+## 11. Next Sprint Recommendations
 - Add integration tests for quote/analyze/compare/watchlist endpoints.
-- Add frontend E2E smoke tests for AAPL and PLTR workflows.
+- Add frontend E2E smoke tests for AAPL and NVDA watchlist + AI flow.
+- Move watchlist persistence to backend user profiles.
+- Add AI report history and per-symbol timeline.
 - Add production-safe logging levels and request tracing.
 
 ## Quick Handoff For New Developers

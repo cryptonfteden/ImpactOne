@@ -23,7 +23,7 @@ export default function Sidebar({ activeView, onNavigate, favorites = [], onSele
       </nav>
 
       <div className="sidebar-section">
-        <div className="sidebar-section__title">Favorites</div>
+        <div className="sidebar-section__title">Watchlist</div>
         {favorites.length ? (
           <div className="favorites-list">
             {favorites.map((ticker) => (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
 import { SafeList, SafeValue } from "../components/SafeValue";
+import useWatchlist from "../hooks/useWatchlist";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
@@ -55,23 +56,15 @@ export default function AiAnalysisScreen() {
   const [fearGreed, setFearGreed] = useState(null);
   const [aiReport, setAiReport] = useState(null);
   const [aiNotice, setAiNotice] = useState("");
+  const [aiError, setAiError] = useState("");
+  const [aiLastUpdated, setAiLastUpdated] = useState("");
   const [comparisonRows, setComparisonRows] = useState([]);
   const [comparisonError, setComparisonError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Searching live market data...");
   const [errorMessage, setErrorMessage] = useState("");
 
-  const [favorites, setFavorites] = useState(() => {
-    if (typeof window === "undefined") {
-      return [];
-    }
-
-    try {
-      return JSON.parse(localStorage.getItem("impactone-favorites") || "[]");
-    } catch (error) {
-      return [];
-    }
-  });
+  const { watchlist, toggleTicker } = useWatchlist();
 
   useEffect(() => {
     const handleTickerSelection = (event) => {
@@ -95,6 +88,7 @@ export default function AiAnalysisScreen() {
       setStatusMessage("Searching live market data...");
       setErrorMessage("");
       setComparisonError("");
+      setAiError("");
 
       try {
         const quoteUrl = `${API_BASE}/quote?symbol=${normalizedTicker}`;
@@ -114,8 +108,9 @@ export default function AiAnalysisScreen() {
             setFearGreed(null);
             setAiReport(null);
             setAiNotice("");
+            setAiLastUpdated("");
             setComparisonRows([]);
-            setErrorMessage(quoteData.error || "Unable to load live stock analysis.");
+            setErrorMessage(quoteData.error || "Unable to load live stock analysis from Finnhub right now.");
             setStatusMessage("Live market data request failed.");
             return;
           }
@@ -129,6 +124,7 @@ export default function AiAnalysisScreen() {
           setFearGreed(quoteData.fearGreed || null);
           setComparisonRows([]);
           setAiNotice("");
+          setAiLastUpdated("");
           setErrorMessage("");
           setStatusMessage(quoteData.quote?.companyDescription ? "Live market data loaded" : "Live market data loaded");
 
@@ -165,9 +161,24 @@ export default function AiAnalysisScreen() {
             if (aiResponse.ok && aiData.analysis) {
               setAiReport(aiData.analysis || null);
               setAiNotice(aiData.analysis?.providerNotice || "");
+              setAiError("");
+              const updatedAt = new Date().toLocaleString();
+              setAiLastUpdated(updatedAt);
+              if (typeof window !== "undefined") {
+                const latestAnalyzed = {
+                  symbol: normalizedTicker,
+                  updatedAt,
+                  rating: aiData.analysis?.investmentRating || "Hold",
+                  confidenceScore: Number(aiData.analysis?.confidenceScore || 0),
+                };
+                localStorage.setItem("impactone-last-analyzed", JSON.stringify(latestAnalyzed));
+                window.dispatchEvent(new CustomEvent("impactone:last-analyzed-updated", { detail: latestAnalyzed }));
+              }
             } else {
               setAiReport(null);
               setAiNotice(aiData.error || "AI analysis is temporarily unavailable. Please try again shortly.");
+              setAiError(aiData.error || "OpenAI analysis failed to complete.");
+              setAiLastUpdated("");
             }
 
             if (compareResponse.ok) {
@@ -191,6 +202,8 @@ export default function AiAnalysisScreen() {
           setFearGreed(null);
           setAiReport(null);
           setAiNotice("");
+          setAiError("Unable to complete AI analysis due to a network or provider error.");
+          setAiLastUpdated("");
           setComparisonRows([]);
           setComparisonError("");
           setErrorMessage(error?.message || "Unable to contact the analysis service.");
@@ -217,16 +230,10 @@ export default function AiAnalysisScreen() {
     }
   };
 
-  const isFavorite = favorites.includes(ticker.toUpperCase());
+  const isFavorite = watchlist.includes(ticker.toUpperCase());
 
   const toggleFavorite = () => {
-    const normalizedTicker = ticker.toUpperCase();
-    setFavorites((current) => {
-      if (current.includes(normalizedTicker)) {
-        return current.filter((item) => item !== normalizedTicker);
-      }
-      return [...current, normalizedTicker];
-    });
+    toggleTicker(ticker);
   };
 
   const marketImpact = aiReport?.marketImpact || null;
@@ -236,6 +243,7 @@ export default function AiAnalysisScreen() {
   const sectorImpact = marketImpact?.sectorImpact || null;
   const marketOpportunities = marketImpact?.marketOpportunities || [];
   const finalRating = aiReport?.investmentRating || aiReport?.finalRating || "Hold";
+  const isPartialReport = Boolean(aiReport && aiReport.source && aiReport.source !== "openai");
 
   return (
     <div className="screen-page">
@@ -359,8 +367,11 @@ export default function AiAnalysisScreen() {
               <div className={`score-card__recommendation ${String(finalRating).toLowerCase().replace(/\s+/g, "-")}`}>{finalRating}</div>
               <div className="ai-report__score">Confidence {aiReport.confidenceScore ?? 0}/100</div>
             </div>
+            {aiLastUpdated ? <div className="company-description subtle">Last updated: {aiLastUpdated}</div> : null}
             <div className="company-description"><SafeValue value={aiReport.executiveSummary || aiReport.summary} /></div>
-            {aiNotice ? <p className="company-description subtle">{aiNotice}</p> : null}
+            {aiNotice ? <p className="company-description subtle">Provider notice: {aiNotice}</p> : null}
+            {isPartialReport ? <p className="company-description subtle">Data is partial and may be based on fallback analysis.</p> : null}
+            {aiError ? <p className="company-description subtle">{aiError}</p> : null}
             <div className="ai-report__grid">
               <div>
                 <h4>Bull Case</h4>

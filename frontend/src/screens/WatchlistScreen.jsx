@@ -1,17 +1,25 @@
 import { useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
+import useWatchlist from "../hooks/useWatchlist";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
 export default function WatchlistScreen() {
+  const { watchlist, addTicker, removeTicker } = useWatchlist();
   const [rows, setRows] = useState([]);
   const [errorMessage, setErrorMessage] = useState("");
+  const [tickerInput, setTickerInput] = useState("");
 
   useEffect(() => {
     async function loadWatchlistIntelligence() {
+      if (!watchlist.length) {
+        setRows([]);
+        setErrorMessage("");
+        return;
+      }
+
       try {
-        const saved = JSON.parse(localStorage.getItem("impactone-favorites") || "[]");
-        const symbols = saved.length ? saved.join(",") : "NVDA,PLTR,AAPL";
+        const symbols = watchlist.join(",");
         const response = await fetch(`${API_BASE}/watchlist?symbols=${symbols}`);
         const data = await response.json();
 
@@ -30,7 +38,20 @@ export default function WatchlistScreen() {
     }
 
     loadWatchlistIntelligence();
-  }, []);
+  }, [watchlist]);
+
+  const handleAddTicker = () => {
+    const normalized = tickerInput.trim().toUpperCase();
+    if (!normalized) {
+      return;
+    }
+    addTicker(normalized);
+    setTickerInput("");
+  };
+
+  const openTicker = (ticker) => {
+    window.dispatchEvent(new CustomEvent("impactone:select-ticker", { detail: ticker }));
+  };
 
   return (
     <div className="screen-page">
@@ -45,6 +66,20 @@ export default function WatchlistScreen() {
       </section>
 
       <SectionCard title="Watchlist intelligence" subtitle="Saved favorites with AI signal and alerts" className="screen-card">
+        <div className="analysis-search">
+          <input
+            value={tickerInput}
+            onChange={(event) => setTickerInput(event.target.value.toUpperCase())}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                handleAddTicker();
+              }
+            }}
+            placeholder="Add ticker (e.g. AAPL)"
+          />
+          <button type="button" onClick={handleAddTicker}>Add</button>
+        </div>
+        <div className="company-description subtle">Tracked tickers: {watchlist.length}</div>
         {rows.length ? (
           <div className="table-wrapper">
             <table className="watchlist-table">
@@ -62,7 +97,9 @@ export default function WatchlistScreen() {
               <tbody>
                 {rows.map((item) => (
                   <tr key={item.symbol}>
-                    <td>{item.symbol}</td>
+                    <td>
+                      <button type="button" className="favorite-item" onClick={() => openTicker(item.symbol)}>{item.symbol}</button>
+                    </td>
                     <td>{item.company}</td>
                     <td>${Number(item.price || 0).toFixed(2)}</td>
                     <td className={item.change >= 0 ? "positive" : "negative"}>{item.change >= 0 ? "+" : ""}{Number(item.change || 0).toFixed(2)}%</td>
@@ -70,6 +107,7 @@ export default function WatchlistScreen() {
                     <td>{Number(item.aiScore || 0)}/100</td>
                     <td>
                       <span className={`alert-badge ${item.alertBadge?.type || "monitor"}`}>{item.alertBadge?.label || "Monitor"}</span>
+                      <button type="button" className="ghost-button" onClick={() => removeTicker(item.symbol)} style={{ marginLeft: 8 }}>Remove</button>
                     </td>
                   </tr>
                 ))}
@@ -83,11 +121,14 @@ export default function WatchlistScreen() {
           {rows.slice(0, 4).map((item) => (
             <article key={`${item.symbol}-card`} className="watch-item">
               <div className="watch-item__top">
-                <strong>{item.symbol}</strong>
+                <button type="button" className="favorite-item" onClick={() => openTicker(item.symbol)}>{item.symbol}</button>
                 <span className={`pill ${item.alertBadge?.type || "monitor"}`}>{item.alertBadge?.label || "Monitor"}</span>
               </div>
               <div className="watch-item__company">{item.company}</div>
               <div className={`watch-item__upside ${item.change >= 0 ? "positive" : "negative"}`}>{item.change >= 0 ? "+" : ""}{Number(item.change || 0).toFixed(2)}% today</div>
+              <div>
+                <button type="button" className="ghost-button" onClick={() => removeTicker(item.symbol)}>Remove</button>
+              </div>
             </article>
           ))}
         </div>

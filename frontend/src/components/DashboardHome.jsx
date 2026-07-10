@@ -1,33 +1,10 @@
+import { useEffect, useMemo, useState } from "react";
 import KpiCard from "./KpiCard";
 import WatchlistTable from "./WatchlistTable";
 import AIInsightsSidebar from "./AIInsightsSidebar";
+import useWatchlist from "../hooks/useWatchlist";
 
-const kpiItems = [
-  {
-    title: "Market Sentiment",
-    value: "+82%",
-    detail: "Risk-on, bullish momentum",
-    tone: "positive",
-  },
-  {
-    title: "AI Score",
-    value: "9.4/10",
-    detail: "High-conviction opportunities",
-    tone: "accent",
-  },
-  {
-    title: "Portfolio Value",
-    value: "$1.24M",
-    detail: "Up 11.8% this month",
-    tone: "positive",
-  },
-  {
-    title: "Today’s Opportunities",
-    value: "14",
-    detail: "3 new signals flagged",
-    tone: "neutral",
-  },
-];
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
 const heatmapItems = [
   { label: "AI Infra", value: "+8.2%", tone: "up" },
@@ -65,6 +42,108 @@ const earnings = [
 ];
 
 export default function DashboardHome() {
+  const { watchlist } = useWatchlist();
+  const [watchlistRows, setWatchlistRows] = useState([]);
+  const [watchlistError, setWatchlistError] = useState("");
+  const [watchlistLoading, setWatchlistLoading] = useState(false);
+  const [latestAnalyzed, setLatestAnalyzed] = useState(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const syncLatestAnalyzed = () => {
+      try {
+        const parsed = JSON.parse(localStorage.getItem("impactone-last-analyzed") || "null");
+        setLatestAnalyzed(parsed);
+      } catch (error) {
+        setLatestAnalyzed(null);
+      }
+    };
+
+    syncLatestAnalyzed();
+    window.addEventListener("storage", syncLatestAnalyzed);
+    window.addEventListener("impactone:last-analyzed-updated", syncLatestAnalyzed);
+    return () => {
+      window.removeEventListener("storage", syncLatestAnalyzed);
+      window.removeEventListener("impactone:last-analyzed-updated", syncLatestAnalyzed);
+    };
+  }, []);
+
+  useEffect(() => {
+    async function loadWatchlistIntelligence() {
+      if (!watchlist.length) {
+        setWatchlistRows([]);
+        setWatchlistError("");
+        return;
+      }
+
+      setWatchlistLoading(true);
+      try {
+        const symbols = watchlist.join(",");
+        const response = await fetch(`${API_BASE}/watchlist?symbols=${symbols}`);
+        const data = await response.json();
+        if (!response.ok) {
+          setWatchlistRows([]);
+          setWatchlistError(data.error || "Unable to load watchlist data.");
+          return;
+        }
+
+        setWatchlistRows(data.watchlist || []);
+        setWatchlistError("");
+      } catch (error) {
+        setWatchlistRows([]);
+        setWatchlistError("Unable to load watchlist data.");
+      } finally {
+        setWatchlistLoading(false);
+      }
+    }
+
+    loadWatchlistIntelligence();
+  }, [watchlist]);
+
+  const strongestOpportunity = useMemo(() => {
+    if (!watchlistRows.length) {
+      return null;
+    }
+    return [...watchlistRows].sort((a, b) => Number(b.aiScore || 0) - Number(a.aiScore || 0))[0] || null;
+  }, [watchlistRows]);
+
+  const highestRisk = useMemo(() => {
+    if (!watchlistRows.length) {
+      return null;
+    }
+    return [...watchlistRows].sort((a, b) => Number(a.aiScore || 0) - Number(b.aiScore || 0))[0] || null;
+  }, [watchlistRows]);
+
+  const kpiItems = [
+    {
+      title: "Tracked Tickers",
+      value: String(watchlist.length),
+      detail: watchlist.length ? watchlist.join(", ") : "No tickers added yet",
+      tone: watchlist.length ? "positive" : "neutral",
+    },
+    {
+      title: "Strongest Opportunity",
+      value: strongestOpportunity ? strongestOpportunity.symbol : "N/A",
+      detail: strongestOpportunity ? `${strongestOpportunity.aiRating || "Hold"} · ${Number(strongestOpportunity.aiScore || 0)}/100` : "Run analysis to populate",
+      tone: strongestOpportunity ? "accent" : "neutral",
+    },
+    {
+      title: "Highest Risk",
+      value: highestRisk ? highestRisk.symbol : "N/A",
+      detail: highestRisk ? `${highestRisk.aiRating || "Hold"} · ${Number(highestRisk.aiScore || 0)}/100` : "No risk baseline yet",
+      tone: highestRisk ? "accent" : "neutral",
+    },
+    {
+      title: "Latest Analyzed",
+      value: latestAnalyzed?.symbol || "N/A",
+      detail: latestAnalyzed?.updatedAt || "No AI report generated yet",
+      tone: latestAnalyzed?.symbol ? "positive" : "neutral",
+    },
+  ];
+
   return (
     <main className="dashboard-content">
       <section className="hero-panel hero-panel--featured">
@@ -265,7 +344,7 @@ export default function DashboardHome() {
       </section>
 
       <section className="dashboard-grid">
-        <WatchlistTable />
+        <WatchlistTable rows={watchlistRows} errorMessage={watchlistError} isLoading={watchlistLoading} />
         <AIInsightsSidebar />
       </section>
 
