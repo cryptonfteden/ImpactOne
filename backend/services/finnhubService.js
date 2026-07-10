@@ -106,12 +106,12 @@ function buildRecommendationTrend(series = []) {
 async function getPeerSymbols(symbol, count = 2) {
   const normalizedSymbol = (symbol || "NVDA").toUpperCase();
   const fallbackMap = {
-    NVDA: ["AMD", "AVGO"],
-    AAPL: ["MSFT", "GOOGL"],
-    PLTR: ["SNOW", "CRM"],
-    TSLA: ["RIVN", "GM"],
-    AMZN: ["WMT", "SHOP"],
-    MSFT: ["GOOGL", "ORCL"],
+    NVDA: ["AMD", "AVGO", "ASML"],
+    AAPL: ["MSFT", "GOOGL", "QCOM"],
+    PLTR: ["SNOW", "CRM", "AMZN"],
+    TSLA: ["RIVN", "GM", "F"],
+    AMZN: ["WMT", "SHOP", "MELI"],
+    MSFT: ["GOOGL", "ORCL", "AMZN"],
   };
 
   if (!FINNHUB_API_KEY) {

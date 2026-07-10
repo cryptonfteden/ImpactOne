@@ -146,6 +146,8 @@ export default function AiAnalysisScreen() {
                   recommendation: quoteData.recommendation || null,
                   recommendationTrend: quoteData.recommendationTrend || null,
                   news: quoteData.news || [],
+                  chart: quoteData.chart || [],
+                  fearGreed: quoteData.fearGreed || null,
                   metrics: quoteData.quote || null,
                 },
               }),
@@ -225,6 +227,14 @@ export default function AiAnalysisScreen() {
       return [...current, normalizedTicker];
     });
   };
+
+  const marketImpact = aiReport?.marketImpact || null;
+  const marketImpactScore = Number(marketImpact?.marketImpactScore || 0);
+  const marketImpactLabel = marketImpact?.marketImpactLabel || "Pending";
+  const whyMovingToday = marketImpact?.whyMovingToday || [];
+  const sectorImpact = marketImpact?.sectorImpact || null;
+  const marketOpportunities = marketImpact?.marketOpportunities || [];
+  const finalRating = aiReport?.investmentRating || aiReport?.finalRating || "Hold";
 
   return (
     <div className="screen-page">
@@ -334,10 +344,18 @@ export default function AiAnalysisScreen() {
       </div>
 
       <SectionCard title="AI Report" subtitle="Structured investment analysis" className="screen-card">
-        {aiReport ? (
+        {isLoading && !aiReport ? (
+          <div className="analysis-loading-panel">
+            <span className="loading-spinner" aria-label="Generating AI report" />
+            <div>
+              <div className="analysis-loading-panel__title">Generating market impact engine analysis...</div>
+              <p className="company-description subtle">Gathering live quotes, news, analyst signals, and peer context.</p>
+            </div>
+          </div>
+        ) : aiReport ? (
           <div className="ai-report">
             <div className="ai-report__header">
-              <div className="score-card__recommendation">{aiReport.investmentRating || aiReport.recommendation || "Hold"}</div>
+              <div className={`score-card__recommendation ${String(finalRating).toLowerCase().replace(/\s+/g, "-")}`}>{finalRating}</div>
               <div className="ai-report__score">Confidence {aiReport.confidenceScore ?? 0}/100</div>
             </div>
             <p className="company-description">{aiReport.executiveSummary || aiReport.summary}</p>
@@ -379,6 +397,84 @@ export default function AiAnalysisScreen() {
           </div>
         ) : (
           <p className="company-description">{aiNotice || "The AI report will appear here once the analysis completes."}</p>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Market Impact Engine" subtitle="Event-driven score" className="screen-card">
+        {marketImpact ? (
+          <div className="impact-engine">
+            <div className="impact-engine__score">
+              <div className="impact-engine__ring">
+                <span>{marketImpactScore}</span>
+                <small>/100</small>
+              </div>
+              <div>
+                <div className="score-card__recommendation">{marketImpactLabel}</div>
+                <p className="company-description subtle">Combines news sentiment, analyst trend, price momentum, Fear & Greed, and recent volatility.</p>
+              </div>
+            </div>
+            <div className="impact-engine__breakdown">
+              <div><span>News Sentiment</span><strong>{marketImpact.breakdown?.newsSentiment?.label || "Neutral"}</strong></div>
+              <div><span>Analyst Trend</span><strong>{marketImpact.breakdown?.analystTrend?.label || "Neutral"}</strong></div>
+              <div><span>Momentum</span><strong>{marketImpact.breakdown?.priceMomentum?.label || "Mixed"}</strong></div>
+              <div><span>Fear & Greed</span><strong>{marketImpact.breakdown?.fearGreed?.label || "Neutral"}</strong></div>
+              <div><span>Volatility</span><strong>{marketImpact.breakdown?.volatility?.label || "Moderate"}</strong></div>
+            </div>
+            <div>
+              <h4>Why is this stock moving today?</h4>
+              <ul className="stack-list">{whyMovingToday.map((item) => <li key={item}>{item}</li>)}</ul>
+            </div>
+          </div>
+        ) : (
+          <p className="company-description">Market impact details will appear once live data loads.</p>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Sector Impact" subtitle="Peers and market opportunities" className="screen-card">
+        {sectorImpact ? (
+          <div className="sector-impact">
+            <div className="sector-impact__summary">
+              <div className="company-profile__meta">Sector: {sectorImpact.sector}</div>
+              <div className="company-profile__meta">Industry: {sectorImpact.industry}</div>
+              <div className="company-profile__meta">Movement: {sectorImpact.movement}</div>
+              <p className="company-description">{sectorImpact.summary}</p>
+            </div>
+
+            <div>
+              <h4>Top competitors</h4>
+              <div className="watchlist-grid">
+                {(sectorImpact.topCompetitors || []).map((item) => (
+                  <article key={item.symbol} className="watch-item">
+                    <div className="watch-item__top">
+                      <strong>{item.symbol}</strong>
+                      <span className="pill monitor">{Number(item.priceChange || 0) >= 0 ? "Positive" : "Negative"}</span>
+                    </div>
+                    <div className="watch-item__company">{item.company}</div>
+                    <div className={Number(item.priceChange || 0) >= 0 ? "positive" : "negative"}>{Number(item.priceChange || 0).toFixed(2)}% today</div>
+                  </article>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h4>Market opportunities</h4>
+              <div className="opportunity-list">
+                {(marketOpportunities || []).map((item) => (
+                  <div className="opportunity-item" key={item.symbol}>
+                    <div className="opportunity-item__top">
+                      <strong>{item.symbol}</strong>
+                      <span className={`pill ${item.direction === "benefit" ? "opportunity" : "risk"}`}>{item.direction === "benefit" ? "Benefit" : "Hurt"}</span>
+                    </div>
+                    <div className="company-description subtle">{item.company}</div>
+                    <p className="company-description">{item.thesis}</p>
+                    <p className="company-description subtle">{item.reason}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="company-description">Sector impact will appear once the selected ticker loads.</p>
         )}
       </SectionCard>
 

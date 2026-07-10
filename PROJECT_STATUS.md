@@ -1,6 +1,6 @@
 # ImpactOne - Project Status
 
-Last updated: 2026-07-10 (Sprint 3)
+Last updated: 2026-07-10 (Sprint 4)
 
 ## 1. What Is Already Completed
 - Full React + Express app is running with screen-based dashboard UX and `/api` backend routing.
@@ -12,6 +12,11 @@ Last updated: 2026-07-10 (Sprint 3)
   - 30-day chart
   - AI report with rating, confidence, and What changed today section
   - Ticker comparison against two peers
+- Market Impact Engine is live and now includes:
+  - Market Impact Score (0-100)
+  - Why is this stock moving today?
+  - Sector impact summary
+  - Market opportunities / related companies
 - AI report quality was upgraded:
   - Uses quote, profile, recommendation, recommendation trend, news, and metrics context
   - Enforces decision-oriented rating scale: Strong Buy / Buy / Hold / Sell
@@ -49,6 +54,7 @@ Last updated: 2026-07-10 (Sprint 3)
 - Controllers:
   - `quoteController`, `aiController`, `comparisonController`, `watchlistController`
 - Services:
+  - `marketImpactService` (event-driven score, sector impact, movement rationale, opportunities)
   - `finnhubService` (quote/profile/recommendation/recommendation trend/news/chart/peers)
   - `openaiService` (structured AI analysis + cache + fallback)
   - `comparisonService` (base ticker + peer comparison with AI score)
@@ -107,6 +113,8 @@ ImpactOne/
   - Market sentiment signal
 - OpenAI Chat Completions
   - Structured investment report generation
+- Backend market impact engine
+  - Derived score from news sentiment, analyst trend, price momentum, fear & greed, and volatility
 
 ## 5. Environment Variables
 
@@ -163,6 +171,7 @@ curl "http://localhost:5000/api/watchlist?symbols=AAPL,PLTR,NVDA"
 - Add API schema validation and typed contracts.
 - Add observability primitives (request IDs, structured logging, endpoint timings).
 - Add AI prompt/versioning controls and report history.
+- Expand market impact logic with sector-specific catalyst patterns and event history.
 
 ## 8. Known Issues
 - OpenAI may fail due to quota/credentials. App now falls back safely but premium generation quality depends on valid quota.
@@ -170,11 +179,17 @@ curl "http://localhost:5000/api/watchlist?symbols=AAPL,PLTR,NVDA"
 - Port 5000 collisions can still occur on local machines if stale node processes are running.
 - Development logs are verbose by design for debugging and can be reduced in production hardening.
 
-## 9. Recommended Sprint 3
+## 9. Recommended Sprint 4
 
-Sprint 3 execution status: delivered core investment-grade MVP upgrades in AI report quality, comparison, watchlist intelligence, and error quality.
+Sprint 4 execution status: delivered the market impact engine and event-driven investment workflow on top of the Sprint 3 foundation.
 
-Remaining Sprint 3 hardening tasks:
+Sprint 4 outcomes:
+- Market Impact Score now summarizes the event signal for each ticker.
+- AI Analysis now includes a "Why is this stock moving today?" explanation.
+- Sector impact and market opportunity cards are available for the selected ticker.
+- AI loading state now shows an explicit analysis animation.
+
+Remaining Sprint 4 hardening tasks:
 - Add integration tests for quote/analyze/compare/watchlist endpoints.
 - Add frontend E2E smoke tests for AAPL and PLTR workflows.
 - Add production-safe logging levels and request tracing.
@@ -185,3 +200,4 @@ Remaining Sprint 3 hardening tasks:
 3. Start with `npm run start:all`.
 4. Open AI Analysis and test `AAPL` then `PLTR`.
 5. Validate watchlist intelligence by saving favorites and opening Watchlist screen.
+6. Validate Market Impact Engine sections on the AI Analysis screen.

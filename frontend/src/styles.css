@@ -830,6 +830,108 @@ button {
   line-height: 1.5;
 }
 
+.analysis-loading-panel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(2, 6, 23, 0.48);
+}
+
+.analysis-loading-panel__title {
+  color: #f8fafc;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.impact-engine,
+.sector-impact {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.impact-engine__score {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.impact-engine__ring {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 30% 30%, rgba(96, 165, 250, 0.3), rgba(2, 6, 23, 0.92));
+  border: 1px solid rgba(96, 165, 250, 0.28);
+}
+
+.impact-engine__ring span {
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.impact-engine__ring small {
+  color: #cbd5e1;
+}
+
+.impact-engine__breakdown {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.impact-engine__breakdown div {
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.48);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.impact-engine__breakdown span {
+  color: #94a3b8;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.impact-engine__breakdown strong {
+  color: #f8fafc;
+}
+
+.sector-impact__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.opportunity-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.opportunity-item {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.48);
+}
+
+.opportunity-item__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
 .comparison-table td,
 .comparison-table th {
   white-space: nowrap;
