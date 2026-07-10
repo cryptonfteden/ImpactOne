@@ -67,6 +67,77 @@ function resolveRecommendation(data, quotePayload) {
   };
 }
 
+function buildRecommendationTrend(series = []) {
+  if (!Array.isArray(series) || !series.length) {
+    return {
+      direction: "Flat",
+      summary: "Recommendation trend data unavailable.",
+      latest: null,
+      previous: null,
+    };
+  }
+
+  const sorted = [...series].sort((a, b) => new Date(b.period || 0) - new Date(a.period || 0));
+  const latest = sorted[0];
+  const previous = sorted[1] || null;
+
+  const latestBuy = Number(latest?.buy || 0);
+  const previousBuy = Number(previous?.buy || 0);
+  const latestSell = Number(latest?.sell || 0);
+  const previousSell = Number(previous?.sell || 0);
+
+  let direction = "Flat";
+  if (latestBuy > previousBuy || latestSell < previousSell) {
+    direction = "Improving";
+  } else if (latestBuy < previousBuy || latestSell > previousSell) {
+    direction = "Weakening";
+  }
+
+  return {
+    direction,
+    summary: `Latest: ${latestBuy} Buy / ${Number(latest?.hold || 0)} Hold / ${latestSell} Sell${
+      previous ? ` vs prior ${previousBuy} Buy / ${Number(previous?.hold || 0)} Hold / ${previousSell} Sell.` : "."
+    }`,
+    latest: latest?.period || null,
+    previous: previous?.period || null,
+  };
+}
+
+async function getPeerSymbols(symbol, count = 2) {
+  const normalizedSymbol = (symbol || "NVDA").toUpperCase();
+  const fallbackMap = {
+    NVDA: ["AMD", "AVGO"],
+    AAPL: ["MSFT", "GOOGL"],
+    PLTR: ["SNOW", "CRM"],
+    TSLA: ["RIVN", "GM"],
+    AMZN: ["WMT", "SHOP"],
+    MSFT: ["GOOGL", "ORCL"],
+  };
+
+  if (!FINNHUB_API_KEY) {
+    return (fallbackMap[normalizedSymbol] || ["MSFT", "GOOGL"]).slice(0, count);
+  }
+
+  try {
+    const response = await axios.get("https://finnhub.io/api/v1/stock/peers", {
+      params: { symbol: normalizedSymbol, token: FINNHUB_API_KEY },
+      timeout: 10000,
+    });
+
+    const peers = (response.data || [])
+      .map((item) => String(item || "").toUpperCase())
+      .filter((item) => item && item !== normalizedSymbol && !item.includes("."));
+
+    if (peers.length) {
+      return peers.slice(0, count);
+    }
+  } catch (error) {
+    // Swallow and use fallback peers.
+  }
+
+  return (fallbackMap[normalizedSymbol] || ["MSFT", "GOOGL"]).slice(0, count);
+}
+
 async function getHistoricalSeries(symbol) {
   try {
     const response = await axios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`, {
@@ -172,7 +243,8 @@ async function getQuote(symbol) {
         : "Company description unavailable.",
     };
 
-    const recommendationData = recommendationResponse.status === "fulfilled" ? recommendationResponse.value.data?.[0] : null;
+    const recommendationSeries = recommendationResponse.status === "fulfilled" ? recommendationResponse.value.data || [] : [];
+    const recommendationData = recommendationSeries?.[0] || null;
     const companyName = profileData.name || normalizedSymbol;
     const [companyNews, chartData, fearGreedData] = await Promise.all([
       getCompanyNews(normalizedSymbol, companyName),
@@ -194,6 +266,7 @@ async function getQuote(symbol) {
         employees: profileData.shareOutstanding ? `${profileData.shareOutstanding.toFixed(0)}M shares` : "",
       },
       recommendation: resolveRecommendation(recommendationData, baseQuote),
+      recommendationTrend: buildRecommendationTrend(recommendationSeries),
       news: companyNews,
       chart: chartData,
       fearGreed: fearGreedData ? {
@@ -217,4 +290,4 @@ async function getQuote(symbol) {
   }
 }
 
-module.exports = { getQuote };
+module.exports = { getQuote, getPeerSymbols };

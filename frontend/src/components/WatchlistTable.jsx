@@ -4,22 +4,33 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api
 
 export default function WatchlistTable() {
   const [stocks, setStocks] = useState([]);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     async function loadWatchlist() {
       try {
         const response = await fetch(`${API_BASE}/watchlist`);
         const data = await response.json();
+        if (!response.ok) {
+          setErrorMessage(data.error || "Unable to load watchlist data.");
+          setStocks([]);
+          return;
+        }
+
         const mapped = (data.watchlist || []).map((item) => ({
           symbol: item.symbol,
-          name: item.symbol,
+          name: item.company || item.symbol,
           price: `$${Number(item.price || 0).toFixed(2)}`,
           change: `${item.change >= 0 ? "+" : ""}${Number(item.change || 0).toFixed(2)}%`,
-          volume: "--",
+          aiRating: item.aiRating || "Hold",
+          alert: item.alertBadge?.label || "Monitor",
         }));
         setStocks(mapped);
+        setErrorMessage("");
       } catch (error) {
         console.error(error);
+        setStocks([]);
+        setErrorMessage("Unable to load watchlist data.");
       }
     }
 
@@ -46,17 +57,24 @@ export default function WatchlistTable() {
               <th>Company</th>
               <th>Price</th>
               <th>Change</th>
-              <th>Volume</th>
+              <th>AI Rating</th>
+              <th>Alert</th>
             </tr>
           </thead>
           <tbody>
+            {errorMessage ? (
+              <tr>
+                <td colSpan="6" className="negative">{errorMessage}</td>
+              </tr>
+            ) : null}
             {stocks.map((stock) => (
               <tr key={stock.symbol}>
                 <td>{stock.symbol}</td>
                 <td>{stock.name}</td>
                 <td>{stock.price}</td>
                 <td className={stock.change.startsWith("+") ? "positive" : "negative"}>{stock.change}</td>
-                <td>{stock.volume}</td>
+                <td>{stock.aiRating}</td>
+                <td>{stock.alert}</td>
               </tr>
             ))}
           </tbody>

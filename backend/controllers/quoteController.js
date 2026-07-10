@@ -9,6 +9,7 @@ async function getQuoteController(req, res, next) {
       quote: analysis.quote,
       company: analysis.company,
       recommendation: analysis.recommendation,
+      recommendationTrend: analysis.recommendationTrend,
       news: analysis.news,
       chart: analysis.chart,
       fearGreed: analysis.fearGreed,

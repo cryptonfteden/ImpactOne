@@ -7,6 +7,7 @@ async function analyze(req, res, next) {
       quote: req.body?.quote || null,
       company: req.body?.company || null,
       recommendation: req.body?.recommendation || null,
+      recommendationTrend: req.body?.recommendationTrend || null,
       news: req.body?.news || [],
       metrics: req.body?.metrics || null,
     };

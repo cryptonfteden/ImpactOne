@@ -48,10 +48,14 @@ export default function AiAnalysisScreen() {
   const [quote, setQuote] = useState(null);
   const [company, setCompany] = useState(null);
   const [recommendation, setRecommendation] = useState(null);
+  const [recommendationTrend, setRecommendationTrend] = useState(null);
   const [news, setNews] = useState([]);
   const [chart, setChart] = useState([]);
   const [fearGreed, setFearGreed] = useState(null);
   const [aiReport, setAiReport] = useState(null);
+  const [aiNotice, setAiNotice] = useState("");
+  const [comparisonRows, setComparisonRows] = useState([]);
+  const [comparisonError, setComparisonError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Searching live market data...");
   const [errorMessage, setErrorMessage] = useState("");
@@ -89,6 +93,7 @@ export default function AiAnalysisScreen() {
       setIsLoading(true);
       setStatusMessage("Searching live market data...");
       setErrorMessage("");
+      setComparisonError("");
 
       try {
         const quoteUrl = `${API_BASE}/quote?symbol=${normalizedTicker}`;
@@ -102,10 +107,13 @@ export default function AiAnalysisScreen() {
             setQuote(null);
             setCompany(null);
             setRecommendation(null);
+            setRecommendationTrend(null);
             setNews([]);
             setChart([]);
             setFearGreed(null);
             setAiReport(null);
+            setAiNotice("");
+            setComparisonRows([]);
             setErrorMessage(quoteData.error || "Unable to load live stock analysis.");
             setStatusMessage("Live market data request failed.");
             return;
@@ -114,33 +122,58 @@ export default function AiAnalysisScreen() {
           setQuote(quoteData.quote || null);
           setCompany(quoteData.company || null);
           setRecommendation(quoteData.recommendation || null);
+          setRecommendationTrend(quoteData.recommendationTrend || null);
           setNews(quoteData.news || []);
           setChart(quoteData.chart || []);
           setFearGreed(quoteData.fearGreed || null);
+          setComparisonRows([]);
+          setAiNotice("");
           setErrorMessage("");
           setStatusMessage(quoteData.quote?.companyDescription ? "Live market data loaded" : "Live market data loaded");
 
           const aiUrl = `${API_BASE}/ai/analyze`;
+          const compareUrl = `${API_BASE}/compare?symbol=${normalizedTicker}`;
           console.log(`[frontend] ai request ${aiUrl}`, { symbol: normalizedTicker });
-          const aiResponse = await fetch(aiUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              symbol: normalizedTicker,
-              context: {
-                quote: quoteData.quote || null,
-                company: quoteData.company || null,
-                recommendation: quoteData.recommendation || null,
-                news: quoteData.news || [],
-                metrics: quoteData.quote || null,
-              },
+          const [aiResponse, compareResponse] = await Promise.all([
+            fetch(aiUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                symbol: normalizedTicker,
+                context: {
+                  quote: quoteData.quote || null,
+                  company: quoteData.company || null,
+                  recommendation: quoteData.recommendation || null,
+                  recommendationTrend: quoteData.recommendationTrend || null,
+                  news: quoteData.news || [],
+                  metrics: quoteData.quote || null,
+                },
+              }),
             }),
-          });
-          const aiData = await aiResponse.json();
+            fetch(compareUrl),
+          ]);
+
+          const aiData = await aiResponse.json().catch(() => ({}));
+          const compareData = await compareResponse.json().catch(() => ({}));
           console.log(`[frontend] ai response`, aiData);
+          console.log(`[frontend] compare response`, compareData);
 
           if (isMounted) {
-            setAiReport(aiData.analysis || null);
+            if (aiResponse.ok && aiData.analysis) {
+              setAiReport(aiData.analysis || null);
+              setAiNotice(aiData.analysis?.providerNotice || "");
+            } else {
+              setAiReport(null);
+              setAiNotice(aiData.error || "AI analysis is temporarily unavailable. Please try again shortly.");
+            }
+
+            if (compareResponse.ok) {
+              setComparisonRows(compareData.comparison || []);
+              setComparisonError("");
+            } else {
+              setComparisonRows([]);
+              setComparisonError(compareData.error || "Comparison data is unavailable right now.");
+            }
           }
         }
       } catch (error) {
@@ -149,10 +182,14 @@ export default function AiAnalysisScreen() {
           setQuote(null);
           setCompany(null);
           setRecommendation(null);
+          setRecommendationTrend(null);
           setNews([]);
           setChart([]);
           setFearGreed(null);
           setAiReport(null);
+          setAiNotice("");
+          setComparisonRows([]);
+          setComparisonError("");
           setErrorMessage(error?.message || "Unable to contact the analysis service.");
           setStatusMessage("Live market data request failed.");
         }
@@ -262,6 +299,8 @@ export default function AiAnalysisScreen() {
             </div>
             <p className="company-description">{recommendation?.reason || "Recommendation data is being loaded."}</p>
             <p className="company-description subtle">{recommendation?.details || ""}</p>
+            <p className="company-description subtle">Trend: {recommendationTrend?.direction || "Unknown"}</p>
+            <p className="company-description subtle">{recommendationTrend?.summary || ""}</p>
           </div>
         </SectionCard>
 
@@ -302,6 +341,7 @@ export default function AiAnalysisScreen() {
               <div className="ai-report__score">Confidence {aiReport.confidenceScore ?? 0}/100</div>
             </div>
             <p className="company-description">{aiReport.executiveSummary || aiReport.summary}</p>
+            {aiNotice ? <p className="company-description subtle">{aiNotice}</p> : null}
             <div className="ai-report__grid">
               <div>
                 <h4>Bull Case</h4>
@@ -331,10 +371,47 @@ export default function AiAnalysisScreen() {
                 <h4>Long-Term Outlook</h4>
                 <p>{aiReport.longTermOutlook}</p>
               </div>
+              <div>
+                <h4>What Changed Today?</h4>
+                <ul>{(aiReport.whatChangedToday || []).map((item) => <li key={item}>{item}</li>)}</ul>
+              </div>
             </div>
           </div>
         ) : (
-          <p className="company-description">The AI report will appear here once the analysis completes.</p>
+          <p className="company-description">{aiNotice || "The AI report will appear here once the analysis completes."}</p>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Ticker Comparison" subtitle="Selected ticker vs peers" className="screen-card">
+        {comparisonRows.length ? (
+          <div className="table-wrapper">
+            <table className="watchlist-table comparison-table">
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th>Price Change</th>
+                  <th>Market Cap</th>
+                  <th>P/E</th>
+                  <th>Analyst Rating</th>
+                  <th>AI Score</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparisonRows.map((row) => (
+                  <tr key={row.symbol}>
+                    <td>{row.symbol}</td>
+                    <td className={row.priceChange >= 0 ? "positive" : "negative"}>{row.priceChange >= 0 ? "+" : ""}{Number(row.priceChange || 0).toFixed(2)}%</td>
+                    <td>{row.marketCap}</td>
+                    <td>{row.pe}</td>
+                    <td>{row.analystRating}</td>
+                    <td>{Number(row.aiScore || 0)}/100</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="company-description">{comparisonError || "Comparison will appear once live data loads."}</p>
         )}
       </SectionCard>
     </div>

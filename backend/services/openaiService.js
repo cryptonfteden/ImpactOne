@@ -17,9 +17,19 @@ function buildMissingKeyResponse(symbol) {
     longTermOutlook: "Long-term outlook remains pending until the OpenAI key is configured.",
     investmentRating: "Hold",
     confidenceScore: 0,
+    whatChangedToday: ["Live AI synthesis is unavailable because no OpenAI key is configured."],
     requiresApiKey: true,
     source: "fallback",
+    providerNotice: "OpenAI is not configured. Add OPENAI_API_KEY to enable premium AI reports.",
   };
+}
+
+function normalizeRating(value) {
+  const raw = String(value || "hold").toLowerCase();
+  if (raw.includes("strong") && raw.includes("buy")) return "Strong Buy";
+  if (raw.includes("buy")) return "Buy";
+  if (raw.includes("sell")) return "Sell";
+  return "Hold";
 }
 
 function getCacheKey(symbol, context) {
@@ -55,11 +65,13 @@ function normalizeAnalysis(payload) {
     catalysts: Array.isArray(payload.catalysts) ? payload.catalysts : [],
     shortTermOutlook: payload.shortTermOutlook || "Short-term outlook pending.",
     longTermOutlook: payload.longTermOutlook || "Long-term outlook pending.",
-    investmentRating: payload.investmentRating || payload.recommendation || "Hold",
-    confidenceScore: Number(payload.confidenceScore || 0),
+    investmentRating: normalizeRating(payload.investmentRating || payload.recommendation || "Hold"),
+    confidenceScore: Math.max(0, Math.min(100, Number(payload.confidenceScore || 0))),
+    whatChangedToday: Array.isArray(payload.whatChangedToday) ? payload.whatChangedToday : [],
     requiresApiKey: Boolean(payload.requiresApiKey),
     source: payload.source || "openai",
     providerError: payload.providerError || null,
+    providerNotice: payload.providerNotice || null,
   };
 }
 
@@ -88,7 +100,7 @@ async function analyzeTicker(symbol, context = {}) {
         messages: [
           {
             role: "system",
-            content: "You are an AI investment analyst. Respond strictly as valid JSON with the following keys: executiveSummary, bullCase, bearCase, valuation, keyRisks, catalysts, shortTermOutlook, longTermOutlook, investmentRating, confidenceScore.",
+            content: "You are a senior equity research analyst. Respond strictly as valid JSON with keys: executiveSummary, bullCase, bearCase, valuation, keyRisks, catalysts, shortTermOutlook, longTermOutlook, investmentRating, confidenceScore, whatChangedToday. Keep the report concise, professional, and decision-oriented. investmentRating must be one of: Strong Buy, Buy, Hold, Sell. confidenceScore must be 0-100.",
           },
           {
             role: "user",
@@ -112,6 +124,11 @@ async function analyzeTicker(symbol, context = {}) {
     return result;
   } catch (error) {
     const errorMessage = error.response?.data?.error?.message || error.message || "Unknown OpenAI error";
+    const friendly = errorMessage.includes("quota")
+      ? "OpenAI quota is currently exceeded. Falling back to deterministic analysis."
+      : errorMessage.includes("Incorrect API key") || errorMessage.includes("invalid_api_key")
+        ? "OpenAI API key is invalid. Falling back to deterministic analysis."
+        : "OpenAI is temporarily unavailable. Falling back to deterministic analysis.";
     console.error("[openai] request failed", error.response?.status, errorMessage);
     const response = normalizeAnalysis({
       symbol: normalizedSymbol,
@@ -137,9 +154,14 @@ async function analyzeTicker(symbol, context = {}) {
       longTermOutlook: "Long-term outlook remains positive if management executes well and the business continues to expand.",
       investmentRating: "Buy",
       confidenceScore: 72,
+      whatChangedToday: [
+        `${normalizedSymbol} moved ${Number(context?.quote?.change || 0).toFixed(2)}% in the latest session.`,
+        `${context?.recommendationTrend?.direction || "Analyst consensus"} recommendation trend based on latest updates.`,
+      ],
       requiresApiKey: false,
       source: "fallback",
       providerError: errorMessage,
+      providerNotice: friendly,
     });
     setCachedAnalysis(cacheKey, response);
     return response;
