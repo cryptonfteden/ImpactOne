@@ -1,6 +1,6 @@
 # ImpactOne - Project Status
 
-Last updated: 2026-07-10 (Sprint 4)
+Last updated: 2026-07-10 (Sprint 7)
 
 ## 1. What Is Already Completed
 - Full React + Express app is running with screen-based dashboard UX and `/api` backend routing.
@@ -33,6 +33,19 @@ Last updated: 2026-07-10 (Sprint 4)
     - Highest risk
     - Latest analyzed ticker + timestamp
   - AI Analysis now shows report "Last updated" timestamp and clearer provider/partial-data notices
+- Sprint 7 alternative data intelligence layer is now live:
+  - Added normalized multi-source alternative intelligence endpoints:
+    - `/api/alt-data/cot`
+    - `/api/alt-data/polymarket`
+    - `/api/alt-data/macro`
+    - `/api/alt-data/sec`
+    - `/api/alt-data/congress`
+    - `/api/alt-data/events`
+    - `/api/alt-data/summary?symbol=...`
+  - AI Analysis now includes a dedicated "Alternative Data Signals" section.
+  - AI analysis endpoint now enriches report payload with `analysis.alternativeDataSignals`.
+  - Added provider placeholders for options flow and crypto on-chain (`not_connected`) without paid API dependency.
+  - Added source-level caching and graceful fallbacks for all alternative-data services.
 - Provider-resilient error handling is in place:
   - Finnhub failures return user-friendly messages
   - OpenAI failures expose user-friendly notice and fallback report instead of crashing UI
@@ -125,6 +138,18 @@ ImpactOne/
   - Structured investment report generation
 - Backend market impact engine
   - Derived score from news sentiment, analyst trend, price momentum, fear & greed, and volatility
+- CFTC public reporting dataset (COT)
+  - Institutional/speculator positioning and net/weekly signal normalization
+- Polymarket gamma API
+  - Prediction probabilities, volume/liquidity, trend, related sectors/tickers
+- FRED public CSV feeds
+  - FEDFUNDS, CPIAUCSL, UNRATE, M2SL, DGS10 with macro regime normalization
+- SEC EDGAR submissions API
+  - Latest 10-K/10-Q/8-K/Form 4 filings and AI/fallback filing signal summary
+- House Stock Watcher dataset
+  - Congressional trade normalization and ticker/sector matching signal
+- Financial Modeling Prep demo calendar feeds
+  - Economic + earnings calendar ingestion with fallback events
 
 ## 5. Environment Variables
 
@@ -141,6 +166,10 @@ ImpactOne/
 - `POLYGON_API_KEY`
 - `NEWS_API_KEY`
 - `ALPHA_VANTAGE_API_KEY`
+
+Sprint 7 notes:
+- No secrets are hardcoded for alternative data integrations.
+- Options flow and on-chain integrations are scaffolded placeholders and do not require paid provider keys.
 
 Backend env loading is handled by `backend/config/env.js` and reads from root/frontend/backend env files (`.env` and `.env.local`).
 
@@ -225,6 +254,40 @@ Sprint 4 outcomes:
 - Move watchlist persistence to backend user profiles.
 - Add AI report history and per-symbol timeline.
 - Add production-safe logging levels and request tracing.
+
+## 12. Sprint 7 - Alternative Data Intelligence
+
+Sprint 7 outcomes:
+- Added alternative data backend service layer with caching + fallback:
+  - `backend/services/altDataService.js`
+  - `backend/services/altDataCache.js`
+- Added dedicated controller and routes:
+  - `backend/controllers/altDataController.js`
+  - `backend/routes/index.js` (`/api/alt-data/*`)
+- Added frontend API module:
+  - `frontend/src/services/api/altDataApi.js`
+- Dashboard now includes alternative-data widgets:
+  - Smart Money Positioning
+  - Prediction Market Signals
+  - Macro Regime
+  - Upcoming Events
+  - Political/Regulatory Watch
+- AI Analysis now includes "Alternative Data Signals":
+  - Smart money positioning
+  - Prediction market probabilities
+  - Macro regime
+  - SEC filing signal
+  - Political trading signal
+  - Options/on-chain status
+  - Upcoming event risk
+  - Impacted sectors
+  - Related tickers
+  - Confidence score
+
+Verification set used for Sprint 7:
+- Symbols: `AAPL`, `NVDA`, `TSLA`, `BTC`, `XOM` (oil/energy proxy)
+- Confirmed endpoint-level responses for all `/api/alt-data/*` routes.
+- Confirmed `POST /api/ai/analyze` remains functional and includes `alternativeDataSignals`.
 
 ## Quick Handoff For New Developers
 1. Install dependencies at root (`npm install`) and frontend if needed (`npm --prefix frontend install`).

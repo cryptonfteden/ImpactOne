@@ -1,5 +1,6 @@
 const { analyzeTicker } = require("../services/openaiService");
 const { analyzeMarketImpact } = require("../services/marketImpactService");
+const { getAltDataSummary } = require("../services/altDataService");
 
 async function analyze(req, res, next) {
   try {
@@ -18,13 +19,14 @@ async function analyze(req, res, next) {
     console.log(`[ai-controller] request method=${req.method} symbol=${symbol}`);
     console.log(`[ai-controller] request body=${JSON.stringify(req.body || {}).slice(0, 2000)}`);
 
-    const [analysis, marketImpact] = await Promise.all([
+    const [altDataSummary, analysis, marketImpact] = await Promise.all([
+      getAltDataSummary({ symbol }).catch(() => null),
       analyzeTicker(symbol, context),
       analyzeMarketImpact(symbol, context),
     ]);
     console.log(`[ai-controller] response analysis=${JSON.stringify(analysis).slice(0, 4000)}`);
     console.log(`[ai-controller] response marketImpact=${JSON.stringify(marketImpact).slice(0, 4000)}`);
-    res.json({ symbol, analysis: { ...analysis, marketImpact } });
+    res.json({ symbol, analysis: { ...analysis, marketImpact, alternativeDataSignals: altDataSummary?.signals || null } });
   } catch (error) {
     console.error("[ai-controller] failure", error);
     next(error);

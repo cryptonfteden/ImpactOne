@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import WatchlistTable from "./WatchlistTable";
 import AIInsightsSidebar from "./AIInsightsSidebar";
 import useWatchlist from "../hooks/useWatchlist";
-import { watchlistApi } from "../services/api";
+import { altDataApi, watchlistApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 
 export default function DashboardHome() {
@@ -10,6 +10,7 @@ export default function DashboardHome() {
   const [watchlistRows, setWatchlistRows] = useState([]);
   const [watchlistError, setWatchlistError] = useState("");
   const [watchlistLoading, setWatchlistLoading] = useState(false);
+  const [altSummary, setAltSummary] = useState(null);
 
   useEffect(() => {
     async function loadWatchlistIntelligence() {
@@ -34,6 +35,30 @@ export default function DashboardHome() {
     }
 
     loadWatchlistIntelligence();
+  }, [watchlist]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadAltSummary() {
+      const anchorSymbol = watchlist[0] || "AAPL";
+      try {
+        const summary = await altDataApi.getSummary(anchorSymbol);
+        if (isMounted) {
+          setAltSummary(summary);
+        }
+      } catch (error) {
+        logError("Dashboard alt summary load failed", error);
+        if (isMounted) {
+          setAltSummary(null);
+        }
+      }
+    }
+
+    loadAltSummary();
+    return () => {
+      isMounted = false;
+    };
   }, [watchlist]);
 
   const fearGreedValue = useMemo(() => {
@@ -73,6 +98,10 @@ export default function DashboardHome() {
   }, [watchlistRows]);
 
   const positiveCount = watchlistRows.filter((row) => Number(row.change || 0) >= 0).length;
+  const altSignals = altSummary?.signals || null;
+  const topPrediction = altSignals?.predictionMarketProbabilities || null;
+  const macroRegime = altSignals?.macroRegime || null;
+  const upcomingEvents = altSignals?.upcomingEventRisk || [];
 
   return (
     <main className="dashboard-content premium-dashboard">
@@ -149,6 +178,77 @@ export default function DashboardHome() {
               </div>
             )) : <p className="company-description subtle">No movers yet.</p>}
           </div>
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Smart Money Positioning</div>
+          {altSignals ? (
+            <div className="widget-list">
+              <div className="widget-list-item">
+                <strong>{altSignals.smartMoneyPositioning?.signal || "Neutral"}</strong>
+                <span>{altSignals.smartMoneyPositioning?.market || "COT"}</span>
+              </div>
+              <p className="company-description subtle">Net {Number(altSignals.smartMoneyPositioning?.netPositioning || 0).toLocaleString()} | Weekly {Number(altSignals.smartMoneyPositioning?.weeklyChange || 0).toLocaleString()}</p>
+            </div>
+          ) : (
+            <p className="company-description subtle">COT feed loading...</p>
+          )}
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Prediction Market Signals</div>
+          {topPrediction ? (
+            <div className="widget-list">
+              <div className="widget-list-item">
+                <strong>{Math.round(Number(topPrediction.probability || 0) * 100)}%</strong>
+                <span>{topPrediction.trend}</span>
+              </div>
+              <p className="company-description">{topPrediction.event}</p>
+            </div>
+          ) : (
+            <p className="company-description subtle">Prediction market feed loading...</p>
+          )}
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Macro Regime</div>
+          {macroRegime ? (
+            <div className="widget-list">
+              <div className="widget-list-item"><strong>Risk</strong><span>{macroRegime.riskMode}</span></div>
+              <div className="widget-list-item"><strong>Inflation</strong><span>{macroRegime.inflationPressure}</span></div>
+              <div className="widget-list-item"><strong>Recession</strong><span>{macroRegime.recessionRisk}</span></div>
+            </div>
+          ) : (
+            <p className="company-description subtle">Macro regime loading...</p>
+          )}
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Upcoming Events</div>
+          {upcomingEvents.length ? (
+            <div className="widget-list">
+              {upcomingEvents.slice(0, 3).map((event) => (
+                <div key={`${event.date}-${event.event}`} className="widget-list-item">
+                  <strong>{event.event}</strong>
+                  <span>{event.date}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="company-description subtle">No high-risk events in the next window.</p>
+          )}
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Political/Regulatory Watch</div>
+          {altSignals ? (
+            <>
+              <p className="company-description">{altSignals.politicalTradingSignal || "No active signal."}</p>
+              <p className="company-description subtle">SEC signal: {altSignals.secFilingSignal || "Unavailable"}</p>
+            </>
+          ) : (
+            <p className="company-description subtle">Political and filing watch loading...</p>
+          )}
         </article>
       </section>
 

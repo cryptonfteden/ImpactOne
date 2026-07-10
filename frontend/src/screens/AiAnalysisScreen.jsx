@@ -3,7 +3,7 @@ import SectionCard from "../components/SectionCard";
 import { SafeList, SafeValue } from "../components/SafeValue";
 import useWatchlist from "../hooks/useWatchlist";
 import { Button, Input, LoadingSpinner } from "../components/ui";
-import { analysisApi, marketApi } from "../services/api";
+import { altDataApi, analysisApi, marketApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 
 function PriceChart({ points }) {
@@ -64,6 +64,8 @@ export default function AiAnalysisScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Searching live market data...");
   const [errorMessage, setErrorMessage] = useState("");
+  const [altSignals, setAltSignals] = useState(null);
+  const [altSignalsError, setAltSignalsError] = useState("");
 
   const { watchlist, toggleTicker } = useWatchlist();
 
@@ -125,7 +127,7 @@ export default function AiAnalysisScreen() {
           setErrorMessage("");
           setStatusMessage(quoteData.quote?.companyDescription ? "Live market data loaded" : "Live market data loaded");
 
-          const [aiResponse, compareResponse] = await Promise.allSettled([
+          const [aiResponse, compareResponse, altResponse] = await Promise.allSettled([
             analysisApi.analyze({
                 symbol: normalizedTicker,
                 context: {
@@ -140,6 +142,7 @@ export default function AiAnalysisScreen() {
                 },
               }),
             analysisApi.compare(normalizedTicker),
+            altDataApi.getSummary(normalizedTicker),
           ]);
 
           const aiData = aiResponse.status === "fulfilled" ? aiResponse.value || {} : { error: aiResponse.reason?.message };
@@ -176,6 +179,15 @@ export default function AiAnalysisScreen() {
               setComparisonRows([]);
               setComparisonError(compareData.error || "Comparison data is unavailable right now.");
             }
+
+            const altResult = altResponse;
+            if (altResult?.status === "fulfilled") {
+              setAltSignals(altResult.value?.signals || aiData.analysis?.alternativeDataSignals || null);
+              setAltSignalsError("");
+            } else {
+              setAltSignals(aiData.analysis?.alternativeDataSignals || null);
+              setAltSignalsError(altResult?.reason?.message || "Alternative data feeds are temporarily unavailable.");
+            }
           }
         }
       } catch (error) {
@@ -194,6 +206,8 @@ export default function AiAnalysisScreen() {
           setAiLastUpdated("");
           setComparisonRows([]);
           setComparisonError("");
+          setAltSignals(null);
+          setAltSignalsError("Alternative data feeds are temporarily unavailable.");
           setErrorMessage(error?.message || "Unable to contact the analysis service.");
           setStatusMessage("Live market data request failed.");
         }
@@ -236,6 +250,7 @@ export default function AiAnalysisScreen() {
     { id: "ai-overview", label: "Overview" },
     { id: "ai-report", label: "AI Report" },
     { id: "ai-impact", label: "Market Impact" },
+    { id: "ai-alt", label: "Alt Data" },
     { id: "ai-sector", label: "Sector Impact" },
     { id: "ai-compare", label: "Compare" },
   ];
@@ -450,6 +465,55 @@ export default function AiAnalysisScreen() {
           </div>
         ) : (
           <p className="company-description">Market impact details will appear once live data loads.</p>
+        )}
+      </SectionCard>
+      </div>
+
+      <div id="ai-alt" className="analysis-section-block">
+      <SectionCard title="Alternative Data Signals" subtitle="Multi-source intelligence layer" icon="⬢" className="screen-card">
+        {altSignals ? (
+          <div className="ai-report__grid">
+            <div>
+              <h4>Smart money positioning</h4>
+              <p className="company-description">{altSignals.smartMoneyPositioning?.signal || "Unavailable"}</p>
+              <p className="company-description subtle">Net {Number(altSignals.smartMoneyPositioning?.netPositioning || 0).toLocaleString()} | Weekly {Number(altSignals.smartMoneyPositioning?.weeklyChange || 0).toLocaleString()}</p>
+            </div>
+            <div>
+              <h4>Prediction market probabilities</h4>
+              <p className="company-description">{altSignals.predictionMarketProbabilities?.event || "Unavailable"}</p>
+              <p className="company-description subtle">{Math.round(Number(altSignals.predictionMarketProbabilities?.probability || 0) * 100)}% | {altSignals.predictionMarketProbabilities?.trend || "N/A"}</p>
+            </div>
+            <div>
+              <h4>Macro regime</h4>
+              <p className="company-description">Risk mode: {altSignals.macroRegime?.riskMode || "N/A"}</p>
+              <p className="company-description subtle">Inflation: {altSignals.macroRegime?.inflationPressure || "N/A"} | Recession: {altSignals.macroRegime?.recessionRisk || "N/A"}</p>
+            </div>
+            <div>
+              <h4>SEC filing signal</h4>
+              <p className="company-description"><SafeValue value={altSignals.secFilingSignal || "Unavailable"} /></p>
+            </div>
+            <div>
+              <h4>Political trading signal</h4>
+              <p className="company-description"><SafeValue value={altSignals.politicalTradingSignal || "Unavailable"} /></p>
+            </div>
+            <div>
+              <h4>Options/on-chain status</h4>
+              <p className="company-description">Options: {altSignals.optionsStatus?.status || "not_connected"}</p>
+              <p className="company-description subtle">On-chain: {altSignals.onChainStatus?.status || "not_connected"}</p>
+            </div>
+            <div>
+              <h4>Upcoming event risk</h4>
+              <SafeList value={(altSignals.upcomingEventRisk || []).map((event) => `${event.date} - ${event.event}`)} fallback="No immediate high-risk events." />
+            </div>
+            <div>
+              <h4>Impacted sectors and tickers</h4>
+              <p className="company-description">Sectors: {(altSignals.impactedSectors || []).join(", ") || "N/A"}</p>
+              <p className="company-description subtle">Tickers: {(altSignals.relatedTickers || []).join(", ") || "N/A"}</p>
+              <p className="company-description subtle">Confidence score: {Number(altSignals.confidenceScore || 0)}/100</p>
+            </div>
+          </div>
+        ) : (
+          <p className="company-description">{altSignalsError || "Alternative data signals will appear once feeds load."}</p>
         )}
       </SectionCard>
       </div>
