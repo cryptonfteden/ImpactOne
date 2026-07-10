@@ -1,4 +1,4 @@
-const navItems = ["Dashboard", "Market News", "AI Analysis", "Watchlist", "Alerts", "Portfolio"];
+const navItems = ["Dashboard", "AI Analysis", "Watchlist", "Portfolio", "Market News", "Alerts", "Settings"];
 
 export default function Sidebar({ activeView, onNavigate, favorites = [], onSelectFavorite }) {
   return (

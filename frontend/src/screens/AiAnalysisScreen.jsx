@@ -244,6 +244,13 @@ export default function AiAnalysisScreen() {
   const marketOpportunities = marketImpact?.marketOpportunities || [];
   const finalRating = aiReport?.investmentRating || aiReport?.finalRating || "Hold";
   const isPartialReport = Boolean(aiReport && aiReport.source && aiReport.source !== "openai");
+  const sectionTabs = [
+    { id: "ai-overview", label: "Overview" },
+    { id: "ai-report", label: "AI Report" },
+    { id: "ai-impact", label: "Market Impact" },
+    { id: "ai-sector", label: "Sector Impact" },
+    { id: "ai-compare", label: "Compare" },
+  ];
 
   return (
     <div className="screen-page">
@@ -257,7 +264,14 @@ export default function AiAnalysisScreen() {
         </div>
       </section>
 
-      <SectionCard title="Research workspace" subtitle="Ticker input" className="screen-card">
+      <nav className="analysis-sticky-nav" aria-label="AI Analysis sections">
+        {sectionTabs.map((item) => (
+          <a key={item.id} href={`#${item.id}`} className="analysis-sticky-nav__link">{item.label}</a>
+        ))}
+      </nav>
+
+      <div id="ai-overview" className="analysis-section-block">
+      <SectionCard title="Research workspace" subtitle="Ticker input" icon="⌕" className="screen-card">
         <div className="analysis-search">
           <input
             value={searchTicker}
@@ -279,9 +293,10 @@ export default function AiAnalysisScreen() {
           {isFavorite ? "Remove favorite" : "Save favorite"}
         </button>
       </SectionCard>
+      </div>
 
       <div className="analysis-grid">
-        <SectionCard title="Market snapshot" subtitle="Live quote details" className="screen-card">
+        <SectionCard title="Market snapshot" subtitle="Live quote details" icon="◉" className="screen-card">
           <div className="quote-card">
             <div className="quote-card__symbol">{ticker}</div>
             <div className="quote-card__price">${Number(quote?.price || 0).toFixed(2)}</div>
@@ -301,7 +316,7 @@ export default function AiAnalysisScreen() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Company information" subtitle="Profile" className="screen-card">
+        <SectionCard title="Company information" subtitle="Profile" icon="◌" className="screen-card">
           <div className="company-profile">
             <div className="company-profile__name">{company?.name || ticker}</div>
             <div className="company-profile__meta">{company?.exchange || "US exchange"} • {company?.country || "US"}</div>
@@ -311,7 +326,7 @@ export default function AiAnalysisScreen() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Recommendation" subtitle="Analyst posture" className="screen-card">
+        <SectionCard title="Recommendation" subtitle="Analyst posture" icon="▲" className="screen-card">
           <div className="score-card">
             <div className={`score-card__recommendation ${recommendation?.label ? recommendation.label.toLowerCase().replace(/\s+/g, "-") : "hold"}`}>
               {recommendation?.label || "Hold"}
@@ -323,7 +338,7 @@ export default function AiAnalysisScreen() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Fear & Greed" subtitle="Sentiment indicator" className="screen-card">
+        <SectionCard title="Fear & Greed" subtitle="Sentiment indicator" icon="◔" className="screen-card">
           {fearGreed ? (
             <div className="fear-greed-card">
               <div className="fear-greed-card__value">{fearGreed.value}</div>
@@ -335,11 +350,11 @@ export default function AiAnalysisScreen() {
           )}
         </SectionCard>
 
-        <SectionCard title="Price chart" subtitle="30-day daily close" className="screen-card">
+        <SectionCard title="Price chart" subtitle="30-day daily close" icon="◣" className="screen-card">
           <PriceChart points={chart} />
         </SectionCard>
 
-        <SectionCard title="Recent news" subtitle="Latest company coverage" className="screen-card">
+        <SectionCard title="Recent news" subtitle="Latest company coverage" icon="◍" className="screen-card">
           <div className="news-list">
             {news.length ? news.map((item) => (
               <div className="news-item" key={`${item.headline}-${item.url}`}>
@@ -352,13 +367,19 @@ export default function AiAnalysisScreen() {
         </SectionCard>
       </div>
 
-      <SectionCard title="AI Report" subtitle="Structured investment analysis" className="screen-card">
+      <div id="ai-report" className="analysis-section-block">
+      <SectionCard title="AI Report" subtitle="Structured investment analysis" icon="✦" className="screen-card ai-report-card">
         {isLoading && !aiReport ? (
           <div className="analysis-loading-panel">
             <span className="loading-spinner" aria-label="Generating AI report" />
             <div>
               <div className="analysis-loading-panel__title">Generating market impact engine analysis...</div>
               <p className="company-description subtle">Gathering live quotes, news, analyst signals, and peer context.</p>
+            </div>
+            <div className="loading-bars" aria-hidden="true">
+              <span />
+              <span />
+              <span />
             </div>
           </div>
         ) : aiReport ? (
@@ -411,8 +432,10 @@ export default function AiAnalysisScreen() {
           <div className="company-description"><SafeValue value={aiNotice || "The AI report will appear here once the analysis completes."} /></div>
         )}
       </SectionCard>
+      </div>
 
-      <SectionCard title="Market Impact Engine" subtitle="Event-driven score" className="screen-card">
+      <div id="ai-impact" className="analysis-section-block">
+      <SectionCard title="Market Impact Engine" subtitle="Event-driven score" icon="◎" className="screen-card">
         {marketImpact ? (
           <div className="impact-engine">
             <div className="impact-engine__score">
@@ -441,8 +464,10 @@ export default function AiAnalysisScreen() {
           <p className="company-description">Market impact details will appear once live data loads.</p>
         )}
       </SectionCard>
+      </div>
 
-      <SectionCard title="Sector Impact" subtitle="Peers and market opportunities" className="screen-card">
+      <div id="ai-sector" className="analysis-section-block">
+      <SectionCard title="Sector Impact" subtitle="Peers and market opportunities" icon="◈" className="screen-card">
         {sectorImpact ? (
           <div className="sector-impact">
             <div className="sector-impact__summary">
@@ -489,8 +514,10 @@ export default function AiAnalysisScreen() {
           <p className="company-description">Sector impact will appear once the selected ticker loads.</p>
         )}
       </SectionCard>
+      </div>
 
-      <SectionCard title="Ticker Comparison" subtitle="Selected ticker vs peers" className="screen-card">
+      <div id="ai-compare" className="analysis-section-block">
+      <SectionCard title="Ticker Comparison" subtitle="Selected ticker vs peers" icon="◫" className="screen-card">
         {comparisonRows.length ? (
           <div className="table-wrapper">
             <table className="watchlist-table comparison-table">
@@ -522,6 +549,7 @@ export default function AiAnalysisScreen() {
           <div className="company-description"><SafeValue value={comparisonError || "Comparison will appear once live data loads."} /></div>
         )}
       </SectionCard>
+      </div>
     </div>
   );
 }
