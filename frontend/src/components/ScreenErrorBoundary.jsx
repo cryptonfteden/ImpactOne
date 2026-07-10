@@ -1,4 +1,5 @@
 import React from "react";
+import { logError } from "../utils/errorHandling";
 
 export default class ScreenErrorBoundary extends React.Component {
   constructor(props) {
@@ -11,7 +12,7 @@ export default class ScreenErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error) {
-    console.error("[frontend] AI Analysis render failed", error);
+    logError("AI Analysis render failed", error);
   }
 
   render() {

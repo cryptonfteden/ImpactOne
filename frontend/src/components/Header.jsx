@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
+import { Button, Input } from "./ui";
 
 const CORE_SYMBOLS = [
   "AAPL",
@@ -18,7 +19,7 @@ const CORE_SYMBOLS = [
   "COST",
 ];
 
-export default function Header({ watchlist = [], onQuickSearch }) {
+function Header({ watchlist = [], onQuickSearch }) {
   const [query, setQuery] = useState("");
 
   const suggestions = useMemo(() => {
@@ -31,7 +32,7 @@ export default function Header({ watchlist = [], onQuickSearch }) {
     return merged.filter((symbol) => symbol.startsWith(normalizedQuery)).slice(0, 8);
   }, [query, watchlist]);
 
-  const submitTicker = (value) => {
+  const submitTicker = useCallback((value) => {
     const normalized = String(value || "").trim().toUpperCase();
     if (!normalized) {
       return;
@@ -39,7 +40,7 @@ export default function Header({ watchlist = [], onQuickSearch }) {
 
     setQuery(normalized);
     onQuickSearch?.(normalized);
-  };
+  }, [onQuickSearch]);
 
   return (
     <header className="header-bar">
@@ -51,7 +52,7 @@ export default function Header({ watchlist = [], onQuickSearch }) {
       <div className="header-controls">
         <label className="search-box" htmlFor="company-search">
           <span aria-hidden="true">🔎</span>
-          <input
+          <Input
             id="company-search"
             type="text"
             placeholder="Search ticker..."
@@ -63,14 +64,14 @@ export default function Header({ watchlist = [], onQuickSearch }) {
               }
             }}
           />
-          <button type="button" className="search-submit" onClick={() => submitTicker(query)}>Go</button>
+          <Button type="button" className="search-submit" onClick={() => submitTicker(query)}>Go</Button>
         </label>
         {suggestions.length ? (
           <div className="header-autocomplete">
             {suggestions.map((symbol) => (
-              <button key={symbol} type="button" className="header-suggestion" onClick={() => submitTicker(symbol)}>
+              <Button key={symbol} type="button" className="header-suggestion" onClick={() => submitTicker(symbol)}>
                 {symbol}
-              </button>
+              </Button>
             ))}
           </div>
         ) : null}
@@ -79,3 +80,5 @@ export default function Header({ watchlist = [], onQuickSearch }) {
     </header>
   );
 }
+
+export default memo(Header);

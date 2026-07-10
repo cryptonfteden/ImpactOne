@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import WatchlistTable from "./WatchlistTable";
 import AIInsightsSidebar from "./AIInsightsSidebar";
 import useWatchlist from "../hooks/useWatchlist";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+import { watchlistApi } from "../services/api";
+import { logError } from "../utils/errorHandling";
 
 export default function DashboardHome() {
   const { watchlist } = useWatchlist();
@@ -21,20 +21,13 @@ export default function DashboardHome() {
 
       setWatchlistLoading(true);
       try {
-        const symbols = watchlist.join(",");
-        const response = await fetch(`${API_BASE}/watchlist?symbols=${symbols}`);
-        const data = await response.json();
-        if (!response.ok) {
-          setWatchlistRows([]);
-          setWatchlistError(data.error || "Unable to load watchlist data.");
-          return;
-        }
-
+        const data = await watchlistApi.getIntelligence(watchlist);
         setWatchlistRows(data.watchlist || []);
         setWatchlistError("");
       } catch (error) {
+        logError("Dashboard watchlist load failed", error);
         setWatchlistRows([]);
-        setWatchlistError("Unable to load watchlist data.");
+        setWatchlistError(error?.message || "Unable to load watchlist data.");
       } finally {
         setWatchlistLoading(false);
       }

@@ -1,6 +1,9 @@
+import { memo } from "react";
+import { Button } from "../components/ui";
+
 const navItems = ["Dashboard", "AI Analysis", "Watchlist", "Portfolio", "Market News", "Alerts", "Settings"];
 
-export default function Sidebar({ activeView, onNavigate, favorites = [], onSelectFavorite }) {
+function Sidebar({ activeView, onNavigate, favorites = [], onSelectFavorite }) {
   return (
     <aside className="sidebar">
       <div className="logo">ImpactOne</div>
@@ -10,14 +13,14 @@ export default function Sidebar({ activeView, onNavigate, favorites = [], onSele
           const isActive = activeView === item;
 
           return (
-            <button
+            <Button
               key={item}
               type="button"
               className={`sidebar-link ${isActive ? "active" : ""}`.trim()}
               onClick={() => onNavigate(item)}
             >
               {item}
-            </button>
+            </Button>
           );
         })}
       </nav>
@@ -27,14 +30,14 @@ export default function Sidebar({ activeView, onNavigate, favorites = [], onSele
         {favorites.length ? (
           <div className="favorites-list">
             {favorites.map((ticker) => (
-              <button
+              <Button
                 key={ticker}
                 type="button"
                 className="favorite-item"
                 onClick={() => onSelectFavorite(ticker)}
               >
                 {ticker}
-              </button>
+              </Button>
             ))}
           </div>
         ) : (
@@ -44,3 +47,5 @@ export default function Sidebar({ activeView, onNavigate, favorites = [], onSele
     </aside>
   );
 }
+
+export default memo(Sidebar);

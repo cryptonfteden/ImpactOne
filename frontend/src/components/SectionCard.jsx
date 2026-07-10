@@ -1,6 +1,8 @@
+import { Card } from "./ui";
+
 export default function SectionCard({ title, subtitle, icon = "", children, className = "" }) {
   return (
-    <section className={`panel-card ${className}`.trim()}>
+    <Card className={`panel-card ${className}`.trim()}>
       {(title || subtitle) && (
         <div className="panel-card__header">
           <div>
@@ -10,6 +12,6 @@ export default function SectionCard({ title, subtitle, icon = "", children, clas
         </div>
       )}
       <div className="section-card__body">{children}</div>
-    </section>
+    </Card>
   );
 }

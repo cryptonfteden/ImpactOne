@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
 import useWatchlist from "../hooks/useWatchlist";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+import { Button, EmptyState, ErrorState, Input } from "../components/ui";
+import { watchlistApi } from "../services/api";
+import { logError } from "../utils/errorHandling";
 
 function MiniSparkline({ change = 0, score = 50 }) {
   const direction = Number(change || 0) >= 0 ? 1 : -1;
@@ -41,19 +42,11 @@ export default function WatchlistScreen() {
       }
 
       try {
-        const symbols = watchlist.join(",");
-        const response = await fetch(`${API_BASE}/watchlist?symbols=${symbols}`);
-        const data = await response.json();
-
-        if (!response.ok) {
-          setRows([]);
-          setErrorMessage(data.error || "Unable to load watchlist intelligence.");
-          return;
-        }
-
+        const data = await watchlistApi.getIntelligence(watchlist);
         setRows(data.watchlist || []);
         setErrorMessage("");
       } catch (error) {
+        logError("Watchlist load failed", error);
         setRows([]);
         setErrorMessage(error?.message || "Unable to load watchlist intelligence.");
       }
@@ -89,7 +82,7 @@ export default function WatchlistScreen() {
 
       <SectionCard title="Watchlist" subtitle="AI-ranked symbols" icon="◈" className="screen-card">
         <div className="analysis-search">
-          <input
+          <Input
             value={tickerInput}
             onChange={(event) => setTickerInput(event.target.value.toUpperCase())}
             onKeyDown={(event) => {
@@ -99,7 +92,7 @@ export default function WatchlistScreen() {
             }}
             placeholder="Add ticker (e.g. AAPL)"
           />
-          <button type="button" onClick={handleAddTicker}>Add</button>
+          <Button type="button" onClick={handleAddTicker}>Add</Button>
         </div>
         <div className="company-description subtle">Tracked tickers: {watchlist.length}</div>
 
@@ -108,9 +101,9 @@ export default function WatchlistScreen() {
             {rows.map((item) => (
               <article key={item.symbol} className="watch-card-premium">
                 <div className="watch-card-premium__top">
-                  <button type="button" className="favorite-item favorite-item--inline" onClick={() => openTicker(item.symbol)}>
+                  <Button type="button" className="favorite-item favorite-item--inline" onClick={() => openTicker(item.symbol)}>
                     {item.symbol}
-                  </button>
+                  </Button>
                   <span className="score-badge">AI {Number(item.aiScore || 0)}/100</span>
                 </div>
 
@@ -138,15 +131,17 @@ export default function WatchlistScreen() {
                 <div className="watch-card-premium__footer">
                   <span className={`alert-badge ${item.alertBadge?.type || "monitor"}`}>{item.alertBadge?.label || "Monitor"}</span>
                   <div className="watch-card-premium__actions">
-                    <button type="button" className="ghost-button" onClick={() => openTicker(item.symbol)}>Analyze</button>
-                    <button type="button" className="ghost-button" onClick={() => removeTicker(item.symbol)}>Remove</button>
+                    <Button type="button" className="ghost-button" onClick={() => openTicker(item.symbol)}>Analyze</Button>
+                    <Button type="button" className="ghost-button" onClick={() => removeTicker(item.symbol)}>Remove</Button>
                   </div>
                 </div>
               </article>
             ))}
           </div>
         ) : (
-          <p className="company-description">{errorMessage || "No watchlist symbols yet. Add tickers to generate premium watch intelligence."}</p>
+          errorMessage
+            ? <ErrorState message={errorMessage} />
+            : <EmptyState message="No watchlist symbols yet. Add tickers to generate premium watch intelligence." />
         )}
       </SectionCard>
     </div>

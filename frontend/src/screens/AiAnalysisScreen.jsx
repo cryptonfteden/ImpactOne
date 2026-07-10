@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
 import { SafeList, SafeValue } from "../components/SafeValue";
 import useWatchlist from "../hooks/useWatchlist";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+import { Button, Input, LoadingSpinner } from "../components/ui";
+import { analysisApi, marketApi } from "../services/api";
+import { logError } from "../utils/errorHandling";
 
 function PriceChart({ points }) {
   if (!points?.length) {
@@ -91,14 +92,10 @@ export default function AiAnalysisScreen() {
       setAiError("");
 
       try {
-        const quoteUrl = `${API_BASE}/quote?symbol=${normalizedTicker}`;
-        console.log(`[frontend] quote request ${quoteUrl}`);
-        const quoteResponse = await fetch(quoteUrl);
-        const quoteData = await quoteResponse.json();
-        console.log(`[frontend] quote response`, quoteData);
+        const quoteData = await marketApi.getQuote(normalizedTicker);
 
         if (isMounted) {
-          if (!quoteResponse.ok || quoteData.error) {
+          if (quoteData.error) {
             setQuote(null);
             setCompany(null);
             setRecommendation(null);
@@ -128,14 +125,8 @@ export default function AiAnalysisScreen() {
           setErrorMessage("");
           setStatusMessage(quoteData.quote?.companyDescription ? "Live market data loaded" : "Live market data loaded");
 
-          const aiUrl = `${API_BASE}/ai/analyze`;
-          const compareUrl = `${API_BASE}/compare?symbol=${normalizedTicker}`;
-          console.log(`[frontend] ai request ${aiUrl}`, { symbol: normalizedTicker });
-          const [aiResponse, compareResponse] = await Promise.all([
-            fetch(aiUrl, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
+          const [aiResponse, compareResponse] = await Promise.allSettled([
+            analysisApi.analyze({
                 symbol: normalizedTicker,
                 context: {
                   quote: quoteData.quote || null,
@@ -148,17 +139,14 @@ export default function AiAnalysisScreen() {
                   metrics: quoteData.quote || null,
                 },
               }),
-            }),
-            fetch(compareUrl),
+            analysisApi.compare(normalizedTicker),
           ]);
 
-          const aiData = await aiResponse.json().catch(() => ({}));
-          const compareData = await compareResponse.json().catch(() => ({}));
-          console.log(`[frontend] ai response`, aiData);
-          console.log(`[frontend] compare response`, compareData);
+          const aiData = aiResponse.status === "fulfilled" ? aiResponse.value || {} : { error: aiResponse.reason?.message };
+          const compareData = compareResponse.status === "fulfilled" ? compareResponse.value || {} : { error: compareResponse.reason?.message };
 
           if (isMounted) {
-            if (aiResponse.ok && aiData.analysis) {
+            if (aiData.analysis) {
               setAiReport(aiData.analysis || null);
               setAiNotice(aiData.analysis?.providerNotice || "");
               setAiError("");
@@ -181,7 +169,7 @@ export default function AiAnalysisScreen() {
               setAiLastUpdated("");
             }
 
-            if (compareResponse.ok) {
+            if (compareData.comparison) {
               setComparisonRows(compareData.comparison || []);
               setComparisonError("");
             } else {
@@ -192,7 +180,7 @@ export default function AiAnalysisScreen() {
         }
       } catch (error) {
         if (isMounted) {
-          console.error("[frontend] analysis request failed", error);
+          logError("analysis request failed", error);
           setQuote(null);
           setCompany(null);
           setRecommendation(null);
@@ -273,7 +261,7 @@ export default function AiAnalysisScreen() {
       <div id="ai-overview" className="analysis-section-block">
       <SectionCard title="Research workspace" subtitle="Ticker input" icon="⌕" className="screen-card">
         <div className="analysis-search">
-          <input
+          <Input
             value={searchTicker}
             onChange={(event) => setSearchTicker(event.target.value.toUpperCase())}
             onKeyDown={(event) => {
@@ -283,15 +271,15 @@ export default function AiAnalysisScreen() {
             }}
             placeholder="Enter ticker"
           />
-          <button type="button" onClick={handleSearch}>Analyze</button>
+          <Button type="button" onClick={handleSearch}>Analyze</Button>
         </div>
         <div className="analysis-search__status">
-          {isLoading ? <span className="loading-spinner" aria-label="Loading" /> : null}
+          {isLoading ? <LoadingSpinner /> : null}
           <div className={`status-pill${errorMessage ? " error" : ""}`}>{isLoading ? "Loading live data..." : errorMessage || statusMessage}</div>
         </div>
-        <button type="button" className="ghost-button favorite-toggle" onClick={toggleFavorite}>
+        <Button type="button" className="ghost-button favorite-toggle" onClick={toggleFavorite}>
           {isFavorite ? "Remove favorite" : "Save favorite"}
-        </button>
+        </Button>
       </SectionCard>
       </div>
 
@@ -371,7 +359,7 @@ export default function AiAnalysisScreen() {
       <SectionCard title="AI Report" subtitle="Structured investment analysis" icon="✦" className="screen-card ai-report-card">
         {isLoading && !aiReport ? (
           <div className="analysis-loading-panel">
-            <span className="loading-spinner" aria-label="Generating AI report" />
+            <LoadingSpinner label="Generating AI report" />
             <div>
               <div className="analysis-loading-panel__title">Generating market impact engine analysis...</div>
               <p className="company-description subtle">Gathering live quotes, news, analyst signals, and peer context.</p>
