@@ -751,6 +751,47 @@ button {
   gap: 8px;
 }
 
+.ai-report {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ai-report__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ai-report__score {
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.ai-report__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ai-report__grid > div {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.48);
+}
+
+.ai-report__grid h4 {
+  margin: 0 0 8px;
+  color: #f8fafc;
+}
+
+.ai-report__grid p,
+.ai-report__grid li {
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
 .portfolio-metric {
   font-size: 1.4rem;
   font-weight: 700;

@@ -51,6 +51,7 @@ export default function AiAnalysisScreen() {
   const [news, setNews] = useState([]);
   const [chart, setChart] = useState([]);
   const [fearGreed, setFearGreed] = useState(null);
+  const [aiReport, setAiReport] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Searching live market data...");
   const [errorMessage, setErrorMessage] = useState("");
@@ -90,39 +91,69 @@ export default function AiAnalysisScreen() {
       setErrorMessage("");
 
       try {
-        const response = await fetch(`${API_BASE}/quote?symbol=${normalizedTicker}`);
-        const data = await response.json();
+        const quoteUrl = `${API_BASE}/quote?symbol=${normalizedTicker}`;
+        console.log(`[frontend] quote request ${quoteUrl}`);
+        const quoteResponse = await fetch(quoteUrl);
+        const quoteData = await quoteResponse.json();
+        console.log(`[frontend] quote response`, quoteData);
 
         if (isMounted) {
-          if (!response.ok || data.error) {
+          if (!quoteResponse.ok || quoteData.error) {
             setQuote(null);
             setCompany(null);
             setRecommendation(null);
             setNews([]);
             setChart([]);
             setFearGreed(null);
-            setErrorMessage(data.error || "Unable to load live stock analysis.");
+            setAiReport(null);
+            setErrorMessage(quoteData.error || "Unable to load live stock analysis.");
             setStatusMessage("Live market data request failed.");
-          } else {
-            setQuote(data.quote || null);
-            setCompany(data.company || null);
-            setRecommendation(data.recommendation || null);
-            setNews(data.news || []);
-            setChart(data.chart || []);
-            setFearGreed(data.fearGreed || null);
-            setErrorMessage("");
-            setStatusMessage(data.quote?.companyDescription ? "Live market data loaded" : "Live market data loaded");
+            return;
+          }
+
+          setQuote(quoteData.quote || null);
+          setCompany(quoteData.company || null);
+          setRecommendation(quoteData.recommendation || null);
+          setNews(quoteData.news || []);
+          setChart(quoteData.chart || []);
+          setFearGreed(quoteData.fearGreed || null);
+          setErrorMessage("");
+          setStatusMessage(quoteData.quote?.companyDescription ? "Live market data loaded" : "Live market data loaded");
+
+          const aiUrl = `${API_BASE}/ai/analyze`;
+          console.log(`[frontend] ai request ${aiUrl}`, { symbol: normalizedTicker });
+          const aiResponse = await fetch(aiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              symbol: normalizedTicker,
+              context: {
+                quote: quoteData.quote || null,
+                company: quoteData.company || null,
+                recommendation: quoteData.recommendation || null,
+                news: quoteData.news || [],
+                metrics: quoteData.quote || null,
+              },
+            }),
+          });
+          const aiData = await aiResponse.json();
+          console.log(`[frontend] ai response`, aiData);
+
+          if (isMounted) {
+            setAiReport(aiData.analysis || null);
           }
         }
       } catch (error) {
         if (isMounted) {
+          console.error("[frontend] analysis request failed", error);
           setQuote(null);
           setCompany(null);
           setRecommendation(null);
           setNews([]);
           setChart([]);
           setFearGreed(null);
-          setErrorMessage("Unable to contact the analysis service.");
+          setAiReport(null);
+          setErrorMessage(error?.message || "Unable to contact the analysis service.");
           setStatusMessage("Live market data request failed.");
         }
       } finally {
@@ -262,6 +293,50 @@ export default function AiAnalysisScreen() {
           </div>
         </SectionCard>
       </div>
+
+      <SectionCard title="AI Report" subtitle="Structured investment analysis" className="screen-card">
+        {aiReport ? (
+          <div className="ai-report">
+            <div className="ai-report__header">
+              <div className="score-card__recommendation">{aiReport.investmentRating || aiReport.recommendation || "Hold"}</div>
+              <div className="ai-report__score">Confidence {aiReport.confidenceScore ?? 0}/100</div>
+            </div>
+            <p className="company-description">{aiReport.executiveSummary || aiReport.summary}</p>
+            <div className="ai-report__grid">
+              <div>
+                <h4>Bull Case</h4>
+                <ul>{(aiReport.bullCase || []).map((item) => <li key={item}>{item}</li>)}</ul>
+              </div>
+              <div>
+                <h4>Bear Case</h4>
+                <ul>{(aiReport.bearCase || []).map((item) => <li key={item}>{item}</li>)}</ul>
+              </div>
+              <div>
+                <h4>Valuation</h4>
+                <p>{aiReport.valuation || aiReport.valuationSummary}</p>
+              </div>
+              <div>
+                <h4>Key Risks</h4>
+                <ul>{(aiReport.keyRisks || []).map((item) => <li key={item}>{item}</li>)}</ul>
+              </div>
+              <div>
+                <h4>Catalysts</h4>
+                <ul>{(aiReport.catalysts || []).map((item) => <li key={item}>{item}</li>)}</ul>
+              </div>
+              <div>
+                <h4>Short-Term Outlook</h4>
+                <p>{aiReport.shortTermOutlook}</p>
+              </div>
+              <div>
+                <h4>Long-Term Outlook</h4>
+                <p>{aiReport.longTermOutlook}</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="company-description">The AI report will appear here once the analysis completes.</p>
+        )}
+      </SectionCard>
     </div>
   );
 }
