@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
 import Header from "../components/Header";
+import ScreenErrorBoundary from "../components/ScreenErrorBoundary";
 import DashboardScreen from "../screens/DashboardScreen";
 import AiAnalysisScreen from "../screens/AiAnalysisScreen";
 import MarketNewsScreen from "../screens/MarketNewsScreen";
@@ -49,6 +50,14 @@ export default function MainLayout() {
         <Header />
         {(() => {
           const ActiveScreen = screenMap[activeView] || DashboardScreen;
+          if (activeView === "AI Analysis") {
+            return (
+              <ScreenErrorBoundary>
+                <ActiveScreen />
+              </ScreenErrorBoundary>
+            );
+          }
+
           return <ActiveScreen />;
         })()}
       </div>

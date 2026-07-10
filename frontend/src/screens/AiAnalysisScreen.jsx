@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
+import { SafeList, SafeValue } from "../components/SafeValue";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
@@ -288,7 +289,7 @@ export default function AiAnalysisScreen() {
             {quote?.companyLogo ? (
               <img className="company-logo" src={quote.companyLogo} alt={`${ticker} logo`} />
             ) : null}
-            <p className="company-description">{quote?.companyDescription || "Company description is currently unavailable."}</p>
+            <div className="company-description"><SafeValue value={quote?.companyDescription || "Company description is currently unavailable."} /></div>
           </div>
         </SectionCard>
 
@@ -307,10 +308,10 @@ export default function AiAnalysisScreen() {
             <div className={`score-card__recommendation ${recommendation?.label ? recommendation.label.toLowerCase().replace(/\s+/g, "-") : "hold"}`}>
               {recommendation?.label || "Hold"}
             </div>
-            <p className="company-description">{recommendation?.reason || "Recommendation data is being loaded."}</p>
-            <p className="company-description subtle">{recommendation?.details || ""}</p>
-            <p className="company-description subtle">Trend: {recommendationTrend?.direction || "Unknown"}</p>
-            <p className="company-description subtle">{recommendationTrend?.summary || ""}</p>
+            <div className="company-description"><SafeValue value={recommendation?.reason || "Recommendation data is being loaded."} /></div>
+            <div className="company-description subtle"><SafeValue value={recommendation?.details || "-"} /></div>
+            <div className="company-description subtle">Trend: <SafeValue value={recommendationTrend?.direction || "Unknown"} /></div>
+            <div className="company-description subtle"><SafeValue value={recommendationTrend?.summary || "-"} /></div>
           </div>
         </SectionCard>
 
@@ -358,45 +359,45 @@ export default function AiAnalysisScreen() {
               <div className={`score-card__recommendation ${String(finalRating).toLowerCase().replace(/\s+/g, "-")}`}>{finalRating}</div>
               <div className="ai-report__score">Confidence {aiReport.confidenceScore ?? 0}/100</div>
             </div>
-            <p className="company-description">{aiReport.executiveSummary || aiReport.summary}</p>
+            <div className="company-description"><SafeValue value={aiReport.executiveSummary || aiReport.summary} /></div>
             {aiNotice ? <p className="company-description subtle">{aiNotice}</p> : null}
             <div className="ai-report__grid">
               <div>
                 <h4>Bull Case</h4>
-                <ul>{(aiReport.bullCase || []).map((item) => <li key={item}>{item}</li>)}</ul>
+                <SafeList value={aiReport.bullCase} fallback="-" />
               </div>
               <div>
                 <h4>Bear Case</h4>
-                <ul>{(aiReport.bearCase || []).map((item) => <li key={item}>{item}</li>)}</ul>
+                <SafeList value={aiReport.bearCase} fallback="-" />
               </div>
               <div>
                 <h4>Valuation</h4>
-                <p>{aiReport.valuation || aiReport.valuationSummary}</p>
+                <div className="company-description"><SafeValue value={aiReport.valuation || aiReport.valuationSummary} /></div>
               </div>
               <div>
                 <h4>Key Risks</h4>
-                <ul>{(aiReport.keyRisks || []).map((item) => <li key={item}>{item}</li>)}</ul>
+                <SafeList value={aiReport.keyRisks} fallback="-" />
               </div>
               <div>
                 <h4>Catalysts</h4>
-                <ul>{(aiReport.catalysts || []).map((item) => <li key={item}>{item}</li>)}</ul>
+                <SafeList value={aiReport.catalysts} fallback="-" />
               </div>
               <div>
                 <h4>Short-Term Outlook</h4>
-                <p>{aiReport.shortTermOutlook}</p>
+                <div className="company-description"><SafeValue value={aiReport.shortTermOutlook} /></div>
               </div>
               <div>
                 <h4>Long-Term Outlook</h4>
-                <p>{aiReport.longTermOutlook}</p>
+                <div className="company-description"><SafeValue value={aiReport.longTermOutlook} /></div>
               </div>
               <div>
                 <h4>What Changed Today?</h4>
-                <ul>{(aiReport.whatChangedToday || []).map((item) => <li key={item}>{item}</li>)}</ul>
+                <SafeList value={aiReport.whatChangedToday} fallback="-" />
               </div>
             </div>
           </div>
         ) : (
-          <p className="company-description">{aiNotice || "The AI report will appear here once the analysis completes."}</p>
+          <div className="company-description"><SafeValue value={aiNotice || "The AI report will appear here once the analysis completes."} /></div>
         )}
       </SectionCard>
 
@@ -409,20 +410,20 @@ export default function AiAnalysisScreen() {
                 <small>/100</small>
               </div>
               <div>
-                <div className="score-card__recommendation">{marketImpactLabel}</div>
+                <div className={`score-card__recommendation ${String(marketImpactLabel).toLowerCase().replace(/\s+/g, "-")}`}><SafeValue value={marketImpactLabel} fallback="Pending" /></div>
                 <p className="company-description subtle">Combines news sentiment, analyst trend, price momentum, Fear & Greed, and recent volatility.</p>
               </div>
             </div>
             <div className="impact-engine__breakdown">
-              <div><span>News Sentiment</span><strong>{marketImpact.breakdown?.newsSentiment?.label || "Neutral"}</strong></div>
-              <div><span>Analyst Trend</span><strong>{marketImpact.breakdown?.analystTrend?.label || "Neutral"}</strong></div>
-              <div><span>Momentum</span><strong>{marketImpact.breakdown?.priceMomentum?.label || "Mixed"}</strong></div>
-              <div><span>Fear & Greed</span><strong>{marketImpact.breakdown?.fearGreed?.label || "Neutral"}</strong></div>
-              <div><span>Volatility</span><strong>{marketImpact.breakdown?.volatility?.label || "Moderate"}</strong></div>
+              <div><span>News Sentiment</span><strong><SafeValue value={marketImpact.breakdown?.newsSentiment?.label || "Neutral"} /></strong></div>
+              <div><span>Analyst Trend</span><strong><SafeValue value={marketImpact.breakdown?.analystTrend?.label || "Neutral"} /></strong></div>
+              <div><span>Momentum</span><strong><SafeValue value={marketImpact.breakdown?.priceMomentum?.label || "Mixed"} /></strong></div>
+              <div><span>Fear & Greed</span><strong><SafeValue value={marketImpact.breakdown?.fearGreed?.label || "Neutral"} /></strong></div>
+              <div><span>Volatility</span><strong><SafeValue value={marketImpact.breakdown?.volatility?.label || "Moderate"} /></strong></div>
             </div>
             <div>
               <h4>Why is this stock moving today?</h4>
-              <ul className="stack-list">{whyMovingToday.map((item) => <li key={item}>{item}</li>)}</ul>
+              <SafeList value={whyMovingToday} fallback="-" />
             </div>
           </div>
         ) : (
@@ -434,10 +435,10 @@ export default function AiAnalysisScreen() {
         {sectorImpact ? (
           <div className="sector-impact">
             <div className="sector-impact__summary">
-              <div className="company-profile__meta">Sector: {sectorImpact.sector}</div>
-              <div className="company-profile__meta">Industry: {sectorImpact.industry}</div>
-              <div className="company-profile__meta">Movement: {sectorImpact.movement}</div>
-              <p className="company-description">{sectorImpact.summary}</p>
+              <div className="company-profile__meta">Sector: <SafeValue value={sectorImpact.sector} /></div>
+              <div className="company-profile__meta">Industry: <SafeValue value={sectorImpact.industry} /></div>
+              <div className="company-profile__meta">Movement: <SafeValue value={sectorImpact.movement} /></div>
+              <div className="company-description"><SafeValue value={sectorImpact.summary} /></div>
             </div>
 
             <div>
@@ -446,10 +447,10 @@ export default function AiAnalysisScreen() {
                 {(sectorImpact.topCompetitors || []).map((item) => (
                   <article key={item.symbol} className="watch-item">
                     <div className="watch-item__top">
-                      <strong>{item.symbol}</strong>
+                      <strong><SafeValue value={item.symbol} /></strong>
                       <span className="pill monitor">{Number(item.priceChange || 0) >= 0 ? "Positive" : "Negative"}</span>
                     </div>
-                    <div className="watch-item__company">{item.company}</div>
+                    <div className="watch-item__company"><SafeValue value={item.company} /></div>
                     <div className={Number(item.priceChange || 0) >= 0 ? "positive" : "negative"}>{Number(item.priceChange || 0).toFixed(2)}% today</div>
                   </article>
                 ))}
@@ -462,12 +463,12 @@ export default function AiAnalysisScreen() {
                 {(marketOpportunities || []).map((item) => (
                   <div className="opportunity-item" key={item.symbol}>
                     <div className="opportunity-item__top">
-                      <strong>{item.symbol}</strong>
-                      <span className={`pill ${item.direction === "benefit" ? "opportunity" : "risk"}`}>{item.direction === "benefit" ? "Benefit" : "Hurt"}</span>
+                      <strong><SafeValue value={item.symbol} /></strong>
+                      <span className={`pill ${item.direction === "benefit" ? "opportunity" : "risk"}`}><SafeValue value={item.direction === "benefit" ? "Benefit" : "Hurt"} /></span>
                     </div>
-                    <div className="company-description subtle">{item.company}</div>
-                    <p className="company-description">{item.thesis}</p>
-                    <p className="company-description subtle">{item.reason}</p>
+                    <div className="company-description subtle"><SafeValue value={item.company} /></div>
+                    <div className="company-description"><SafeValue value={item.thesis} /></div>
+                    <div className="company-description subtle"><SafeValue value={item.reason} /></div>
                   </div>
                 ))}
               </div>
@@ -507,7 +508,7 @@ export default function AiAnalysisScreen() {
             </table>
           </div>
         ) : (
-          <p className="company-description">{comparisonError || "Comparison will appear once live data loads."}</p>
+          <div className="company-description"><SafeValue value={comparisonError || "Comparison will appear once live data loads."} /></div>
         )}
       </SectionCard>
     </div>
