@@ -1,6 +1,8 @@
 const { analyzeTicker } = require("../services/openaiService");
 const { analyzeMarketImpact } = require("../services/marketImpactService");
 const { getAltDataSummary } = require("../services/altDataService");
+const { analyzeInvestmentCommittee } = require("../services/investmentCommitteeService");
+const { analyzeIntelligence } = require("../services/impactIntelligenceService");
 
 async function analyze(req, res, next) {
   try {
@@ -19,14 +21,32 @@ async function analyze(req, res, next) {
     console.log(`[ai-controller] request method=${req.method} symbol=${symbol}`);
     console.log(`[ai-controller] request body=${JSON.stringify(req.body || {}).slice(0, 2000)}`);
 
-    const [altDataSummary, analysis, marketImpact] = await Promise.all([
+    const eventHint = context.news?.[0]?.headline || `${symbol} earnings`;
+    const [altDataSummary, analysis, marketImpact, intelligenceReport] = await Promise.all([
       getAltDataSummary({ symbol }).catch(() => null),
       analyzeTicker(symbol, context),
       analyzeMarketImpact(symbol, context),
+      analyzeIntelligence({ event: eventHint, symbol }).catch(() => null),
     ]);
+    const committeeReport = await analyzeInvestmentCommittee({
+      symbol,
+      context,
+      intelligenceReport,
+      altDataSummary,
+      marketImpact,
+    }).catch(() => null);
     console.log(`[ai-controller] response analysis=${JSON.stringify(analysis).slice(0, 4000)}`);
     console.log(`[ai-controller] response marketImpact=${JSON.stringify(marketImpact).slice(0, 4000)}`);
-    res.json({ symbol, analysis: { ...analysis, marketImpact, alternativeDataSignals: altDataSummary?.signals || null } });
+    res.json({
+      symbol,
+      analysis: {
+        ...analysis,
+        marketImpact,
+        alternativeDataSignals: altDataSummary?.signals || null,
+        committee: committeeReport?.committee || null,
+        committeeTrackRecord: committeeReport?.trackRecord?.stats || null,
+      },
+    });
   } catch (error) {
     console.error("[ai-controller] failure", error);
     next(error);

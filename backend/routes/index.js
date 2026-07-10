@@ -6,6 +6,7 @@ const { analyze } = require("../controllers/aiController");
 const { getComparison } = require("../controllers/comparisonController");
 const { getPortfolio } = require("../controllers/portfolioController");
 const { getQuoteController } = require("../controllers/quoteController");
+const { analyzeCommittee, getCommitteeTrackRecordController } = require("../controllers/committeeController");
 const {
 	getCot,
 	getPolymarket,
@@ -24,6 +25,9 @@ router.get("/watchlist", getWatchlist);
 router.get("/market", getMarket);
 router.get("/ai/analyze", analyze);
 router.post("/ai/analyze", analyze);
+router.get("/committee/analyze", analyzeCommittee);
+router.post("/committee/analyze", analyzeCommittee);
+router.get("/committee/track-record", getCommitteeTrackRecordController);
 router.get("/compare", getComparison);
 router.get("/portfolio", getPortfolio);
 router.get("/quote", getQuoteController);

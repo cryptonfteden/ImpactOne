@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import WatchlistTable from "./WatchlistTable";
 import AIInsightsSidebar from "./AIInsightsSidebar";
 import useWatchlist from "../hooks/useWatchlist";
-import { altDataApi, intelligenceApi, watchlistApi } from "../services/api";
+import { altDataApi, committeeApi, intelligenceApi, watchlistApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 
 export default function DashboardHome() {
@@ -12,6 +12,7 @@ export default function DashboardHome() {
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [altSummary, setAltSummary] = useState(null);
   const [overview, setOverview] = useState(null);
+  const [committee, setCommittee] = useState(null);
 
   useEffect(() => {
     async function loadWatchlistIntelligence() {
@@ -37,6 +38,30 @@ export default function DashboardHome() {
 
     loadWatchlistIntelligence();
   }, [watchlist]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const symbol = overview?.watchlistRankings?.[0]?.symbol || watchlist[0] || "AAPL";
+
+    async function loadCommittee() {
+      try {
+        const payload = await committeeApi.analyze({ symbol });
+        if (isMounted) {
+          setCommittee(payload);
+        }
+      } catch (error) {
+        logError("Dashboard committee load failed", error);
+        if (isMounted) {
+          setCommittee(null);
+        }
+      }
+    }
+
+    loadCommittee();
+    return () => {
+      isMounted = false;
+    };
+  }, [overview, watchlist]);
 
   useEffect(() => {
     let isMounted = true;
@@ -162,6 +187,7 @@ export default function DashboardHome() {
   const mostImportantCompanyEvent = decisionCenter?.mostImportantCompanyEvent || null;
   const ignoredNews = decisionCenter?.mostImportantNewsIgnoredByMarkets || null;
   const changeWindows = overview?.changeWindows || {};
+  const committeeSummary = committee?.committee || null;
 
   return (
     <main className="dashboard-content premium-dashboard">
@@ -620,6 +646,39 @@ export default function DashboardHome() {
               </div>
             )) : <p className="company-description subtle">No alert crossed confidence, impact, and exposure thresholds.</p>}
           </div>
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--full">
+          <div className="widget-title">Investment Committee</div>
+          {committeeSummary ? (
+            <div className="brief-grid">
+              <div className="brief-block">
+                <h4>Final Recommendation</h4>
+                <div className={`score-card__recommendation ${String(committeeSummary.cio?.decision || "Hold").toLowerCase().replace(/\s+/g, "-")}`}>{committeeSummary.cio?.decision || "Hold"}</div>
+                <p className="company-description">{committeeSummary.cio?.executiveSummary || "Committee summary unavailable."}</p>
+                <p className="company-description subtle">Confidence {committeeSummary.cio?.confidence ?? 0}/100 | Agreement {committeeSummary.committeeAgreement ?? 0}%</p>
+              </div>
+              <div className="brief-block">
+                <h4>Votes</h4>
+                <div className="widget-list">
+                  {(committeeSummary.agents || []).map((agent) => (
+                    <div key={agent.agent} className="widget-list-item">
+                      <strong>{agent.agent}</strong>
+                      <span>{agent.vote}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="brief-block">
+                <h4>Reasoning</h4>
+                <p className="company-description subtle">Catalysts: {(committeeSummary.cio?.catalysts || []).slice(0, 2).join(" | ") || "N/A"}</p>
+                <p className="company-description subtle">Threats: {(committeeSummary.cio?.threats || []).slice(0, 2).join(" | ") || "N/A"}</p>
+                {committeeSummary.expertsDisagree ? <p className="company-description subtle">Experts disagree: {committeeSummary.disagreementExplanation}</p> : null}
+              </div>
+            </div>
+          ) : (
+            <p className="company-description subtle">Committee debate loading...</p>
+          )}
         </article>
 
         <article className="panel-card glass-card widget-card widget-card--full">

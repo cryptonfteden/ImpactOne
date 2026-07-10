@@ -1,0 +1,70 @@
+{
+  "decisions": [
+    {
+      "symbol": "AAPL",
+      "displaySymbol": "AAPL",
+      "generatedAt": "2026-07-10T14:06:37.209Z",
+      "finalDecision": "Reduce",
+      "confidence": 63,
+      "entryPrice": 314.26,
+      "expectedReturn": "Moderate upside potential if execution remains solid, but macro risks could limit growth.",
+      "disagreementScore": 40,
+      "assetClass": "equity"
+    },
+    {
+      "symbol": "NVDA",
+      "displaySymbol": "NVDA",
+      "generatedAt": "2026-07-10T14:07:14.189Z",
+      "finalDecision": "Reduce",
+      "confidence": 64,
+      "entryPrice": 206.53,
+      "expectedReturn": "Moderate upside potential if execution remains solid, but constrained by macroeconomic risks.",
+      "disagreementScore": 40,
+      "assetClass": "equity"
+    },
+    {
+      "symbol": "MSFT",
+      "displaySymbol": "MSFT",
+      "generatedAt": "2026-07-10T14:06:49.608Z",
+      "finalDecision": "Reduce",
+      "confidence": 75,
+      "entryPrice": 384.65,
+      "expectedReturn": "Moderate upside potential if execution remains solid, but constrained by macroeconomic risks.",
+      "disagreementScore": 40,
+      "assetClass": "equity"
+    },
+    {
+      "symbol": "TSLA",
+      "displaySymbol": "TSLA",
+      "generatedAt": "2026-07-10T14:06:55.411Z",
+      "finalDecision": "Reduce",
+      "confidence": 64,
+      "entryPrice": 408.49,
+      "expectedReturn": "Moderate upside potential if execution is solid, but significant downside risks exist.",
+      "disagreementScore": 40,
+      "assetClass": "equity"
+    },
+    {
+      "symbol": "BTC",
+      "displaySymbol": "BTC",
+      "generatedAt": "2026-07-10T14:07:00.019Z",
+      "finalDecision": "Reduce",
+      "confidence": 63,
+      "entryPrice": null,
+      "expectedReturn": "Moderate upside potential if macro conditions stabilize, but significant downside risk remains.",
+      "disagreementScore": 40,
+      "assetClass": "crypto"
+    },
+    {
+      "symbol": "OIL",
+      "displaySymbol": "Oil",
+      "generatedAt": "2026-07-10T14:07:05.974Z",
+      "finalDecision": "Reduce",
+      "confidence": 75,
+      "entryPrice": null,
+      "expectedReturn": "Moderate upside potential if macro conditions improve, but significant downside risks remain.",
+      "disagreementScore": 40,
+      "assetClass": "commodity"
+    }
+  ]
+}

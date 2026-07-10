@@ -780,6 +780,16 @@ button {
   color: #fecaca;
 }
 
+.score-card__recommendation.reduce {
+  background: rgba(251, 191, 36, 0.16);
+  color: #fde68a;
+}
+
+.score-card__recommendation.strong-sell {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fee2e2;
+}
+
 .stack-list {
   margin: 0;
   padding-left: 18px;

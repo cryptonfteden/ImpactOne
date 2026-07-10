@@ -1,6 +1,6 @@
 # ImpactOne - Project Status
 
-Last updated: 2026-07-10 (Sprint 10)
+Last updated: 2026-07-10 (Sprint 11)
 
 ## 1. What Is Already Completed
 - Full React + Express app is running with screen-based dashboard UX and `/api` backend routing.
@@ -152,6 +152,37 @@ Last updated: 2026-07-10 (Sprint 10)
     - Sector Rotation
     - Capital Flow
     - Most Important News Ignored By Markets
+- Sprint 11 AI Investment Committee is now live:
+  - Added multi-agent committee analysis with the following roles:
+    - Chief Investment Officer (final decision)
+    - Macro Strategist
+    - Equity Analyst
+    - Technical Analyst
+    - Alternative Data Analyst
+    - Risk Manager
+  - Each agent now outputs:
+    - bull arguments
+    - bear arguments
+    - confidence
+    - supporting evidence
+    - unknowns
+    - final vote
+  - CIO summary now returns:
+    - executive summary
+    - decision
+    - expected return
+    - risk
+    - confidence
+    - catalysts
+    - threats
+    - investment horizon
+    - portfolio allocation suggestion
+  - Added disagreement analysis:
+    - committee agreement %
+    - disagreement score
+    - experts disagree explanation when alignment is low
+  - Added decision persistence and track record storage with current-return evaluation support.
+  - Added dashboard and AI Analysis committee views.
 - Provider-resilient error handling is in place:
   - Finnhub failures return user-friendly messages
   - OpenAI failures expose user-friendly notice and fallback report instead of crashing UI
@@ -194,6 +225,8 @@ Last updated: 2026-07-10 (Sprint 10)
   - `intelligenceCache` (TTL cache for intelligence computations)
   - `dailyBriefService` (Sprint 9 autonomous brief orchestration, relevance scoring, action cards, AI/fallback summary)
   - `autonomousMarketService` (Sprint 10 cached operating-system overview, event pipeline, live feed, alerts, watchlist ranking, global map, decision center)
+  - `investmentCommitteeService` (Sprint 11 committee debate, votes, CIO synthesis, disagreement scoring)
+  - `committeeTrackRecordService` (Sprint 11 persistent decision storage and evaluation metrics)
 
 ## 3. Folder Structure
 
@@ -482,6 +515,41 @@ Sprint 10 verification:
   - `/api/ai/analyze?symbol=NVDA`
   - `/api/intelligence/daily-brief?watchlist=AAPL,NVDA,TSLA`
 - Verified operating-system overview with watchlist `AAPL,NVDA,TSLA`.
+
+## 16. Sprint 11 - AI Investment Committee
+
+Sprint 11 outcomes:
+- Added backend committee services and controller:
+  - `backend/services/investmentCommitteeService.js`
+  - `backend/services/committeeTrackRecordService.js`
+  - `backend/controllers/committeeController.js`
+- Added committee routes in `backend/routes/index.js`:
+  - `GET/POST /api/committee/analyze`
+  - `GET /api/committee/track-record`
+- Existing AI analysis endpoint now includes additive committee output without changing existing behavior:
+  - `analysis.committee`
+  - `analysis.committeeTrackRecord`
+- Added frontend committee API client:
+  - `frontend/src/services/api/committeeApi.js`
+- Dashboard now includes an auto-loaded "Investment Committee" section:
+  - `frontend/src/components/DashboardHome.jsx`
+- AI Analysis now includes a dedicated committee section/tab:
+  - `frontend/src/screens/AiAnalysisScreen.jsx`
+
+Sprint 11 verification:
+- Production build passed.
+- Committee endpoint validated for:
+  - `AAPL`
+  - `NVDA`
+  - `MSFT`
+  - `TSLA`
+  - `BTC`
+  - `OIL`
+- Track record endpoint validated for persisted committee history.
+- Regression validation passed for:
+  - `/api/ai/analyze?symbol=NVDA`
+  - `/api/intelligence/daily-brief?watchlist=AAPL,NVDA,TSLA`
+  - `/api/intelligence/overview?watchlist=AAPL,NVDA,TSLA`
 
 ## Quick Handoff For New Developers
 1. Install dependencies at root (`npm install`) and frontend if needed (`npm --prefix frontend install`).
