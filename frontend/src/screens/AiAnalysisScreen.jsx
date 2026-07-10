@@ -3,7 +3,7 @@ import SectionCard from "../components/SectionCard";
 import { SafeList, SafeValue } from "../components/SafeValue";
 import useWatchlist from "../hooks/useWatchlist";
 import { Button, Input, LoadingSpinner } from "../components/ui";
-import { altDataApi, analysisApi, marketApi } from "../services/api";
+import { altDataApi, analysisApi, intelligenceApi, marketApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 
 function PriceChart({ points }) {
@@ -66,6 +66,8 @@ export default function AiAnalysisScreen() {
   const [errorMessage, setErrorMessage] = useState("");
   const [altSignals, setAltSignals] = useState(null);
   const [altSignalsError, setAltSignalsError] = useState("");
+  const [intelligenceReport, setIntelligenceReport] = useState(null);
+  const [intelligenceError, setIntelligenceError] = useState("");
 
   const { watchlist, toggleTicker } = useWatchlist();
 
@@ -127,7 +129,8 @@ export default function AiAnalysisScreen() {
           setErrorMessage("");
           setStatusMessage(quoteData.quote?.companyDescription ? "Live market data loaded" : "Live market data loaded");
 
-          const [aiResponse, compareResponse, altResponse] = await Promise.allSettled([
+          const eventHint = quoteData.news?.[0]?.headline || `${normalizedTicker} earnings`;
+          const [aiResponse, compareResponse, altResponse, intelligenceResponse] = await Promise.allSettled([
             analysisApi.analyze({
                 symbol: normalizedTicker,
                 context: {
@@ -143,6 +146,7 @@ export default function AiAnalysisScreen() {
               }),
             analysisApi.compare(normalizedTicker),
             altDataApi.getSummary(normalizedTicker),
+            intelligenceApi.analyze({ event: eventHint, symbol: normalizedTicker }),
           ]);
 
           const aiData = aiResponse.status === "fulfilled" ? aiResponse.value || {} : { error: aiResponse.reason?.message };
@@ -188,6 +192,15 @@ export default function AiAnalysisScreen() {
               setAltSignals(aiData.analysis?.alternativeDataSignals || null);
               setAltSignalsError(altResult?.reason?.message || "Alternative data feeds are temporarily unavailable.");
             }
+
+            const intelResult = intelligenceResponse;
+            if (intelResult?.status === "fulfilled") {
+              setIntelligenceReport(intelResult.value || null);
+              setIntelligenceError("");
+            } else {
+              setIntelligenceReport(null);
+              setIntelligenceError(intelResult?.reason?.message || "Intelligence engine is temporarily unavailable.");
+            }
           }
         }
       } catch (error) {
@@ -208,6 +221,8 @@ export default function AiAnalysisScreen() {
           setComparisonError("");
           setAltSignals(null);
           setAltSignalsError("Alternative data feeds are temporarily unavailable.");
+          setIntelligenceReport(null);
+          setIntelligenceError("Intelligence engine is temporarily unavailable.");
           setErrorMessage(error?.message || "Unable to contact the analysis service.");
           setStatusMessage("Live market data request failed.");
         }
@@ -251,6 +266,7 @@ export default function AiAnalysisScreen() {
     { id: "ai-report", label: "AI Report" },
     { id: "ai-impact", label: "Market Impact" },
     { id: "ai-alt", label: "Alt Data" },
+    { id: "ai-intel", label: "Intelligence" },
     { id: "ai-sector", label: "Sector Impact" },
     { id: "ai-compare", label: "Compare" },
   ];
@@ -514,6 +530,47 @@ export default function AiAnalysisScreen() {
           </div>
         ) : (
           <p className="company-description">{altSignalsError || "Alternative data signals will appear once feeds load."}</p>
+        )}
+      </SectionCard>
+      </div>
+
+      <div id="ai-intel" className="analysis-section-block">
+      <SectionCard title="Impact Intelligence Engine" subtitle="Cross-asset explainability" icon="⬡" className="screen-card">
+        {intelligenceReport ? (
+          <div className="ai-report__grid">
+            <div>
+              <h4>Event + confidence</h4>
+              <p className="company-description">{intelligenceReport.event}</p>
+              <p className="company-description subtle">Confidence: {Number(intelligenceReport.confidenceScore || 0)}/100 | Horizon: {intelligenceReport.timeHorizon || "N/A"}</p>
+            </div>
+            <div>
+              <h4>Why this matters</h4>
+              <p className="company-description"><SafeValue value={intelligenceReport.explainability?.why || "Unavailable"} /></p>
+            </div>
+            <div>
+              <h4>Supporting evidence</h4>
+              <SafeList value={intelligenceReport.explainability?.supportingEvidence || []} fallback="No direct evidence available." />
+            </div>
+            <div>
+              <h4>Key risks</h4>
+              <SafeList value={intelligenceReport.explainability?.possibleRisks || []} fallback="No elevated risks detected." />
+            </div>
+            <div>
+              <h4>Historical analogs</h4>
+              <SafeList
+                value={(intelligenceReport.historicalSimilarity || []).map((item) => `${item.event} (${item.similarity}%)`) || []}
+                fallback="No historical analogs available."
+              />
+            </div>
+            <div>
+              <h4>Scenario engine</h4>
+              <p className="company-description">Bull: {intelligenceReport.scenario?.bullCase?.narrative || "N/A"}</p>
+              <p className="company-description">Base: {intelligenceReport.scenario?.baseCase?.narrative || "N/A"}</p>
+              <p className="company-description">Bear: {intelligenceReport.scenario?.bearCase?.narrative || "N/A"}</p>
+            </div>
+          </div>
+        ) : (
+          <p className="company-description">{intelligenceError || "Intelligence engine output will appear once data loads."}</p>
         )}
       </SectionCard>
       </div>

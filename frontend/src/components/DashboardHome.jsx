@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import WatchlistTable from "./WatchlistTable";
 import AIInsightsSidebar from "./AIInsightsSidebar";
 import useWatchlist from "../hooks/useWatchlist";
-import { altDataApi, watchlistApi } from "../services/api";
+import { altDataApi, intelligenceApi, watchlistApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 
 export default function DashboardHome() {
@@ -11,6 +11,7 @@ export default function DashboardHome() {
   const [watchlistError, setWatchlistError] = useState("");
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [altSummary, setAltSummary] = useState(null);
+  const [intelligence, setIntelligence] = useState(null);
 
   useEffect(() => {
     async function loadWatchlistIntelligence() {
@@ -61,6 +62,39 @@ export default function DashboardHome() {
     };
   }, [watchlist]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadIntelligence() {
+      const anchorSymbol = watchlist[0] || "AAPL";
+      const event = "Fed rate hike";
+
+      try {
+        const [analysis, scenario] = await Promise.all([
+          intelligenceApi.analyze({ event, symbol: anchorSymbol }),
+          intelligenceApi.scenario({ event }),
+        ]);
+
+        if (isMounted) {
+          setIntelligence({
+            analysis,
+            scenario: scenario?.scenario || null,
+          });
+        }
+      } catch (error) {
+        logError("Dashboard intelligence load failed", error);
+        if (isMounted) {
+          setIntelligence(null);
+        }
+      }
+    }
+
+    loadIntelligence();
+    return () => {
+      isMounted = false;
+    };
+  }, [watchlist]);
+
   const fearGreedValue = useMemo(() => {
     if (!watchlistRows.length) {
       return 72;
@@ -102,6 +136,16 @@ export default function DashboardHome() {
   const topPrediction = altSignals?.predictionMarketProbabilities || null;
   const macroRegime = altSignals?.macroRegime || null;
   const upcomingEvents = altSignals?.upcomingEventRisk || [];
+  const intelligenceAnalysis = intelligence?.analysis || null;
+  const intelligenceScenario = intelligence?.scenario || null;
+  const sectorConcentration = intelligenceAnalysis?.affected?.sectors || [];
+  const topRisks = intelligenceAnalysis?.explainability?.possibleRisks || [];
+  const topOpportunities = intelligenceAnalysis?.scenario?.expectedSectorRotation || [];
+  const confidenceScore = Number(intelligenceAnalysis?.confidenceScore || 0);
+  const marketRegimeLabel = intelligenceScenario?.theme || macroRegime?.riskMode || "mixed";
+  const propagationEdges = intelligenceAnalysis?.sectorPropagation || [];
+  const capitalFlowHint = propagationEdges[0] || null;
+  const impactedCountries = intelligenceAnalysis?.affected?.countries || [];
 
   return (
     <main className="dashboard-content premium-dashboard">
@@ -249,6 +293,88 @@ export default function DashboardHome() {
           ) : (
             <p className="company-description subtle">Political and filing watch loading...</p>
           )}
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Global Risk Monitor</div>
+          {intelligenceAnalysis ? (
+            <>
+              <div className="widget-value">{intelligenceAnalysis.confidenceScore}/100</div>
+              <p className="company-description">{intelligenceAnalysis.event} | Horizon: {intelligenceAnalysis.timeHorizon}</p>
+            </>
+          ) : (
+            <p className="company-description subtle">Global risk model loading...</p>
+          )}
+        </article>
+
+        <article className="panel-card glass-card widget-card">
+          <div className="widget-title">Market Regime</div>
+          <div className="widget-value">{String(marketRegimeLabel).toUpperCase()}</div>
+          <p className="company-description subtle">Aligned with macro and scenario engine state.</p>
+        </article>
+
+        <article className="panel-card glass-card widget-card">
+          <div className="widget-title">Sector Rotation</div>
+          <div className="widget-list">
+            {(sectorConcentration.length ? sectorConcentration : topOpportunities).slice(0, 3).map((item) => (
+              <div key={typeof item === "string" ? item : item.name} className="widget-list-item">
+                <strong>{typeof item === "string" ? item : item.name}</strong>
+                <span>{typeof item === "string" ? "watch" : `${Math.round(Number(item.weight || 0) * 100)}%`}</span>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="panel-card glass-card widget-card">
+          <div className="widget-title">Capital Flow</div>
+          {capitalFlowHint ? (
+            <>
+              <div className="widget-value">{capitalFlowHint.from} → {capitalFlowHint.to}</div>
+              <p className="company-description subtle">Flow direction: {capitalFlowHint.effect}</p>
+            </>
+          ) : (
+            <p className="company-description subtle">Flow map loading...</p>
+          )}
+        </article>
+
+        <article className="panel-card glass-card widget-card">
+          <div className="widget-title">AI Conviction Meter</div>
+          <div className="widget-value">{confidenceScore}/100</div>
+          <div className="meter">
+            <div className="meter-fill meter-fill--confidence" style={{ width: `${confidenceScore}%` }} />
+          </div>
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Top Macro Risks</div>
+          <div className="widget-list">
+            {(topRisks.length ? topRisks : ["No elevated risks detected."]).slice(0, 3).map((risk) => (
+              <div key={risk} className="widget-list-item"><strong>{risk}</strong></div>
+            ))}
+          </div>
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Top Opportunities</div>
+          <div className="widget-list">
+            {(topOpportunities.length ? topOpportunities : ["No clear opportunity cluster yet."]).slice(0, 4).map((opportunity) => (
+              <div key={opportunity} className="widget-list-item"><strong>{opportunity}</strong></div>
+            ))}
+          </div>
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Global Heatmap</div>
+          <div className="heatmap-grid">
+            {impactedCountries.length ? impactedCountries.map((country, index) => (
+              <div key={country} className={`heatmap-tile ${index % 2 === 0 ? "up" : "down"}`}>
+                <strong>{country}</strong>
+                <small>{index % 2 === 0 ? "Risk premium rising" : "Flow stabilization"}</small>
+              </div>
+            )) : (
+              <p className="company-description subtle">Heatmap loading...</p>
+            )}
+          </div>
         </article>
       </section>
 

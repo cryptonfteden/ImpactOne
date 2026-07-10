@@ -1,6 +1,6 @@
 # ImpactOne - Project Status
 
-Last updated: 2026-07-10 (Sprint 7)
+Last updated: 2026-07-10 (Sprint 8)
 
 ## 1. What Is Already Completed
 - Full React + Express app is running with screen-based dashboard UX and `/api` backend routing.
@@ -46,6 +46,31 @@ Last updated: 2026-07-10 (Sprint 7)
   - AI analysis endpoint now enriches report payload with `analysis.alternativeDataSignals`.
   - Added provider placeholders for options flow and crypto on-chain (`not_connected`) without paid API dependency.
   - Added source-level caching and graceful fallbacks for all alternative-data services.
+- Sprint 8 Impact Intelligence Engine is now live:
+  - Added intelligence endpoints:
+    - `/api/intelligence/analyze`
+    - `/api/intelligence/scenario`
+    - `/api/intelligence/impact`
+    - `/api/intelligence/history`
+    - `/api/intelligence/portfolio`
+  - Added modular backend intelligence services for:
+    - Relationship graph modeling
+    - Historical analog matching
+    - Scenario generation (bull/base/bear)
+    - Sector propagation mapping
+    - Alternative + market fusion confidence scoring
+    - Portfolio exposure intelligence
+    - Explainability output (`why`, evidence, sources, confidence, risks)
+  - Dashboard now includes Sprint 8 intelligence widgets:
+    - Global Risk Monitor
+    - Market Regime
+    - Sector Rotation
+    - Capital Flow
+    - AI Conviction Meter
+    - Top Macro Risks
+    - Top Opportunities
+    - Global Heatmap
+  - AI Analysis now includes an "Impact Intelligence Engine" section with event-driven explainability, historical analogs, and scenario output.
 - Provider-resilient error handling is in place:
   - Finnhub failures return user-friendly messages
   - OpenAI failures expose user-friendly notice and fallback report instead of crashing UI
@@ -75,13 +100,17 @@ Last updated: 2026-07-10 (Sprint 7)
 - Entry point: `backend/server.js`
 - Router: `backend/routes/index.js`
 - Controllers:
-  - `quoteController`, `aiController`, `comparisonController`, `watchlistController`
+  - `quoteController`, `aiController`, `comparisonController`, `watchlistController`, `intelligenceController`
 - Services:
   - `marketImpactService` (event-driven score, sector impact, movement rationale, opportunities)
   - `finnhubService` (quote/profile/recommendation/recommendation trend/news/chart/peers)
   - `openaiService` (structured AI analysis + cache + fallback)
   - `comparisonService` (base ticker + peer comparison with AI score)
   - `finnhubCache` (quote cache)
+  - `impactIntelligenceService` (Sprint 8 orchestration for intelligence outputs)
+  - `relationshipGraphService`, `historicalSimilarityService`, `scenarioEngineService`
+  - `propagationEngineService`, `portfolioIntelligenceService`, `alternativeFusionService`
+  - `intelligenceCache` (TTL cache for intelligence computations)
 
 ## 3. Folder Structure
 
@@ -138,6 +167,11 @@ ImpactOne/
   - Structured investment report generation
 - Backend market impact engine
   - Derived score from news sentiment, analyst trend, price momentum, fear & greed, and volatility
+- Backend impact intelligence engine (Sprint 8)
+  - Event-driven global relationship graphing
+  - Historical analog detection and ranking
+  - Probabilistic scenario generation
+  - Sector propagation and portfolio exposure insights
 - CFTC public reporting dataset (COT)
   - Institutional/speculator positioning and net/weekly signal normalization
 - Polymarket gamma API
@@ -288,6 +322,33 @@ Verification set used for Sprint 7:
 - Symbols: `AAPL`, `NVDA`, `TSLA`, `BTC`, `XOM` (oil/energy proxy)
 - Confirmed endpoint-level responses for all `/api/alt-data/*` routes.
 - Confirmed `POST /api/ai/analyze` remains functional and includes `alternativeDataSignals`.
+
+## 13. Sprint 8 - Impact Intelligence Engine
+
+Sprint 8 outcomes:
+- Added new backend controller and route module:
+  - `backend/controllers/intelligenceController.js`
+  - `backend/routes/intelligenceRoutes.js`
+- Integrated routes under `backend/routes/index.js` via `/api/intelligence/*`.
+- Added backend intelligence services:
+  - `backend/services/impactIntelligenceService.js`
+  - `backend/services/intelligenceCache.js`
+  - `backend/services/relationshipGraphService.js`
+  - `backend/services/historicalSimilarityService.js`
+  - `backend/services/scenarioEngineService.js`
+  - `backend/services/propagationEngineService.js`
+  - `backend/services/portfolioIntelligenceService.js`
+  - `backend/services/alternativeFusionService.js`
+- Added frontend intelligence API client:
+  - `frontend/src/services/api/intelligenceApi.js`
+  - Exported from `frontend/src/services/api/index.js`
+- Dashboard integration expanded in `frontend/src/components/DashboardHome.jsx`.
+- AI Analysis integration expanded in `frontend/src/screens/AiAnalysisScreen.jsx`.
+
+Verification set used for Sprint 8:
+- Events validated: `AAPL earnings`, `NVDA AI announcement`, `Oil spike`, `Fed rate hike`, `Israel conflict`, `BTC ETF approval`.
+- Endpoints validated: `/api/intelligence/analyze`, `/api/intelligence/scenario`, `/api/intelligence/impact`, `/api/intelligence/history`, `/api/intelligence/portfolio`.
+- Frontend build validated successfully after Sprint 8 changes.
 
 ## Quick Handoff For New Developers
 1. Install dependencies at root (`npm install`) and frontend if needed (`npm --prefix frontend install`).
