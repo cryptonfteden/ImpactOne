@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import WatchlistTable from "./WatchlistTable";
 import AIInsightsSidebar from "./AIInsightsSidebar";
 import useWatchlist from "../hooks/useWatchlist";
+import useVirtualPortfolio from "../hooks/useVirtualPortfolio";
 import { altDataApi, committeeApi, intelligenceApi, watchlistApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 
@@ -13,6 +14,7 @@ export default function DashboardHome() {
   const [altSummary, setAltSummary] = useState(null);
   const [overview, setOverview] = useState(null);
   const [committee, setCommittee] = useState(null);
+  const { portfolio } = useVirtualPortfolio({ watchlist, overview, autoSync: true });
 
   useEffect(() => {
     async function loadWatchlistIntelligence() {
@@ -198,6 +200,10 @@ export default function DashboardHome() {
   const emergingNarratives = alphaDiscovery?.emergingNarratives || [];
   const contrarianIdeas = alphaDiscovery?.contrarianOpportunities || [];
   const institutionalPositioning = alphaDiscovery?.institutionalPositioning || null;
+  const todayAgentTrades = (portfolio?.trades || []).filter((trade) => String(trade.dateTime || "").slice(0, 10) === new Date().toISOString().slice(0, 10));
+  const openPositions = portfolio?.positions || [];
+  const bestOpenTrade = portfolio?.performance?.bestTrade || null;
+  const worstOpenTrade = portfolio?.performance?.worstTrade || null;
 
   return (
     <main className="dashboard-content premium-dashboard">
@@ -382,6 +388,24 @@ export default function DashboardHome() {
         </article>
 
         <article className="panel-card glass-card widget-card">
+          <div className="widget-title">Virtual Portfolio Value</div>
+          <div className="widget-value">${Number(portfolio?.totalPortfolioValue || 0).toLocaleString()}</div>
+          <p className="company-description subtle">Virtual portfolio - simulated trades only</p>
+        </article>
+
+        <article className="panel-card glass-card widget-card">
+          <div className="widget-title">Today&apos;s Agent Trades</div>
+          <div className="widget-value">{todayAgentTrades.length}</div>
+          <p className="company-description subtle">{todayAgentTrades[0]?.action || "No"} active trade decisions logged today.</p>
+        </article>
+
+        <article className="panel-card glass-card widget-card">
+          <div className="widget-title">Current Cash</div>
+          <div className="widget-value">${Number(portfolio?.cashBalance || 0).toLocaleString()}</div>
+          <p className="company-description subtle">No leverage. Simulation only.</p>
+        </article>
+
+        <article className="panel-card glass-card widget-card">
           <div className="widget-title">Today&apos;s Opportunities</div>
           <div className="widget-list">
             {todayOpportunities.length ? todayOpportunities.map((item) => (
@@ -423,6 +447,38 @@ export default function DashboardHome() {
               </div>
             )) : <p className="company-description subtle">No movers yet.</p>}
           </div>
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Best Open Trade</div>
+          {bestOpenTrade ? (
+            <>
+              <div className="widget-value">{bestOpenTrade.symbol}</div>
+              <p className="company-description subtle">Unrealized P/L: ${Number(bestOpenTrade.unrealizedPnL || 0).toFixed(2)} | {Number(bestOpenTrade.unrealizedPnLPct || 0).toFixed(2)}%</p>
+            </>
+          ) : <p className="company-description subtle">No open trades yet.</p>}
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Worst Open Trade</div>
+          {worstOpenTrade ? (
+            <>
+              <div className="widget-value">{worstOpenTrade.symbol}</div>
+              <p className="company-description subtle">Unrealized P/L: ${Number(worstOpenTrade.unrealizedPnL || 0).toFixed(2)} | {Number(worstOpenTrade.unrealizedPnLPct || 0).toFixed(2)}%</p>
+            </>
+          ) : <p className="company-description subtle">No open trades yet.</p>}
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Agent Win Rate</div>
+          <div className="widget-value">{Number(portfolio?.performance?.winRate || 0).toFixed(2)}%</div>
+          <p className="company-description subtle">Average gain ${Number(portfolio?.performance?.averageGain || 0).toFixed(2)} | Average loss ${Number(portfolio?.performance?.averageLoss || 0).toFixed(2)}</p>
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Risk Exposure</div>
+          <div className="widget-value">{Number(portfolio?.riskExposure || 0).toFixed(2)}%</div>
+          <p className="company-description subtle">{openPositions.length} open positions | Realized P/L ${Number(portfolio?.realizedPnL || 0).toFixed(2)}</p>
         </article>
 
         <article className="panel-card glass-card widget-card widget-card--wide">

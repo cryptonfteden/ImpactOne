@@ -1,6 +1,6 @@
 # ImpactOne - Project Status
 
-Last updated: 2026-07-10 (Sprint 12)
+Last updated: 2026-07-10 (Sprint 13)
 
 ## 1. What Is Already Completed
 - Full React + Express app is running with screen-based dashboard UX and `/api` backend routing.
@@ -249,6 +249,50 @@ Last updated: 2026-07-10 (Sprint 12)
     - what should I buy
     - what should I avoid
     - biggest global risk
+- Sprint 13 Virtual Agent Portfolio is now live:
+  - Added a simulated paper-trading portfolio with localStorage persistence.
+  - Portfolio starts with virtual capital `$100,000`.
+  - Added portfolio rules:
+    - max 10% per position
+    - max 25% per sector
+    - no leverage
+    - no short selling
+    - minimum confidence 75
+    - minimum risk/reward 1.5
+  - Added automatic trade-log generation for simulated agent actions:
+    - Buy
+    - Accumulate
+    - Reduce
+    - Exit
+    - Hold
+  - Added agent decision gating before simulated trade creation:
+    - investment committee vote
+    - alpha score / conviction
+    - risk score
+    - market regime check
+    - event impact check
+  - Added portfolio analytics:
+    - cash balance
+    - open positions
+    - average entry price
+    - current price
+    - unrealized P/L
+    - realized P/L
+    - total portfolio value
+    - daily return
+    - total return
+    - allocation by sector
+    - allocation by asset type
+  - Added trade history and performance tracking:
+    - win rate
+    - average gain
+    - average loss
+    - max drawdown
+    - benchmark vs SPY
+    - best trade
+    - worst trade
+  - Added explicit safety label:
+    - "Virtual portfolio - simulated trades only"
 - Provider-resilient error handling is in place:
   - Finnhub failures return user-friendly messages
   - OpenAI failures expose user-friendly notice and fallback report instead of crashing UI
@@ -294,6 +338,8 @@ Last updated: 2026-07-10 (Sprint 12)
   - `investmentCommitteeService` (Sprint 11 committee debate, votes, CIO synthesis, disagreement scoring)
   - `committeeTrackRecordService` (Sprint 11 persistent decision storage and evaluation metrics)
   - `autonomousMarketService` now also owns Sprint 12 alpha discovery, scan coverage, portfolio action generation, and country-level market map metrics.
+  - `virtualPortfolioStorage` (Sprint 13 client-side persistence layer for simulated portfolio state)
+  - `useVirtualPortfolio` (Sprint 13 client-side trade simulation, position management, and performance tracking)
 
 ## 3. Folder Structure
 
@@ -650,6 +696,41 @@ Sprint 12 verification:
   - `/api/ai/analyze?symbol=NVDA`
   - `/api/intelligence/daily-brief?watchlist=AAPL,NVDA,TSLA`
   - `/api/committee/analyze?symbol=NVDA`
+
+## 18. Sprint 13 - Virtual Agent Portfolio
+
+Sprint 13 outcomes:
+- Added persistent virtual portfolio storage:
+  - `frontend/src/services/virtualPortfolioStorage.js`
+- Added portfolio simulation hook:
+  - `frontend/src/hooks/useVirtualPortfolio.js`
+- Dashboard now surfaces virtual portfolio widgets in:
+  - `frontend/src/components/DashboardHome.jsx`
+  - Virtual Portfolio Value
+  - Today’s Agent Trades
+  - Best Open Trade
+  - Worst Open Trade
+  - Agent Win Rate
+  - Current Cash
+  - Risk Exposure
+- Portfolio screen now shows the simulated portfolio and trade history:
+  - `frontend/src/screens/PortfolioScreen.jsx`
+- The engine is localStorage-backed for now and structured so it can later move to a database-backed service layer.
+
+Sprint 13 verification:
+- Production build passed.
+- Verified overview-driven portfolio inputs for:
+  - `AAPL`
+  - `NVDA`
+  - `TSLA`
+  - `BTC`
+  - oil signal coverage
+- Verified committee decisions for:
+  - `AAPL`
+  - `NVDA`
+  - `TSLA`
+  - `BTC`
+- Verified alpha-discovery portfolio actions are present in overview payloads.
 
 ## Quick Handoff For New Developers
 1. Install dependencies at root (`npm install`) and frontend if needed (`npm --prefix frontend install`).
