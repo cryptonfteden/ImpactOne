@@ -3,23 +3,23 @@
     {
       "symbol": "AAPL",
       "displaySymbol": "AAPL",
-      "generatedAt": "2026-07-10T14:06:37.209Z",
+      "generatedAt": "2026-07-10T14:18:56.557Z",
       "finalDecision": "Reduce",
       "confidence": 63,
-      "entryPrice": 314.26,
-      "expectedReturn": "Moderate upside potential if execution remains solid, but macro risks could limit growth.",
-      "disagreementScore": 40,
+      "entryPrice": 313.42,
+      "expectedReturn": "Moderate upside potential if execution remains solid, but significant downside risks due to macroeconomic factors.",
+      "disagreementScore": 60,
       "assetClass": "equity"
     },
     {
       "symbol": "NVDA",
       "displaySymbol": "NVDA",
-      "generatedAt": "2026-07-10T14:07:14.189Z",
+      "generatedAt": "2026-07-10T14:20:09.537Z",
       "finalDecision": "Reduce",
-      "confidence": 64,
-      "entryPrice": 206.53,
-      "expectedReturn": "Moderate upside potential if execution remains solid, but constrained by macroeconomic risks.",
-      "disagreementScore": 40,
+      "confidence": 74,
+      "entryPrice": 207.29,
+      "expectedReturn": "Moderate upside potential if execution remains solid, but significant downside risks due to macroeconomic factors.",
+      "disagreementScore": 60,
       "assetClass": "equity"
     },
     {

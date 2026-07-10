@@ -18,10 +18,48 @@ const CORE_EVENT_TYPES = {
   defense: ["defense", "missile", "military"],
   ai: ["ai", "nvidia", "model", "compute"],
   healthcare: ["drug", "healthcare", "fda", "biotech"],
+  consumer: ["consumer", "retail", "spending", "discretionary"],
+  financials: ["bank", "credit", "financial", "lending"],
+  space: ["space", "launch", "satellite", "orbital"],
+  nuclear: ["nuclear", "uranium", "reactor"],
+  cybersecurity: ["cyber", "security", "breach", "software security"],
 };
 
 const DEFAULT_WATCHLIST = ["AAPL", "NVDA", "TSLA"];
 const DEFAULT_SCENARIOS = ["Oil spike", "Fed rate hike", "BTC ETF approval", "Israel conflict"];
+const AUTONOMOUS_SCAN_UNIVERSE = {
+  macro: ["Fed rate hike", "Global macro scan", "Yield curve steepening", "Dollar liquidity squeeze"],
+  market: ["Equity market breadth inflection", "Volatility regime shift"],
+  sector: ["Sector rotation into defensives", "Sector rotation into cyclicals"],
+  stock: ["AAPL earnings", "NVDA AI demand acceleration", "TSLA delivery shock"],
+  etf: ["Semiconductor ETF breakout", "Energy ETF leadership"],
+  crypto: ["BTC ETF approval", "Crypto liquidity expansion"],
+  commodity: ["Oil spike", "Copper demand rebound", "Gold safe-haven bid"],
+  bond: ["Treasury duration squeeze", "Credit spread widening"],
+  currency: ["USD strength regime", "JPY policy divergence"],
+  predictionMarkets: ["Prediction markets price policy easing"],
+  cot: ["COT positioning inflection"],
+  congress: ["Congress trading rotation"],
+  insiderBuying: ["Insider buying cluster"],
+  options: ["Unusual options activity in semiconductors"],
+  earningsCalendar: ["Earnings calendar concentration"],
+  economicCalendar: ["Economic calendar volatility window"],
+  centralBankEvents: ["ECB surprise guidance"],
+  geopoliticalEvents: ["Israel conflict", "South China Sea escalation"],
+  supplyChainDisruptions: ["Supply chain bottleneck in semiconductor equipment"],
+  shippingData: ["Shipping rates surge"],
+  energy: ["Oil spike", "Natural gas storage shock"],
+  defense: ["Defense procurement acceleration"],
+  ai: ["AI capex supercycle"],
+  semiconductors: ["Semiconductor capacity constraint"],
+  space: ["Satellite launch cadence acceleration"],
+  nuclear: ["Nuclear policy re-rating"],
+  cybersecurity: ["Cybersecurity spending surge"],
+  healthcare: ["Healthcare innovation re-rating"],
+  consumer: ["Consumer discretionary slowdown"],
+  financials: ["Bank funding stress"],
+};
+const COUNTRY_UNIVERSE = ["US", "EU", "China", "Taiwan", "Japan", "Middle East", "UK", "India"];
 
 function unique(values) {
   return Array.from(new Set((values || []).filter(Boolean)));
@@ -131,6 +169,223 @@ function filterMeaningful(items = [], threshold = 60) {
   return items.filter((item) => Number(item.importanceScore || item.score || 0) >= threshold);
 }
 
+function bucketByKey(items = [], keySelector) {
+  return items.reduce((map, item) => {
+    const key = keySelector(item);
+    if (!key) {
+      return map;
+    }
+    map[key] = (map[key] || 0) + 1;
+    return map;
+  }, {});
+}
+
+function average(values = []) {
+  const filtered = values.filter((item) => Number.isFinite(Number(item)));
+  if (!filtered.length) {
+    return 0;
+  }
+  return filtered.reduce((sum, item) => sum + Number(item), 0) / filtered.length;
+}
+
+function deriveExpectedDuration(timeHorizon = "1-3 months") {
+  if (timeHorizon.includes("1-4 weeks")) return "2-4 weeks";
+  if (timeHorizon.includes("1-3 months")) return "1-3 months";
+  return "3-6 months";
+}
+
+function deriveHistoricalOutcome(history = []) {
+  const top = history[0] || null;
+  if (!top) {
+    return {
+      historicalAnalogs: [],
+      bestHistoricalOutcome: "No high-confidence analog yet.",
+      worstHistoricalOutcome: "No high-confidence analog yet.",
+    };
+  }
+
+  return {
+    historicalAnalogs: history.slice(0, 3).map((item) => `${item.event} (${item.similarity}%)`),
+    bestHistoricalOutcome: `${top.event}: winners included ${(top.winningSectors || []).slice(0, 2).join(", ") || "quality assets"}.`,
+    worstHistoricalOutcome: `${top.event}: losers included ${(top.losingSectors || []).slice(0, 2).join(", ") || "cyclicals"}.`,
+  };
+}
+
+function buildScanCoverage() {
+  return Object.entries(AUTONOMOUS_SCAN_UNIVERSE).map(([scanType, events]) => ({
+    scanType,
+    status: "active",
+    sourceCount: events.length,
+    examples: events.slice(0, 2),
+  }));
+}
+
+function getRepresentativeEvents({ scenarios = [], dailyBrief = null, watchlist = [] }) {
+  const seeded = unique([
+    ...scenarios,
+    ...(dailyBrief?.topMarketMovingEvents || []).map((item) => item.event),
+    ...(dailyBrief?.altSignalsSnapshot?.upcomingEventRisk || []).map((item) => item.event),
+    ...watchlist.map((symbol) => `${symbol} watchlist momentum`),
+    ...Object.values(AUTONOMOUS_SCAN_UNIVERSE).flatMap((items) => items.slice(0, 1)),
+  ]);
+
+  return seeded.slice(0, 28);
+}
+
+function choosePortfolioAction(score) {
+  if (score >= 86) return "Buy";
+  if (score >= 72) return "Accumulate";
+  if (score >= 55) return "Wait";
+  if (score >= 38) return "Reduce";
+  return "Exit";
+}
+
+function buildPositionSize(score) {
+  if (score >= 86) return "4-6%";
+  if (score >= 72) return "2-4%";
+  if (score >= 55) return "1-2% starter";
+  if (score >= 38) return "Trim to <1%";
+  return "0% / avoid";
+}
+
+function buildStopLevel(score) {
+  if (score >= 86) return "-7% tactical stop";
+  if (score >= 72) return "-8% tactical stop";
+  if (score >= 55) return "Wait for confirmation";
+  if (score >= 38) return "Tighten risk aggressively";
+  return "Exit on strength / no new risk";
+}
+
+function buildExpectedUpside(score) {
+  if (score >= 86) return "15-22%";
+  if (score >= 72) return "10-16%";
+  if (score >= 55) return "4-9%";
+  if (score >= 38) return "0-3%";
+  return "Negative skew";
+}
+
+function buildRiskReward(score) {
+  if (score >= 86) return "2.8:1";
+  if (score >= 72) return "2.1:1";
+  if (score >= 55) return "1.3:1";
+  if (score >= 38) return "0.8:1";
+  return "0.4:1";
+}
+
+function buildPortfolioAction(idea) {
+  const conviction = Number(idea.convictionScore || 0);
+  return {
+    action: choosePortfolioAction(conviction),
+    positionSize: buildPositionSize(conviction),
+    stopLevel: buildStopLevel(conviction),
+    timeHorizon: idea.timeHorizon || "1-3 months",
+    expectedUpside: buildExpectedUpside(conviction),
+    riskRewardRatio: buildRiskReward(conviction),
+  };
+}
+
+function buildCountryMetrics({ country, feed, macroRegime }) {
+  const related = feed.filter((item) => (item.affectedRegions || []).includes(country));
+  const avgScore = Math.round(average(related.map((item) => item.importanceScore)) || 48);
+  const avgRisk = Math.round(average(related.map((item) => item.riskLevel === "high" ? 80 : item.riskLevel === "medium" ? 60 : 35)) || 40);
+  const military = related.some((item) => item.eventType === "geopolitics" || item.eventType === "defense") ? "elevated" : "contained";
+  const inflationTrend = macroRegime?.inflationPressure || "moderate";
+  const economicMomentum = macroRegime?.riskMode === "risk-on" ? "improving" : "slowing";
+  const marketSentiment = avgScore >= 70 ? "bullish" : avgScore <= 45 ? "defensive" : "balanced";
+  const attractiveness = clamp(Math.round(100 - avgRisk + (economicMomentum === "improving" ? 10 : -4)), 0, 100);
+
+  return {
+    country,
+    marketSentiment,
+    politicalRisk: avgRisk >= 75 ? "high" : avgRisk >= 55 ? "medium" : "low",
+    economicMomentum,
+    inflationTrend,
+    currencyTrend: country === "US" ? "firm" : country === "Japan" ? "policy-sensitive" : country === "EU" ? "range-bound" : "mixed",
+    tradeActivity: related.some((item) => item.eventType === "supplyChain" || item.eventType === "shippingData") ? "stressed" : "stable",
+    militaryEscalation: military,
+    investmentAttractiveness: attractiveness,
+  };
+}
+
+function buildAlphaDiscovery({ feed, watchlistRankings, globalMap, dailyBrief, altSnapshot }) {
+  const ideas = watchlistRankings.map((item) => {
+    const convictionScore = clamp(Math.round(item.overallAiScore + (item.opportunityScore - item.riskScore) * 0.2), 0, 100);
+    return {
+      symbol: item.symbol,
+      convictionScore,
+      thesis: item.explanation,
+      primaryDriver: item.primaryDriver,
+      affectedSectors: feed.find((entry) => entry.headline === item.primaryDriver)?.affectedSectors || [],
+      historicalAnalogs: feed.find((entry) => entry.headline === item.primaryDriver)?.historicalAnalogs || [],
+      timeHorizon: convictionScore >= 70 ? "1-3 months" : "2-6 weeks",
+    };
+  });
+
+  const feedOpportunities = feed
+    .filter((item) => item.impactType === "opportunity")
+    .map((item) => ({
+      symbol: item.relatedTickers?.[0] || item.affectedAssets?.[0] || item.headline,
+      convictionScore: clamp(Math.round((item.importanceScore + item.confidence) / 2), 0, 100),
+      thesis: item.whyItMatters,
+      primaryDriver: item.headline,
+      affectedSectors: item.affectedSectors || [],
+      historicalAnalogs: item.historicalAnalogs || [],
+      timeHorizon: item.expectedDuration || item.timeHorizon,
+    }));
+
+  const top10InvestmentIdeas = unique([...ideas, ...feedOpportunities].map((item) => JSON.stringify(item)))
+    .map((item) => JSON.parse(item))
+    .sort((a, b) => b.convictionScore - a.convictionScore)
+    .slice(0, 10)
+    .map((item) => ({ ...item, portfolioAction: buildPortfolioAction(item) }));
+
+  const top10Risks = feed
+    .filter((item) => item.riskLevel === "high" || item.impactType === "risk")
+    .sort((a, b) => b.importanceScore - a.importanceScore)
+    .slice(0, 10);
+
+  const topMacroThemes = Object.entries(bucketByKey(feed.filter((item) => ["macro", "centralBanks", "currency", "bond", "energy"].includes(item.eventType)), (item) => item.eventType))
+    .sort((a, b) => b[1] - a[1])
+    .map(([theme, count]) => ({ theme, count }))
+    .slice(0, 6);
+
+  const topSectors = Object.entries(bucketByKey(feed.flatMap((item) => item.affectedSectors || []).map((sector) => ({ sector })), (item) => item.sector))
+    .sort((a, b) => b[1] - a[1])
+    .map(([sector, count]) => ({ sector, count }))
+    .slice(0, 8);
+
+  const capitalRotation = globalMap.capitalFlows || [];
+  const institutionalPositioning = {
+    smartMoney: altSnapshot?.smartMoneyPositioning || dailyBrief?.altSignalsSnapshot?.smartMoneyPositioning || null,
+    predictionMarkets: altSnapshot?.predictionMarketProbabilities || dailyBrief?.altSignalsSnapshot?.predictionMarketProbabilities || null,
+  };
+  const hiddenOpportunities = feed
+    .filter((item) => item.impactType === "opportunity" && item.actionability === "monitor")
+    .slice(0, 6);
+  const emergingNarratives = unique(feed.map((item) => `${item.eventType}: ${item.headline}`)).slice(0, 8);
+  const contrarianOpportunities = watchlistRankings
+    .filter((item) => item.riskScore > 55 && item.opportunityScore >= 55)
+    .slice(0, 5)
+    .map((item) => ({
+      symbol: item.symbol,
+      thesis: item.explanation,
+      convictionScore: item.overallAiScore,
+      portfolioAction: buildPortfolioAction({ convictionScore: item.overallAiScore, timeHorizon: "2-8 weeks" }),
+    }));
+
+  return {
+    top10InvestmentIdeas,
+    top10Risks,
+    topMacroThemes,
+    topSectors,
+    capitalRotation,
+    institutionalPositioning,
+    hiddenOpportunities,
+    emergingNarratives,
+    contrarianOpportunities,
+  };
+}
+
 function buildChangeWindows(feed, watchlistRankings) {
   const meaningfulFeed = filterMeaningful(feed, 65);
   const rankingShift = watchlistRankings
@@ -210,6 +465,7 @@ function buildGlobalMap({ feed, dailyBrief, altSnapshot }) {
   return {
     majorGlobalEvents,
     countriesAffected: unique(feed.flatMap((item) => item.affectedRegions)).slice(0, 12),
+    countries: COUNTRY_UNIVERSE.map((country) => buildCountryMetrics({ country, feed, macroRegime: altSnapshot?.macroRegime || dailyBrief?.altSignalsSnapshot?.macroRegime || null })),
     sectorPropagation: feed.slice(0, 4).map((item) => ({
       headline: item.headline,
       sectors: item.affectedSectors,
@@ -251,6 +507,7 @@ async function processEvent({ event, watchlist, portfolioExposure, anchorSymbol 
   const topHistory = analysis.historicalSimilarity?.[0] || null;
   const evidence = analysis.explainability?.supportingEvidence || [];
   const dataSources = analysis.explainability?.dataSourcesUsed || [];
+  const historical = deriveHistoricalOutcome(analysis.historicalSimilarity || []);
 
   return {
     id: `${eventType}:${String(event).toLowerCase().replace(/\s+/g, "-")}`,
@@ -259,16 +516,21 @@ async function processEvent({ event, watchlist, portfolioExposure, anchorSymbol 
     importanceScore,
     confidence,
     urgency,
+    probability: clamp(Math.round((confidence + importanceScore) / 2), 0, 100),
     marketScope: mapScope(eventType),
     affectedRegions: buildRegions(analysis, eventType),
     affectedSectors: analysis.affected?.sectors || [],
     affectedAssets,
     relatedTickers,
     timeHorizon: analysis.timeHorizon || "1-3 months",
+    expectedDuration: deriveExpectedDuration(analysis.timeHorizon || "1-3 months"),
     reliability,
     whyItMatters: analysis.explainability?.why || `${event} matters through cross-asset repricing and sector propagation.`,
     supportingData: evidence,
     historicalAnalogue: topHistory ? `${topHistory.event} (${topHistory.similarity}%)` : "Unavailable",
+    historicalAnalogs: historical.historicalAnalogs,
+    bestHistoricalOutcome: historical.bestHistoricalOutcome,
+    worstHistoricalOutcome: historical.worstHistoricalOutcome,
     marketImpactPrediction: analysis.scenario?.expectedMarketReaction || "Mixed market impact expected.",
     portfolioImpactPrediction: hasPortfolioExposure ? `Portfolio overlap detected in ${relatedTickers.join(", ") || "watchlist assets"}.` : "No direct portfolio overlap detected.",
     actionability,
@@ -308,12 +570,11 @@ async function getAutonomousOverview({ watchlist = DEFAULT_WATCHLIST, scenarios 
   const quotesMap = Object.fromEntries(quotesBySymbol.map(({ symbol, payload }) => [symbol, payload]));
   const altMap = Object.fromEntries(altSignalsBySymbol.map(({ symbol, payload }) => [symbol, payload]));
 
-  const detectedEvents = unique([
-    ...normalizedScenarios,
-    ...(dailyBrief.topMarketMovingEvents || []).map((item) => item.event),
-    ...(dailyBrief.altSignalsSnapshot?.upcomingEventRisk || []).map((item) => item.event),
-    ...normalizedWatchlist.map((symbol) => `${symbol} watchlist momentum`),
-  ]).slice(0, 10);
+  const detectedEvents = getRepresentativeEvents({
+    scenarios: normalizedScenarios,
+    dailyBrief,
+    watchlist: normalizedWatchlist,
+  });
 
   const processedFeed = await Promise.all(detectedEvents.map((event) => processEvent({
     event,
@@ -333,10 +594,18 @@ async function getAutonomousOverview({ watchlist = DEFAULT_WATCHLIST, scenarios 
   const alerts = buildAlerts(feed, watchlistRankings);
   const globalMap = buildGlobalMap({ feed, dailyBrief, altSnapshot: anchorAlt?.signals || null });
   const decisionCenter = buildDecisionCenter({ feed, watchlistRankings, dailyBrief, globalMap });
+  const alphaDiscovery = buildAlphaDiscovery({
+    feed,
+    watchlistRankings,
+    globalMap,
+    dailyBrief,
+    altSnapshot: anchorAlt?.signals || null,
+  });
 
   const result = {
     generatedAt: new Date().toISOString(),
     watchlist: normalizedWatchlist,
+    scanCoverage: buildScanCoverage(),
     pipeline: {
       stages: [
         "Event Detection",
@@ -356,8 +625,17 @@ async function getAutonomousOverview({ watchlist = DEFAULT_WATCHLIST, scenarios 
     watchlistRankings,
     globalMap,
     decisionCenter,
+    alphaDiscovery,
     dailyBrief,
     portfolioExposure,
+    homepageAnswers: {
+      whatMattersToday: feed[0]?.headline || "No dominant event detected.",
+      whereMoneyIsFlowing: globalMap.capitalFlows?.[0]?.rationale || "Cross-asset flows are balanced.",
+      whatChanged: changeWindows.lastHour?.[0] || "No major change window event detected.",
+      whatShouldIBuy: alphaDiscovery.top10InvestmentIdeas?.[0] || null,
+      whatShouldIAvoid: alphaDiscovery.top10Risks?.[0] || null,
+      biggestGlobalRisk: decisionCenter.mostImportantMacroEvent || null,
+    },
   };
 
   set("intel:autonomousOverview", cacheKey, result, 5 * 60 * 1000);

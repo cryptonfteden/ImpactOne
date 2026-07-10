@@ -47,6 +47,8 @@ export default function GlobalIntelligenceScreen() {
   const globalMap = overview?.globalMap || null;
   const feed = overview?.feed || [];
   const changeWindows = overview?.changeWindows || {};
+  const alphaDiscovery = overview?.alphaDiscovery || null;
+  const scanCoverage = overview?.scanCoverage || [];
 
   return (
     <div className="screen-page">
@@ -102,6 +104,41 @@ export default function GlobalIntelligenceScreen() {
         </SectionCard>
       </div>
 
+      <SectionCard title="Country Intelligence" subtitle="Market map by country" className="screen-card">
+        <div className="table-wrapper">
+          <table className="watchlist-table">
+            <thead>
+              <tr>
+                <th>Country</th>
+                <th>Sentiment</th>
+                <th>Political Risk</th>
+                <th>Economic Momentum</th>
+                <th>Inflation</th>
+                <th>Currency</th>
+                <th>Trade</th>
+                <th>Military</th>
+                <th>Attractiveness</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(globalMap?.countries || []).map((country) => (
+                <tr key={country.country}>
+                  <td>{country.country}</td>
+                  <td>{country.marketSentiment}</td>
+                  <td>{country.politicalRisk}</td>
+                  <td>{country.economicMomentum}</td>
+                  <td>{country.inflationTrend}</td>
+                  <td>{country.currencyTrend}</td>
+                  <td>{country.tradeActivity}</td>
+                  <td>{country.militaryEscalation}</td>
+                  <td>{country.investmentAttractiveness}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
+
       <div className="screen-grid">
         <SectionCard title="Sector Propagation" subtitle="How events spread" className="screen-card">
           <div className="timeline">
@@ -124,6 +161,30 @@ export default function GlobalIntelligenceScreen() {
               <div key={`${item.from}-${item.to}`} className="widget-list-item">
                 <strong>{item.from} → {item.to}</strong>
                 <span>{item.rationale}</span>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      </div>
+
+      <div className="analysis-grid">
+        <SectionCard title="Alpha Discovery" subtitle="Highest conviction opportunities" className="screen-card">
+          <div className="widget-list">
+            {(alphaDiscovery?.top10InvestmentIdeas || []).slice(0, 10).map((idea) => (
+              <div key={`${idea.symbol}-${idea.primaryDriver}`} className="widget-list-item">
+                <strong>{idea.symbol}</strong>
+                <span>{idea.portfolioAction?.action || "Wait"} | {idea.convictionScore}</span>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Autonomous Scan Coverage" subtitle="Refresh cycle inputs" className="screen-card">
+          <div className="widget-list">
+            {scanCoverage.map((scan) => (
+              <div key={scan.scanType} className="widget-list-item">
+                <strong>{scan.scanType}</strong>
+                <span>{scan.sourceCount} sources</span>
               </div>
             ))}
           </div>

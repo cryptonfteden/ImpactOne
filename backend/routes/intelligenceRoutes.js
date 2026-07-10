@@ -14,6 +14,7 @@ const {
   getWatchlistPriority,
   getGlobalMap,
   getDecisionCenter,
+  getAlphaDiscovery,
 } = require("../controllers/autonomousMarketController");
 
 const router = express.Router();
@@ -36,5 +37,6 @@ router.get("/changes", getChangeWindows);
 router.get("/watchlist-priority", getWatchlistPriority);
 router.get("/global-map", getGlobalMap);
 router.get("/decision-center", getDecisionCenter);
+router.get("/alpha-discovery", getAlphaDiscovery);
 
 module.exports = router;

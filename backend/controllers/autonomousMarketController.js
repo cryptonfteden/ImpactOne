@@ -69,6 +69,21 @@ async function getDecisionCenter(req, res, next) {
   }
 }
 
+async function getAlphaDiscovery(req, res, next) {
+  try {
+    const watchlist = parseCsv(req.query.watchlist || "AAPL,NVDA,TSLA");
+    const overview = await getAutonomousOverview({ watchlist });
+    res.json({
+      generatedAt: overview.generatedAt,
+      alphaDiscovery: overview.alphaDiscovery,
+      homepageAnswers: overview.homepageAnswers,
+      scanCoverage: overview.scanCoverage,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   getAutonomousOverviewController,
   getLiveFeed,
@@ -76,4 +91,5 @@ module.exports = {
   getWatchlistPriority,
   getGlobalMap,
   getDecisionCenter,
+  getAlphaDiscovery,
 };

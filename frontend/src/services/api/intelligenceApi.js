@@ -76,4 +76,10 @@ export const intelligenceApi = {
     const query = params.toString();
     return apiClient.get(`/intelligence/decision-center${query ? `?${query}` : ""}`);
   },
+  alphaDiscovery({ watchlist = [] } = {}) {
+    const params = new URLSearchParams();
+    if (watchlist.length) params.set("watchlist", watchlist.join(","));
+    const query = params.toString();
+    return apiClient.get(`/intelligence/alpha-discovery${query ? `?${query}` : ""}`);
+  },
 };

@@ -188,6 +188,16 @@ export default function DashboardHome() {
   const ignoredNews = decisionCenter?.mostImportantNewsIgnoredByMarkets || null;
   const changeWindows = overview?.changeWindows || {};
   const committeeSummary = committee?.committee || null;
+  const alphaDiscovery = overview?.alphaDiscovery || null;
+  const homepageAnswers = overview?.homepageAnswers || {};
+  const topIdeas = alphaDiscovery?.top10InvestmentIdeas || [];
+  const topRiskFeed = alphaDiscovery?.top10Risks || [];
+  const topMacroThemes = alphaDiscovery?.topMacroThemes || [];
+  const leadingSectors = alphaDiscovery?.topSectors || [];
+  const hiddenOpportunities = alphaDiscovery?.hiddenOpportunities || [];
+  const emergingNarratives = alphaDiscovery?.emergingNarratives || [];
+  const contrarianIdeas = alphaDiscovery?.contrarianOpportunities || [];
+  const institutionalPositioning = alphaDiscovery?.institutionalPositioning || null;
 
   return (
     <main className="dashboard-content premium-dashboard">
@@ -202,6 +212,39 @@ export default function DashboardHome() {
       </section>
 
       <section className="widget-grid" aria-label="Dashboard widgets">
+        <article className="panel-card glass-card widget-card widget-card--full">
+          <div className="widget-title">Autonomous Alpha Discovery Engine</div>
+          <div className="brief-grid">
+            <div className="brief-block">
+              <h4>What matters today?</h4>
+              <p className="company-description">{homepageAnswers.whatMattersToday || "Scanning global intelligence..."}</p>
+            </div>
+            <div className="brief-block">
+              <h4>Where is money flowing?</h4>
+              <p className="company-description">{homepageAnswers.whereMoneyIsFlowing || "Flow map loading..."}</p>
+            </div>
+            <div className="brief-block">
+              <h4>What changed?</h4>
+              <p className="company-description">{homepageAnswers.whatChanged || "Change engine loading..."}</p>
+            </div>
+            <div className="brief-block">
+              <h4>What should I buy?</h4>
+              <p className="company-description">{homepageAnswers.whatShouldIBuy?.symbol || homepageAnswers.whatShouldIBuy?.headline || "No high-conviction idea yet."}</p>
+              <p className="company-description subtle">{homepageAnswers.whatShouldIBuy?.portfolioAction?.action || "Wait"} | {homepageAnswers.whatShouldIBuy?.portfolioAction?.expectedUpside || "N/A"}</p>
+            </div>
+            <div className="brief-block">
+              <h4>What should I avoid?</h4>
+              <p className="company-description">{homepageAnswers.whatShouldIAvoid?.headline || "No elevated risk flagged."}</p>
+              <p className="company-description subtle">Risk level: {homepageAnswers.whatShouldIAvoid?.riskLevel || "N/A"}</p>
+            </div>
+            <div className="brief-block">
+              <h4>Biggest global risk</h4>
+              <p className="company-description">{homepageAnswers.biggestGlobalRisk?.headline || "No singular risk leader."}</p>
+              <p className="company-description subtle">{homepageAnswers.biggestGlobalRisk?.whyItMatters || "Global risk scan in progress."}</p>
+            </div>
+          </div>
+        </article>
+
         <article className="panel-card glass-card widget-card widget-card--full">
           <div className="widget-title">Today&apos;s Intelligence Brief</div>
           {dailyBrief ? (
@@ -549,6 +592,115 @@ export default function DashboardHome() {
                 </div>
               </article>
             )) : <p className="company-description subtle">Autonomous event feed loading...</p>}
+          </div>
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--full">
+          <div className="widget-title">Top 10 Investment Ideas</div>
+          <div className="table-wrapper">
+            <table className="watchlist-table">
+              <thead>
+                <tr>
+                  <th>Idea</th>
+                  <th>Conviction</th>
+                  <th>Action</th>
+                  <th>Position Size</th>
+                  <th>Expected Upside</th>
+                  <th>Risk/Reward</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topIdeas.slice(0, 10).map((idea) => (
+                  <tr key={`${idea.symbol}-${idea.primaryDriver}`}>
+                    <td>{idea.symbol}</td>
+                    <td>{idea.convictionScore}</td>
+                    <td>{idea.portfolioAction?.action || "Wait"}</td>
+                    <td>{idea.portfolioAction?.positionSize || "N/A"}</td>
+                    <td>{idea.portfolioAction?.expectedUpside || "N/A"}</td>
+                    <td>{idea.portfolioAction?.riskRewardRatio || "N/A"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Top 10 Risks</div>
+          <div className="widget-list">
+            {topRiskFeed.length ? topRiskFeed.slice(0, 10).map((item) => (
+              <div key={item.id} className="widget-list-item">
+                <strong>{item.headline}</strong>
+                <span>{item.importanceScore}/100</span>
+              </div>
+            )) : <p className="company-description subtle">Risk discovery engine loading...</p>}
+          </div>
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Top Macro Themes</div>
+          <div className="widget-list">
+            {topMacroThemes.length ? topMacroThemes.map((item) => (
+              <div key={item.theme} className="widget-list-item">
+                <strong>{item.theme}</strong>
+                <span>{item.count} drivers</span>
+              </div>
+            )) : <p className="company-description subtle">Macro theme engine loading...</p>}
+          </div>
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Top Sectors</div>
+          <div className="widget-list">
+            {leadingSectors.length ? leadingSectors.map((item) => (
+              <div key={item.sector} className="widget-list-item">
+                <strong>{item.sector}</strong>
+                <span>{item.count}</span>
+              </div>
+            )) : <p className="company-description subtle">Sector scan loading...</p>}
+          </div>
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Institutional Positioning</div>
+          {institutionalPositioning ? (
+            <>
+              <p className="company-description">Smart money: {institutionalPositioning.smartMoney?.signal || "N/A"}</p>
+              <p className="company-description subtle">Prediction markets: {institutionalPositioning.predictionMarkets?.event || "N/A"}</p>
+            </>
+          ) : <p className="company-description subtle">Institutional positioning loading...</p>}
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Hidden Opportunities</div>
+          <div className="widget-list">
+            {hiddenOpportunities.length ? hiddenOpportunities.map((item) => (
+              <div key={item.id} className="widget-list-item">
+                <strong>{item.headline}</strong>
+                <span>{item.actionability}</span>
+              </div>
+            )) : <p className="company-description subtle">No hidden opportunities detected yet.</p>}
+          </div>
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Emerging Narratives</div>
+          <div className="widget-list">
+            {emergingNarratives.length ? emergingNarratives.map((item) => (
+              <div key={item} className="widget-list-item"><strong>{item}</strong></div>
+            )) : <p className="company-description subtle">Narrative engine loading...</p>}
+          </div>
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Contrarian Opportunities</div>
+          <div className="widget-list">
+            {contrarianIdeas.length ? contrarianIdeas.map((item) => (
+              <div key={item.symbol} className="widget-list-item">
+                <strong>{item.symbol}</strong>
+                <span>{item.portfolioAction?.action || "Wait"}</span>
+              </div>
+            )) : <p className="company-description subtle">No contrarian setup detected.</p>}
           </div>
         </article>
 

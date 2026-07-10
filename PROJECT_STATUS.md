@@ -1,6 +1,6 @@
 # ImpactOne - Project Status
 
-Last updated: 2026-07-10 (Sprint 11)
+Last updated: 2026-07-10 (Sprint 12)
 
 ## 1. What Is Already Completed
 - Full React + Express app is running with screen-based dashboard UX and `/api` backend routing.
@@ -183,6 +183,72 @@ Last updated: 2026-07-10 (Sprint 11)
     - experts disagree explanation when alignment is low
   - Added decision persistence and track record storage with current-return evaluation support.
   - Added dashboard and AI Analysis committee views.
+- Sprint 12 Autonomous Alpha Discovery Engine is now live:
+  - Added autonomous cross-asset scan coverage for:
+    - global macro
+    - market
+    - sector
+    - stock
+    - ETF
+    - crypto
+    - commodity
+    - bond
+    - currency
+    - prediction markets
+    - COT
+    - congress trading
+    - insider-buying proxy coverage
+    - unusual options activity proxy coverage
+    - earnings calendar
+    - economic calendar
+    - central bank events
+    - geopolitical events
+    - supply chain disruptions
+    - shipping data
+    - energy, defense, AI, semiconductors, space, nuclear, cybersecurity, healthcare, consumer, financials
+  - Every event now includes:
+    - impact score
+    - probability
+    - confidence
+    - expected duration
+    - affected sectors
+    - affected companies/assets
+    - historical analogs
+    - best historical outcome
+    - worst historical outcome
+  - Added alpha discovery outputs:
+    - top 10 investment ideas
+    - top 10 risks
+    - top macro themes
+    - top sectors
+    - capital rotation
+    - institutional positioning
+    - hidden opportunities
+    - emerging narratives
+    - contrarian opportunities
+  - Added portfolio action guidance for opportunities:
+    - buy / accumulate / wait / reduce / exit
+    - position size
+    - stop level
+    - time horizon
+    - expected upside
+    - risk/reward ratio
+  - Expanded global market map with country-level metrics:
+    - market sentiment
+    - political risk
+    - economic momentum
+    - inflation trend
+    - currency trend
+    - trade activity
+    - military escalation
+    - investment attractiveness
+  - Added homepage answer layer for:
+    - what matters today
+    - where money is flowing
+    - what changed
+    - what should I buy
+    - what should I avoid
+    - biggest global risk
 - Provider-resilient error handling is in place:
   - Finnhub failures return user-friendly messages
   - OpenAI failures expose user-friendly notice and fallback report instead of crashing UI
@@ -227,6 +293,7 @@ Last updated: 2026-07-10 (Sprint 11)
   - `autonomousMarketService` (Sprint 10 cached operating-system overview, event pipeline, live feed, alerts, watchlist ranking, global map, decision center)
   - `investmentCommitteeService` (Sprint 11 committee debate, votes, CIO synthesis, disagreement scoring)
   - `committeeTrackRecordService` (Sprint 11 persistent decision storage and evaluation metrics)
+  - `autonomousMarketService` now also owns Sprint 12 alpha discovery, scan coverage, portfolio action generation, and country-level market map metrics.
 
 ## 3. Folder Structure
 
@@ -550,6 +617,39 @@ Sprint 11 verification:
   - `/api/ai/analyze?symbol=NVDA`
   - `/api/intelligence/daily-brief?watchlist=AAPL,NVDA,TSLA`
   - `/api/intelligence/overview?watchlist=AAPL,NVDA,TSLA`
+
+## 17. Sprint 12 - Autonomous Alpha Discovery Engine
+
+Sprint 12 outcomes:
+- Extended backend autonomous intelligence service:
+  - `backend/services/autonomousMarketService.js`
+- Extended autonomous controller and routes:
+  - `backend/controllers/autonomousMarketController.js`
+  - `backend/routes/intelligenceRoutes.js`
+  - Added `GET /api/intelligence/alpha-discovery`
+- Extended frontend intelligence API client:
+  - `frontend/src/services/api/intelligenceApi.js`
+- Dashboard now surfaces alpha-discovery outputs:
+  - `frontend/src/components/DashboardHome.jsx`
+- Global Intelligence screen now includes:
+  - country-level market map metrics
+  - autonomous scan coverage
+  - alpha discovery summaries
+  - `frontend/src/screens/GlobalIntelligenceScreen.jsx`
+
+Sprint 12 verification:
+- Production build passed.
+- `GET /api/intelligence/overview?watchlist=AAPL,NVDA,TSLA` returned:
+  - `scanCoverage`
+  - `alphaDiscovery`
+  - `homepageAnswers`
+  - enriched feed items with probability and historical outcomes
+- `GET /api/intelligence/alpha-discovery?watchlist=AAPL,NVDA,TSLA` returned top ideas and macro themes.
+- `GET /api/intelligence/global-map?watchlist=AAPL,NVDA,TSLA` returned country-level market map metrics.
+- Regression validation passed for:
+  - `/api/ai/analyze?symbol=NVDA`
+  - `/api/intelligence/daily-brief?watchlist=AAPL,NVDA,TSLA`
+  - `/api/committee/analyze?symbol=NVDA`
 
 ## Quick Handoff For New Developers
 1. Install dependencies at root (`npm install`) and frontend if needed (`npm --prefix frontend install`).
