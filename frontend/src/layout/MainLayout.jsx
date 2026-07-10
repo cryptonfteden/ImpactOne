@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { Suspense, lazy, useCallback, useState } from "react";
 import Sidebar from "./Sidebar";
 import Header from "../components/Header";
 import ScreenErrorBoundary from "../components/ScreenErrorBoundary";
@@ -13,11 +13,14 @@ import {
   SettingsFeature,
 } from "../features";
 
+const GlobalIntelligenceFeature = lazy(() => import("../features/intelligence/GlobalIntelligenceFeature"));
+
 const screenMap = {
   Dashboard: DashboardFeature,
   "Market News": NewsFeature,
   "AI Analysis": AnalysisFeature,
   Watchlist: WatchlistFeature,
+  "Global Intelligence": GlobalIntelligenceFeature,
   Alerts: AlertsFeature,
   Portfolio: PortfolioFeature,
   Settings: SettingsFeature,
@@ -54,6 +57,14 @@ export default function MainLayout() {
               <ScreenErrorBoundary>
                 <ActiveScreen />
               </ScreenErrorBoundary>
+            );
+          }
+
+          if (activeView === "Global Intelligence") {
+            return (
+              <Suspense fallback={<div className="screen-page"><p className="company-description">Loading global intelligence...</p></div>}>
+                <ActiveScreen />
+              </Suspense>
             );
           }
 

@@ -1,6 +1,6 @@
 # ImpactOne - Project Status
 
-Last updated: 2026-07-10 (Sprint 9)
+Last updated: 2026-07-10 (Sprint 10)
 
 ## 1. What Is Already Completed
 - Full React + Express app is running with screen-based dashboard UX and `/api` backend routing.
@@ -101,6 +101,57 @@ Last updated: 2026-07-10 (Sprint 9)
     - market close recap
     - weekly summary
   - Added OpenAI-generated concise professional summary with fallback notice and rule-based continuity.
+- Sprint 10 Autonomous Market Operating System is now live:
+  - Added a reusable event pipeline that processes events through:
+    - Event detection
+    - Event classification
+    - Importance scoring
+    - Market impact prediction
+    - Portfolio impact prediction
+    - Historical comparison
+    - AI explanation
+    - Dashboard delivery
+  - Added live operating-system endpoints:
+    - `/api/intelligence/overview`
+    - `/api/intelligence/live-feed`
+    - `/api/intelligence/changes`
+    - `/api/intelligence/watchlist-priority`
+    - `/api/intelligence/global-map`
+    - `/api/intelligence/decision-center`
+  - Added a continuously updating dashboard intelligence feed with:
+    - headline
+    - why it matters
+    - affected assets
+    - confidence
+    - actionability
+    - supporting data
+    - historical analogue
+    - risk level
+  - Added meaningful change windows:
+    - last 15 minutes
+    - last hour
+    - since market open
+    - overnight
+    - weekly
+  - Added thresholded intelligent alerts that suppress low-confidence or low-exposure noise.
+  - Added dynamic watchlist priority scores:
+    - opportunity score
+    - risk score
+    - momentum
+    - institutional activity
+    - prediction market signal
+    - macro exposure
+    - event exposure
+    - overall AI score
+  - Added a new lazy-loaded Global Intelligence page with world event map, capital flows, macro regime, sentiment, and explainability context.
+  - Added AI Decision Center outputs to the dashboard:
+    - Today’s Highest Conviction Ideas
+    - Today’s Biggest Risks
+    - Most Important Macro Event
+    - Most Important Company Event
+    - Sector Rotation
+    - Capital Flow
+    - Most Important News Ignored By Markets
 - Provider-resilient error handling is in place:
   - Finnhub failures return user-friendly messages
   - OpenAI failures expose user-friendly notice and fallback report instead of crashing UI
@@ -142,6 +193,7 @@ Last updated: 2026-07-10 (Sprint 9)
   - `propagationEngineService`, `portfolioIntelligenceService`, `alternativeFusionService`
   - `intelligenceCache` (TTL cache for intelligence computations)
   - `dailyBriefService` (Sprint 9 autonomous brief orchestration, relevance scoring, action cards, AI/fallback summary)
+  - `autonomousMarketService` (Sprint 10 cached operating-system overview, event pipeline, live feed, alerts, watchlist ranking, global map, decision center)
 
 ## 3. Folder Structure
 
@@ -404,6 +456,32 @@ Sprint 9 verification:
   - `relevanceItems: 4`
   - `actionCards: 6`
   - valid top event and AI summary payload.
+
+## 15. Sprint 10 - Autonomous Market Operating System
+
+Sprint 10 outcomes:
+- Added backend operating-system service and controller:
+  - `backend/services/autonomousMarketService.js`
+  - `backend/controllers/autonomousMarketController.js`
+- Extended intelligence routing in `backend/routes/intelligenceRoutes.js`.
+- Extended frontend intelligence client in `frontend/src/services/api/intelligenceApi.js`.
+- Dashboard now consumes the shared operating-system overview payload in `frontend/src/components/DashboardHome.jsx`.
+- Added lazy-loaded Global Intelligence feature/screen:
+  - `frontend/src/features/intelligence/GlobalIntelligenceFeature.jsx`
+  - `frontend/src/screens/GlobalIntelligenceScreen.jsx`
+- Updated navigation:
+  - `frontend/src/layout/MainLayout.jsx`
+  - `frontend/src/layout/Sidebar.jsx`
+- Updated Alerts screen to use thresholded autonomous alerts:
+  - `frontend/src/screens/AlertsScreen.jsx`
+
+Sprint 10 verification:
+- Production build passed after lazy-loading optimization.
+- `/api/intelligence/overview` returned feed, alerts, watchlist rankings, global map, and decision center payloads.
+- Regression validation passed for:
+  - `/api/ai/analyze?symbol=NVDA`
+  - `/api/intelligence/daily-brief?watchlist=AAPL,NVDA,TSLA`
+- Verified operating-system overview with watchlist `AAPL,NVDA,TSLA`.
 
 ## Quick Handoff For New Developers
 1. Install dependencies at root (`npm install`) and frontend if needed (`npm --prefix frontend install`).

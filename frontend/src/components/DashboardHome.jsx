@@ -11,8 +11,7 @@ export default function DashboardHome() {
   const [watchlistError, setWatchlistError] = useState("");
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [altSummary, setAltSummary] = useState(null);
-  const [intelligence, setIntelligence] = useState(null);
-  const [dailyBrief, setDailyBrief] = useState(null);
+  const [overview, setOverview] = useState(null);
 
   useEffect(() => {
     async function loadWatchlistIntelligence() {
@@ -65,62 +64,33 @@ export default function DashboardHome() {
 
   useEffect(() => {
     let isMounted = true;
+    let intervalId;
 
-    async function loadDailyBrief() {
+    async function loadOverview() {
       try {
-        const brief = await intelligenceApi.dailyBrief({
+        const payload = await intelligenceApi.overview({
           watchlist: watchlist.length ? watchlist : ["AAPL", "NVDA", "TSLA"],
           scenarios: ["Oil spike", "Fed rate hike", "BTC ETF approval", "Israel conflict"],
           sessionType: "morning",
         });
 
         if (isMounted) {
-          setDailyBrief(brief);
+          setOverview(payload);
         }
       } catch (error) {
-        logError("Dashboard daily brief load failed", error);
+        logError("Dashboard autonomous overview load failed", error);
         if (isMounted) {
-          setDailyBrief(null);
+          setOverview(null);
         }
       }
     }
 
-    loadDailyBrief();
+    loadOverview();
+    intervalId = setInterval(loadOverview, 60000);
+
     return () => {
       isMounted = false;
-    };
-  }, [watchlist]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadIntelligence() {
-      const anchorSymbol = watchlist[0] || "AAPL";
-      const event = "Fed rate hike";
-
-      try {
-        const [analysis, scenario] = await Promise.all([
-          intelligenceApi.analyze({ event, symbol: anchorSymbol }),
-          intelligenceApi.scenario({ event }),
-        ]);
-
-        if (isMounted) {
-          setIntelligence({
-            analysis,
-            scenario: scenario?.scenario || null,
-          });
-        }
-      } catch (error) {
-        logError("Dashboard intelligence load failed", error);
-        if (isMounted) {
-          setIntelligence(null);
-        }
-      }
-    }
-
-    loadIntelligence();
-    return () => {
-      isMounted = false;
+      clearInterval(intervalId);
     };
   }, [watchlist]);
 
@@ -165,16 +135,20 @@ export default function DashboardHome() {
   const topPrediction = altSignals?.predictionMarketProbabilities || null;
   const macroRegime = altSignals?.macroRegime || null;
   const upcomingEvents = altSignals?.upcomingEventRisk || [];
-  const intelligenceAnalysis = intelligence?.analysis || null;
-  const intelligenceScenario = intelligence?.scenario || null;
-  const sectorConcentration = intelligenceAnalysis?.affected?.sectors || [];
-  const topRisks = intelligenceAnalysis?.explainability?.possibleRisks || [];
-  const topOpportunities = intelligenceAnalysis?.scenario?.expectedSectorRotation || [];
-  const confidenceScore = Number(intelligenceAnalysis?.confidenceScore || 0);
-  const marketRegimeLabel = intelligenceScenario?.theme || macroRegime?.riskMode || "mixed";
-  const propagationEdges = intelligenceAnalysis?.sectorPropagation || [];
-  const capitalFlowHint = propagationEdges[0] || null;
-  const impactedCountries = intelligenceAnalysis?.affected?.countries || [];
+  const dailyBrief = overview?.dailyBrief || null;
+  const feed = overview?.feed || [];
+  const alerts = overview?.alerts || [];
+  const watchlistRankings = overview?.watchlistRankings || [];
+  const globalMap = overview?.globalMap || null;
+  const decisionCenter = overview?.decisionCenter || null;
+  const leadEvent = feed[0] || null;
+  const sectorConcentration = leadEvent?.affectedSectors || [];
+  const topRisks = dailyBrief?.topRisks || (decisionCenter?.biggestRisks || []).map((item) => item.headline);
+  const topOpportunities = decisionCenter?.sectorRotation || dailyBrief?.topOpportunities || [];
+  const confidenceScore = Number(leadEvent?.confidence || dailyBrief?.aiSummary?.confidenceScore || 0);
+  const marketRegimeLabel = globalMap?.macroRegime?.riskMode || macroRegime?.riskMode || "mixed";
+  const capitalFlowHint = globalMap?.capitalFlows?.[0] || null;
+  const impactedCountries = globalMap?.countriesAffected || [];
   const briefSummary = dailyBrief?.aiSummary || null;
   const briefTopEvents = dailyBrief?.topMarketMovingEvents || [];
   const briefActionCards = dailyBrief?.actionCards || [];
@@ -182,6 +156,12 @@ export default function DashboardHome() {
   const briefWatchlistImpact = dailyBrief?.portfolioWatchlistExposure || null;
   const briefChanges = dailyBrief?.whatChangedSinceYesterday || [];
   const briefMonitor = dailyBrief?.whatToMonitorToday || [];
+  const highestConvictionIdeas = decisionCenter?.highestConvictionIdeas || [];
+  const biggestRisks = decisionCenter?.biggestRisks || [];
+  const mostImportantMacroEvent = decisionCenter?.mostImportantMacroEvent || null;
+  const mostImportantCompanyEvent = decisionCenter?.mostImportantCompanyEvent || null;
+  const ignoredNews = decisionCenter?.mostImportantNewsIgnoredByMarkets || null;
+  const changeWindows = overview?.changeWindows || {};
 
   return (
     <main className="dashboard-content premium-dashboard">
@@ -449,10 +429,10 @@ export default function DashboardHome() {
 
         <article className="panel-card glass-card widget-card widget-card--wide">
           <div className="widget-title">Global Risk Monitor</div>
-          {intelligenceAnalysis ? (
+          {leadEvent ? (
             <>
-              <div className="widget-value">{intelligenceAnalysis.confidenceScore}/100</div>
-              <p className="company-description">{intelligenceAnalysis.event} | Horizon: {intelligenceAnalysis.timeHorizon}</p>
+              <div className="widget-value">{leadEvent.importanceScore}/100</div>
+              <p className="company-description">{leadEvent.headline} | Horizon: {leadEvent.timeHorizon}</p>
             </>
           ) : (
             <p className="company-description subtle">Global risk model loading...</p>
@@ -482,7 +462,7 @@ export default function DashboardHome() {
           {capitalFlowHint ? (
             <>
               <div className="widget-value">{capitalFlowHint.from} → {capitalFlowHint.to}</div>
-              <p className="company-description subtle">Flow direction: {capitalFlowHint.effect}</p>
+              <p className="company-description subtle">{capitalFlowHint.rationale}</p>
             </>
           ) : (
             <p className="company-description subtle">Flow map loading...</p>
@@ -526,6 +506,155 @@ export default function DashboardHome() {
             )) : (
               <p className="company-description subtle">Heatmap loading...</p>
             )}
+          </div>
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--full">
+          <div className="widget-title">Live Intelligence Feed</div>
+          <div className="news-list">
+            {feed.length ? feed.slice(0, 5).map((item) => (
+              <article key={item.id} className="news-item news-item--premium">
+                <div className="news-item__icon">◉</div>
+                <div>
+                  <div className="news-item__meta">{item.eventType} • {item.confidence}/100 confidence • {item.actionability}</div>
+                  <h4>{item.headline}</h4>
+                  <p>{item.whyItMatters}</p>
+                  <p className="company-description subtle">Assets: {(item.affectedAssets || []).slice(0, 5).join(", ") || "N/A"} | Analogue: {item.historicalAnalogue} | Risk: {item.riskLevel}</p>
+                </div>
+              </article>
+            )) : <p className="company-description subtle">Autonomous event feed loading...</p>}
+          </div>
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Today&apos;s Highest Conviction Ideas</div>
+          <div className="widget-list">
+            {highestConvictionIdeas.length ? highestConvictionIdeas.map((item) => (
+              <div key={item.symbol} className="widget-list-item">
+                <strong>{item.symbol}</strong>
+                <span>{item.overallAiScore}/100</span>
+              </div>
+            )) : <p className="company-description subtle">Idea engine loading...</p>}
+          </div>
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Today&apos;s Biggest Risks</div>
+          <div className="widget-list">
+            {biggestRisks.length ? biggestRisks.map((item) => (
+              <div key={item.id} className="widget-list-item">
+                <strong>{item.headline}</strong>
+                <span>{item.riskLevel}</span>
+              </div>
+            )) : <p className="company-description subtle">Risk engine loading...</p>}
+          </div>
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Most Important Macro Event</div>
+          {mostImportantMacroEvent ? (
+            <>
+              <div className="widget-value">{mostImportantMacroEvent.headline}</div>
+              <p className="company-description subtle">{mostImportantMacroEvent.whyItMatters}</p>
+            </>
+          ) : <p className="company-description subtle">Macro event ranking loading...</p>}
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Most Important Company Event</div>
+          {mostImportantCompanyEvent ? (
+            <>
+              <div className="widget-value">{mostImportantCompanyEvent.headline}</div>
+              <p className="company-description subtle">{mostImportantCompanyEvent.whyItMatters}</p>
+            </>
+          ) : <p className="company-description subtle">Company event ranking loading...</p>}
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--wide">
+          <div className="widget-title">Most Important News Ignored By Markets</div>
+          {ignoredNews ? (
+            <>
+              <div className="widget-value">{ignoredNews.headline}</div>
+              <p className="company-description subtle">{ignoredNews.whyItMatters}</p>
+            </>
+          ) : <p className="company-description subtle">No ignored high-importance story detected.</p>}
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--full">
+          <div className="widget-title">What Changed?</div>
+          <div className="ai-report__grid">
+            <div>
+              <h4>Last 15 minutes</h4>
+              <ul className="stack-list">
+                {(changeWindows.last15Minutes || []).map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            </div>
+            <div>
+              <h4>Last hour</h4>
+              <ul className="stack-list">
+                {(changeWindows.lastHour || []).map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            </div>
+            <div>
+              <h4>Since market open</h4>
+              <ul className="stack-list">
+                {(changeWindows.sinceMarketOpen || []).map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            </div>
+            <div>
+              <h4>Weekly</h4>
+              <ul className="stack-list">
+                {(changeWindows.weekly || []).map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            </div>
+          </div>
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--full">
+          <div className="widget-title">Intelligent Alerts</div>
+          <div className="widget-list">
+            {alerts.length ? alerts.map((item) => (
+              <div key={item.id} className="widget-list-item">
+                <strong>{item.headline}</strong>
+                <span>{item.confidence}/100 • {item.actionability}</span>
+              </div>
+            )) : <p className="company-description subtle">No alert crossed confidence, impact, and exposure thresholds.</p>}
+          </div>
+        </article>
+
+        <article className="panel-card glass-card widget-card widget-card--full">
+          <div className="widget-title">Watchlist Priority Engine</div>
+          <div className="table-wrapper">
+            <table className="watchlist-table">
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th>Opportunity</th>
+                  <th>Risk</th>
+                  <th>Momentum</th>
+                  <th>Institutional</th>
+                  <th>Prediction</th>
+                  <th>Macro</th>
+                  <th>Event</th>
+                  <th>AI Score</th>
+                </tr>
+              </thead>
+              <tbody>
+                {watchlistRankings.map((item) => (
+                  <tr key={item.symbol}>
+                    <td>{item.symbol}</td>
+                    <td>{item.opportunityScore}</td>
+                    <td>{item.riskScore}</td>
+                    <td>{item.momentum}</td>
+                    <td>{item.institutionalActivity}</td>
+                    <td>{item.predictionMarketSignal}</td>
+                    <td>{item.macroExposure}</td>
+                    <td>{item.eventExposure}</td>
+                    <td>{item.overallAiScore}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </article>
       </section>

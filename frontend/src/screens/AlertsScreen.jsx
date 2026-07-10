@@ -1,12 +1,38 @@
+import { useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
-
-const alerts = [
-  { title: "Breakout alert", detail: "NVDA approaching resistance after strong earnings momentum." },
-  { title: "Risk alert", detail: "Semiconductor volatility rising ahead of macro release." },
-  { title: "Opportunity alert", detail: "Clean energy names showing improved relative strength." },
-];
+import useWatchlist from "../hooks/useWatchlist";
+import { intelligenceApi } from "../services/api";
+import { logError } from "../utils/errorHandling";
 
 export default function AlertsScreen() {
+  const { watchlist } = useWatchlist();
+  const [alerts, setAlerts] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAlerts() {
+      try {
+        const payload = await intelligenceApi.liveFeed({
+          watchlist: watchlist.length ? watchlist : ["AAPL", "NVDA", "TSLA"],
+        });
+        if (!cancelled) {
+          setAlerts(payload.alerts || []);
+        }
+      } catch (error) {
+        logError("Alerts screen load failed", error);
+        if (!cancelled) {
+          setAlerts([]);
+        }
+      }
+    }
+
+    loadAlerts();
+    return () => {
+      cancelled = true;
+    };
+  }, [watchlist]);
+
   return (
     <div className="screen-page">
       <section className="screen-hero">
@@ -19,14 +45,15 @@ export default function AlertsScreen() {
         </div>
       </section>
 
-      <SectionCard title="Active alerts" subtitle="Mock monitoring feed" className="screen-card">
+      <SectionCard title="Active alerts" subtitle="Thresholded intelligence feed" className="screen-card">
         <div className="alert-list">
-          {alerts.map((alert) => (
-            <article key={alert.title} className="alert-item">
-              <h4>{alert.title}</h4>
-              <p>{alert.detail}</p>
+          {alerts.length ? alerts.map((alert) => (
+            <article key={alert.id} className="alert-item">
+              <h4>{alert.headline}</h4>
+              <p>{alert.whyItMatters}</p>
+              <p className="company-description subtle">Confidence {alert.confidence}/100 • {alert.actionability} • {alert.riskLevel} risk</p>
             </article>
-          ))}
+          )) : <p className="company-description subtle">No alert crossed confidence, impact, and exposure thresholds.</p>}
         </div>
       </SectionCard>
     </div>
