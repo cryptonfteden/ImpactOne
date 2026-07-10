@@ -30,4 +30,12 @@ export const intelligenceApi = {
   portfolio(holdings = []) {
     return apiClient.post("/intelligence/portfolio", { holdings });
   },
+  dailyBrief({ watchlist = [], scenarios = [], sessionType = "morning" } = {}) {
+    const params = new URLSearchParams();
+    if (watchlist.length) params.set("watchlist", watchlist.join(","));
+    if (scenarios.length) params.set("scenarios", scenarios.join(","));
+    if (sessionType) params.set("sessionType", sessionType);
+    const query = params.toString();
+    return apiClient.get(`/intelligence/daily-brief${query ? `?${query}` : ""}`);
+  },
 };

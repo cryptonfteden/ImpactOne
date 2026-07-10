@@ -6,6 +6,7 @@ const {
   intelligenceHistory,
   intelligencePortfolio,
 } = require("../controllers/intelligenceController");
+const { getAutonomousDailyBrief } = require("../controllers/dailyBriefController");
 
 const router = express.Router();
 
@@ -18,5 +19,7 @@ router.post("/impact", intelligenceImpact);
 router.get("/history", intelligenceHistory);
 router.post("/history", intelligenceHistory);
 router.post("/portfolio", intelligencePortfolio);
+router.get("/daily-brief", getAutonomousDailyBrief);
+router.post("/daily-brief", getAutonomousDailyBrief);
 
 module.exports = router;

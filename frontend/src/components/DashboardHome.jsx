@@ -12,6 +12,7 @@ export default function DashboardHome() {
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [altSummary, setAltSummary] = useState(null);
   const [intelligence, setIntelligence] = useState(null);
+  const [dailyBrief, setDailyBrief] = useState(null);
 
   useEffect(() => {
     async function loadWatchlistIntelligence() {
@@ -57,6 +58,34 @@ export default function DashboardHome() {
     }
 
     loadAltSummary();
+    return () => {
+      isMounted = false;
+    };
+  }, [watchlist]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadDailyBrief() {
+      try {
+        const brief = await intelligenceApi.dailyBrief({
+          watchlist: watchlist.length ? watchlist : ["AAPL", "NVDA", "TSLA"],
+          scenarios: ["Oil spike", "Fed rate hike", "BTC ETF approval", "Israel conflict"],
+          sessionType: "morning",
+        });
+
+        if (isMounted) {
+          setDailyBrief(brief);
+        }
+      } catch (error) {
+        logError("Dashboard daily brief load failed", error);
+        if (isMounted) {
+          setDailyBrief(null);
+        }
+      }
+    }
+
+    loadDailyBrief();
     return () => {
       isMounted = false;
     };
@@ -146,6 +175,13 @@ export default function DashboardHome() {
   const propagationEdges = intelligenceAnalysis?.sectorPropagation || [];
   const capitalFlowHint = propagationEdges[0] || null;
   const impactedCountries = intelligenceAnalysis?.affected?.countries || [];
+  const briefSummary = dailyBrief?.aiSummary || null;
+  const briefTopEvents = dailyBrief?.topMarketMovingEvents || [];
+  const briefActionCards = dailyBrief?.actionCards || [];
+  const briefRelevance = dailyBrief?.relevanceItems || [];
+  const briefWatchlistImpact = dailyBrief?.portfolioWatchlistExposure || null;
+  const briefChanges = dailyBrief?.whatChangedSinceYesterday || [];
+  const briefMonitor = dailyBrief?.whatToMonitorToday || [];
 
   return (
     <main className="dashboard-content premium-dashboard">
@@ -160,6 +196,122 @@ export default function DashboardHome() {
       </section>
 
       <section className="widget-grid" aria-label="Dashboard widgets">
+        <article className="panel-card glass-card widget-card widget-card--full">
+          <div className="widget-title">Today&apos;s Intelligence Brief</div>
+          {dailyBrief ? (
+            <div className="brief-grid">
+              <div className="brief-block">
+                <h4>Executive Summary</h4>
+                <p className="company-description">{briefSummary?.executiveSummary || "Brief summary unavailable."}</p>
+                <p className="company-description subtle">Confidence: {Number(briefSummary?.confidenceScore || 0)}/100</p>
+                {briefSummary?.providerNotice ? <p className="company-description subtle">{briefSummary.providerNotice}</p> : null}
+              </div>
+
+              <div className="brief-block">
+                <h4>Top Market-Moving Events</h4>
+                <div className="widget-list">
+                  {briefTopEvents.slice(0, 4).map((item) => (
+                    <div key={item.event} className="widget-list-item">
+                      <strong>{item.event}</strong>
+                      <span>{item.importanceScore}/100</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="brief-block">
+                <h4>What Changed Since Yesterday</h4>
+                <div className="widget-list">
+                  {(briefChanges.length ? briefChanges : ["No material change detected."]).slice(0, 3).map((item) => (
+                    <div key={item} className="widget-list-item"><strong>{item}</strong></div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="brief-block">
+                <h4>Monitor Today</h4>
+                <div className="widget-list">
+                  {(briefMonitor.length ? briefMonitor : ["No active monitor list."]).slice(0, 4).map((item) => (
+                    <div key={item} className="widget-list-item"><strong>{item}</strong></div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="brief-block">
+                <h4>Portfolio/Watchlist Exposure</h4>
+                <p className="company-description">Beta weighted: {Number(briefWatchlistImpact?.riskConcentration?.betaWeighted || 0).toFixed(2)}</p>
+                <p className="company-description subtle">Top position: {briefWatchlistImpact?.riskConcentration?.topPosition?.symbol || "N/A"}</p>
+                <p className="company-description subtle">Macro tilt: {(briefWatchlistImpact?.macroExposure || []).slice(0, 2).map((item) => `${item.name} ${Math.round(Number(item.weight || 0) * 100)}%`).join(" | ") || "N/A"}</p>
+              </div>
+
+              <div className="brief-block">
+                <h4>Key Risks</h4>
+                <div className="widget-list">
+                  {(briefSummary?.keyRisks || dailyBrief?.topRisks || []).slice(0, 4).map((risk) => (
+                    <div key={risk} className="widget-list-item"><strong>{risk}</strong></div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="brief-block">
+                <h4>Key Opportunities</h4>
+                <div className="widget-list">
+                  {(briefSummary?.keyOpportunities || dailyBrief?.topOpportunities || []).slice(0, 4).map((item) => (
+                    <div key={item} className="widget-list-item"><strong>{item}</strong></div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="brief-block">
+                <h4>Action Cards</h4>
+                <div className="widget-list">
+                  {briefActionCards.map((card) => (
+                    <div key={card.type} className="widget-list-item">
+                      <strong>{card.type}</strong>
+                      <span>{card.item?.event || "None"}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="brief-block brief-block--wide">
+                <h4>Personal Relevance Engine</h4>
+                <div className="table-wrapper">
+                  <table className="watchlist-table">
+                    <thead>
+                      <tr>
+                        <th>Event</th>
+                        <th>Importance</th>
+                        <th>Urgency</th>
+                        <th>Impact Type</th>
+                        <th>Tickers</th>
+                        <th>Sectors</th>
+                        <th>Horizon</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {briefRelevance.map((item) => (
+                        <tr key={item.event}>
+                          <td>{item.event}</td>
+                          <td>{item.importanceScore}/100</td>
+                          <td>{item.urgency}</td>
+                          <td>{item.impactType}</td>
+                          <td>{(item.relatedTickers || []).join(", ") || "N/A"}</td>
+                          <td>{(item.relatedSectors || []).join(", ") || "N/A"}</td>
+                          <td>{item.timeHorizon || "N/A"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="company-description subtle">{briefRelevance[0]?.explanation || "Relevance explanation unavailable."}</p>
+              </div>
+            </div>
+          ) : (
+            <p className="company-description subtle">Autonomous brief loading...</p>
+          )}
+        </article>
+
         <article className="panel-card glass-card widget-card">
           <div className="widget-title">Market Status</div>
           <div className="widget-value">Open</div>

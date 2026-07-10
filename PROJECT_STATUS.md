@@ -1,6 +1,6 @@
 # ImpactOne - Project Status
 
-Last updated: 2026-07-10 (Sprint 8)
+Last updated: 2026-07-10 (Sprint 9)
 
 ## 1. What Is Already Completed
 - Full React + Express app is running with screen-based dashboard UX and `/api` backend routing.
@@ -71,6 +71,36 @@ Last updated: 2026-07-10 (Sprint 8)
     - Top Opportunities
     - Global Heatmap
   - AI Analysis now includes an "Impact Intelligence Engine" section with event-driven explainability, historical analogs, and scenario output.
+- Sprint 9 Autonomous Daily Intelligence Brief is now live:
+  - Added autonomous brief endpoint:
+    - `/api/intelligence/daily-brief`
+  - Dashboard now auto-loads "Today's Intelligence Brief" with no user input.
+  - Daily brief includes:
+    - Overnight market changes
+    - Top market-moving events
+    - Impacted sectors and impacted tickers
+    - Portfolio/watchlist exposure
+    - Top risks and top opportunities
+    - What changed since yesterday
+    - What to monitor today
+  - Added personal relevance engine outputs per item:
+    - importance score (0-100)
+    - urgency (low/medium/high)
+    - impact type (risk/opportunity/neutral)
+    - related tickers/sectors
+    - time horizon and explanation
+  - Added autonomous action cards:
+    - Needs attention
+    - Opportunity detected
+    - Risk increasing
+    - Macro event today
+    - Watchlist movement
+    - Ignore for now
+  - Added session data model support for:
+    - morning brief
+    - market close recap
+    - weekly summary
+  - Added OpenAI-generated concise professional summary with fallback notice and rule-based continuity.
 - Provider-resilient error handling is in place:
   - Finnhub failures return user-friendly messages
   - OpenAI failures expose user-friendly notice and fallback report instead of crashing UI
@@ -111,6 +141,7 @@ Last updated: 2026-07-10 (Sprint 8)
   - `relationshipGraphService`, `historicalSimilarityService`, `scenarioEngineService`
   - `propagationEngineService`, `portfolioIntelligenceService`, `alternativeFusionService`
   - `intelligenceCache` (TTL cache for intelligence computations)
+  - `dailyBriefService` (Sprint 9 autonomous brief orchestration, relevance scoring, action cards, AI/fallback summary)
 
 ## 3. Folder Structure
 
@@ -349,6 +380,30 @@ Verification set used for Sprint 8:
 - Events validated: `AAPL earnings`, `NVDA AI announcement`, `Oil spike`, `Fed rate hike`, `Israel conflict`, `BTC ETF approval`.
 - Endpoints validated: `/api/intelligence/analyze`, `/api/intelligence/scenario`, `/api/intelligence/impact`, `/api/intelligence/history`, `/api/intelligence/portfolio`.
 - Frontend build validated successfully after Sprint 8 changes.
+
+## 14. Sprint 9 - Autonomous Daily Intelligence Brief
+
+Sprint 9 outcomes:
+- Added backend daily brief service and controller:
+  - `backend/services/dailyBriefService.js`
+  - `backend/controllers/dailyBriefController.js`
+- Added intelligence route support:
+  - `backend/routes/intelligenceRoutes.js` now exposes `/daily-brief` (GET/POST)
+- Added frontend API integration:
+  - `frontend/src/services/api/intelligenceApi.js` now exposes `dailyBrief(...)`
+- Dashboard integration in `frontend/src/components/DashboardHome.jsx`:
+  - Auto-fetches brief using watchlist + scenario defaults (`Oil spike`, `Fed rate hike`, `BTC ETF approval`, `Israel conflict`)
+  - Renders "Today's Intelligence Brief" with executive summary, risk/opportunity lists, monitor list, exposure, action cards, and relevance table
+  - Displays provider notice and remains stable on OpenAI failure
+
+Sprint 9 verification:
+- Build: `npm run build` passed.
+- Regression: `/api/ai/analyze?symbol=NVDA` still returns analysis, marketImpact, and alternativeDataSignals.
+- Daily brief smoke test with watchlist `AAPL,NVDA,TSLA` and required scenarios returned:
+  - `sessionType: morning`
+  - `relevanceItems: 4`
+  - `actionCards: 6`
+  - valid top event and AI summary payload.
 
 ## Quick Handoff For New Developers
 1. Install dependencies at root (`npm install`) and frontend if needed (`npm --prefix frontend install`).
