@@ -3,24 +3,7 @@ import SectionCard from "../components/SectionCard";
 import { Button, EmptyState, ErrorState, Skeleton } from "../components/ui";
 import useRecommendations from "../hooks/useRecommendations";
 import useWatchlist from "../hooks/useWatchlist";
-
-const ACTION_PILL_CLASS = {
-  BUY: "pill opportunity",
-  REDUCE: "pill monitor",
-  EXIT: "pill risk",
-};
-
-const ACTION_LABEL = {
-  BUY: "Buy",
-  REDUCE: "Reduce",
-  EXIT: "Exit",
-};
-
-const SYMBOL_SOURCE_LABEL = {
-  portfolio: "From your portfolio",
-  watchlist: "On your watchlist",
-  "market-scan": "Market scan",
-};
+import RecommendationCard from "../components/recommendations/RecommendationCard";
 
 function recommendationKey(recommendation) {
   return recommendation.id;
@@ -32,7 +15,9 @@ function recommendationKey(recommendation) {
  * trade. "Run now" triggers one on-demand evaluation pass — Phase C sends
  * the user's real watchlist along with it, so the pass is personalized to
  * what they actually hold and watch. The same logic also runs on a
- * schedule server-side (see /api/v2/recommendations/status).
+ * schedule server-side (see /api/v2/recommendations/status). Phase D adds
+ * a structured explanation, bull/base/bear scenarios, and a transparent
+ * quality score to each card (see RecommendationCard).
  */
 export default function RecommendationsScreen() {
   const { recommendations, status, isLoading, isRunning, error, actionError, runNow } = useRecommendations();
@@ -85,56 +70,13 @@ export default function RecommendationsScreen() {
           <div className="opportunity-grid">
             {recommendations.map((recommendation) => {
               const key = recommendationKey(recommendation);
-              const isExpanded = expandedId === key;
-
-              const matchedEvents = recommendation.evidence?.matchedEvents || [];
-              const symbolSource = recommendation.evidence?.symbolSource;
-
               return (
-                <article key={key} className="opportunity-item">
-                  <div className="opportunity-item__top">
-                    <strong>{recommendation.symbol}</strong>
-                    <span className={ACTION_PILL_CLASS[recommendation.action] || "pill"}>
-                      {ACTION_LABEL[recommendation.action] || recommendation.action}
-                    </span>
-                  </div>
-                  {symbolSource ? (
-                    <p className="company-description subtle">{SYMBOL_SOURCE_LABEL[symbolSource] || symbolSource}</p>
-                  ) : null}
-                  <p className="company-description subtle">Confidence {Number(recommendation.confidenceScore)}/100 · Risk {recommendation.riskLabel}</p>
-                  <p className="company-description subtle">
-                    Upside {recommendation.expectedUpside} · Downside {recommendation.expectedDownside}
-                  </p>
-                  <p className="company-description subtle">Suggested size: {recommendation.positionSizeSuggestion}</p>
-                  {isExpanded ? (
-                    <>
-                      <p className="company-description">{recommendation.reasoning}</p>
-                      {matchedEvents.length ? (
-                        <div className="matched-events">
-                          {matchedEvents.map((event, index) => (
-                            <div key={`${key}-event-${index}`} className="matched-event">
-                              <p className="company-description subtle">{event.personalRelevance}</p>
-                              <p className="company-description subtle">
-                                {event.headline}
-                                {Number.isFinite(event.confidence) ? ` · Confidence ${event.confidence}/100` : ""}
-                              </p>
-                              {event.sourceUrl ? (
-                                <a href={event.sourceUrl} target="_blank" rel="noopener noreferrer" className="matched-event__source">
-                                  {event.sourceName || "Source"}
-                                </a>
-                              ) : null}
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                    </>
-                  ) : null}
-                  <div className="opportunity-item__actions">
-                    <Button type="button" className="ghost-button" onClick={() => setExpandedId(isExpanded ? null : key)}>
-                      {isExpanded ? "Hide reasoning" : "Show reasoning"}
-                    </Button>
-                  </div>
-                </article>
+                <RecommendationCard
+                  key={key}
+                  recommendation={recommendation}
+                  isExpanded={expandedId === key}
+                  onToggleExpand={() => setExpandedId(expandedId === key ? null : key)}
+                />
               );
             })}
           </div>

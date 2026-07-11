@@ -2052,6 +2052,70 @@ body {
   text-decoration: underline;
 }
 
+/* Sprint 16 Phase D — Decision Quality and Explainability */
+
+.explanation-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.explanation-section__title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #94a3b8);
+  margin: 0;
+}
+
+.evidence-line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.scenario-card {
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(2, 6, 23, 0.48);
+  border-left: 3px solid rgba(148, 163, 184, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scenario-card--bull {
+  border-left-color: #4ade80;
+}
+
+.scenario-card--bear {
+  border-left-color: #f87171;
+}
+
+.scenario-card__title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  justify-content: space-between;
+}
+
+@media (max-width: 720px) {
+  .scenario-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .dashboard-footer {
   display: flex;
   align-items: center;

@@ -24,11 +24,31 @@ const RECOMMENDATION_FIXTURE = {
   expectedUpside: "10-16%",
   expectedDownside: "-8% tactical stop",
   positionSizeSuggestion: "2-4%",
+  timeHorizon: "1-3 months",
   reasoning: "Strong AI capex tailwind driving conviction.",
+  qualityScore: 82,
+  qualityComponents: { sourceQuality: 95, evidenceFreshness: 80, portfolioRelevance: 100, evidenceAgreement: 100, dataCompleteness: 100, modelConfidence: 88 },
+  explanation: {
+    thesis: "Buy NVDA: AI capex supercycle.",
+    supportingEvidence: [{ headline: "AI capex supercycle", whyItMatters: "Hyperscaler spend accelerating." }],
+    opposingEvidence: [{ headline: "Valuation stretched", whyItMatters: "Multiple expansion outpacing earnings.", counterarguments: ["May already be priced in."] }],
+    keyRisks: ["Valuation stretched"],
+    invalidationConditions: ["Supporting data fails to confirm the first-order move."],
+    timeHorizon: "1-3 months",
+    affectedPositions: [{ symbol: "NVDA", quantity: 10, marketValue: 2100, weightPct: 12, sector: "Semiconductors" }],
+    affectedWatchlistSymbols: [],
+    confidenceDrivers: ["Strong opportunity score (92/100)."],
+    confidenceReducers: ["Elevated macro exposure to broader conditions (72/100)."],
+  },
+  scenarios: [
+    { case: "bull", narrative: "AI capex accelerates.", probability: 0.3, priceImpact: "15-22%", portfolioImpact: "+1.8% of total portfolio value (approx.)", catalysts: ["AI capex supercycle"], risks: [], invalidationTrigger: "Supporting data fails to confirm the first-order move." },
+    { case: "base", narrative: "Leadership stays concentrated.", probability: 0.5, priceImpact: "4-9%", portfolioImpact: null, catalysts: ["Mixed market impact expected."], risks: ["Valuation stretched"], invalidationTrigger: "Sector leadership rotates away from affected assets." },
+    { case: "bear", narrative: "Valuation de-rating.", probability: 0.2, priceImpact: "-8% tactical stop", portfolioImpact: null, catalysts: ["Valuation stretched"], risks: ["Valuation stretched"], invalidationTrigger: "Sector leadership rotates away from affected assets." },
+  ],
   evidence: {
     symbolSource: "portfolio",
     matchedEvents: [
-      { headline: "AI capex supercycle", confidence: 82, sourceUrl: "https://news.example.com/ai-capex", sourceName: "Reuters", personalRelevance: "Directly affects NVDA — 12% of your portfolio." },
+      { headline: "AI capex supercycle", confidence: 82, sourceUrl: "https://news.example.com/ai-capex", sourceName: "Reuters", personalRelevance: "Directly affects NVDA — 12% of your portfolio.", publishedAt: "2026-07-11T10:00:00.000Z" },
     ],
   },
 };
@@ -52,18 +72,37 @@ describe("RecommendationsScreen", () => {
     expect(screen.getByText(/Confidence 88\/100/)).toBeInTheDocument();
     expect(screen.getByText(/Upside 10-16%/)).toBeInTheDocument();
     expect(screen.getByText("From your portfolio")).toBeInTheDocument();
-    expect(screen.queryByText(/Strong AI capex tailwind/)).not.toBeInTheDocument();
+    expect(screen.getByText("Quality 82/100")).toBeInTheDocument();
+    expect(screen.getByText("Buy NVDA: AI capex supercycle.")).toBeInTheDocument();
+    expect(screen.queryByText(/Strong AI capex tailwind driving conviction/)).not.toBeInTheDocument();
   });
 
-  it("expands reasoning on click, showing matched-event citation and personal relevance, and never renders a place-order control", async () => {
+  it("expands full evidence on click, showing scenarios, quality breakdown, portfolio exposure, matched-event citation with timestamp, and never renders a place-order control", async () => {
     recommendationsApi.list.mockResolvedValue({ recommendations: [RECOMMENDATION_FIXTURE] });
     recommendationsApi.status.mockResolvedValue(STATUS_FIXTURE);
 
     render(<RecommendationsScreen />);
     await waitFor(() => expect(screen.getByText("NVDA")).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole("button", { name: "Show reasoning" }));
-    expect(screen.getByText(/Strong AI capex tailwind/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show full evidence" }));
+
+    // reasoning + explanation
+    expect(screen.getByText(/Strong AI capex tailwind driving conviction/)).toBeInTheDocument();
+    expect(screen.getByText(/12% of portfolio/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Valuation stretched/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/May already be priced in/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Supporting data fails to confirm the first-order move/).length).toBeGreaterThan(0);
+
+    // scenarios
+    expect(screen.getByText("Bull")).toBeInTheDocument();
+    expect(screen.getByText("Base")).toBeInTheDocument();
+    expect(screen.getByText("Bear")).toBeInTheDocument();
+
+    // quality breakdown
+    expect(screen.getByText("Source quality")).toBeInTheDocument();
+    expect(screen.getByText("95/100")).toBeInTheDocument();
+
+    // matched-event citation + timestamp + confidence
     expect(screen.getByText(/Directly affects NVDA/)).toBeInTheDocument();
     expect(screen.getByText(/Confidence 82\/100/)).toBeInTheDocument();
 

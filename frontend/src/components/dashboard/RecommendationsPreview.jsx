@@ -19,6 +19,13 @@ const SYMBOL_SOURCE_LABEL = {
   "market-scan": "Market scan",
 };
 
+function qualityPillClass(score) {
+  if (!Number.isFinite(score)) return "pill";
+  if (score >= 75) return "pill opportunity";
+  if (score >= 50) return "pill";
+  return "pill risk";
+}
+
 /**
  * Sprint 16 Phase B — surfaces the same advisory-only recommendations shown
  * on the dedicated Recommendations screen, so a fresh recommendation is
@@ -47,6 +54,7 @@ export default function RecommendationsPreview({ isLoading, error, recommendatio
         <div className="opportunity-grid">
           {recommendations.slice(0, 3).map((recommendation) => {
             const symbolSource = recommendation.evidence?.symbolSource;
+            const qualityScore = Number.isFinite(Number(recommendation.qualityScore)) ? Number(recommendation.qualityScore) : null;
             return (
               <article key={recommendation.id} className="opportunity-item">
                 <div className="opportunity-item__top">
@@ -55,9 +63,10 @@ export default function RecommendationsPreview({ isLoading, error, recommendatio
                     {ACTION_LABEL[recommendation.action] || recommendation.action}
                   </span>
                 </div>
-                {symbolSource ? (
-                  <p className="company-description subtle">{SYMBOL_SOURCE_LABEL[symbolSource] || symbolSource}</p>
-                ) : null}
+                <div className="opportunity-item__actions">
+                  {symbolSource ? <span className="pill">{SYMBOL_SOURCE_LABEL[symbolSource] || symbolSource}</span> : null}
+                  {qualityScore !== null ? <span className={qualityPillClass(qualityScore)}>Quality {qualityScore}/100</span> : null}
+                </div>
                 <p className="company-description subtle">Confidence {Number(recommendation.confidenceScore)}/100 · Risk {recommendation.riskLabel}</p>
                 <p className="company-description subtle">
                   Upside {recommendation.expectedUpside} · Downside {recommendation.expectedDownside}

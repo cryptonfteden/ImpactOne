@@ -10,11 +10,12 @@ const RECOMMENDATION_FIXTURE = {
   riskLabel: "Moderate",
   expectedUpside: "10-16%",
   expectedDownside: "-8% tactical stop",
+  qualityScore: 82,
   evidence: { symbolSource: "watchlist" },
 };
 
 describe("RecommendationsPreview", () => {
-  it("renders up to 3 recommendations with action, confidence, upside/downside, and provenance badge", () => {
+  it("renders up to 3 recommendations with action, confidence, upside/downside, provenance badge, and quality badge", () => {
     render(<RecommendationsPreview isLoading={false} error="" recommendations={[RECOMMENDATION_FIXTURE]} onViewAll={vi.fn()} />);
 
     expect(screen.getByText("NVDA")).toBeInTheDocument();
@@ -22,6 +23,7 @@ describe("RecommendationsPreview", () => {
     expect(screen.getByText(/Confidence 88\/100/)).toBeInTheDocument();
     expect(screen.getByText(/Upside 10-16%/)).toBeInTheDocument();
     expect(screen.getByText("On your watchlist")).toBeInTheDocument();
+    expect(screen.getByText("Quality 82/100")).toBeInTheDocument();
   });
 
   it("shows an empty state when there are no active recommendations", () => {
