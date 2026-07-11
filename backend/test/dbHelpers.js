@@ -11,6 +11,8 @@ async function truncateAll() {
   await prisma.performanceSnapshot.deleteMany();
   await prisma.portfolio.deleteMany();
   await prisma.dailyBriefSnapshot.deleteMany();
+  await prisma.recommendation.deleteMany();
+  await prisma.autonomousRunLog.deleteMany();
 }
 
 module.exports = { truncateAll };
