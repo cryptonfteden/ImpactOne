@@ -1,0 +1,195 @@
+const { getPrismaClient } = require("../db/prismaClient");
+
+const DEFAULT_PORTFOLIO_NAME = "Default Portfolio";
+const DEFAULT_STARTING_CAPITAL = 100000;
+const DEFAULT_BENCHMARK_SYMBOL = "SPY";
+
+// All raw Prisma access lives in this file. Service layers describe *what*
+// should happen; this file is the only place that knows *how* it's stored.
+
+async function findDefaultPortfolio() {
+  const prisma = getPrismaClient();
+  return prisma.portfolio.findFirst({ where: { name: DEFAULT_PORTFOLIO_NAME } });
+}
+
+async function createDefaultPortfolio() {
+  const prisma = getPrismaClient();
+  return prisma.portfolio.create({
+    data: {
+      name: DEFAULT_PORTFOLIO_NAME,
+      cashBalance: DEFAULT_STARTING_CAPITAL,
+      startingCapital: DEFAULT_STARTING_CAPITAL,
+      benchmarkSymbol: DEFAULT_BENCHMARK_SYMBOL,
+    },
+  });
+}
+
+async function getOpenPositions(portfolioId) {
+  const prisma = getPrismaClient();
+  return prisma.position.findMany({
+    where: { portfolioId, closedAt: null },
+    orderBy: { openedAt: "asc" },
+  });
+}
+
+async function getTrades(portfolioId, { limit = 200 } = {}) {
+  const prisma = getPrismaClient();
+  return prisma.trade.findMany({
+    where: { portfolioId },
+    orderBy: { executedAt: "desc" },
+    take: limit,
+  });
+}
+
+async function sumRealizedPnl(portfolioId) {
+  const prisma = getPrismaClient();
+  const result = await prisma.trade.aggregate({
+    where: { portfolioId },
+    _sum: { realizedPnl: true },
+  });
+  return Number(result._sum.realizedPnl || 0);
+}
+
+async function getLedgerEntries(portfolioId, { limit = 500 } = {}) {
+  const prisma = getPrismaClient();
+  return prisma.cashLedgerEntry.findMany({
+    where: { portfolioId },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+}
+
+async function getPerformanceSnapshots(portfolioId, { limit = 365 } = {}) {
+  const prisma = getPrismaClient();
+  return prisma.performanceSnapshot.findMany({
+    where: { portfolioId },
+    orderBy: { capturedAt: "asc" },
+    take: limit,
+  });
+}
+
+async function createPerformanceSnapshot(data) {
+  const prisma = getPrismaClient();
+  return prisma.performanceSnapshot.create({ data });
+}
+
+/**
+ * Runs `mutator` inside a single Prisma transaction, handing it the
+ * transactional client and the portfolio row read within that transaction
+ * (so cash-balance checks are never made against stale data under
+ * concurrent order placement).
+ */
+async function runOrderTransaction(portfolioId, mutator) {
+  const prisma = getPrismaClient();
+  return prisma.$transaction(async (tx) => {
+    const portfolio = await tx.portfolio.findUniqueOrThrow({ where: { id: portfolioId } });
+    return mutator(tx, portfolio);
+  });
+}
+
+async function findOpenPositionTx(tx, portfolioId, symbol) {
+  return tx.position.findFirst({ where: { portfolioId, symbol, closedAt: null } });
+}
+
+async function createOrderTx(tx, data) {
+  return tx.order.create({ data });
+}
+
+async function createTradeTx(tx, data) {
+  return tx.trade.create({ data });
+}
+
+async function openOrIncreasePositionTx(tx, { portfolioId, symbol, sector, assetType, quantity, price, existingPosition }) {
+  if (existingPosition) {
+    const totalQuantity = Number(existingPosition.quantity) + quantity;
+    const totalCost = Number(existingPosition.avgEntryPrice) * Number(existingPosition.quantity) + price * quantity;
+    const avgEntryPrice = totalCost / totalQuantity;
+    return tx.position.update({
+      where: { id: existingPosition.id },
+      data: {
+        quantity: totalQuantity,
+        avgEntryPrice,
+        lastMarkPrice: price,
+        unrealizedPnl: (price - avgEntryPrice) * totalQuantity,
+      },
+    });
+  }
+
+  return tx.position.create({
+    data: {
+      portfolioId,
+      symbol,
+      sector: sector || "General",
+      assetType: assetType || "Equity",
+      quantity,
+      avgEntryPrice: price,
+      lastMarkPrice: price,
+      unrealizedPnl: 0,
+    },
+  });
+}
+
+async function reduceOrClosePositionTx(tx, { existingPosition, quantity, price }) {
+  const remaining = Number(existingPosition.quantity) - quantity;
+
+  if (remaining > 0) {
+    return tx.position.update({
+      where: { id: existingPosition.id },
+      data: {
+        quantity: remaining,
+        lastMarkPrice: price,
+        unrealizedPnl: (price - Number(existingPosition.avgEntryPrice)) * remaining,
+      },
+    });
+  }
+
+  return tx.position.update({
+    where: { id: existingPosition.id },
+    data: { quantity: 0, lastMarkPrice: price, unrealizedPnl: 0, closedAt: new Date() },
+  });
+}
+
+async function setCashBalanceTx(tx, portfolioId, newBalance) {
+  return tx.portfolio.update({ where: { id: portfolioId }, data: { cashBalance: newBalance } });
+}
+
+async function createLedgerEntryTx(tx, data) {
+  return tx.cashLedgerEntry.create({ data });
+}
+
+async function resetPortfolio(portfolioId) {
+  const prisma = getPrismaClient();
+  return prisma.$transaction(async (tx) => {
+    await tx.cashLedgerEntry.deleteMany({ where: { portfolioId } });
+    await tx.trade.deleteMany({ where: { portfolioId } });
+    await tx.order.deleteMany({ where: { portfolioId } });
+    await tx.position.deleteMany({ where: { portfolioId } });
+    await tx.performanceSnapshot.deleteMany({ where: { portfolioId } });
+
+    return tx.portfolio.update({
+      where: { id: portfolioId },
+      data: { cashBalance: DEFAULT_STARTING_CAPITAL, startingCapital: DEFAULT_STARTING_CAPITAL },
+    });
+  });
+}
+
+module.exports = {
+  DEFAULT_STARTING_CAPITAL,
+  findDefaultPortfolio,
+  createDefaultPortfolio,
+  getOpenPositions,
+  getTrades,
+  sumRealizedPnl,
+  getLedgerEntries,
+  getPerformanceSnapshots,
+  createPerformanceSnapshot,
+  runOrderTransaction,
+  findOpenPositionTx,
+  createOrderTx,
+  createTradeTx,
+  openOrIncreasePositionTx,
+  reduceOrClosePositionTx,
+  setCashBalanceTx,
+  createLedgerEntryTx,
+  resetPortfolio,
+};
