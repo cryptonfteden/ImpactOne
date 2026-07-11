@@ -1,6 +1,6 @@
 # ImpactOne - Project Status
 
-Last updated: 2026-07-11 (Sprint 14)
+Last updated: 2026-07-11 (Sprint 15)
 
 ## 1. What Is Already Completed
 - Full React + Express app is running with screen-based dashboard UX and `/api` backend routing.
@@ -301,6 +301,16 @@ Last updated: 2026-07-11 (Sprint 14)
   - New frontend screen (`PortfolioEngineScreen`) behind `VITE_PORTFOLIO_ENGINE=api` (default remains `legacy`, i.e. the existing localStorage-driven Sprint 13 engine, completely unchanged).
   - 23 automated tests added (15 backend, 8 frontend) — first frontend test infrastructure in the repo (Vitest).
   - The new engine has no autonomous trading loop yet — orders are placed manually via a form; wiring AI committee signals into automatic execution against this engine is a future sprint.
+- Sprint 15 MVP Home Dashboard is now live — the Dashboard screen is fully rebuilt against `MVP_HOME_DASHBOARD_SPEC.md`:
+  - Replaced the previous ~45-widget kitchen-sink `DashboardHome.jsx` (grown sprint-by-sprint since Sprint 8) with exactly the spec's 9 dashboard-owned sections, in order: Market Context Strip, Daily Brief Hero, Priority Intelligence Cards, Portfolio Risk Panel, Watchlist Priority Panel, Ask ImpactOne Panel, Opportunity Module, Daily Brief Archive Preview, Footer Utility Area.
+  - Top App Bar (spec §4.1) applied to the existing global `Header.jsx`: real portfolio value + daily P/L, an alerts bell with a live unread-count badge, a quick-actions menu, and a minimal account menu (no auth yet — "Guest workspace").
+  - New backend: `POST /api/chat/ask` (Ask ImpactOne, OpenAI + deterministic fallback, same pattern as the rest of the AI layer) and a `DailyBriefSnapshot` Prisma model + `GET /api/intelligence/daily-brief/archive`, capturing one real snapshot per day whenever the brief is freshly computed — the archive fills in from real usage, never seeded/fake history.
+  - Dashboard now reads the Sprint 14 server-owned portfolio engine (`usePortfolioEngine`) instead of the legacy localStorage engine — a clean cut for this screen specifically, not a flagged migration (the Portfolio screen's own `VITE_PORTFOLIO_ENGINE` flag is untouched).
+  - `portfolioEngineService.getPortfolioSummary()` gained a real `dailyPnl`/`dailyPnlPct` field, and `finnhubService.getQuote` now also returns `changePercent` (Finnhub's real day % change) alongside the pre-existing `change` field.
+  - New shared UI primitive: `Skeleton.jsx`, used across every dashboard section's loading state per the spec's Global Loading Rules.
+  - New pure, unit-tested calculation module: `dashboardMetrics.js` (risk score, diversification, priority-card ranking, movers sort).
+  - Fixed a real pre-existing bug (caught by an automated code review during this sprint): the legacy portfolio engine's `dailyReturn` divided Finnhub's absolute-dollar `change` by 100 as if it were a percentage — now uses the new `changePercent` field. `WatchlistTable.jsx`/`WatchlistScreen.jsx` still have the same display mislabeling and were intentionally left alone (broader, separate fix; `WatchlistTable` is no longer used by the Dashboard after this sprint anyway).
+  - 4 new planning documents were added to the repo this sprint as reference material: `MVP_HOME_DASHBOARD_SPEC.md` (authoritative for this sprint), `MVP_IMPLEMENTATION_ROADMAP.md` (Sprints 16-19), `TEST_PLAN.md`, `API_CONTRACTS.md`, plus `ARCHITECTURE.md`, `CODE_REVIEW.md`, and `COMPETITOR_INTELLIGENCE.md`.
 - Provider-resilient error handling is in place:
   - Finnhub failures return user-friendly messages
   - OpenAI failures expose user-friendly notice and fallback report instead of crashing UI
@@ -350,12 +360,15 @@ Last updated: 2026-07-11 (Sprint 14)
   - `useVirtualPortfolio` (Sprint 13 client-side trade simulation, position management, and performance tracking)
   - `portfolioRepository` (Sprint 14 — sole owner of Prisma access for the portfolio engine)
   - `portfolioEngineService` (Sprint 14 — buy/sell execution, P/L, allocation, trade history, transaction log, snapshots)
+  - `chatService` (Sprint 15 — Ask ImpactOne: OpenAI call + fallback, same shape as `openaiService`)
+  - `dailyBriefArchiveRepository` / `dailyBriefArchiveService` (Sprint 15 — daily brief snapshot capture + archive retrieval/compare)
 
-### Database (new in Sprint 14)
+### Database (Prisma / PostgreSQL, introduced Sprint 14)
 - PostgreSQL via Prisma 7, driver-adapter model (`@prisma/adapter-pg` + `pg`).
 - Schema: `backend/prisma/schema.prisma`; client singleton: `backend/db/prismaClient.js`.
 - Config: `prisma.config.ts` at repo root (Prisma 7 requirement — connection URL no longer lives in the schema file).
 - Local dev/test databases: `impactone_dev`, `impactone_test` (see Environment Variables below).
+- Models: `Portfolio`, `Position`, `Order`, `Trade`, `CashLedgerEntry`, `PerformanceSnapshot` (Sprint 14), `DailyBriefSnapshot` (Sprint 15 — one row per calendar day, upserted on cache miss).
 
 ## 3. Folder Structure
 
@@ -398,20 +411,44 @@ ImpactOne/
       portfolioRepository.js         # Sprint 14
       portfolioEngineService.js      # Sprint 14
       portfolioEngineService.test.js # Sprint 14
+      chatService.js                 # Sprint 15 — Ask ImpactOne
+      chatService.test.js            # Sprint 15
+      dailyBriefArchiveRepository.js # Sprint 15
+      dailyBriefArchiveService.js    # Sprint 15
+      dailyBriefArchiveService.test.js # Sprint 15
+    routes/chatRoutes.js             # Sprint 15, mounted at /api/chat
+    routes/dailyBriefArchive.integration.test.js  # Sprint 15
     .env.example
   frontend/
     vitest.config.js               # Sprint 14
     vitest.setup.js
     src/
       components/
+        DashboardHome.jsx          # rewritten Sprint 15 — composes the 9 MVP sections
+        DashboardHome.test.jsx     # Sprint 15
+        dashboard/                 # Sprint 15 — one component per spec section
+          MarketContextStrip.jsx
+          DailyBriefHero.jsx
+          PriorityIntelligenceCards.jsx
+          PortfolioRiskPanel.jsx
+          WatchlistPriorityPanel.jsx
+          AskImpactOnePanel.jsx
+          OpportunityModule.jsx
+          DailyBriefArchive.jsx
+          DashboardFooter.jsx
+        ui/Skeleton.jsx             # Sprint 15 — shared loading-state primitive
       layout/
       screens/
         PortfolioScreen.jsx        # feature-flag router (Sprint 14)
         PortfolioEngineScreen.jsx  # new server-backed screen (Sprint 14)
       hooks/
         usePortfolioEngine.js      # Sprint 14
+        useVirtualPortfolio.js     # Sprint 13, recomputeState fixed + exported Sprint 15
       services/api/
         portfolioEngineApi.js      # Sprint 14
+        chatApi.js                 # Sprint 15
+      utils/
+        dashboardMetrics.js        # Sprint 15 — pure risk/diversification/ranking calculations
       main.jsx
       styles.css
     .env.example
@@ -434,6 +471,7 @@ ImpactOne/
   - Market sentiment signal
 - OpenAI Chat Completions
   - Structured investment report generation
+  - Ask ImpactOne freeform Q&A (Sprint 15, `POST /api/chat/ask`)
 - Backend market impact engine
   - Derived score from news sentiment, analyst trend, price momentum, fear & greed, and volatility
 - Backend impact intelligence engine (Sprint 8)
@@ -523,22 +561,24 @@ npm run db:deploy:test    # applies the same migrations to DATABASE_URL_TEST
 
 ### Running tests
 ```bash
-npm run test              # backend (node --test) + frontend (vitest), 23 tests total
+npm run test              # backend (node --test) + frontend (vitest), 51 tests total (27 backend, 24 frontend)
 npm run test:backend      # requires DATABASE_URL_TEST to be set and migrated
 npm run test:frontend
 ```
 
 ## 7. Remaining Roadmap
 - Persistent portfolio storage: **done in Sprint 14** (opt-in via `VITE_PORTFOLIO_ENGINE=api`). Persist watchlist/favorites the same way is still open.
+- MVP Home Dashboard: **done in Sprint 15** per `MVP_HOME_DASHBOARD_SPEC.md`. Per `MVP_IMPLEMENTATION_ROADMAP.md`, Sprints 16-19 continue with first-launch/onboarding, research workflows, portfolio/alerts/intelligence expansion, and settings/billing/hardening.
 - Add auth and per-user sessions (the Sprint 14 portfolio engine is still single-portfolio, no accounts — matches today's single-user scope exactly, but doesn't yet support multiple users).
 - Wire AI committee/intelligence signals into automatic order placement against the new server-owned engine (the autonomous trading loop currently only exists in the legacy localStorage engine).
-- Add background workers/scheduler so portfolio performance snapshots and market-data refresh run continuously rather than on-demand.
+- Add background workers/scheduler so portfolio performance snapshots, daily brief archive capture, and market-data refresh run continuously rather than on-demand/on-cache-miss.
 - Cut the legacy `PortfolioScreen`/`useVirtualPortfolio` path over to the new engine once validated, then retire both it and the `/api/portfolio` v1 mock.
-- Add CI pipeline with lint/test/build gates (23 tests now exist locally but nothing runs them automatically yet).
+- Add CI pipeline with lint/test/build gates (51 tests now exist locally but nothing runs them automatically yet).
 - Add API schema validation and typed contracts.
 - Add observability primitives (request IDs, structured logging, endpoint timings).
 - Add AI prompt/versioning controls and report history.
 - Expand market impact logic with sector-specific catalyst patterns and event history.
+- Fix the `change` (absolute $) vs `changePercent` (real %) display mislabeling in `WatchlistTable.jsx`, `WatchlistScreen.jsx`, and any other screen still rendering `change` with a "%" suffix — Sprint 15 fixed the one live instance in the legacy portfolio engine's daily-return math, but the display-layer version of this bug is broader (see Known Issues).
 
 ## 8. Watchlist Behavior (Productized)
 - Storage model:
@@ -565,6 +605,10 @@ npm run test:frontend
 - The Sprint 14 portfolio engine's `benchmarkReturnPct` is intentionally left `null` — there is no tracked baseline SPY price to compare against yet, so it is not populated with a computed-looking value.
 - The Sprint 14 portfolio engine has no autonomous trading loop; orders are placed manually via its "Place Order" form. The legacy engine's autonomous decision loop has not been ported over.
 - `node_modules/` and `frontend/dist/` are committed to git, and `frontend/.env` was committed with real API keys in its history (flagged separately, not addressed by Sprint 14 — rotating those keys and cleaning git history is still outstanding).
+- `WatchlistTable.jsx` and `WatchlistScreen.jsx` (and any other screen reading `/api/watchlist`'s `change` field) still display Finnhub's absolute-dollar change with a "%" suffix — the same class of bug fixed in the legacy portfolio engine's `dailyReturn` calculation this sprint, but not swept across every display consumer. `WatchlistTable.jsx` is no longer used by the Dashboard as of Sprint 15 (kept in the repo, just unreferenced).
+- The Sprint 15 Daily Brief Archive only captures a snapshot when `dailyBriefService.getDailyBrief()` computes fresh (a 5-minute in-memory cache miss) — there's no scheduler yet, so on a quiet day with no traffic the archive may not gain a new entry even though a day has passed. Matches the spec's own "appears after a few days" empty-state framing but is worth knowing.
+- The Sprint 15 Top App Bar's account menu is a static "Guest workspace" placeholder — no real auth exists yet (tracked in Remaining Roadmap).
+- Help/Feedback/Terms/Product updates links in the new Dashboard Footer are intentionally inert (no real destination exists anywhere in the app yet) rather than fabricated links that go nowhere.
 
 ## 10. Sprint 4 Status
 
@@ -841,6 +885,44 @@ Not in scope for Sprint 14 (see Remaining Roadmap):
 - Background workers/scheduler for continuous snapshotting.
 - Migrating the legacy screen/Dashboard widgets over to the new engine.
 - `benchmarkReturnPct` tracking (left `null`, not faked).
+
+## 20. Sprint 15 - MVP Home Dashboard
+
+Sprint 15 outcomes:
+- Rebuilt the Dashboard screen from scratch against `MVP_HOME_DASHBOARD_SPEC.md` (confirmed authoritative over an earlier, shorter chat-pasted version of the same spec). Replaced the previous ~45-widget `DashboardHome.jsx` (930 lines, grown since Sprint 8) with exactly the spec's 9 dashboard-owned sections, in order:
+  - `frontend/src/components/dashboard/MarketContextStrip.jsx` — market status, S&P/Nasdaq/Russell proxies (SPY/QQQ/IWM via the existing `finnhubService.getQuote`), macro one-liner, key event chip
+  - `DailyBriefHero.jsx` — executive summary, confidence badge, "why this matters" bullets, sparkline (reuses `getQuote`'s existing `chart` field), primary/secondary actions
+  - `PriorityIntelligenceCards.jsx` — 3-5 alert/opportunity/risk/catalyst cards, ranked via the new `rankPriorityCards` utility
+  - `PortfolioRiskPanel.jsx` — concentration, risk score, sector exposure meter, rule-based suggestions, all from real portfolio + macro data
+  - `WatchlistPriorityPanel.jsx` — ranked watchlist rows reusing `watchlistRankings`
+  - `AskImpactOnePanel.jsx` — self-contained chat panel
+  - `OpportunityModule.jsx` — ranked ideas with a real "Add to Watchlist" action
+  - `DailyBriefArchive.jsx` — recent brief history
+  - `DashboardFooter.jsx` — real Settings/Status links, inert placeholders for Help/Feedback/Terms/Product updates
+- Extended the existing global `Header.jsx` (Top App Bar, spec §4.1) rather than adding a second Dashboard-only header: portfolio value + daily P/L, an alerts bell with a live unread count, a quick-actions menu, and a minimal account menu.
+- New backend surface:
+  - `POST /api/chat/ask` (`backend/services/chatService.js` + controller + route) — Ask ImpactOne, same OpenAI-with-fallback pattern as the rest of the AI layer
+  - `DailyBriefSnapshot` Prisma model + migration, `backend/services/dailyBriefArchiveRepository.js` / `dailyBriefArchiveService.js`, `GET /api/intelligence/daily-brief/archive` — captures one real snapshot per day whenever `dailyBriefService.getDailyBrief()` computes fresh; the archive fills in from real usage, never seeded
+  - `portfolioEngineService.getPortfolioSummary()` gained `dailyPnl`/`dailyPnlPct`, computed from each open position's live day % change
+  - `finnhubService.getQuote` now also returns `changePercent` (Finnhub's `dp`) alongside the pre-existing `change` (`d`, absolute dollar — kept as-is since existing screens already consume it)
+- New shared frontend primitives: `components/ui/Skeleton.jsx` (loading states per the spec's Global Loading Rules) and `utils/dashboardMetrics.js` (pure, unit-tested: `computeRiskScore`, `computeDiversification`, `rankPriorityCards`, `sortMoversByChange`)
+- Dashboard now reads the Sprint 14 server-owned portfolio engine (`usePortfolioEngine`) instead of the legacy localStorage engine — a clean cut for this screen only; the Portfolio screen's own `VITE_PORTFOLIO_ENGINE` flag is untouched
+- Fixed a real bug an automated code-review pass caught mid-sprint: the legacy portfolio engine's `dailyReturn` divided the absolute-dollar `change` field by 100 as if it were a percentage — now uses `changePercent`. Regression test added (`useVirtualPortfolio.test.js`, `recomputeState` exported for direct testing).
+- Fixed a real bug found during this sprint's own browser verification: `OpportunityModule` used `idea.symbol` as a React key, but `alphaDiscovery.top10InvestmentIdeas` can legitimately contain multiple entries for the same symbol with different theses — fixed with a composite key + index tiebreaker.
+- Fixed a test-infrastructure bug found while adding this sprint's tests: `node --test` runs test files concurrently by default, which raced against the shared test database once enough test files existed (FK constraint violations during `truncateAll()`). Fixed with `--test-concurrency=1` in `npm run test:backend`.
+- Four new planning documents appeared in the repo mid-sprint and were incorporated: `MVP_HOME_DASHBOARD_SPEC.md` (confirmed authoritative for this sprint over the original chat-pasted spec), `MVP_IMPLEMENTATION_ROADMAP.md` (Sprints 16-19 — confirmed `Daily Brief Archive Preview` should stay in Sprint 15 rather than move to Sprint 17 as that document suggested), `TEST_PLAN.md`, `API_CONTRACTS.md` (aligned the archive endpoint's response key to `briefs` per its proposed contract). `ARCHITECTURE.md`, `CODE_REVIEW.md`, and `COMPETITOR_INTELLIGENCE.md` were added as reference material.
+
+Sprint 15 verification:
+- `npm run build` — frontend build passed.
+- `npm run test` — 51/51 passing (27 backend, 24 frontend; +28 net new tests this sprint: chat service, daily brief archive service + integration, dashboard metrics, DashboardHome composition, portfolio dailyPnl, legacy dailyReturn regression).
+- Browser verification (Playwright, headless Chromium) at desktop (1440px) and mobile (390px) widths: all 9 dashboard sections render with real data; all other screens (Watchlist, AI Analysis, Portfolio, Alerts, Settings, Global Intelligence, Market News) still mount cleanly with zero crash errors; Header's quick-actions/account-menu/alerts-bell navigation all verified landing on the correct screen.
+
+Not in scope for Sprint 15 (see Remaining Roadmap and Known Issues):
+- Real auth / account system (account menu is a static placeholder).
+- Scheduled background capture for the daily brief archive (currently capture-on-cache-miss only).
+- Sweeping the `change`-vs-`changePercent` display fix across every remaining consumer (`WatchlistTable.jsx`, `WatchlistScreen.jsx`).
+- Streaming Ask ImpactOne responses, multi-turn clarifying questions, persisted chat history.
+- Real destinations for Help/Feedback/Terms/Product updates in the footer.
 
 ## Quick Handoff For New Developers
 1. Install dependencies at root (`npm install`) and frontend if needed (`npm --prefix frontend install`).
