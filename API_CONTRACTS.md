@@ -68,6 +68,11 @@
 - `POST /api/v2/portfolio/performance/snapshot`
 - `POST /api/v2/portfolio/reset`
 - `POST /api/chat/ask`
+- `GET /api/v2/recommendations`
+- `GET /api/v2/recommendations/:id`
+- `POST /api/v2/recommendations/run`
+- `GET /api/v2/recommendations/status`
+- `GET /api/v2/recommendations/:id/decision-trace`
 
 ### MVP-required but currently missing
 
@@ -2217,6 +2222,243 @@ Content-Type: application/json
   "answer": "Semis weakened after cautious guidance commentary and multiple names are now more valuation-sensitive.",
   "source": "openai",
   "providerNotice": null
+}
+```
+
+---
+
+### 3.39 `GET /api/v2/recommendations`
+
+**Purpose**
+- Sprint 16 (Phases A-D) — lists advisory-only, AI-generated recommendations from the autonomous recommendation engine. Never places a trade; see `POST /api/v2/recommendations/run`.
+
+**Route**
+- `/api/v2/recommendations`
+
+**HTTP method**
+- `GET`
+
+**Request body**
+- None.
+- Query parameters: `status` (`ACTIVE` | `SUPERSEDED` | `EXPIRED`, optional), `symbol` (optional), `limit` (optional number). When neither `status` nor `symbol` is given, defaults to `ACTIVE` only.
+
+**Response schema**
+- `{ recommendations: Array<Recommendation> }`, where `Recommendation` is:
+  - `id, createdAt, symbol, action ("BUY"|"REDUCE"|"EXIT"), confidenceScore, expectedUpside, expectedDownside, riskScore, riskLabel, positionSizeSuggestion, reasoning, timeHorizon, status, supersededById, expiresAt`
+  - `explanation: { thesis, supportingEvidence: Array<{headline, whyItMatters, sourceName, sourceUrl}>, opposingEvidence: Array<{headline, whyItMatters, sourceName, sourceUrl, counterarguments}>, keyRisks: string[], invalidationConditions: string[], timeHorizon, affectedPositions: Array<{symbol, quantity, marketValue, weightPct, sector}>, affectedWatchlistSymbols: string[], confidenceDrivers: string[], confidenceReducers: string[] }`
+  - `scenarios: Array<{ case: "bull"|"base"|"bear", narrative, probability (0-1), priceImpact, portfolioImpact (string|null), catalysts: string[], risks: string[], invalidationTrigger }>` (always exactly 3 entries)
+  - `qualityScore` (0-100) and `qualityComponents: { sourceQuality, evidenceFreshness, portfolioRelevance, evidenceAgreement, dataCompleteness, modelConfidence }` (each 0-100; weighted 15/15/20/20/10/20% respectively to produce `qualityScore`)
+  - `evidence: { overallAiScore, opportunityScore, riskScore, convictionScore, primaryDriver, rankingExplanation, matchedEvents, sectorWeightPct, concentrationTriggered, macroRegime, currentPrice, dayChangePercent, symbolSource ("portfolio"|"watchlist"|"market-scan") }`, where each `matchedEvents` entry is `{ headline, importanceScore, whyItMatters, sourceUrl, sourceName, publishedAt, confidence, reliability, impactType, riskLevel, timeHorizon, counterarguments, invalidationSignals, personalRelevance }`
+  - `portfolioContext: { quantity, marketValue, unrealizedPnlPct, sector, weightPct } | null` (null when not currently held)
+
+**Error responses**
+- `500 { error: "Internal Server Error" }` for uncaught failures.
+
+**Authentication requirements**
+- None.
+
+**Validation rules**
+- `limit` is optional and coerced to a number.
+
+**Example request**
+```http
+GET /api/v2/recommendations?status=ACTIVE
+```
+
+**Example response**
+```json
+{
+  "recommendations": [
+    {
+      "id": "rec-id",
+      "symbol": "NVDA",
+      "action": "BUY",
+      "confidenceScore": 84,
+      "riskLabel": "Moderate",
+      "expectedUpside": "10-16%",
+      "expectedDownside": "-8% tactical stop",
+      "timeHorizon": "1-3 months",
+      "qualityScore": 82,
+      "qualityComponents": { "sourceQuality": 95, "evidenceFreshness": 80, "portfolioRelevance": 40, "evidenceAgreement": 100, "dataCompleteness": 100, "modelConfidence": 84 },
+      "explanation": { "thesis": "Buy NVDA: AI infrastructure demand remains strong", "supportingEvidence": [], "opposingEvidence": [], "keyRisks": [], "invalidationConditions": [], "affectedPositions": [], "affectedWatchlistSymbols": [], "confidenceDrivers": [], "confidenceReducers": [] },
+      "scenarios": [{ "case": "bull", "narrative": "AI capex accelerates.", "probability": 0.3, "priceImpact": "15-22%", "portfolioImpact": null, "catalysts": [], "risks": [], "invalidationTrigger": "..." }],
+      "status": "ACTIVE"
+    }
+  ]
+}
+```
+
+---
+
+### 3.40 `GET /api/v2/recommendations/:id`
+
+**Purpose**
+- Full detail for a single recommendation, including the same `explanation`/`scenarios`/`qualityScore`/`evidence` fields as the list endpoint.
+
+**Route**
+- `/api/v2/recommendations/:id`
+
+**HTTP method**
+- `GET`
+
+**Request body**
+- None.
+
+**Response schema**
+- `Recommendation` (see 3.39).
+
+**Error responses**
+- `404 { error: "Recommendation not found." }`
+- `500 { error: "Internal Server Error" }` otherwise.
+
+**Authentication requirements**
+- None.
+
+**Validation rules**
+- `:id` must be an existing recommendation id.
+
+**Example request**
+```http
+GET /api/v2/recommendations/rec-id
+```
+
+**Example response**
+- Same shape as one entry of `GET /api/v2/recommendations`.
+
+---
+
+### 3.41 `POST /api/v2/recommendations/run`
+
+**Purpose**
+- Triggers one on-demand evaluation pass of the recommendation engine. Advisory only — never calls the portfolio engine's order-placement path. The same logic also runs on a schedule server-side (`AUTONOMOUS_ENGINE_INTERVAL_MINUTES`, default 30).
+
+**Route**
+- `/api/v2/recommendations/run`
+
+**HTTP method**
+- `POST`
+
+**Request body**
+- `{ watchlist?: string[] }` — optional. When provided (e.g. from the frontend's real localStorage watchlist), personalizes the evaluation universe and news queries; when omitted, the engine falls back to held positions plus the default 3-symbol universe (`AAPL`/`NVDA`/`TSLA`) — the same behavior scheduled runs use, since they have no per-request context.
+
+**Response schema**
+- `{ runLog: { id, startedAt, symbolsEvaluated, recommendationsGenerated, errors }, symbolsEvaluated, recommendationsGenerated, errors: Array<{symbol, message}> }`
+
+**Error responses**
+- `500 { error: "Internal Server Error" }` for uncaught failures. Per-symbol errors are captured in the response body's `errors` array rather than failing the whole request.
+
+**Authentication requirements**
+- None.
+
+**Validation rules**
+- `watchlist`, if present, must be an array; non-array values are ignored (treated as `[]`).
+
+**Example request**
+```http
+POST /api/v2/recommendations/run
+Content-Type: application/json
+
+{ "watchlist": ["PLTR"] }
+```
+
+**Example response**
+```json
+{
+  "runLog": { "id": "log-id", "startedAt": "2026-07-11T12:00:00.000Z", "symbolsEvaluated": 4, "recommendationsGenerated": 2, "errors": null },
+  "symbolsEvaluated": 4,
+  "recommendationsGenerated": 2,
+  "errors": []
+}
+```
+
+---
+
+### 3.42 `GET /api/v2/recommendations/status`
+
+**Purpose**
+- Engine status for the Recommendations screen — whether the scheduler is enabled/running, its interval, and the most recent run.
+
+**Route**
+- `/api/v2/recommendations/status`
+
+**HTTP method**
+- `GET`
+
+**Request body**
+- None.
+
+**Response schema**
+- `{ enabled: boolean, running: boolean, intervalMinutes: number, lastRunAt: string|null, lastRunResult: object|null, latestRunLog: { id, startedAt, symbolsEvaluated, recommendationsGenerated, errors } | null }`
+
+**Error responses**
+- `500 { error: "Internal Server Error" }` otherwise.
+
+**Authentication requirements**
+- None.
+
+**Validation rules**
+- None.
+
+**Example request**
+```http
+GET /api/v2/recommendations/status
+```
+
+**Example response**
+```json
+{
+  "enabled": true,
+  "running": true,
+  "intervalMinutes": 30,
+  "lastRunAt": "2026-07-11T12:00:00.000Z",
+  "latestRunLog": { "id": "log-id", "startedAt": "2026-07-11T12:00:00.000Z", "symbolsEvaluated": 4, "recommendationsGenerated": 2, "errors": null }
+}
+```
+
+---
+
+### 3.43 `GET /api/v2/recommendations/:id/decision-trace`
+
+**Purpose**
+- Sprint 16 Phase D — returns the immutable decision trace for a recommendation: the input evidence, ranking result, confidence calculation, and final output used to generate it. A separate resource from the main detail response so the (more verbose) audit payload only downloads when specifically requested. Contains only already-processed application data — never a raw provider HTTP response or an API key.
+
+**Route**
+- `/api/v2/recommendations/:id/decision-trace`
+
+**HTTP method**
+- `GET`
+
+**Request body**
+- None.
+
+**Response schema**
+- `{ id, recommendationId, inputEvidence: { rankingItem, matchedEvents, portfolioSnapshot, macroRegime }, rankingResult: { convictionScore, portfolioAction, symbolSource, action, concentrationTriggered }, confidenceCalculation: { qualityScore, qualityComponents, riskScore, riskLabel }, finalOutput: { action, expectedUpside, expectedDownside, positionSizeSuggestion, timeHorizon, reasoning }, createdAt }`
+
+**Error responses**
+- `404 { error: "Recommendation not found." }` when the recommendation id doesn't exist.
+- `404 { error: "Decision trace not found." }` when the recommendation exists but has no trace (should not occur in normal operation — every engine-generated recommendation writes one).
+- `500 { error: "Internal Server Error" }` otherwise.
+
+**Authentication requirements**
+- None.
+
+**Validation rules**
+- `:id` must be an existing recommendation id.
+
+**Example request**
+```http
+GET /api/v2/recommendations/rec-id/decision-trace
+```
+
+**Example response**
+```json
+{
+  "id": "trace-id",
+  "recommendationId": "rec-id",
+  "rankingResult": { "action": "BUY", "convictionScore": 84, "symbolSource": "market-scan", "concentrationTriggered": false },
+  "confidenceCalculation": { "qualityScore": 82, "qualityComponents": { "sourceQuality": 95, "evidenceFreshness": 80, "portfolioRelevance": 40, "evidenceAgreement": 100, "dataCompleteness": 100, "modelConfidence": 84 } },
+  "finalOutput": { "action": "BUY", "expectedUpside": "10-16%", "expectedDownside": "-8% tactical stop", "timeHorizon": "1-3 months" },
+  "createdAt": "2026-07-11T12:00:00.000Z"
 }
 ```
 
