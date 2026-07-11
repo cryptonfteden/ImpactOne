@@ -974,6 +974,27 @@ Not in scope for Sprint 16 Phase B:
 - Everything already excluded from Phase A (execution/broker connectivity, calibration loop, auth/billing) — unchanged.
 - A persisted per-user server-side watchlist — the engine's news query is a single fixed `"markets"` term, not personalized per watchlist symbol; a natural refinement once server-side watchlists exist.
 
+## 23. Sprint 16 Phase C - Personalized Intelligence
+
+Scope note: two of the five Phase C requirements were already fully satisfied and unchanged (advisory-only guarantee; no broker/execution). This phase closed the personalization gap Phase B left explicit: the news query was still a single fixed `"markets"` string regardless of what the user actually holds or watches.
+
+Sprint 16 Phase C outcomes:
+- **Dynamic, prioritized news queries** — `buildNewsQueryTerms` (`autonomousMarketService.js`) turns real portfolio/watchlist/sector/recommendation state into a deduped, priority-ordered, capped (6) list of query terms: symbols with an existing active recommendation first (freshest info on what's already flagged), then held portfolio symbols, then watchlist symbols, then real portfolio sector names (from `allocation.bySector`, not the older hardcoded lookup). `getAutonomousOverview` gained an optional `portfolioContext` param — present, it issues one `newsService.getNews` call per term and merges/dedupes by article URL; absent (every pre-Phase-C caller, e.g. `autonomousMarketController.js`'s 7 endpoints), behavior is byte-identical to before, verified by an explicit backward-compatibility test.
+- **Candidate ranking before analysis** — `rankNewsArticles` scores each candidate on portfolio relevance (which query term surfaced it), recency (`publishedAt` decay), and source quality (a small curated tier of major financial outlets vs. a flat default for everything else — a documented heuristic, not a fabricated precision score). The existing 6-item live-news slice now picks the top-ranked 6 instead of NewsAPI's raw return order. The final feed's "urgency" ranking (`importanceScore` sort) is unchanged — this stage only changes which candidates reach that analysis.
+- **Real watchlist threading + recommendation provenance** — `runOnce({ watchlist })` accepts an optional real watchlist (a user-triggered "Run now" now sends it; the scheduled cron path keeps its existing default-fallback behavior exactly, since it has no per-request context). Every run also derives real sectors and currently-active-recommendation symbols and passes all of it as `portfolioContext` — so even scheduled runs get personalized news once there's real state to personalize with. Every recommendation now carries `evidence.symbolSource` (`"portfolio"` / `"watchlist"` / `"market-scan"`) — stored in the existing `evidence` JSON, no schema migration — attributing it to exactly where it came from.
+- **Personalized relevance, confidence, and citations** — each matched event now carries `personalRelevance` (a plain-language line: *"Directly affects NVDA — 12% of your portfolio."* / *"PLTR is on your watchlist."* / *"part of today's broader market scan"*), `confidence`/`reliability` (already computed by `processEvent`'s analysis, previously discarded before reaching evidence), and `sourceName` alongside the existing `sourceUrl` (a citation reads "Reuters" + a real link, not a bare URL).
+- **Frontend surfacing** — `RecommendationsScreen.jsx` calls `useWatchlist()` and sends the real watchlist with "Run now"; every card shows a provenance badge and expanded reasoning lists each matched event's personal relevance, confidence, and a clickable source citation. `RecommendationsPreview.jsx` (Dashboard) gets the same provenance badge.
+
+Sprint 16 Phase C verification:
+- `npm run build` — frontend build passed.
+- `npm run test` run before every one of the 5 commits in this phase — 106/106 passing at completion (69 backend, 37 frontend; +37 net new tests this phase).
+- Manual end-to-end run: `POST /api/v2/recommendations/run` with body `{"watchlist":["PLTR"]}` against the real (unmocked) pipeline — `symbolsEvaluated` reflected the added watchlist symbol, `evidence.symbolSource` correctly distinguished portfolio/watchlist/market-scan, `evidence.currentPrice`/`dayChangePercent` and `matchedEvents[].personalRelevance`/`confidence`/`sourceUrl` all populated correctly; `/api/v2/portfolio/trades` stayed empty before and after, confirming the advisory-only invariant still holds.
+- Browser verification (Playwright, headless Chromium): with a real watchlist symbol set in localStorage, both the Recommendations screen and Dashboard preview rendered the provenance badge; expanding a card showed personal-relevance lines, confidence, and a working citation link; no new console errors (the pre-existing Sprint 15 `MarketContextStrip` 404s are untouched).
+
+Not in scope for Sprint 16 Phase C:
+- Everything already excluded from Phase A/B (execution/broker connectivity, calibration loop, auth/billing/persisted server-side watchlist) — unchanged.
+- Cross-symbol/sector correlation on a single recommendation (e.g. one recommendation referencing multiple related symbols) — each recommendation is still attributed to exactly one symbol, per the grounded reading of "attach to exact positions/watchlist symbols" agreed during planning.
+
 ## Quick Handoff For New Developers
 1. Install dependencies at root (`npm install`) and frontend if needed (`npm --prefix frontend install`).
 2. Configure keys in env files (`FINNHUB_API_KEY`, `OPENAI_API_KEY`, `VITE_API_BASE_URL`).
