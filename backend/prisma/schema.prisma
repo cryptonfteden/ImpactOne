@@ -155,3 +155,51 @@ model DailyBriefSnapshot {
 
   @@map("daily_brief_snapshots")
 }
+
+enum RecommendationAction {
+  BUY
+  REDUCE
+  EXIT
+}
+
+enum RecommendationStatus {
+  ACTIVE
+  SUPERSEDED
+  EXPIRED
+}
+
+// Sprint 16 Phase A — Autonomous Recommendation Engine. Advisory only: this
+// model is never written to as a side effect of order placement, and the
+// engine that populates it never calls portfolioEngineService.placeOrder.
+model Recommendation {
+  id                     String               @id @default(uuid())
+  createdAt              DateTime             @default(now())
+  symbol                 String
+  action                 RecommendationAction
+  confidenceScore        Decimal              @db.Decimal(5, 2)
+  expectedUpside         String
+  expectedDownside       String
+  riskScore              Decimal              @db.Decimal(5, 2)
+  riskLabel              String
+  positionSizeSuggestion String
+  reasoning              String               @db.Text
+  evidence               Json
+  portfolioContext       Json?
+  status                 RecommendationStatus @default(ACTIVE)
+  supersededById         String?
+  expiresAt              DateTime?
+
+  @@index([symbol, status])
+  @@index([createdAt])
+  @@map("recommendations")
+}
+
+model AutonomousRunLog {
+  id                       String   @id @default(uuid())
+  startedAt                DateTime @default(now())
+  symbolsEvaluated         Int
+  recommendationsGenerated Int
+  errors                   Json?
+
+  @@map("autonomous_run_logs")
+}
