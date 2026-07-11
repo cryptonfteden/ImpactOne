@@ -189,9 +189,38 @@ model Recommendation {
   supersededById         String?
   expiresAt              DateTime?
 
+  // Sprint 16 Phase D — Decision Quality and Explainability
+  timeHorizon       String?
+  explanation       Json
+  scenarios         Json
+  qualityScore      Decimal @db.Decimal(5, 2)
+  qualityComponents Json
+
+  decisionTrace DecisionTrace?
+
   @@index([symbol, status])
   @@index([createdAt])
   @@map("recommendations")
+}
+
+// Sprint 16 Phase D — one immutable row per recommendation, capturing the
+// exact inputs/scores/output used to generate it. Immutable by convention:
+// the repository only ever exposes create + read for this model, never an
+// update, so there is no code path that can mutate a trace after creation.
+// Contains no secrets/provider credentials — only already-processed
+// application data (ranking scores, matched-event summaries, portfolio
+// snapshot), never raw provider HTTP responses or API keys.
+model DecisionTrace {
+  id                     String         @id @default(uuid())
+  recommendationId       String         @unique
+  recommendation         Recommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  inputEvidence          Json
+  rankingResult          Json
+  confidenceCalculation  Json
+  finalOutput            Json
+  createdAt              DateTime       @default(now())
+
+  @@map("decision_traces")
 }
 
 model AutonomousRunLog {
