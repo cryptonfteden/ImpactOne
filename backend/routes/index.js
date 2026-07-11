@@ -18,6 +18,7 @@ const {
 } = require("../controllers/altDataController");
 const intelligenceRoutes = require("./intelligenceRoutes");
 const portfolioEngineRoutes = require("./portfolioEngineRoutes");
+const chatRoutes = require("./chatRoutes");
 
 const router = express.Router();
 
@@ -41,5 +42,6 @@ router.get("/alt-data/events", getEvents);
 router.get("/alt-data/summary", getSummary);
 router.use("/intelligence", intelligenceRoutes);
 router.use("/v2/portfolio", portfolioEngineRoutes);
+router.use("/chat", chatRoutes);
 
 module.exports = router;
