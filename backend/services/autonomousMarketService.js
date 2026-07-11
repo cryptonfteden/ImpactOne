@@ -292,7 +292,7 @@ function rankNewsArticles(taggedArticles = []) {
  */
 function getRepresentativeEvents({ scenarios = [], dailyBrief = null, watchlist = [], liveNews = [] }) {
   const liveNewsEvents = (liveNews || [])
-    .map((article) => ({ headline: String(article?.title || "").trim(), sourceUrl: article?.url || null }))
+    .map((article) => ({ headline: String(article?.title || "").trim(), sourceUrl: article?.url || null, sourceName: article?.source?.name || null }))
     .filter((item) => item.headline)
     .slice(0, 6);
   const liveHeadlines = new Set(liveNewsEvents.map((item) => item.headline));
@@ -305,7 +305,7 @@ function getRepresentativeEvents({ scenarios = [], dailyBrief = null, watchlist 
     ...Object.values(AUTONOMOUS_SCAN_UNIVERSE).flatMap((items) => items.slice(0, 1)),
   ]).filter((headline) => !liveHeadlines.has(headline));
 
-  const syntheticEvents = syntheticHeadlines.map((headline) => ({ headline, sourceUrl: null }));
+  const syntheticEvents = syntheticHeadlines.map((headline) => ({ headline, sourceUrl: null, sourceName: null }));
 
   return [...liveNewsEvents, ...syntheticEvents].slice(0, 28);
 }
@@ -581,7 +581,7 @@ function buildGlobalMap({ feed, dailyBrief, altSnapshot }) {
   };
 }
 
-async function processEvent({ event, sourceUrl = null, watchlist, portfolioExposure, anchorSymbol }) {
+async function processEvent({ event, sourceUrl = null, sourceName = null, watchlist, portfolioExposure, anchorSymbol }) {
   const analysis = await analyzeIntelligence({ event, symbol: anchorSymbol });
   const eventType = classifyEventType(event);
   const importanceScore = clamp(Math.round((Number(analysis.confidenceScore || 60) * 0.7) + ((analysis.affected?.stocks || []).filter((item) => watchlist.includes(item)).length * 8)), 0, 100);
@@ -609,6 +609,7 @@ async function processEvent({ event, sourceUrl = null, watchlist, portfolioExpos
     id: `${eventType}:${String(event).toLowerCase().replace(/\s+/g, "-")}`,
     headline: event,
     sourceUrl,
+    sourceName,
     eventType,
     importanceScore,
     confidence,
@@ -733,6 +734,7 @@ async function getAutonomousOverview({ watchlist = DEFAULT_WATCHLIST, scenarios 
   const processedFeed = await Promise.all(detectedEvents.map((event) => processEvent({
     event: event.headline,
     sourceUrl: event.sourceUrl,
+    sourceName: event.sourceName,
     watchlist: normalizedWatchlist,
     portfolioExposure,
     anchorSymbol: normalizedWatchlist[0],

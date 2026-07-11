@@ -6,8 +6,8 @@ const assert = require("node:assert/strict");
 const newsService = require("./newsService");
 const autonomousMarketService = require("./autonomousMarketService");
 
-function article(title, url = "https://example.com/a") {
-  return { title, description: "desc", url };
+function article(title, url = "https://example.com/a", sourceName = null) {
+  return { title, description: "desc", url, source: sourceName ? { name: sourceName } : undefined };
 }
 
 test("getRepresentativeEvents prioritizes live news headlines with their sourceUrl", () => {
@@ -21,6 +21,20 @@ test("getRepresentativeEvents prioritizes live news headlines with their sourceU
   assert.ok(liveEntry, "expected the live news headline to appear in the event list");
   assert.equal(liveEntry.sourceUrl, "https://news.example.com/fed-pause");
   assert.equal(result[0].headline, "Fed signals pause on rate hikes", "live news should be prioritized first");
+});
+
+test("getRepresentativeEvents carries the article's source name alongside its sourceUrl", () => {
+  const result = autonomousMarketService.getRepresentativeEvents({
+    scenarios: [],
+    watchlist: [],
+    liveNews: [article("Fed signals pause on rate hikes", "https://news.example.com/fed-pause", "Reuters")],
+  });
+
+  const liveEntry = result.find((item) => item.headline === "Fed signals pause on rate hikes");
+  assert.equal(liveEntry.sourceName, "Reuters");
+
+  const synthetic = result.find((item) => item.sourceUrl === null);
+  assert.equal(synthetic.sourceName, null, "synthetic entries carry no sourceName either");
 });
 
 test("getRepresentativeEvents backfills with the synthetic catalog when liveNews is empty", () => {
@@ -60,15 +74,16 @@ test("getRepresentativeEvents caps the total at 28 and live news at 6", () => {
   assert.ok(result.length <= 28);
 });
 
-test("getAutonomousOverview merges live news headlines into the feed with sourceUrl (no API keys configured — every other provider falls back gracefully)", async () => {
+test("getAutonomousOverview merges live news headlines into the feed with sourceUrl and sourceName (no API keys configured — every other provider falls back gracefully)", async () => {
   const original = newsService.getNews;
-  newsService.getNews = async () => [article("Live test headline for overview merge", "https://news.example.com/overview-merge")];
+  newsService.getNews = async () => [article("Live test headline for overview merge", "https://news.example.com/overview-merge", "Bloomberg")];
 
   try {
     const overview = await autonomousMarketService.getAutonomousOverview({ watchlist: ["OVMRG"] });
     const matched = overview.feed.find((item) => item.headline === "Live test headline for overview merge");
     assert.ok(matched, "expected the live news headline to flow through into the processed feed");
     assert.equal(matched.sourceUrl, "https://news.example.com/overview-merge");
+    assert.equal(matched.sourceName, "Bloomberg");
   } finally {
     newsService.getNews = original;
   }

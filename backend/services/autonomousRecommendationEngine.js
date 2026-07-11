@@ -45,11 +45,34 @@ function computeSymbolRiskScore({ rankingItem, sectorWeightPct, macroRegime }) {
   return portfolioRiskMetrics.clamp(Math.round(baseRisk * 0.7 + concentrationPenalty + recessionPenalty + inflationPenalty), 0, 100);
 }
 
-function findMatchedEvents(feed, symbol) {
+/**
+ * Sprint 16 Phase C — a plain-language line explaining why a matched event
+ * matters to this specific user, not just the market in general.
+ */
+function buildPersonalRelevance({ symbol, heldPosition, positionWeightPct, watchlistSymbols = [] }) {
+  if (heldPosition) {
+    return `Directly affects ${symbol} — ${Math.round(positionWeightPct)}% of your portfolio.`;
+  }
+  if (watchlistSymbols.includes(symbol)) {
+    return `${symbol} is on your watchlist.`;
+  }
+  return `${symbol} is part of today's broader market scan.`;
+}
+
+function findMatchedEvents(feed, symbol, context = {}) {
   return (feed || [])
     .filter((item) => (item.relatedTickers || []).includes(symbol) || (item.affectedAssets || []).includes(symbol))
     .slice(0, 3)
-    .map((item) => ({ headline: item.headline, importanceScore: item.importanceScore, whyItMatters: item.whyItMatters, sourceUrl: item.sourceUrl || null }));
+    .map((item) => ({
+      headline: item.headline,
+      importanceScore: item.importanceScore,
+      whyItMatters: item.whyItMatters,
+      sourceUrl: item.sourceUrl || null,
+      sourceName: item.sourceName || null,
+      confidence: item.confidence ?? null,
+      reliability: item.reliability || null,
+      personalRelevance: buildPersonalRelevance({ symbol, ...context }),
+    }));
 }
 
 function buildReasoning({ symbol, action, rankingItem, portfolioAction, heldPosition, sectorWeightPct, concentrationTriggered }) {
@@ -106,7 +129,10 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
 
   const riskScore = computeSymbolRiskScore({ rankingItem, sectorWeightPct, macroRegime });
   const riskLabel = portfolioRiskMetrics.riskLevelLabel(riskScore);
-  const matchedEvents = findMatchedEvents(feed, symbol);
+  const positionWeightPct = heldPosition && portfolioSummary.totalValue > 0
+    ? Number(((heldPosition.marketValue / portfolioSummary.totalValue) * 100).toFixed(2))
+    : 0;
+  const matchedEvents = findMatchedEvents(feed, symbol, { heldPosition, positionWeightPct, watchlistSymbols });
   const reasoning = buildReasoning({ symbol, action, rankingItem, portfolioAction, heldPosition, sectorWeightPct, concentrationTriggered });
 
   const portfolioContext = heldPosition
@@ -115,7 +141,7 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
         marketValue: heldPosition.marketValue,
         unrealizedPnlPct: heldPosition.unrealizedPnlPct,
         sector: heldPosition.sector,
-        weightPct: portfolioSummary.totalValue > 0 ? Number(((heldPosition.marketValue / portfolioSummary.totalValue) * 100).toFixed(2)) : 0,
+        weightPct: positionWeightPct,
       }
     : null;
 

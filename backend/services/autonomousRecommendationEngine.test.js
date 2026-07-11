@@ -118,8 +118,8 @@ test("runOnce threads a matched event's live news sourceUrl into evidence", asyn
         neutralRanking("TSLA"),
       ],
       feed: [
-        { headline: "AI capex surge", importanceScore: 80, whyItMatters: "Hyperscaler spend accelerating.", relatedTickers: ["NVDA"], affectedAssets: [], sourceUrl: "https://news.example.com/ai-capex" },
-        { headline: "Synthetic scenario event", importanceScore: 50, whyItMatters: "Placeholder.", relatedTickers: ["NVDA"], affectedAssets: [], sourceUrl: null },
+        { headline: "AI capex surge", importanceScore: 80, whyItMatters: "Hyperscaler spend accelerating.", relatedTickers: ["NVDA"], affectedAssets: [], sourceUrl: "https://news.example.com/ai-capex", sourceName: "Reuters", confidence: 82, reliability: "high" },
+        { headline: "Synthetic scenario event", importanceScore: 50, whyItMatters: "Placeholder.", relatedTickers: ["NVDA"], affectedAssets: [], sourceUrl: null, sourceName: null },
       ],
       portfolioSummary: buildPortfolioSummary({}),
     },
@@ -130,7 +130,47 @@ test("runOnce threads a matched event's live news sourceUrl into evidence", asyn
       const liveMatch = nvda.evidence.matchedEvents.find((item) => item.headline === "AI capex surge");
       const syntheticMatch = nvda.evidence.matchedEvents.find((item) => item.headline === "Synthetic scenario event");
       assert.equal(liveMatch.sourceUrl, "https://news.example.com/ai-capex");
+      assert.equal(liveMatch.sourceName, "Reuters");
+      assert.equal(liveMatch.confidence, 82);
+      assert.equal(liveMatch.reliability, "high");
+      assert.equal(liveMatch.personalRelevance, "NVDA is part of today's broader market scan.");
       assert.equal(syntheticMatch.sourceUrl, null);
+      assert.equal(syntheticMatch.sourceName, null);
+    }
+  );
+});
+
+test("runOnce personalizes matchedEvents' relevance line for a held position vs. a watchlist-only symbol", async () => {
+  await withMocks(
+    {
+      rankings: [
+        { symbol: "TSLA", opportunityScore: 20, riskScore: 85, overallAiScore: 25, primaryDriver: "Demand miss", explanation: "Deliveries below estimate." },
+        { symbol: "PLTRX", opportunityScore: 92, riskScore: 25, overallAiScore: 90, primaryDriver: "Contract win", explanation: "Large new contract announced." },
+        neutralRanking("AAPL"),
+        neutralRanking("NVDA"),
+      ],
+      feed: [
+        { headline: "Deliveries below estimate", importanceScore: 70, whyItMatters: "Miss vs. consensus.", relatedTickers: ["TSLA"], affectedAssets: [] },
+        { headline: "Contract win", importanceScore: 75, whyItMatters: "New revenue stream.", relatedTickers: ["PLTRX"], affectedAssets: [] },
+      ],
+      portfolioSummary: buildPortfolioSummary({
+        positions: [{ symbol: "TSLA", sector: "Automotive", marketValue: 12000, quantity: 20, unrealizedPnlPct: -8 }],
+        bySector: [{ name: "Automotive", pct: 12 }],
+        totalValue: 100000,
+        positionsValue: 12000,
+      }),
+    },
+    async () => {
+      await autonomousRecommendationEngine.runOnce({ watchlist: ["PLTRX"] });
+      const active = await autonomousRecommendationRepository.listActive();
+
+      const tsla = active.find((item) => item.symbol === "TSLA");
+      const tslaEvent = tsla.evidence.matchedEvents.find((item) => item.headline === "Deliveries below estimate");
+      assert.equal(tslaEvent.personalRelevance, "Directly affects TSLA — 12% of your portfolio.");
+
+      const pltrx = active.find((item) => item.symbol === "PLTRX");
+      const pltrxEvent = pltrx.evidence.matchedEvents.find((item) => item.headline === "Contract win");
+      assert.equal(pltrxEvent.personalRelevance, "PLTRX is on your watchlist.");
     }
   );
 });
