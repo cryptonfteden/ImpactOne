@@ -570,8 +570,8 @@ npm run test:frontend
 - Persistent portfolio storage: **done in Sprint 14** (opt-in via `VITE_PORTFOLIO_ENGINE=api`). Persist watchlist/favorites the same way is still open.
 - MVP Home Dashboard: **done in Sprint 15** per `MVP_HOME_DASHBOARD_SPEC.md`. Per `MVP_IMPLEMENTATION_ROADMAP.md`, Sprints 16-19 continue with first-launch/onboarding, research workflows, portfolio/alerts/intelligence expansion, and settings/billing/hardening.
 - Add auth and per-user sessions (the Sprint 14 portfolio engine is still single-portfolio, no accounts — matches today's single-user scope exactly, but doesn't yet support multiple users).
-- Wire AI committee/intelligence signals into automatic order placement against the new server-owned engine (the autonomous trading loop currently only exists in the legacy localStorage engine).
-- Add background workers/scheduler so portfolio performance snapshots, daily brief archive capture, and market-data refresh run continuously rather than on-demand/on-cache-miss.
+- Wire AI committee/intelligence signals into automatic order placement against the new server-owned engine — **Sprint 16 Phase A added the recommendation layer** (`/api/v2/recommendations`, advisory only, never places a trade); actual execution remains explicitly out of scope until a future sprint revisits it.
+- Add background workers/scheduler so portfolio performance snapshots and daily brief archive capture run continuously rather than on-demand/on-cache-miss — **Sprint 16 Phase A added the first scheduler** (`node-cron`-based, for the recommendation engine only); performance snapshots and daily brief capture are still on-demand/on-cache-miss.
 - Cut the legacy `PortfolioScreen`/`useVirtualPortfolio` path over to the new engine once validated, then retire both it and the `/api/portfolio` v1 mock.
 - Add CI pipeline with lint/test/build gates (51 tests now exist locally but nothing runs them automatically yet).
 - Add API schema validation and typed contracts.
@@ -609,6 +609,7 @@ npm run test:frontend
 - The Sprint 15 Daily Brief Archive only captures a snapshot when `dailyBriefService.getDailyBrief()` computes fresh (a 5-minute in-memory cache miss) — there's no scheduler yet, so on a quiet day with no traffic the archive may not gain a new entry even though a day has passed. Matches the spec's own "appears after a few days" empty-state framing but is worth knowing.
 - The Sprint 15 Top App Bar's account menu is a static "Guest workspace" placeholder — no real auth exists yet (tracked in Remaining Roadmap).
 - Help/Feedback/Terms/Product updates links in the new Dashboard Footer are intentionally inert (no real destination exists anywhere in the app yet) rather than fabricated links that go nowhere.
+- The Sprint 16 Phase A recommendation engine's universe is held positions plus the app's existing 3-symbol default watchlist (`AAPL`/`NVDA`/`TSLA`) — there is no persisted per-user watchlist server-side yet (`useWatchlist` is client localStorage only), so the engine cannot see a user's actual saved watchlist. Same underlying gap as the rest of the app's server-side/localStorage split, not new to this sprint.
 
 ## 10. Sprint 4 Status
 
@@ -924,6 +925,35 @@ Not in scope for Sprint 15 (see Remaining Roadmap and Known Issues):
 - Streaming Ask ImpactOne responses, multi-turn clarifying questions, persisted chat history.
 - Real destinations for Help/Feedback/Terms/Product updates in the footer.
 
+## 21. Sprint 16 Phase A - Autonomous Recommendation Engine (advisory only)
+
+Scope note: Phase 1 planning for Sprint 16 initially proposed an execution-capable "Autonomous Decision & Execution Engine." The user narrowed Phase A before implementation: a **recommendation engine, not an execution engine**. It analyzes market events and real portfolio exposure and produces explainable, confidence-scored recommendations — it never places a trade. Execution, broker connectivity, and automated trading remain fully out of scope for Sprint 16.
+
+Sprint 16 Phase A outcomes:
+- New Prisma models: `Recommendation` (symbol, action, confidenceScore, expectedUpside/expectedDownside, riskScore/riskLabel, positionSizeSuggestion, reasoning, evidence JSON, portfolioContext JSON, ACTIVE/SUPERSEDED/EXPIRED status) and `AutonomousRunLog` (per-run symbol/recommendation counts + errors) — no changes to `Order`/`Position`/`Portfolio`.
+- `backend/services/autonomousRecommendationEngine.js` — the core logic. Composes already-cached signals rather than adding new provider calls: `autonomousMarketService.getAutonomousOverview()` (events + per-symbol AI scores, 5-minute cache) and `portfolioEngineService.getPortfolioSummary()` (real positions/sector allocation, not the older hardcoded 5-symbol `portfolioIntelligenceService` lookup). Extracted `computeConvictionScore`/`buildPortfolioAction` out of `autonomousMarketService.js` (previously inline, only used for the top-10 alpha-discovery slice) so any symbol in the engine's universe can be scored consistently with what the rest of the app already shows.
+  - Universe = held position symbols ∪ the app's existing server-side default watchlist (`["AAPL","NVDA","TSLA"]` — there is no persisted per-user watchlist server-side yet, `useWatchlist` is client localStorage only; stated here as a real coverage limitation, not hidden).
+  - Only persists actionable recommendations (BUY for a strong signal on a symbol not held, REDUCE/EXIT for a weak/negative signal on a symbol held) — a "Wait"-tier signal on an unheld symbol generates nothing, by design.
+  - A held position whose sector exceeds a concentration threshold can independently trigger a REDUCE recommendation even when the underlying AI score alone says Wait — this is what makes it a genuine portfolio-exposure analysis, not a repackaged opportunity list.
+  - `backend/utils/portfolioRiskMetrics.js` — backend port of the Sprint 15 `dashboardMetrics.js` concentration/risk formulas (same math, duplicated rather than cross-imported since backend is CommonJS and the frontend module is ESM in a separate package).
+  - Every persisted recommendation reruns supersede logic (`autonomousRecommendationRepository.supersedeActiveForSymbol`, `updateMany`-based so it's correct even with concurrent stale ACTIVE rows) so only one ACTIVE recommendation exists per symbol at a time.
+  - **No import of `placeOrder` or any portfolio-mutating repository function anywhere in the engine file** — a structural, not just conventional, non-execution guarantee. Verified by an explicit test asserting `placeOrder` is never called, and by a route-level test confirming `/api/v2/portfolio/trades` stays empty after a run.
+- `backend/services/schedulerService.js` — thin `node-cron` wrapper (no BullMQ/Redis — a single in-process interval trigger matches this app's actual scale). Bootstrapped from `backend/server.js` only, guarded by `AUTONOMOUS_ENGINE_ENABLED` (default on — safe, since this phase never touches money or portfolio state). Deliberately **not** added to `backend/app.js`, since integration tests `require("../app")` directly and a live cron timer would leak into test runs.
+- New API surface, mounted at `/api/v2/recommendations`: `GET /` (list, `?status=`/`?symbol=`), `GET /:id` (full detail incl. reasoning/evidence), `POST /run` (on-demand trigger), `GET /status` (enabled/interval/last run).
+- New frontend screen: `frontend/src/screens/RecommendationsScreen.jsx` (+ `useRecommendations` hook, `recommendationsApi`, `RecommendationsFeature`, new "Recommendations" nav item). Reuses the existing `.opportunity-grid`/`.opportunity-item`/`.pill` card patterns from Sprint 15's Opportunity Module rather than introducing a new visual language. States plainly, on the screen itself, that the engine never executes trades.
+
+Sprint 16 Phase A verification:
+- `npm run build` — frontend build passed.
+- `npm run test` — 78/78 passing (46 backend, 32 frontend; +25 net new tests: recommendation engine, repository, scheduler, route integration, frontend hook + screen).
+- Manual end-to-end run against the live (no-API-key fallback) intelligence pipeline: `POST /api/v2/recommendations/run` produced real, reasoned BUY recommendations with confidence/upside/downside/risk/evidence; `GET /api/v2/portfolio` and `/trades` were byte-identical before and after the run, confirming no execution side effect.
+- Browser verification (Playwright, headless Chromium): Recommendations screen renders real recommendation cards, "Show reasoning" expands correctly, "Run now" triggers a fresh pass, no order-placement control exists anywhere on the screen, and no new console errors were introduced (pre-existing `/api/quote?symbol=SPY|QQQ|IWM` 404s from Sprint 15's `MarketContextStrip` on the Dashboard are unrelated and untouched by this sprint).
+
+Not in scope for Sprint 16 Phase A (see Remaining Roadmap):
+- Execution, broker connectivity, and automated trading — explicitly excluded by the user for all of Sprint 16, not just deferred within this feature.
+- A calibration/backtesting feedback loop grading recommendation accuracy against `committeeTrackRecordService` — needs a real recommendation history to exist first; a natural Sprint 17 candidate.
+- Persisted per-user server-side watchlist (the engine's universe is held positions + the existing 3-symbol default, same limitation as elsewhere in the app).
+- Auth / multi-user accounts, billing/entitlements, and broker execution more broadly — real business-viability gaps (flagged during this sprint's planning by an externally-appearing `PRODUCT_GAP_ANALYSIS.md`), but a separate, larger initiative from this feature.
+
 ## Quick Handoff For New Developers
 1. Install dependencies at root (`npm install`) and frontend if needed (`npm --prefix frontend install`).
 2. Configure keys in env files (`FINNHUB_API_KEY`, `OPENAI_API_KEY`, `VITE_API_BASE_URL`).
@@ -932,3 +962,4 @@ Not in scope for Sprint 15 (see Remaining Roadmap and Known Issues):
 5. Validate watchlist intelligence by saving favorites and opening Watchlist screen.
 6. Validate Market Impact Engine sections on the AI Analysis screen.
 7. (Optional, Sprint 14) Set up PostgreSQL and `DATABASE_URL`/`DATABASE_URL_TEST` per the Database setup steps above, run `npm run db:migrate`, then set `VITE_PORTFOLIO_ENGINE=api` to try the new server-owned Portfolio screen. Run `npm run test` to exercise it end-to-end.
+8. (Optional, Sprint 16) Open the "Recommendations" screen and click "Run now" to trigger an on-demand pass of the advisory-only recommendation engine — it never places a trade. It also runs automatically every `AUTONOMOUS_ENGINE_INTERVAL_MINUTES` (default 30) while the backend server process is running, controlled by `AUTONOMOUS_ENGINE_ENABLED`.
