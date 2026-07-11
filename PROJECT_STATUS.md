@@ -954,6 +954,26 @@ Not in scope for Sprint 16 Phase A (see Remaining Roadmap):
 - Persisted per-user server-side watchlist (the engine's universe is held positions + the existing 3-symbol default, same limitation as elsewhere in the app).
 - Auth / multi-user accounts, billing/entitlements, and broker execution more broadly — real business-viability gaps (flagged during this sprint's planning by an externally-appearing `PRODUCT_GAP_ANALYSIS.md`), but a separate, larger initiative from this feature.
 
+## 22. Sprint 16 Phase B - Connect Live Data, Surface Recommendations Everywhere
+
+Scope note: two of the five Phase B requirements were already satisfied by Phase A and weren't rebuilt — portfolio holdings connection (`portfolioEngineService.getPortfolioSummary()`) and automatic generation every 30 minutes (`schedulerService.js` + `node-cron`, verified still correct by rereading the code). Phase B added the three genuinely new pieces: live market data surfaced in recommendation output, a real live news connection replacing a synthetic event catalog, and recommendations visible on the Dashboard, not just the dedicated screen. The advisory-only guarantee is unchanged — nothing in Phase B touches `placeOrder`.
+
+Sprint 16 Phase B outcomes:
+- **Live market data surfaced in recommendations** — `autonomousMarketService.buildWatchlistRanks` already fetched a live Finnhub quote per symbol to compute momentum, then discarded it. Now exposes `currentPrice`/`dayChangePercent` on each ranking item (`null` when unavailable, same graceful pattern as the rest of the pipeline). The recommendation engine threads this into `evidence` and into `reasoning` ("Currently trading at $X, +Y% today") — zero new network calls, pure reuse of data already fetched.
+- **Live news feed connected into event detection** — found and closed a real gap: the event pipeline feeding every recommendation (`getRepresentativeEvents`) was entirely synthetic, a hardcoded ~30-entry scenario catalog (`AUTONOMOUS_SCAN_UNIVERSE`), never real news, even though a complete, working live news integration (`newsService.js`, real NewsAPI.org calls via `NEWS_API_KEY`, graceful fallback) already existed unused. `getAutonomousOverview` now fetches real headlines and merges them in: up to 6 live articles first, deduped against and backfilled by the existing synthetic catalog, same 28-item cap as before. Each event now carries a `sourceUrl` (the real article link for live entries, `null` for synthetic ones), threaded through into a recommendation's `evidence.matchedEvents` — a real citation, not just a derived score. This also improved data quality for the Priority Intelligence Cards and Opportunity Module on the Dashboard, since they read the same shared `feed`.
+  - Switched `newsService`'s import in `autonomousMarketService.js` to namespace-style (matching `portfolioEngineService`'s existing `finnhubService` pattern) so the new code path could actually be tested — `autonomousMarketService.js` had no test file before this sprint; added `backend/services/autonomousMarketService.test.js`.
+- **Recommendations now show on the Dashboard** — new `frontend/src/components/dashboard/RecommendationsPreview.jsx`, using the same `useRecommendations` hook (already polling every 60s) the dedicated screen uses. Renders right after Opportunities: top 3 active recommendations, action/confidence/upside/downside, "View all" link to the full Recommendations screen. No place-order control, matching the dedicated screen.
+
+Sprint 16 Phase B verification:
+- `npm run build` — frontend build passed.
+- `npm run test` run before every commit in this phase, not just at the end — 91/91 passing at completion (55 backend, 36 frontend; +13 net new tests this phase).
+- Manual end-to-end run: `POST /api/v2/recommendations/run` against the real (unmocked) pipeline in this environment (no `NEWS_API_KEY`/`FINNHUB_API_KEY` configured beyond whatever is already set) produced recommendations with real `currentPrice`/`dayChangePercent` and `evidence.matchedEvents` correctly carrying `newsService`'s own fallback article's `sourceUrl` for the live-sourced event and `null` for synthetic ones; `/api/v2/portfolio/trades` stayed empty before and after, confirming the advisory-only invariant still holds.
+- Browser verification (Playwright, headless Chromium): Dashboard renders the new Recommendations section with real cards; Recommendations screen unaffected in layout and still fully functional; no new console errors (the pre-existing Sprint 15 `MarketContextStrip` 404s are untouched, same as noted in Phase A).
+
+Not in scope for Sprint 16 Phase B:
+- Everything already excluded from Phase A (execution/broker connectivity, calibration loop, auth/billing) — unchanged.
+- A persisted per-user server-side watchlist — the engine's news query is a single fixed `"markets"` term, not personalized per watchlist symbol; a natural refinement once server-side watchlists exist.
+
 ## Quick Handoff For New Developers
 1. Install dependencies at root (`npm install`) and frontend if needed (`npm --prefix frontend install`).
 2. Configure keys in env files (`FINNHUB_API_KEY`, `OPENAI_API_KEY`, `VITE_API_BASE_URL`).
