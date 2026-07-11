@@ -1,4 +1,7 @@
-const { getQuote } = require("./finnhubService");
+// Accessed as finnhubService.getQuote(...) rather than destructured, so
+// tests can monkey-patch it the same way openaiService.test.js patches
+// axios.post — a destructured reference wouldn't see the patch.
+const finnhubService = require("./finnhubService");
 const portfolioRepository = require("./portfolioRepository");
 
 function badRequest(message, extra = {}) {
@@ -22,7 +25,7 @@ async function getOrCreateDefaultPortfolio() {
 
 async function markPositions(positions) {
   const quotes = await Promise.all(
-    positions.map((position) => getQuote(position.symbol).catch(() => null))
+    positions.map((position) => finnhubService.getQuote(position.symbol).catch(() => null))
   );
 
   return positions.map((position, index) => {
@@ -122,7 +125,7 @@ async function placeOrder({ symbol, side, quantity, sector, assetType }) {
   }
 
   const portfolio = await getOrCreateDefaultPortfolio();
-  const quotePayload = await getQuote(normalizedSymbol);
+  const quotePayload = await finnhubService.getQuote(normalizedSymbol);
   const price = Number(quotePayload.quote?.price);
   if (!Number.isFinite(price) || price <= 0) {
     throw badRequest(`No live price available for ${normalizedSymbol}.`);
