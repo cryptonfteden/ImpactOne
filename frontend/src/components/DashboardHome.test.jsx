@@ -2,8 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import DashboardHome from "./DashboardHome";
 
-// Composition test: does DashboardHome render all 9 MVP spec sections, in
-// the spec's order? Child components are mocked to a simple marker each —
+// Composition test: does DashboardHome render all 9 MVP spec sections plus
+// Sprint 16 Phase B's Recommendations preview, in order? Child components
+// are mocked to a simple marker each —
 // their own internals (data shape, empty/loading states) are covered by
 // dashboardMetrics.test.js and manual/browser verification, not re-tested
 // here. This keeps the test focused on what actually matters at this
@@ -15,6 +16,7 @@ vi.mock("./dashboard/PortfolioRiskPanel", () => ({ default: () => <div data-test
 vi.mock("./dashboard/WatchlistPriorityPanel", () => ({ default: () => <div data-testid="section">WatchlistPriorityPanel</div> }));
 vi.mock("./dashboard/AskImpactOnePanel", () => ({ default: () => <div data-testid="section">AskImpactOnePanel</div> }));
 vi.mock("./dashboard/OpportunityModule", () => ({ default: () => <div data-testid="section">OpportunityModule</div> }));
+vi.mock("./dashboard/RecommendationsPreview", () => ({ default: () => <div data-testid="section">RecommendationsPreview</div> }));
 vi.mock("./dashboard/DailyBriefArchive", () => ({ default: () => <div data-testid="section">DailyBriefArchive</div> }));
 vi.mock("./dashboard/DashboardFooter", () => ({ default: () => <div data-testid="section">DashboardFooter</div> }));
 
@@ -25,6 +27,15 @@ vi.mock("../hooks/useWatchlist", () => ({
 vi.mock("../hooks/usePortfolioEngine", () => ({
   default: () => ({
     summary: { totalValue: 100000, cashBalance: 100000, positionsValue: 0, dailyPnl: 0, positions: [], allocation: { bySector: [], byAssetType: [] } },
+    isLoading: false,
+    error: "",
+  }),
+}));
+
+vi.mock("../hooks/useRecommendations", () => ({
+  default: () => ({
+    recommendations: [],
+    status: null,
     isLoading: false,
     error: "",
   }),
@@ -41,11 +52,11 @@ vi.mock("../services/api", () => ({
 }));
 
 describe("DashboardHome", () => {
-  it("renders all 9 MVP dashboard sections in spec order", async () => {
+  it("renders all 9 MVP dashboard sections plus the Recommendations preview, in order", async () => {
     render(<DashboardHome onNavigate={vi.fn()} />);
 
     await waitFor(() => {
-      expect(screen.getAllByTestId("section").length).toBeGreaterThanOrEqual(9);
+      expect(screen.getAllByTestId("section").length).toBeGreaterThanOrEqual(10);
     });
 
     const sectionNames = screen.getAllByTestId("section").map((el) => el.textContent);
@@ -58,6 +69,7 @@ describe("DashboardHome", () => {
       "WatchlistPriorityPanel",
       "AskImpactOnePanel",
       "OpportunityModule",
+      "RecommendationsPreview",
       "DailyBriefArchive",
       "DashboardFooter",
     ]);

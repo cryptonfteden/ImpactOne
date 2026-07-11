@@ -6,10 +6,12 @@ import PortfolioRiskPanel from "./dashboard/PortfolioRiskPanel";
 import WatchlistPriorityPanel from "./dashboard/WatchlistPriorityPanel";
 import AskImpactOnePanel from "./dashboard/AskImpactOnePanel";
 import OpportunityModule from "./dashboard/OpportunityModule";
+import RecommendationsPreview from "./dashboard/RecommendationsPreview";
 import DailyBriefArchive from "./dashboard/DailyBriefArchive";
 import DashboardFooter from "./dashboard/DashboardFooter";
 import useWatchlist from "../hooks/useWatchlist";
 import usePortfolioEngine from "../hooks/usePortfolioEngine";
+import useRecommendations from "../hooks/useRecommendations";
 import { altDataApi, intelligenceApi, marketApi, watchlistApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 import { computeDiversification, computeRiskScore, rankPriorityCards, sortMoversByChange } from "../utils/dashboardMetrics";
@@ -28,6 +30,7 @@ function selectTicker(symbol) {
 export default function DashboardHome({ onNavigate }) {
   const { watchlist, addTicker } = useWatchlist();
   const { summary: portfolioSummary, isLoading: isPortfolioLoading, error: portfolioError } = usePortfolioEngine();
+  const { recommendations, isLoading: isRecommendationsLoading, error: recommendationsError } = useRecommendations();
 
   const [overview, setOverview] = useState(null);
   const [overviewError, setOverviewError] = useState("");
@@ -313,6 +316,13 @@ export default function DashboardHome({ onNavigate }) {
         ideas={alphaDiscovery?.top10InvestmentIdeas || []}
         watchlist={watchlist}
         onAddToWatchlist={addTicker}
+      />
+
+      <RecommendationsPreview
+        isLoading={isRecommendationsLoading}
+        error={recommendationsError}
+        recommendations={recommendations}
+        onViewAll={() => onNavigate?.("Recommendations")}
       />
 
       <DailyBriefArchive isLoading={isArchiveLoading} error={archiveError} entries={archive} />
