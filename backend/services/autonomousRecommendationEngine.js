@@ -50,6 +50,11 @@ function buildReasoning({ symbol, action, rankingItem, portfolioAction, heldPosi
 
   parts.push(rankingItem.explanation || `${symbol} is being scored on macro, event, and positioning exposure.`);
 
+  if (Number.isFinite(rankingItem.currentPrice)) {
+    const changePct = Number.isFinite(rankingItem.dayChangePercent) ? rankingItem.dayChangePercent : 0;
+    parts.push(`Currently trading at $${rankingItem.currentPrice.toFixed(2)}, ${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}% today.`);
+  }
+
   if (concentrationTriggered) {
     parts.push(
       `${heldPosition.sector} now makes up ${Math.round(sectorWeightPct)}% of total portfolio value, above the concentration threshold — this recommendation is driven by exposure risk, not the underlying AI score alone.`
@@ -127,6 +132,8 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
       sectorWeightPct,
       concentrationTriggered,
       macroRegime,
+      currentPrice: rankingItem.currentPrice ?? null,
+      dayChangePercent: rankingItem.dayChangePercent ?? null,
     },
     portfolioContext,
   });

@@ -414,7 +414,8 @@ function buildChangeWindows(feed, watchlistRankings) {
 
 async function buildWatchlistRanks({ watchlist, feed, altSignalsBySymbol, quotesBySymbol }) {
   return watchlist.map((symbol) => {
-    const quoteChange = Number(quotesBySymbol[symbol]?.quote?.change || 0);
+    const livePayload = quotesBySymbol[symbol]?.quote || null;
+    const quoteChange = Number(livePayload?.change || 0);
     const symbolEvents = feed.filter((item) => (item.affectedAssets || []).includes(symbol) || (item.relatedTickers || []).includes(symbol));
     const primaryEvent = symbolEvents.sort((a, b) => b.importanceScore - a.importanceScore)[0] || null;
     const altSignals = altSignalsBySymbol[symbol]?.signals || null;
@@ -433,6 +434,13 @@ async function buildWatchlistRanks({ watchlist, feed, altSignalsBySymbol, quotes
       overallAiScore,
       primaryDriver: primaryEvent?.headline || "No dominant event",
       explanation: primaryEvent?.whyItMatters || `${symbol} is being scored on macro, event, and positioning exposure.`,
+      // Live Finnhub quote data already fetched above for scoring — surfaced
+      // here (rather than discarded) so downstream consumers (e.g. the
+      // autonomous recommendation engine) can cite a real price, not just
+      // derived scores. null when no quote was available, same graceful
+      // pattern as the rest of this pipeline.
+      currentPrice: Number.isFinite(livePayload?.price) ? livePayload.price : null,
+      dayChangePercent: Number.isFinite(livePayload?.changePercent) ? livePayload.changePercent : null,
     };
   }).sort((a, b) => b.overallAiScore - a.overallAiScore);
 }

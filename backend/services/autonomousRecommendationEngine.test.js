@@ -84,6 +84,47 @@ test("runOnce generates a BUY recommendation for a strong non-held signal", asyn
   );
 });
 
+test("runOnce threads live quote data into evidence and reasoning when available", async () => {
+  await withMocks(
+    {
+      rankings: [
+        { symbol: "NVDA", opportunityScore: 90, riskScore: 30, overallAiScore: 88, primaryDriver: "AI capex surge", explanation: "Strong AI capex tailwind.", currentPrice: 192.5, dayChangePercent: 1.25 },
+        neutralRanking("AAPL"),
+        neutralRanking("TSLA"),
+      ],
+      portfolioSummary: buildPortfolioSummary({}),
+    },
+    async () => {
+      await autonomousRecommendationEngine.runOnce();
+      const active = await autonomousRecommendationRepository.listActive();
+      const nvda = active.find((item) => item.symbol === "NVDA");
+      assert.equal(nvda.evidence.currentPrice, 192.5);
+      assert.equal(nvda.evidence.dayChangePercent, 1.25);
+      assert.match(nvda.reasoning, /\$192\.50, \+1\.25% today/);
+    }
+  );
+});
+
+test("runOnce omits live price from reasoning when no quote was available", async () => {
+  await withMocks(
+    {
+      rankings: [
+        { symbol: "NVDA", opportunityScore: 90, riskScore: 30, overallAiScore: 88, primaryDriver: "AI capex surge", explanation: "Strong AI capex tailwind.", currentPrice: null, dayChangePercent: null },
+        neutralRanking("AAPL"),
+        neutralRanking("TSLA"),
+      ],
+      portfolioSummary: buildPortfolioSummary({}),
+    },
+    async () => {
+      await autonomousRecommendationEngine.runOnce();
+      const active = await autonomousRecommendationRepository.listActive();
+      const nvda = active.find((item) => item.symbol === "NVDA");
+      assert.equal(nvda.evidence.currentPrice, null);
+      assert.doesNotMatch(nvda.reasoning, /Currently trading/);
+    }
+  );
+});
+
 test("runOnce generates an EXIT recommendation for a held position with a negative signal", async () => {
   await withMocks(
     {
