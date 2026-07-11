@@ -70,6 +70,41 @@ test("POST /api/v2/recommendations/run generates recommendations, then GET lists
   });
 });
 
+test("POST /api/v2/recommendations/run accepts a watchlist in the request body and marks its symbols as watchlist-sourced", async () => {
+  const originalOverview = autonomousMarketService.getAutonomousOverview;
+  const originalSummary = portfolioEngineService.getPortfolioSummary;
+
+  autonomousMarketService.getAutonomousOverview = async ({ watchlist }) => ({
+    feed: [],
+    watchlistRankings: watchlist.map((symbol) =>
+      symbol === "PLTRX"
+        ? { symbol, opportunityScore: 92, riskScore: 25, overallAiScore: 90, primaryDriver: "Contract win", explanation: "New contract announced." }
+        : neutralRanking(symbol)
+    ),
+    globalMap: { macroRegime: { recessionRisk: "low", inflationPressure: "low" } },
+  });
+  portfolioEngineService.getPortfolioSummary = async () => ({
+    portfolioId: "test-portfolio",
+    totalValue: 100000,
+    positionsValue: 0,
+    positions: [],
+    allocation: { bySector: [], byAssetType: [] },
+  });
+
+  try {
+    const runResponse = await request(app).post("/api/v2/recommendations/run").send({ watchlist: ["PLTRX"] });
+    assert.equal(runResponse.status, 201);
+
+    const listResponse = await request(app).get("/api/v2/recommendations");
+    const pltrx = listResponse.body.recommendations.find((item) => item.symbol === "PLTRX");
+    assert.ok(pltrx, "expected a recommendation for the body-provided watchlist symbol");
+    assert.equal(pltrx.evidence.symbolSource, "watchlist");
+  } finally {
+    autonomousMarketService.getAutonomousOverview = originalOverview;
+    portfolioEngineService.getPortfolioSummary = originalSummary;
+  }
+});
+
 test("GET /api/v2/recommendations/status reports engine status and last run", async () => {
   await withMocks(async () => {
     await request(app).post("/api/v2/recommendations/run");

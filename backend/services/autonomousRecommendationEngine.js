@@ -20,9 +20,16 @@ const portfolioRiskMetrics = require("../utils/portfolioRiskMetrics");
 // is tuned for a continuous score, not a discrete action trigger.
 const CONCENTRATION_OVERRIDE_THRESHOLD_PCT = 35;
 
-function buildUniverse(heldSymbols = []) {
-  const merged = new Set([...heldSymbols, ...autonomousMarketService.DEFAULT_WATCHLIST]);
+function buildUniverse(heldSymbols = [], watchlistSymbols = []) {
+  const merged = new Set([...heldSymbols, ...watchlistSymbols, ...autonomousMarketService.DEFAULT_WATCHLIST]);
   return Array.from(merged);
+}
+
+function normalizeSymbolList(values = []) {
+  const normalized = (values || [])
+    .map((value) => String(value || "").trim().toUpperCase())
+    .filter(Boolean);
+  return Array.from(new Set(normalized));
 }
 
 function findSectorWeightPct(allocationBySector, sector) {
@@ -70,8 +77,9 @@ function buildReasoning({ symbol, action, rankingItem, portfolioAction, heldPosi
   return parts.join(" ");
 }
 
-async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, macroRegime }) {
+async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, macroRegime, watchlistSymbols = [] }) {
   const heldPosition = portfolioSummary.positions.find((position) => position.symbol === symbol) || null;
+  const symbolSource = heldPosition ? "portfolio" : watchlistSymbols.includes(symbol) ? "watchlist" : "market-scan";
   const convictionScore = autonomousMarketService.computeConvictionScore(rankingItem);
   const portfolioAction = autonomousMarketService.buildPortfolioAction({ convictionScore });
   const sectorWeightPct = heldPosition ? findSectorWeightPct(portfolioSummary.allocation.bySector, heldPosition.sector) : 0;
@@ -134,6 +142,7 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
       macroRegime,
       currentPrice: rankingItem.currentPrice ?? null,
       dayChangePercent: rankingItem.dayChangePercent ?? null,
+      symbolSource,
     },
     portfolioContext,
   });
@@ -143,17 +152,33 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
   return created;
 }
 
-async function runOnce() {
+async function runOnce({ watchlist = [] } = {}) {
   const errors = [];
   let recommendationsGenerated = 0;
   let symbolsEvaluated = 0;
 
   try {
+    const normalizedWatchlist = normalizeSymbolList(watchlist);
     const portfolioSummary = await portfolioEngineService.getPortfolioSummary();
     const heldSymbols = portfolioSummary.positions.map((position) => position.symbol);
-    const universe = buildUniverse(heldSymbols);
+    const universe = buildUniverse(heldSymbols, normalizedWatchlist);
 
-    const overview = await autonomousMarketService.getAutonomousOverview({ watchlist: universe });
+    // "Current recommendation context" for news personalization — read
+    // before this round writes anything, so it reflects the prior round's
+    // flagged symbols (keeps their news fresh) without self-referencing
+    // this round's own new recommendations.
+    const sectors = Array.from(new Set((portfolioSummary.allocation?.bySector || []).map((row) => row.name).filter(Boolean)));
+    const activeRecommendations = await autonomousRecommendationRepository.listActive();
+    const activeRecommendationSymbols = Array.from(new Set(activeRecommendations.map((item) => item.symbol)));
+
+    const portfolioContext = {
+      heldSymbols,
+      watchlistSymbols: normalizedWatchlist,
+      sectors,
+      activeRecommendationSymbols,
+    };
+
+    const overview = await autonomousMarketService.getAutonomousOverview({ watchlist: universe, portfolioContext });
     const macroRegime = overview.globalMap?.macroRegime || null;
 
     for (const symbol of universe) {
@@ -164,7 +189,7 @@ async function runOnce() {
           continue;
         }
 
-        const created = await evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed: overview.feed, macroRegime });
+        const created = await evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed: overview.feed, macroRegime, watchlistSymbols: normalizedWatchlist });
         if (created) {
           recommendationsGenerated += 1;
         }

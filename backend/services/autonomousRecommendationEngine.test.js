@@ -79,7 +79,32 @@ test("runOnce generates a BUY recommendation for a strong non-held signal", asyn
       assert.equal(nvda.portfolioContext, null);
       assert.match(nvda.reasoning, /AI capex/);
       assert.equal(nvda.evidence.matchedEvents.length, 1);
+      assert.equal(nvda.evidence.symbolSource, "market-scan", "not held and not on any passed watchlist");
       assert.equal(getPlaceOrderCalls(), 0, "the engine must never place a trade");
+    }
+  );
+});
+
+test("runOnce threads a caller-provided watchlist into the evaluation universe and marks its symbols as watchlist-sourced", async () => {
+  await withMocks(
+    {
+      rankings: [
+        { symbol: "PLTRX", opportunityScore: 92, riskScore: 25, overallAiScore: 90, primaryDriver: "Government contract win", explanation: "Large new contract announced." },
+        neutralRanking("AAPL"),
+        neutralRanking("NVDA"),
+        neutralRanking("TSLA"),
+      ],
+      portfolioSummary: buildPortfolioSummary({}),
+    },
+    async () => {
+      const result = await autonomousRecommendationEngine.runOnce({ watchlist: ["pltrx"] });
+      assert.equal(result.symbolsEvaluated, 4, "default universe (3) plus the one watchlist symbol");
+
+      const active = await autonomousRecommendationRepository.listActive();
+      const pltrx = active.find((item) => item.symbol === "PLTRX");
+      assert.ok(pltrx, "expected a recommendation for the watchlist-only symbol");
+      assert.equal(pltrx.action, "BUY");
+      assert.equal(pltrx.evidence.symbolSource, "watchlist");
     }
   );
 });
@@ -173,6 +198,7 @@ test("runOnce generates an EXIT recommendation for a held position with a negati
       assert.ok(tsla, "expected a recommendation for TSLA");
       assert.equal(tsla.action, "EXIT");
       assert.equal(tsla.portfolioContext.sector, "Automotive");
+      assert.equal(tsla.evidence.symbolSource, "portfolio");
     }
   );
 });

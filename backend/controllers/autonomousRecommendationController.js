@@ -38,7 +38,8 @@ async function getRecommendation(req, res, next) {
 
 async function runRecommendationEngine(req, res, next) {
   try {
-    const result = await autonomousRecommendationEngine.runOnce();
+    const watchlist = Array.isArray(req.body?.watchlist) ? req.body.watchlist : [];
+    const result = await autonomousRecommendationEngine.runOnce({ watchlist });
     res.status(201).json(result);
   } catch (error) {
     handleKnownError(error, res, next);
