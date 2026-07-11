@@ -586,10 +586,60 @@ async function processEvent({ event, sourceUrl = null, watchlist, portfolioExpos
   };
 }
 
-async function getAutonomousOverview({ watchlist = DEFAULT_WATCHLIST, scenarios = DEFAULT_SCENARIOS, sessionType = "morning" } = {}) {
+/**
+ * Sprint 16 Phase C — turns real portfolio/watchlist/sector/recommendation
+ * state into a deduped, priority-ordered list of news query terms.
+ * Priority: symbols with an existing active recommendation (freshest
+ * info needed) > held portfolio symbols > watchlist symbols > portfolio
+ * sector names. Capped so a single overview call issues a bounded number
+ * of NewsAPI requests.
+ */
+function buildNewsQueryTerms({ heldSymbols = [], watchlistSymbols = [], sectors = [], activeRecommendationSymbols = [] } = {}, maxTerms = 6) {
+  const terms = unique([
+    ...activeRecommendationSymbols,
+    ...heldSymbols,
+    ...watchlistSymbols,
+    ...sectors.map((sector) => `${sector} sector stocks`),
+  ]);
+
+  return terms.slice(0, maxTerms);
+}
+
+/**
+ * Without portfolioContext (every caller before Phase C, and every
+ * non-recommendation caller today — e.g. autonomousMarketController.js),
+ * behavior is byte-identical to before: a single "markets" query. With
+ * portfolioContext, issues one query per dynamic term and merges the
+ * results, deduped by article URL (falling back to title when a fallback
+ * article has no URL).
+ */
+async function fetchPersonalizedNews(portfolioContext) {
+  const terms = portfolioContext ? buildNewsQueryTerms(portfolioContext) : [];
+  if (!terms.length) {
+    return newsService.getNews("markets").catch(() => []);
+  }
+
+  const results = await Promise.all(terms.map((term) => newsService.getNews(term).catch(() => [])));
+  const merged = results.flat();
+  const seen = new Set();
+  const deduped = [];
+
+  for (const article of merged) {
+    const dedupeKey = article?.url || article?.title;
+    if (!dedupeKey || seen.has(dedupeKey)) {
+      continue;
+    }
+    seen.add(dedupeKey);
+    deduped.push(article);
+  }
+
+  return deduped;
+}
+
+async function getAutonomousOverview({ watchlist = DEFAULT_WATCHLIST, scenarios = DEFAULT_SCENARIOS, sessionType = "morning", portfolioContext = null } = {}) {
   const normalizedWatchlist = normalizeSymbols(watchlist);
   const normalizedScenarios = scenarios.length ? scenarios : DEFAULT_SCENARIOS;
-  const cacheKey = JSON.stringify({ watchlist: normalizedWatchlist, scenarios: normalizedScenarios, sessionType });
+  const cacheKey = JSON.stringify({ watchlist: normalizedWatchlist, scenarios: normalizedScenarios, sessionType, portfolioContext });
   const cached = get("intel:autonomousOverview", cacheKey);
   if (cached) {
     return cached;
@@ -603,7 +653,7 @@ async function getAutonomousOverview({ watchlist = DEFAULT_WATCHLIST, scenarios 
     getAltDataSummary({ symbol: normalizedWatchlist[0] }).catch(() => null),
     Promise.all(normalizedWatchlist.map(async (symbol) => ({ symbol, payload: await getQuote(symbol).catch(() => null) }))),
     Promise.all(normalizedWatchlist.map(async (symbol) => ({ symbol, payload: await getAltDataSummary({ symbol }).catch(() => null) }))),
-    newsService.getNews("markets").catch(() => []),
+    fetchPersonalizedNews(portfolioContext),
   ]);
 
   const quotesMap = Object.fromEntries(quotesBySymbol.map(({ symbol, payload }) => [symbol, payload]));
@@ -688,5 +738,6 @@ module.exports = {
   buildPortfolioAction,
   computeConvictionScore,
   getRepresentativeEvents,
+  buildNewsQueryTerms,
   DEFAULT_WATCHLIST,
 };
