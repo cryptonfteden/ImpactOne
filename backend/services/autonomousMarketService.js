@@ -292,7 +292,7 @@ function rankNewsArticles(taggedArticles = []) {
  */
 function getRepresentativeEvents({ scenarios = [], dailyBrief = null, watchlist = [], liveNews = [] }) {
   const liveNewsEvents = (liveNews || [])
-    .map((article) => ({ headline: String(article?.title || "").trim(), sourceUrl: article?.url || null, sourceName: article?.source?.name || null }))
+    .map((article) => ({ headline: String(article?.title || "").trim(), sourceUrl: article?.url || null, sourceName: article?.source?.name || null, publishedAt: article?.publishedAt || null }))
     .filter((item) => item.headline)
     .slice(0, 6);
   const liveHeadlines = new Set(liveNewsEvents.map((item) => item.headline));
@@ -305,7 +305,7 @@ function getRepresentativeEvents({ scenarios = [], dailyBrief = null, watchlist 
     ...Object.values(AUTONOMOUS_SCAN_UNIVERSE).flatMap((items) => items.slice(0, 1)),
   ]).filter((headline) => !liveHeadlines.has(headline));
 
-  const syntheticEvents = syntheticHeadlines.map((headline) => ({ headline, sourceUrl: null, sourceName: null }));
+  const syntheticEvents = syntheticHeadlines.map((headline) => ({ headline, sourceUrl: null, sourceName: null, publishedAt: null }));
 
   return [...liveNewsEvents, ...syntheticEvents].slice(0, 28);
 }
@@ -581,7 +581,7 @@ function buildGlobalMap({ feed, dailyBrief, altSnapshot }) {
   };
 }
 
-async function processEvent({ event, sourceUrl = null, sourceName = null, watchlist, portfolioExposure, anchorSymbol }) {
+async function processEvent({ event, sourceUrl = null, sourceName = null, publishedAt = null, watchlist, portfolioExposure, anchorSymbol }) {
   const analysis = await analyzeIntelligence({ event, symbol: anchorSymbol });
   const eventType = classifyEventType(event);
   const importanceScore = clamp(Math.round((Number(analysis.confidenceScore || 60) * 0.7) + ((analysis.affected?.stocks || []).filter((item) => watchlist.includes(item)).length * 8)), 0, 100);
@@ -610,6 +610,7 @@ async function processEvent({ event, sourceUrl = null, sourceName = null, watchl
     headline: event,
     sourceUrl,
     sourceName,
+    publishedAt,
     eventType,
     importanceScore,
     confidence,
@@ -735,6 +736,7 @@ async function getAutonomousOverview({ watchlist = DEFAULT_WATCHLIST, scenarios 
     event: event.headline,
     sourceUrl: event.sourceUrl,
     sourceName: event.sourceName,
+    publishedAt: event.publishedAt,
     watchlist: normalizedWatchlist,
     portfolioExposure,
     anchorSymbol: normalizedWatchlist[0],
@@ -806,5 +808,10 @@ module.exports = {
   getRepresentativeEvents,
   buildNewsQueryTerms,
   rankNewsArticles,
+  sourceQualityScore,
+  recencyScore,
+  buildInvalidation,
+  buildCounterarguments,
+  classifyEventType,
   DEFAULT_WATCHLIST,
 };

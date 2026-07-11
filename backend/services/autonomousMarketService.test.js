@@ -37,6 +37,50 @@ test("getRepresentativeEvents carries the article's source name alongside its so
   assert.equal(synthetic.sourceName, null, "synthetic entries carry no sourceName either");
 });
 
+test("getRepresentativeEvents carries the article's publishedAt timestamp (Sprint 16 Phase D)", () => {
+  const publishedAt = "2026-07-11T10:00:00.000Z";
+  const result = autonomousMarketService.getRepresentativeEvents({
+    scenarios: [],
+    watchlist: [],
+    liveNews: [{ title: "Fed signals pause on rate hikes", url: "https://news.example.com/fed-pause", publishedAt }],
+  });
+
+  const liveEntry = result.find((item) => item.headline === "Fed signals pause on rate hikes");
+  assert.equal(liveEntry.publishedAt, publishedAt);
+
+  const synthetic = result.find((item) => item.sourceUrl === null);
+  assert.equal(synthetic.publishedAt, null, "synthetic entries carry no publishedAt either");
+});
+
+test("getAutonomousOverview threads publishedAt through into the processed feed", async () => {
+  const original = newsService.getNews;
+  const publishedAt = "2026-07-11T10:00:00.000Z";
+  newsService.getNews = async () => [{ title: "Live headline with a timestamp", url: "https://news.example.com/timestamped", publishedAt }];
+
+  try {
+    const overview = await autonomousMarketService.getAutonomousOverview({ watchlist: ["OVPUB"] });
+    const matched = overview.feed.find((item) => item.headline === "Live headline with a timestamp");
+    assert.ok(matched);
+    assert.equal(matched.publishedAt, publishedAt);
+  } finally {
+    newsService.getNews = original;
+  }
+});
+
+test("Sprint 16 Phase D exports sourceQualityScore, recencyScore, buildInvalidation, buildCounterarguments, and classifyEventType for reuse", () => {
+  assert.equal(typeof autonomousMarketService.sourceQualityScore, "function");
+  assert.equal(typeof autonomousMarketService.recencyScore, "function");
+  assert.equal(typeof autonomousMarketService.buildInvalidation, "function");
+  assert.equal(typeof autonomousMarketService.buildCounterarguments, "function");
+  assert.equal(typeof autonomousMarketService.classifyEventType, "function");
+
+  assert.equal(autonomousMarketService.sourceQualityScore("Reuters"), 95);
+  assert.equal(autonomousMarketService.sourceQualityScore("Some Random Blog"), 60);
+  assert.ok(Array.isArray(autonomousMarketService.buildInvalidation("energy")));
+  assert.ok(Array.isArray(autonomousMarketService.buildCounterarguments("earnings", "Company beats earnings")));
+  assert.equal(autonomousMarketService.classifyEventType("Fed rate hike"), "centralBanks");
+});
+
 test("getRepresentativeEvents backfills with the synthetic catalog when liveNews is empty", () => {
   const result = autonomousMarketService.getRepresentativeEvents({
     scenarios: ["Oil spike"],
