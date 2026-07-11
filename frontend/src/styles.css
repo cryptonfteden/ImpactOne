@@ -545,6 +545,27 @@ button {
   cursor: pointer;
 }
 
+/* Same layout/input styling as .analysis-search, but without its blanket
+   button rule — used where a form has more than one button with distinct
+   semantic roles (e.g. a Buy/Sell toggle) so unselected buttons don't
+   outrank selected ones on specificity. */
+.order-form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.order-form input {
+  flex: 1;
+  min-width: 140px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  background: #020617;
+  color: #f8fafc;
+}
+
 .favorite-toggle {
   margin-top: 10px;
   width: fit-content;

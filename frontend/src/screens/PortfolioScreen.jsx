@@ -5,10 +5,22 @@ import useWatchlist from "../hooks/useWatchlist";
 import useVirtualPortfolio from "../hooks/useVirtualPortfolio";
 import { intelligenceApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
+import PortfolioEngineScreen from "./PortfolioEngineScreen";
 
 const DEFAULT_SCENARIOS = ["Oil spike", "Fed rate hike", "BTC ETF approval", "Israel conflict"];
 
+// Default is the existing localStorage-driven engine, unchanged. Set
+// VITE_PORTFOLIO_ENGINE=api to preview the new server-owned Portfolio
+// Engine (Sprint 14) instead. Neither hook is called by this outer
+// component, so branching here doesn't violate the rules of hooks.
 export default function PortfolioScreen() {
+  if (import.meta.env.VITE_PORTFOLIO_ENGINE === "api") {
+    return <PortfolioEngineScreen />;
+  }
+  return <LegacyPortfolioScreen />;
+}
+
+function LegacyPortfolioScreen() {
   const { watchlist } = useWatchlist();
   const [overview, setOverview] = useState(null);
   const [error, setError] = useState("");
