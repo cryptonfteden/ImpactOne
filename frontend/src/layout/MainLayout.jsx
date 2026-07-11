@@ -49,13 +49,13 @@ export default function MainLayout() {
     <div className="app-shell">
       <Sidebar activeView={activeView} onNavigate={setActiveView} favorites={watchlist} onSelectFavorite={handleSelectFavorite} />
       <div className="main-panel">
-        <Header watchlist={watchlist} onQuickSearch={handleQuickSearch} />
+        <Header watchlist={watchlist} onQuickSearch={handleQuickSearch} onNavigate={setActiveView} />
         {(() => {
           const ActiveScreen = screenMap[activeView] || DashboardFeature;
           if (activeView === "AI Analysis") {
             return (
               <ScreenErrorBoundary>
-                <ActiveScreen />
+                <ActiveScreen onNavigate={setActiveView} />
               </ScreenErrorBoundary>
             );
           }
@@ -63,12 +63,12 @@ export default function MainLayout() {
           if (activeView === "Global Intelligence") {
             return (
               <Suspense fallback={<div className="screen-page"><p className="company-description">Loading global intelligence...</p></div>}>
-                <ActiveScreen />
+                <ActiveScreen onNavigate={setActiveView} />
               </Suspense>
             );
           }
 
-          return <ActiveScreen />;
+          return <ActiveScreen onNavigate={setActiveView} />;
         })()}
       </div>
     </div>
