@@ -1,6 +1,6 @@
 # ImpactOne - Project Status
 
-Last updated: 2026-07-10 (Sprint 13)
+Last updated: 2026-07-11 (Sprint 14)
 
 ## 1. What Is Already Completed
 - Full React + Express app is running with screen-based dashboard UX and `/api` backend routing.
@@ -293,6 +293,14 @@ Last updated: 2026-07-10 (Sprint 13)
     - worst trade
   - Added explicit safety label:
     - "Virtual portfolio - simulated trades only"
+- Sprint 14 Production-Grade Virtual Portfolio Engine is now live (opt-in):
+  - Added the first persistent database in the project: PostgreSQL via Prisma 7 (driver-adapter model).
+  - New server-owned portfolio engine at `/api/v2/portfolio/*`, additive alongside the existing `/api/*` routes (nothing removed or changed).
+  - Schema: `Portfolio`, `Position`, `Order`, `Trade`, `CashLedgerEntry`, `PerformanceSnapshot`.
+  - Atomic buy/sell execution (Order + Trade + Position + CashLedgerEntry in one transaction), realized/unrealized P/L, sector/asset-type allocation, trade history, transaction log, on-demand performance snapshots.
+  - New frontend screen (`PortfolioEngineScreen`) behind `VITE_PORTFOLIO_ENGINE=api` (default remains `legacy`, i.e. the existing localStorage-driven Sprint 13 engine, completely unchanged).
+  - 23 automated tests added (15 backend, 8 frontend) — first frontend test infrastructure in the repo (Vitest).
+  - The new engine has no autonomous trading loop yet — orders are placed manually via a form; wiring AI committee signals into automatic execution against this engine is a future sprint.
 - Provider-resilient error handling is in place:
   - Finnhub failures return user-friendly messages
   - OpenAI failures expose user-friendly notice and fallback report instead of crashing UI
@@ -340,13 +348,31 @@ Last updated: 2026-07-10 (Sprint 13)
   - `autonomousMarketService` now also owns Sprint 12 alpha discovery, scan coverage, portfolio action generation, and country-level market map metrics.
   - `virtualPortfolioStorage` (Sprint 13 client-side persistence layer for simulated portfolio state)
   - `useVirtualPortfolio` (Sprint 13 client-side trade simulation, position management, and performance tracking)
+  - `portfolioRepository` (Sprint 14 — sole owner of Prisma access for the portfolio engine)
+  - `portfolioEngineService` (Sprint 14 — buy/sell execution, P/L, allocation, trade history, transaction log, snapshots)
+
+### Database (new in Sprint 14)
+- PostgreSQL via Prisma 7, driver-adapter model (`@prisma/adapter-pg` + `pg`).
+- Schema: `backend/prisma/schema.prisma`; client singleton: `backend/db/prismaClient.js`.
+- Config: `prisma.config.ts` at repo root (Prisma 7 requirement — connection URL no longer lives in the schema file).
+- Local dev/test databases: `impactone_dev`, `impactone_test` (see Environment Variables below).
 
 ## 3. Folder Structure
 
 ```text
 ImpactOne/
   backend/
+    app.js                       # Express app (Sprint 14 — split from server.js for testability)
+    server.js                    # just imports app.js and calls listen()
     config/env.js
+    db/prismaClient.js           # Prisma Client singleton (Sprint 14)
+    prisma/
+      schema.prisma
+      migrations/
+      deployTestDb.js            # applies migrations to DATABASE_URL_TEST
+    test/
+      testEnv.js                 # points DATABASE_URL at the test DB for the suite
+      dbHelpers.js                # truncates portfolio tables between tests
     controllers/
       aiController.js
       comparisonController.js
@@ -354,9 +380,12 @@ ImpactOne/
       watchlistController.js
       marketController.js
       newsController.js
-      portfolioController.js
+      portfolioController.js     # legacy v1 mock, untouched
+      portfolioEngineController.js  # Sprint 14
     middleware/errorHandler.js
     routes/index.js
+    routes/portfolioEngineRoutes.js       # Sprint 14, mounted at /api/v2/portfolio
+    routes/portfolioEngine.integration.test.js
     services/
       comparisonService.js
       finnhubCache.js
@@ -366,20 +395,31 @@ ImpactOne/
       alphaVantageService.js
       newsService.js
       polygonService.js
+      portfolioRepository.js         # Sprint 14
+      portfolioEngineService.js      # Sprint 14
+      portfolioEngineService.test.js # Sprint 14
     .env.example
-    server.js
   frontend/
+    vitest.config.js               # Sprint 14
+    vitest.setup.js
     src/
       components/
       layout/
       screens/
+        PortfolioScreen.jsx        # feature-flag router (Sprint 14)
+        PortfolioEngineScreen.jsx  # new server-backed screen (Sprint 14)
+      hooks/
+        usePortfolioEngine.js      # Sprint 14
+      services/api/
+        portfolioEngineApi.js      # Sprint 14
       main.jsx
       styles.css
     .env.example
     package.json
   docs/
     architecture.md
-    PROJECT_STATUS.md
+    PROJECT_STATUS.md             # stale snapshot from early sprints — root PROJECT_STATUS.md is canonical
+  prisma.config.ts                # Sprint 14, Prisma 7 config (repo root)
   PROJECT_STATUS.md
   package.json
   README.md
@@ -419,9 +459,15 @@ ImpactOne/
 ### Required
 - `FINNHUB_API_KEY`
 - `VITE_API_BASE_URL` (frontend, usually `http://localhost:5000/api`)
+- `DATABASE_URL` (Sprint 14 — required for any `/api/v2/portfolio/*` route or `npm run test:backend`; not required for the rest of the app, which is unaffected if it's absent)
 
 ### Optional but strongly recommended
 - `OPENAI_API_KEY`
+
+### New in Sprint 14
+- `DATABASE_URL` — PostgreSQL connection string for the portfolio engine, e.g. `postgresql://postgres:PASSWORD@127.0.0.1:5432/impactone_dev?schema=public`.
+- `DATABASE_URL_TEST` — separate database used only by `npm run test:backend`, so the test suite never touches dev data. Apply migrations to it with `npm run db:deploy:test`.
+- `VITE_PORTFOLIO_ENGINE` (frontend) — `legacy` (default) or `api` to preview the new server-owned Portfolio screen.
 
 ### Additional placeholders (supported in env config)
 - `PORT`
@@ -464,12 +510,31 @@ curl "http://localhost:5000/api/quote?symbol=AAPL"
 curl "http://localhost:5000/api/ai/analyze?symbol=AAPL"
 curl "http://localhost:5000/api/compare?symbol=AAPL"
 curl "http://localhost:5000/api/watchlist?symbols=AAPL,PLTR,NVDA"
+curl "http://localhost:5000/api/v2/portfolio"
+```
+
+### Database setup (Sprint 14, only needed for the portfolio engine)
+```bash
+# 1. Install PostgreSQL locally and create two databases: impactone_dev, impactone_test
+# 2. Set DATABASE_URL and DATABASE_URL_TEST in backend/.env (see backend/.env.example)
+npm run db:migrate        # applies migrations to DATABASE_URL (dev)
+npm run db:deploy:test    # applies the same migrations to DATABASE_URL_TEST
+```
+
+### Running tests
+```bash
+npm run test              # backend (node --test) + frontend (vitest), 23 tests total
+npm run test:backend      # requires DATABASE_URL_TEST to be set and migrated
+npm run test:frontend
 ```
 
 ## 7. Remaining Roadmap
-- Persist watchlist/favorites server-side (database-backed user profiles).
-- Add auth and per-user sessions.
-- Add CI pipeline with lint/test/build gates.
+- Persistent portfolio storage: **done in Sprint 14** (opt-in via `VITE_PORTFOLIO_ENGINE=api`). Persist watchlist/favorites the same way is still open.
+- Add auth and per-user sessions (the Sprint 14 portfolio engine is still single-portfolio, no accounts — matches today's single-user scope exactly, but doesn't yet support multiple users).
+- Wire AI committee/intelligence signals into automatic order placement against the new server-owned engine (the autonomous trading loop currently only exists in the legacy localStorage engine).
+- Add background workers/scheduler so portfolio performance snapshots and market-data refresh run continuously rather than on-demand.
+- Cut the legacy `PortfolioScreen`/`useVirtualPortfolio` path over to the new engine once validated, then retire both it and the `/api/portfolio` v1 mock.
+- Add CI pipeline with lint/test/build gates (23 tests now exist locally but nothing runs them automatically yet).
 - Add API schema validation and typed contracts.
 - Add observability primitives (request IDs, structured logging, endpoint timings).
 - Add AI prompt/versioning controls and report history.
@@ -497,6 +562,9 @@ curl "http://localhost:5000/api/watchlist?symbols=AAPL,PLTR,NVDA"
 - Development logs are verbose by design for debugging and can be reduced in production hardening.
 - Watchlist persistence is browser-local only (no server account sync yet).
 - "Highest risk" currently uses lowest AI score heuristic; it is not yet event-factor weighted.
+- The Sprint 14 portfolio engine's `benchmarkReturnPct` is intentionally left `null` — there is no tracked baseline SPY price to compare against yet, so it is not populated with a computed-looking value.
+- The Sprint 14 portfolio engine has no autonomous trading loop; orders are placed manually via its "Place Order" form. The legacy engine's autonomous decision loop has not been ported over.
+- `node_modules/` and `frontend/dist/` are committed to git, and `frontend/.env` was committed with real API keys in its history (flagged separately, not addressed by Sprint 14 — rotating those keys and cleaning git history is still outstanding).
 
 ## 10. Sprint 4 Status
 
@@ -732,6 +800,48 @@ Sprint 13 verification:
   - `BTC`
 - Verified alpha-discovery portfolio actions are present in overview payloads.
 
+## 19. Sprint 14 - Production-Grade Virtual Portfolio Engine
+
+Sprint 14 outcomes:
+- Added the project's first persistent database: PostgreSQL via Prisma 7 (driver-adapter model, `@prisma/adapter-pg` + `pg` — Prisma 7 no longer supports a `url` field directly in `schema.prisma`; the connection string now lives in `prisma.config.ts`).
+  - `backend/prisma/schema.prisma`, `backend/prisma/migrations/`
+  - `backend/db/prismaClient.js` (singleton client)
+  - `prisma.config.ts` (repo root)
+- Added the portfolio engine data/service layer:
+  - `backend/services/portfolioRepository.js` — sole owner of Prisma access
+  - `backend/services/portfolioEngineService.js` — atomic buy/sell (Order + Trade + Position + CashLedgerEntry in one transaction), mark-to-market via the existing `finnhubService.getQuote`, realized/unrealized P/L, sector/asset-type allocation, trade history, transaction log, on-demand performance snapshots, reset
+- Added the API layer, purely additive:
+  - `backend/controllers/portfolioEngineController.js`
+  - `backend/routes/portfolioEngineRoutes.js`, mounted at `/api/v2/portfolio/*` via one new line in `backend/routes/index.js`
+  - The existing `/api/portfolio` v1 mock is untouched
+- Split `backend/server.js` into `backend/app.js` (Express app) + `backend/server.js` (just calls `.listen()`), so the app can be exercised in tests without binding a port. No behavior change — verified before committing.
+- Added the frontend layer, behind a feature flag:
+  - `frontend/src/services/api/portfolioEngineApi.js`, `frontend/src/hooks/usePortfolioEngine.js`
+  - `frontend/src/screens/PortfolioEngineScreen.jsx` — a new, honest layout (not an adapter forcing the new data into the legacy screen's shape, since the new engine has no autonomous trading loop yet)
+  - `frontend/src/screens/PortfolioScreen.jsx` now branches on `VITE_PORTFOLIO_ENGINE` (`legacy` default / `api`) before calling any hooks
+- Added full test coverage:
+  - Backend: `backend/services/portfolioEngineService.test.js` (9 unit tests, `node:test`, matching the existing `openaiService.test.js` convention) + `backend/routes/portfolioEngine.integration.test.js` (5 tests, `supertest`)
+  - Frontend: `frontend/vitest.config.js` + `vitest.setup.js` (first frontend test infra in the repo — standalone from a `vite.config` since none existed), `usePortfolioEngine.test.js` (5 tests), `PortfolioScreen.test.jsx` (3 tests)
+  - `npm run test` from root: 23/23 passing
+
+Sprint 14 verification:
+- `npm run build` — frontend build passed, unchanged output shape.
+- `npm run test` — 23/23 backend + frontend tests passed.
+- Local PostgreSQL installed and verified (`impactone_dev`, `impactone_test`); migration applied to both; Prisma Client connection smoke-tested directly against the dev database before building on top of it.
+- Regression check: `GET /api/portfolio` (v1) and `GET /health` still respond exactly as before.
+- Browser verification (Playwright, headless Chromium) in both `VITE_PORTFOLIO_ENGINE` modes:
+  - `legacy` (default): renders byte-identical to pre-Sprint-14 output.
+  - `api`: Cash Balance/Total Value show $100,000, Place Order form present, all tables (positions/trades/transactions/performance) correctly show empty state, order placement fails gracefully with the expected "FINNHUB_API_KEY is missing" message (no live key configured in this environment) rather than crashing, and Reset works.
+  - Found and fixed one real CSS specificity bug during this pass: the Buy/Sell toggle reused `.analysis-search`'s blanket `button` rule, which out-specificity'd the intended selected/unselected styling. Fixed with a dedicated `.order-form` class.
+  - No new console errors introduced in either mode; pre-existing ones (missing API keys, an unrelated duplicate-React-key warning in `DashboardHome`'s live feed list) are untouched by this sprint.
+
+Not in scope for Sprint 14 (see Remaining Roadmap):
+- Auth / multi-user accounts.
+- Autonomous order placement against the new engine (manual only, via the Place Order form).
+- Background workers/scheduler for continuous snapshotting.
+- Migrating the legacy screen/Dashboard widgets over to the new engine.
+- `benchmarkReturnPct` tracking (left `null`, not faked).
+
 ## Quick Handoff For New Developers
 1. Install dependencies at root (`npm install`) and frontend if needed (`npm --prefix frontend install`).
 2. Configure keys in env files (`FINNHUB_API_KEY`, `OPENAI_API_KEY`, `VITE_API_BASE_URL`).
@@ -739,3 +849,4 @@ Sprint 13 verification:
 4. Open AI Analysis and test `AAPL` then `PLTR`.
 5. Validate watchlist intelligence by saving favorites and opening Watchlist screen.
 6. Validate Market Impact Engine sections on the AI Analysis screen.
+7. (Optional, Sprint 14) Set up PostgreSQL and `DATABASE_URL`/`DATABASE_URL_TEST` per the Database setup steps above, run `npm run db:migrate`, then set `VITE_PORTFOLIO_ENGINE=api` to try the new server-owned Portfolio screen. Run `npm run test` to exercise it end-to-end.
