@@ -84,6 +84,32 @@ test("runOnce generates a BUY recommendation for a strong non-held signal", asyn
   );
 });
 
+test("runOnce threads a matched event's live news sourceUrl into evidence", async () => {
+  await withMocks(
+    {
+      rankings: [
+        { symbol: "NVDA", opportunityScore: 90, riskScore: 30, overallAiScore: 88, primaryDriver: "AI capex surge", explanation: "Strong AI capex tailwind." },
+        neutralRanking("AAPL"),
+        neutralRanking("TSLA"),
+      ],
+      feed: [
+        { headline: "AI capex surge", importanceScore: 80, whyItMatters: "Hyperscaler spend accelerating.", relatedTickers: ["NVDA"], affectedAssets: [], sourceUrl: "https://news.example.com/ai-capex" },
+        { headline: "Synthetic scenario event", importanceScore: 50, whyItMatters: "Placeholder.", relatedTickers: ["NVDA"], affectedAssets: [], sourceUrl: null },
+      ],
+      portfolioSummary: buildPortfolioSummary({}),
+    },
+    async () => {
+      await autonomousRecommendationEngine.runOnce();
+      const active = await autonomousRecommendationRepository.listActive();
+      const nvda = active.find((item) => item.symbol === "NVDA");
+      const liveMatch = nvda.evidence.matchedEvents.find((item) => item.headline === "AI capex surge");
+      const syntheticMatch = nvda.evidence.matchedEvents.find((item) => item.headline === "Synthetic scenario event");
+      assert.equal(liveMatch.sourceUrl, "https://news.example.com/ai-capex");
+      assert.equal(syntheticMatch.sourceUrl, null);
+    }
+  );
+});
+
 test("runOnce threads live quote data into evidence and reasoning when available", async () => {
   await withMocks(
     {

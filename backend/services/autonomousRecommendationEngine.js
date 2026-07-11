@@ -42,7 +42,7 @@ function findMatchedEvents(feed, symbol) {
   return (feed || [])
     .filter((item) => (item.relatedTickers || []).includes(symbol) || (item.affectedAssets || []).includes(symbol))
     .slice(0, 3)
-    .map((item) => ({ headline: item.headline, importanceScore: item.importanceScore, whyItMatters: item.whyItMatters }));
+    .map((item) => ({ headline: item.headline, importanceScore: item.importanceScore, whyItMatters: item.whyItMatters, sourceUrl: item.sourceUrl || null }));
 }
 
 function buildReasoning({ symbol, action, rankingItem, portfolioAction, heldPosition, sectorWeightPct, concentrationTriggered }) {
