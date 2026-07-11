@@ -11,6 +11,7 @@ import {
   AlertsFeature,
   PortfolioFeature,
   SettingsFeature,
+  RecommendationsFeature,
 } from "../features";
 
 const GlobalIntelligenceFeature = lazy(() => import("../features/intelligence/GlobalIntelligenceFeature"));
@@ -23,6 +24,7 @@ const screenMap = {
   "Global Intelligence": GlobalIntelligenceFeature,
   Alerts: AlertsFeature,
   Portfolio: PortfolioFeature,
+  Recommendations: RecommendationsFeature,
   Settings: SettingsFeature,
 };
 

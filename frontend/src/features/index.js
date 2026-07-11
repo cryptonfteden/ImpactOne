@@ -5,3 +5,4 @@ export { default as PortfolioFeature } from "./portfolio/PortfolioFeature";
 export { default as NewsFeature } from "./news/NewsFeature";
 export { default as AlertsFeature } from "./alerts/AlertsFeature";
 export { default as SettingsFeature } from "./settings/SettingsFeature";
+export { default as RecommendationsFeature } from "./recommendations/RecommendationsFeature";
