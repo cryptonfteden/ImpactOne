@@ -17,6 +17,7 @@ const {
 	getSummary,
 } = require("../controllers/altDataController");
 const intelligenceRoutes = require("./intelligenceRoutes");
+const portfolioEngineRoutes = require("./portfolioEngineRoutes");
 
 const router = express.Router();
 
@@ -39,5 +40,6 @@ router.get("/alt-data/congress", getCongress);
 router.get("/alt-data/events", getEvents);
 router.get("/alt-data/summary", getSummary);
 router.use("/intelligence", intelligenceRoutes);
+router.use("/v2/portfolio", portfolioEngineRoutes);
 
 module.exports = router;
