@@ -10,6 +10,7 @@ async function truncateAll() {
   await prisma.position.deleteMany();
   await prisma.performanceSnapshot.deleteMany();
   await prisma.portfolio.deleteMany();
+  await prisma.dailyBriefSnapshot.deleteMany();
 }
 
 module.exports = { truncateAll };

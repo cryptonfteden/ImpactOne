@@ -7,15 +7,15 @@ const { truncateAll } = require("../test/dbHelpers");
 const finnhubService = require("./finnhubService");
 const portfolioEngineService = require("./portfolioEngineService");
 
-function mockQuote(price) {
+function mockQuote(price, changePercent = 0) {
   return async (symbol) => ({
-    quote: { symbol: String(symbol).toUpperCase(), price, change: 0 },
+    quote: { symbol: String(symbol).toUpperCase(), price, change: 0, changePercent },
   });
 }
 
-async function withMockedQuote(price, run) {
+async function withMockedQuote(price, run, changePercent = 0) {
   const original = finnhubService.getQuote;
-  finnhubService.getQuote = mockQuote(price);
+  finnhubService.getQuote = mockQuote(price, changePercent);
   try {
     return await run();
   } finally {
@@ -163,4 +163,23 @@ test("resetPortfolio clears positions, trades, and ledger back to $100k", async 
   const log = await portfolioEngineService.getTransactionLog();
   assert.equal(trades.length, 0);
   assert.equal(log.length, 0);
+});
+
+test("getPortfolioSummary computes dailyPnl from each position's live day % change", async () => {
+  await withMockedQuote(100, async () => {
+    await portfolioEngineService.placeOrder({ symbol: "MSFT", side: "BUY", quantity: 10 });
+  });
+
+  // Re-mark at the same $100 price but with a +2% day change.
+  const summary = await withMockedQuote(
+    100,
+    () => portfolioEngineService.getPortfolioSummary(),
+    2
+  );
+
+  const position = summary.positions.find((item) => item.symbol === "MSFT");
+  assert.equal(position.dayChangePercent, 2);
+  assert.equal(position.dailyPnl, 20); // $1000 market value * 2%
+  assert.equal(summary.dailyPnl, 20);
+  assert.equal(summary.dailyPnlPct, 0.02); // 20 / 100000 * 100
 });
