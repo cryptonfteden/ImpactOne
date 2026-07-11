@@ -63,6 +63,20 @@ describe("useRecommendations", () => {
     expect(result.current.actionError).toBe("");
   });
 
+  it("runNow forwards the given watchlist to the API", async () => {
+    mockHappyPath();
+    recommendationsApi.run.mockResolvedValue({ recommendationsGenerated: 1 });
+
+    const { result } = renderHook(() => useRecommendations({ autoRefresh: false }));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.runNow(["PLTR", "AMD"]);
+    });
+
+    expect(recommendationsApi.run).toHaveBeenCalledWith(["PLTR", "AMD"]);
+  });
+
   it("runNow surfaces a rejection as actionError and rethrows", async () => {
     mockHappyPath();
     recommendationsApi.run.mockRejectedValue(new Error("Engine failed."));

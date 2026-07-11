@@ -11,8 +11,8 @@ export const recommendationsApi = {
   getById(id) {
     return apiClient.get(`/v2/recommendations/${id}`);
   },
-  run() {
-    return apiClient.post("/v2/recommendations/run", {});
+  run(watchlist = []) {
+    return apiClient.post("/v2/recommendations/run", { watchlist });
   },
   status() {
     return apiClient.get("/v2/recommendations/status");

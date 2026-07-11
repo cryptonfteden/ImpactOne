@@ -11,6 +11,10 @@ vi.mock("../services/api", () => ({
   },
 }));
 
+vi.mock("../hooks/useWatchlist", () => ({
+  default: () => ({ watchlist: ["PLTR"], addTicker: vi.fn() }),
+}));
+
 const RECOMMENDATION_FIXTURE = {
   id: "rec-1",
   symbol: "NVDA",
@@ -21,6 +25,12 @@ const RECOMMENDATION_FIXTURE = {
   expectedDownside: "-8% tactical stop",
   positionSizeSuggestion: "2-4%",
   reasoning: "Strong AI capex tailwind driving conviction.",
+  evidence: {
+    symbolSource: "portfolio",
+    matchedEvents: [
+      { headline: "AI capex supercycle", confidence: 82, sourceUrl: "https://news.example.com/ai-capex", sourceName: "Reuters", personalRelevance: "Directly affects NVDA — 12% of your portfolio." },
+    ],
+  },
 };
 
 const STATUS_FIXTURE = { enabled: true, intervalMinutes: 30, latestRunLog: { startedAt: "2026-07-11T10:00:00.000Z", symbolsEvaluated: 3 } };
@@ -41,10 +51,11 @@ describe("RecommendationsScreen", () => {
     expect(screen.getByText("Buy")).toBeInTheDocument();
     expect(screen.getByText(/Confidence 88\/100/)).toBeInTheDocument();
     expect(screen.getByText(/Upside 10-16%/)).toBeInTheDocument();
+    expect(screen.getByText("From your portfolio")).toBeInTheDocument();
     expect(screen.queryByText(/Strong AI capex tailwind/)).not.toBeInTheDocument();
   });
 
-  it("expands reasoning on click and never renders a place-order control", async () => {
+  it("expands reasoning on click, showing matched-event citation and personal relevance, and never renders a place-order control", async () => {
     recommendationsApi.list.mockResolvedValue({ recommendations: [RECOMMENDATION_FIXTURE] });
     recommendationsApi.status.mockResolvedValue(STATUS_FIXTURE);
 
@@ -53,6 +64,11 @@ describe("RecommendationsScreen", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Show reasoning" }));
     expect(screen.getByText(/Strong AI capex tailwind/)).toBeInTheDocument();
+    expect(screen.getByText(/Directly affects NVDA/)).toBeInTheDocument();
+    expect(screen.getByText(/Confidence 82\/100/)).toBeInTheDocument();
+
+    const sourceLink = screen.getByRole("link", { name: "Reuters" });
+    expect(sourceLink).toHaveAttribute("href", "https://news.example.com/ai-capex");
 
     expect(screen.queryByRole("button", { name: /place order/i })).not.toBeInTheDocument();
   });
@@ -77,6 +93,7 @@ describe("RecommendationsScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Run now" }));
 
     await waitFor(() => expect(recommendationsApi.run).toHaveBeenCalledTimes(1));
+    expect(recommendationsApi.run).toHaveBeenCalledWith(["PLTR"]);
     expect(recommendationsApi.list).toHaveBeenCalledTimes(2);
   });
 });

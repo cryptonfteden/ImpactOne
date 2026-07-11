@@ -10,16 +10,18 @@ const RECOMMENDATION_FIXTURE = {
   riskLabel: "Moderate",
   expectedUpside: "10-16%",
   expectedDownside: "-8% tactical stop",
+  evidence: { symbolSource: "watchlist" },
 };
 
 describe("RecommendationsPreview", () => {
-  it("renders up to 3 recommendations with action, confidence, and upside/downside", () => {
+  it("renders up to 3 recommendations with action, confidence, upside/downside, and provenance badge", () => {
     render(<RecommendationsPreview isLoading={false} error="" recommendations={[RECOMMENDATION_FIXTURE]} onViewAll={vi.fn()} />);
 
     expect(screen.getByText("NVDA")).toBeInTheDocument();
     expect(screen.getByText("Buy")).toBeInTheDocument();
     expect(screen.getByText(/Confidence 88\/100/)).toBeInTheDocument();
     expect(screen.getByText(/Upside 10-16%/)).toBeInTheDocument();
+    expect(screen.getByText("On your watchlist")).toBeInTheDocument();
   });
 
   it("shows an empty state when there are no active recommendations", () => {

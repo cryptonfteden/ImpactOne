@@ -53,11 +53,11 @@ export default function useRecommendations({ autoRefresh = true } = {}) {
     };
   }, [refresh, autoRefresh]);
 
-  const runNow = useCallback(async () => {
+  const runNow = useCallback(async (watchlist = []) => {
     setActionError("");
     setIsRunning(true);
     try {
-      const result = await recommendationsApi.run();
+      const result = await recommendationsApi.run(watchlist);
       await refresh();
       return result;
     } catch (runError) {

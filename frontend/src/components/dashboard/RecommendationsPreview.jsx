@@ -13,6 +13,12 @@ const ACTION_LABEL = {
   EXIT: "Exit",
 };
 
+const SYMBOL_SOURCE_LABEL = {
+  portfolio: "From your portfolio",
+  watchlist: "On your watchlist",
+  "market-scan": "Market scan",
+};
+
 /**
  * Sprint 16 Phase B — surfaces the same advisory-only recommendations shown
  * on the dedicated Recommendations screen, so a fresh recommendation is
@@ -39,20 +45,26 @@ export default function RecommendationsPreview({ isLoading, error, recommendatio
     <SectionCard title="Recommendations" subtitle="Advisory only — never places a trade" className="screen-card">
       {recommendations.length ? (
         <div className="opportunity-grid">
-          {recommendations.slice(0, 3).map((recommendation) => (
-            <article key={recommendation.id} className="opportunity-item">
-              <div className="opportunity-item__top">
-                <strong>{recommendation.symbol}</strong>
-                <span className={ACTION_PILL_CLASS[recommendation.action] || "pill"}>
-                  {ACTION_LABEL[recommendation.action] || recommendation.action}
-                </span>
-              </div>
-              <p className="company-description subtle">Confidence {Number(recommendation.confidenceScore)}/100 · Risk {recommendation.riskLabel}</p>
-              <p className="company-description subtle">
-                Upside {recommendation.expectedUpside} · Downside {recommendation.expectedDownside}
-              </p>
-            </article>
-          ))}
+          {recommendations.slice(0, 3).map((recommendation) => {
+            const symbolSource = recommendation.evidence?.symbolSource;
+            return (
+              <article key={recommendation.id} className="opportunity-item">
+                <div className="opportunity-item__top">
+                  <strong>{recommendation.symbol}</strong>
+                  <span className={ACTION_PILL_CLASS[recommendation.action] || "pill"}>
+                    {ACTION_LABEL[recommendation.action] || recommendation.action}
+                  </span>
+                </div>
+                {symbolSource ? (
+                  <p className="company-description subtle">{SYMBOL_SOURCE_LABEL[symbolSource] || symbolSource}</p>
+                ) : null}
+                <p className="company-description subtle">Confidence {Number(recommendation.confidenceScore)}/100 · Risk {recommendation.riskLabel}</p>
+                <p className="company-description subtle">
+                  Upside {recommendation.expectedUpside} · Downside {recommendation.expectedDownside}
+                </p>
+              </article>
+            );
+          })}
         </div>
       ) : (
         <EmptyState message="No active recommendations right now." />
