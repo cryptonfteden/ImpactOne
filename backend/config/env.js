@@ -25,4 +25,6 @@ module.exports = {
   POLYGON_API_KEY: process.env.POLYGON_API_KEY || "",
   NEWS_API_KEY: process.env.NEWS_API_KEY || "",
   ALPHA_VANTAGE_API_KEY: process.env.ALPHA_VANTAGE_API_KEY || "",
+  DATABASE_URL: process.env.DATABASE_URL || "",
+  DATABASE_URL_TEST: process.env.DATABASE_URL_TEST || "",
 };
