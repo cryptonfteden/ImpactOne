@@ -12,7 +12,9 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "test:backend": "node --test backend/**/*.test.js"
+    "db:deploy:test": "node backend/prisma/deployTestDb.js",
+    "test:backend": "node --test backend/**/*.test.js",
+    "test": "npm run test:backend"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
