@@ -307,9 +307,19 @@ function buildCountryMetrics({ country, feed, macroRegime }) {
   };
 }
 
+/**
+ * Shared conviction-score formula — extracted so callers besides
+ * buildAlphaDiscovery's top-10 slice (e.g. the autonomous recommendation
+ * engine) can score any watchlistRankings entry consistently with what
+ * the rest of the app already shows.
+ */
+function computeConvictionScore(rankingItem) {
+  return clamp(Math.round(rankingItem.overallAiScore + (rankingItem.opportunityScore - rankingItem.riskScore) * 0.2), 0, 100);
+}
+
 function buildAlphaDiscovery({ feed, watchlistRankings, globalMap, dailyBrief, altSnapshot }) {
   const ideas = watchlistRankings.map((item) => {
-    const convictionScore = clamp(Math.round(item.overallAiScore + (item.opportunityScore - item.riskScore) * 0.2), 0, 100);
+    const convictionScore = computeConvictionScore(item);
     return {
       symbol: item.symbol,
       convictionScore,
@@ -642,4 +652,9 @@ async function getAutonomousOverview({ watchlist = DEFAULT_WATCHLIST, scenarios 
   return result;
 }
 
-module.exports = { getAutonomousOverview };
+module.exports = {
+  getAutonomousOverview,
+  buildPortfolioAction,
+  computeConvictionScore,
+  DEFAULT_WATCHLIST,
+};
