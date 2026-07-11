@@ -46,6 +46,10 @@ export const intelligenceApi = {
     const query = params.toString();
     return apiClient.get(`/intelligence/daily-brief${query ? `?${query}` : ""}`);
   },
+  dailyBriefArchive({ limit } = {}) {
+    const query = limit ? `?limit=${encodeURIComponent(limit)}` : "";
+    return apiClient.get(`/intelligence/daily-brief/archive${query}`);
+  },
   liveFeed({ watchlist = [] } = {}) {
     const params = new URLSearchParams();
     if (watchlist.length) params.set("watchlist", watchlist.join(","));
