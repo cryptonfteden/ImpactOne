@@ -3,6 +3,10 @@ const { getDailyBrief } = require("./dailyBriefService");
 const { analyzeIntelligence, analyzePortfolioIntelligence } = require("./impactIntelligenceService");
 const { getAltDataSummary } = require("./altDataService");
 const { getQuote } = require("./finnhubService");
+// Namespace-style (not destructured) so tests can monkey-patch it, matching
+// the testability convention already used for finnhubService elsewhere in
+// this codebase (e.g. portfolioEngineService.js).
+const newsService = require("./newsService");
 
 const CORE_EVENT_TYPES = {
   macro: ["macro", "inflation", "jobs", "growth"],
@@ -220,16 +224,31 @@ function buildScanCoverage() {
   }));
 }
 
-function getRepresentativeEvents({ scenarios = [], dailyBrief = null, watchlist = [] }) {
-  const seeded = unique([
+/**
+ * Real news headlines (when NEWS_API_KEY is configured — newsService
+ * already falls back gracefully otherwise) are preferred first, backfilled
+ * with the existing synthetic scenario catalog up to the same 28-item cap
+ * this function has always returned. Real articles carry a citable
+ * sourceUrl; synthetic entries carry null (unchanged behavior).
+ */
+function getRepresentativeEvents({ scenarios = [], dailyBrief = null, watchlist = [], liveNews = [] }) {
+  const liveNewsEvents = (liveNews || [])
+    .map((article) => ({ headline: String(article?.title || "").trim(), sourceUrl: article?.url || null }))
+    .filter((item) => item.headline)
+    .slice(0, 6);
+  const liveHeadlines = new Set(liveNewsEvents.map((item) => item.headline));
+
+  const syntheticHeadlines = unique([
     ...scenarios,
     ...(dailyBrief?.topMarketMovingEvents || []).map((item) => item.event),
     ...(dailyBrief?.altSignalsSnapshot?.upcomingEventRisk || []).map((item) => item.event),
     ...watchlist.map((symbol) => `${symbol} watchlist momentum`),
     ...Object.values(AUTONOMOUS_SCAN_UNIVERSE).flatMap((items) => items.slice(0, 1)),
-  ]);
+  ]).filter((headline) => !liveHeadlines.has(headline));
 
-  return seeded.slice(0, 28);
+  const syntheticEvents = syntheticHeadlines.map((headline) => ({ headline, sourceUrl: null }));
+
+  return [...liveNewsEvents, ...syntheticEvents].slice(0, 28);
 }
 
 function choosePortfolioAction(score) {
@@ -503,7 +522,7 @@ function buildGlobalMap({ feed, dailyBrief, altSnapshot }) {
   };
 }
 
-async function processEvent({ event, watchlist, portfolioExposure, anchorSymbol }) {
+async function processEvent({ event, sourceUrl = null, watchlist, portfolioExposure, anchorSymbol }) {
   const analysis = await analyzeIntelligence({ event, symbol: anchorSymbol });
   const eventType = classifyEventType(event);
   const importanceScore = clamp(Math.round((Number(analysis.confidenceScore || 60) * 0.7) + ((analysis.affected?.stocks || []).filter((item) => watchlist.includes(item)).length * 8)), 0, 100);
@@ -530,6 +549,7 @@ async function processEvent({ event, watchlist, portfolioExposure, anchorSymbol 
   return {
     id: `${eventType}:${String(event).toLowerCase().replace(/\s+/g, "-")}`,
     headline: event,
+    sourceUrl,
     eventType,
     importanceScore,
     confidence,
@@ -578,11 +598,12 @@ async function getAutonomousOverview({ watchlist = DEFAULT_WATCHLIST, scenarios 
   const portfolioInput = normalizedWatchlist.map((symbol) => ({ symbol, weight: 1 / normalizedWatchlist.length }));
   const portfolioExposure = analyzePortfolioIntelligence({ holdings: portfolioInput });
 
-  const [dailyBrief, anchorAlt, quotesBySymbol, altSignalsBySymbol] = await Promise.all([
+  const [dailyBrief, anchorAlt, quotesBySymbol, altSignalsBySymbol, liveNews] = await Promise.all([
     getDailyBrief({ watchlist: normalizedWatchlist, scenarios: normalizedScenarios, sessionType }),
     getAltDataSummary({ symbol: normalizedWatchlist[0] }).catch(() => null),
     Promise.all(normalizedWatchlist.map(async (symbol) => ({ symbol, payload: await getQuote(symbol).catch(() => null) }))),
     Promise.all(normalizedWatchlist.map(async (symbol) => ({ symbol, payload: await getAltDataSummary({ symbol }).catch(() => null) }))),
+    newsService.getNews("markets").catch(() => []),
   ]);
 
   const quotesMap = Object.fromEntries(quotesBySymbol.map(({ symbol, payload }) => [symbol, payload]));
@@ -592,10 +613,12 @@ async function getAutonomousOverview({ watchlist = DEFAULT_WATCHLIST, scenarios 
     scenarios: normalizedScenarios,
     dailyBrief,
     watchlist: normalizedWatchlist,
+    liveNews,
   });
 
   const processedFeed = await Promise.all(detectedEvents.map((event) => processEvent({
-    event,
+    event: event.headline,
+    sourceUrl: event.sourceUrl,
     watchlist: normalizedWatchlist,
     portfolioExposure,
     anchorSymbol: normalizedWatchlist[0],
@@ -664,5 +687,6 @@ module.exports = {
   getAutonomousOverview,
   buildPortfolioAction,
   computeConvictionScore,
+  getRepresentativeEvents,
   DEFAULT_WATCHLIST,
 };
