@@ -7,6 +7,7 @@ const {
   analyzePortfolioIntelligence,
 } = require("./impactIntelligenceService");
 const { get, set } = require("./intelligenceCache");
+const { captureTodaySnapshot } = require("./dailyBriefArchiveService");
 
 const DEFAULT_SCENARIOS = ["Oil spike", "Fed rate hike", "BTC ETF approval", "Israel conflict"];
 
@@ -300,6 +301,11 @@ async function getDailyBrief({
 
   set("intel:dailyBrief", cacheKey, result, 5 * 60 * 1000);
   set("intel:dailyBrief:previous", cacheKey, result, 36 * 60 * 60 * 1000);
+
+  // Best-effort: the archive (Sprint 15 §4.9) must never break the brief
+  // itself, e.g. if DATABASE_URL isn't configured in a given environment.
+  captureTodaySnapshot(result).catch(() => null);
+
   return result;
 }
 

@@ -137,3 +137,21 @@ model PerformanceSnapshot {
   @@index([portfolioId, capturedAt])
   @@map("performance_snapshots")
 }
+
+// Sprint 15 — MVP Home Dashboard §4.9 "Daily Brief Archive Preview". One row
+// per calendar day, upserted by dailyBriefService whenever a fresh brief is
+// computed (cache miss). Deliberately lightweight ("preview," not a full
+// replay) — not portfolio-scoped, since the daily brief is watchlist-driven
+// and the app is still single-tenant.
+model DailyBriefSnapshot {
+  id               String   @id @default(uuid())
+  date             String   @unique // YYYY-MM-DD
+  sessionType      String
+  executiveSummary String
+  confidenceScore  Decimal  @db.Decimal(5, 2)
+  topEvent         String?
+  capturedAt       DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("daily_brief_snapshots")
+}

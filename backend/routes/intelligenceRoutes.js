@@ -6,7 +6,7 @@ const {
   intelligenceHistory,
   intelligencePortfolio,
 } = require("../controllers/intelligenceController");
-const { getAutonomousDailyBrief } = require("../controllers/dailyBriefController");
+const { getAutonomousDailyBrief, getDailyBriefArchiveController } = require("../controllers/dailyBriefController");
 const {
   getAutonomousOverviewController,
   getLiveFeed,
@@ -30,6 +30,7 @@ router.post("/history", intelligenceHistory);
 router.post("/portfolio", intelligencePortfolio);
 router.get("/daily-brief", getAutonomousDailyBrief);
 router.post("/daily-brief", getAutonomousDailyBrief);
+router.get("/daily-brief/archive", getDailyBriefArchiveController);
 router.get("/overview", getAutonomousOverviewController);
 router.post("/overview", getAutonomousOverviewController);
 router.get("/live-feed", getLiveFeed);
