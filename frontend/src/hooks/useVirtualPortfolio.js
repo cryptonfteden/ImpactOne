@@ -104,7 +104,9 @@ function buildTradeRecord({ symbol, action, confidence, reason, sourceSignals, e
   };
 }
 
-function recomputeState(state, quotesMap = {}, spyPrice = null) {
+// Exported so it can be unit-tested directly without mounting the full hook
+// (fetch/localStorage/interval lifecycle) — see useVirtualPortfolio.test.js.
+export function recomputeState(state, quotesMap = {}, spyPrice = null) {
   const positions = (state.positions || []).map((position) => {
     const quote = quotesMap[position.symbol] || null;
     const currentPrice = Number(quote?.quote?.price || position.currentPrice || position.averageEntryPrice || 0);
@@ -121,7 +123,10 @@ function recomputeState(state, quotesMap = {}, spyPrice = null) {
 
   const openValue = positions.reduce((sum, item) => sum + Number(item.marketValue || 0), 0);
   const totalPortfolioValue = Number((Number(state.cashBalance || 0) + openValue).toFixed(2));
-  const dailyReturn = positions.reduce((sum, item) => sum + (Number(item.marketValue || 0) * (Number(quotesMap[item.symbol]?.quote?.change || 0) / 100)), 0);
+  // quote.change is Finnhub's absolute dollar move (kept for existing
+  // display consumers); quote.changePercent is the real day % change and is
+  // what a daily P/L calculation needs.
+  const dailyReturn = positions.reduce((sum, item) => sum + (Number(item.marketValue || 0) * (Number(quotesMap[item.symbol]?.quote?.changePercent || 0) / 100)), 0);
   const totalReturn = totalPortfolioValue - STARTING_CAPITAL;
   const allocationBySectorMap = {};
   const allocationByAssetMap = {};
