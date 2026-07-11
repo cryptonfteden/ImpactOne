@@ -104,6 +104,46 @@ test("buildNewsQueryTerms caps the total number of terms", () => {
   assert.equal(terms.length, 6);
 });
 
+test("rankNewsArticles ranks a higher-priority query term above a lower one, all else equal", () => {
+  const now = new Date().toISOString();
+  const ranked = autonomousMarketService.rankNewsArticles([
+    { article: { title: "Sector-level story", url: "https://e.com/1", publishedAt: now, source: { name: "Reuters" } }, termIndex: 3 },
+    { article: { title: "Held-symbol story", url: "https://e.com/2", publishedAt: now, source: { name: "Reuters" } }, termIndex: 0 },
+  ]);
+
+  assert.equal(ranked[0].title, "Held-symbol story");
+});
+
+test("rankNewsArticles ranks a higher-quality source above a lower one, all else equal", () => {
+  const now = new Date().toISOString();
+  const ranked = autonomousMarketService.rankNewsArticles([
+    { article: { title: "Unknown blog story", url: "https://e.com/1", publishedAt: now, source: { name: "Random Blog" } }, termIndex: 0 },
+    { article: { title: "Reuters story", url: "https://e.com/2", publishedAt: now, source: { name: "Reuters" } }, termIndex: 0 },
+  ]);
+
+  assert.equal(ranked[0].title, "Reuters story");
+});
+
+test("rankNewsArticles ranks a more recent article above an older one, all else equal", () => {
+  const now = new Date().toISOString();
+  const lastWeek = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+  const ranked = autonomousMarketService.rankNewsArticles([
+    { article: { title: "Old story", url: "https://e.com/1", publishedAt: lastWeek, source: { name: "Reuters" } }, termIndex: 0 },
+    { article: { title: "Fresh story", url: "https://e.com/2", publishedAt: now, source: { name: "Reuters" } }, termIndex: 0 },
+  ]);
+
+  assert.equal(ranked[0].title, "Fresh story");
+});
+
+test("rankNewsArticles doesn't crash on an article with no source or publishedAt (fallback article shape)", () => {
+  const ranked = autonomousMarketService.rankNewsArticles([
+    { article: { title: "Fallback article", url: "https://example.com/news/1" }, termIndex: 0 },
+  ]);
+
+  assert.equal(ranked.length, 1);
+  assert.equal(ranked[0].title, "Fallback article");
+});
+
 test("getAutonomousOverview issues one news query per dynamic term when portfolioContext is provided", async () => {
   const original = newsService.getNews;
   const calledWith = [];

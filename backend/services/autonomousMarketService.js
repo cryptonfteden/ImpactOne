@@ -224,6 +224,65 @@ function buildScanCoverage() {
   }));
 }
 
+// Small curated tier of well-known financial news outlets. A heuristic,
+// not a fabricated precision score — anything not on this list gets the
+// same flat medium default rather than being penalized.
+const HIGH_QUALITY_NEWS_SOURCES = ["reuters", "bloomberg", "wall street journal", "wsj", "cnbc", "financial times", "associated press", "marketwatch"];
+const DEFAULT_SOURCE_QUALITY_SCORE = 60;
+const HIGH_SOURCE_QUALITY_SCORE = 95;
+
+function sourceQualityScore(sourceName) {
+  if (!sourceName) {
+    return DEFAULT_SOURCE_QUALITY_SCORE;
+  }
+  const normalized = String(sourceName).toLowerCase();
+  return HIGH_QUALITY_NEWS_SOURCES.some((known) => normalized.includes(known)) ? HIGH_SOURCE_QUALITY_SCORE : DEFAULT_SOURCE_QUALITY_SCORE;
+}
+
+function recencyScore(publishedAt) {
+  if (!publishedAt) {
+    return 40;
+  }
+  const ageMs = Date.now() - new Date(publishedAt).getTime();
+  if (!Number.isFinite(ageMs) || ageMs < 0) {
+    return 40;
+  }
+  const ageHours = ageMs / (1000 * 60 * 60);
+  if (ageHours <= 6) return 100;
+  if (ageHours <= 24) return 80;
+  if (ageHours <= 72) return 55;
+  if (ageHours <= 168) return 30;
+  return 10;
+}
+
+// Earlier query terms are higher priority (see buildNewsQueryTerms) —
+// active-recommendation/held-symbol matches should outrank sector-level
+// matches even before recency/source quality are factored in.
+function relevanceScoreForTermIndex(termIndex) {
+  return Math.max(20, 100 - termIndex * 15);
+}
+
+/**
+ * Sprint 16 Phase C — ranks candidate articles (each tagged with the index
+ * of the query term that surfaced it) by portfolio relevance, recency, and
+ * source quality, before the top ones are selected for expensive analysis.
+ * "Urgency" ranking of the final analyzed feed is unchanged — that still
+ * happens via the existing importanceScore sort once analyzeIntelligence
+ * has actually run.
+ */
+function rankNewsArticles(taggedArticles = []) {
+  return taggedArticles
+    .map(({ article, termIndex }) => {
+      const relevance = relevanceScoreForTermIndex(termIndex);
+      const recency = recencyScore(article?.publishedAt);
+      const quality = sourceQualityScore(article?.source?.name);
+      const score = relevance * 0.45 + recency * 0.3 + quality * 0.25;
+      return { article, score };
+    })
+    .sort((a, b) => b.score - a.score)
+    .map((item) => item.article);
+}
+
 /**
  * Real news headlines (when NEWS_API_KEY is configured — newsService
  * already falls back gracefully otherwise) are preferred first, backfilled
@@ -619,12 +678,17 @@ async function fetchPersonalizedNews(portfolioContext) {
     return newsService.getNews("markets").catch(() => []);
   }
 
-  const results = await Promise.all(terms.map((term) => newsService.getNews(term).catch(() => [])));
-  const merged = results.flat();
+  const resultsByTerm = await Promise.all(terms.map((term) => newsService.getNews(term).catch(() => [])));
+  const tagged = resultsByTerm.flatMap((articles, termIndex) => (articles || []).map((article) => ({ article, termIndex })));
+  const ranked = rankNewsArticles(tagged);
+
+  // Dedupe after ranking so the highest-scored occurrence of a duplicate
+  // (e.g. the same article returned by both a held-symbol and a sector
+  // query) is the one that survives.
   const seen = new Set();
   const deduped = [];
 
-  for (const article of merged) {
+  for (const article of ranked) {
     const dedupeKey = article?.url || article?.title;
     if (!dedupeKey || seen.has(dedupeKey)) {
       continue;
@@ -739,5 +803,6 @@ module.exports = {
   computeConvictionScore,
   getRepresentativeEvents,
   buildNewsQueryTerms,
+  rankNewsArticles,
   DEFAULT_WATCHLIST,
 };
