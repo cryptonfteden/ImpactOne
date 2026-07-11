@@ -231,6 +231,12 @@ async function getQuote(symbol) {
       symbol: normalizedSymbol,
       price: quoteData.c || 0,
       change: quoteData.d || 0,
+      // Finnhub's `d` is the absolute dollar change; `change` above is kept
+      // as-is since existing screens already display it (mislabeled as %).
+      // changePercent is the real day % change (Finnhub's `dp`), added for
+      // Sprint 15's daily P/L calculation rather than propagating the
+      // existing mislabeling into new financial math.
+      changePercent: Number(quoteData.dp) || 0,
       trend: quoteData.d > 0 ? "Positive" : "Negative",
       marketCap: formatMarketCap(metricsData.marketCapitalization || profileData.marketCapitalization),
       pe: metricsData.peTTM || metricsData.peAnnual || profileData.pe || "--",

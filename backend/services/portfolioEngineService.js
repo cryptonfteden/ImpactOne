@@ -33,11 +33,16 @@ async function markPositions(positions) {
     const markPrice = Number.isFinite(livePrice) && livePrice > 0
       ? livePrice
       : Number(position.lastMarkPrice || position.avgEntryPrice);
+    const dayChangePercent = Number(quotes[index]?.quote?.changePercent) || 0;
     const quantity = Number(position.quantity);
     const avgEntryPrice = Number(position.avgEntryPrice);
     const marketValue = markPrice * quantity;
     const unrealizedPnl = (markPrice - avgEntryPrice) * quantity;
     const unrealizedPnlPct = avgEntryPrice > 0 ? ((markPrice - avgEntryPrice) / avgEntryPrice) * 100 : 0;
+    // Today's mark-to-market contribution, derived from the position's
+    // current value and its live day % change — not the same as
+    // unrealizedPnl, which is measured from the entry price.
+    const dailyPnl = marketValue * (dayChangePercent / 100);
 
     return {
       id: position.id,
@@ -50,6 +55,8 @@ async function markPositions(positions) {
       marketValue: round2(marketValue),
       unrealizedPnl: round2(unrealizedPnl),
       unrealizedPnlPct: round2(unrealizedPnlPct),
+      dailyPnl: round2(dailyPnl),
+      dayChangePercent: round2(dayChangePercent),
       openedAt: position.openedAt,
     };
   });
@@ -82,9 +89,11 @@ async function getPortfolioSummary() {
   const startingCapital = Number(portfolio.startingCapital);
   const positionsValue = markedPositions.reduce((sum, position) => sum + position.marketValue, 0);
   const unrealizedPnl = markedPositions.reduce((sum, position) => sum + position.unrealizedPnl, 0);
+  const dailyPnl = markedPositions.reduce((sum, position) => sum + position.dailyPnl, 0);
   const totalValue = cashBalance + positionsValue;
   const totalReturn = totalValue - startingCapital;
   const totalReturnPct = startingCapital > 0 ? (totalReturn / startingCapital) * 100 : 0;
+  const dailyPnlPct = totalValue > 0 ? (dailyPnl / totalValue) * 100 : 0;
   const realizedPnl = await portfolioRepository.sumRealizedPnl(portfolio.id);
 
   return {
@@ -95,6 +104,8 @@ async function getPortfolioSummary() {
     totalValue: round2(totalValue),
     realizedPnl: round2(realizedPnl),
     unrealizedPnl: round2(unrealizedPnl),
+    dailyPnl: round2(dailyPnl),
+    dailyPnlPct: round2(dailyPnlPct),
     totalReturn: round2(totalReturn),
     totalReturnPct: round2(totalReturnPct),
     positions: markedPositions,
