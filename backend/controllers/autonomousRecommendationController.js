@@ -58,9 +58,31 @@ async function getEngineStatus(req, res, next) {
   }
 }
 
+// Sprint 16 Phase D — separate resource from the main detail response, so
+// the (more verbose) audit payload only downloads when specifically asked
+// for.
+async function getRecommendationDecisionTrace(req, res, next) {
+  try {
+    const recommendation = await autonomousRecommendationRepository.getById(req.params.id);
+    if (!recommendation) {
+      return res.status(404).json({ error: "Recommendation not found." });
+    }
+
+    const trace = await autonomousRecommendationRepository.getDecisionTraceByRecommendationId(req.params.id);
+    if (!trace) {
+      return res.status(404).json({ error: "Decision trace not found." });
+    }
+
+    res.json(trace);
+  } catch (error) {
+    handleKnownError(error, res, next);
+  }
+}
+
 module.exports = {
   listRecommendations,
   getRecommendation,
   runRecommendationEngine,
   getEngineStatus,
+  getRecommendationDecisionTrace,
 };

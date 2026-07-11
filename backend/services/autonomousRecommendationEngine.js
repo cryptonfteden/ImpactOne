@@ -11,6 +11,7 @@ const autonomousMarketService = require("./autonomousMarketService");
 const portfolioEngineService = require("./portfolioEngineService");
 const autonomousRecommendationRepository = require("./autonomousRecommendationRepository");
 const portfolioRiskMetrics = require("../utils/portfolioRiskMetrics");
+const scenarioEngineService = require("./scenarioEngineService");
 
 // Above this sector weight (%), a held position's concentration risk can
 // independently trigger a REDUCE recommendation even when the underlying
@@ -19,6 +20,17 @@ const portfolioRiskMetrics = require("../utils/portfolioRiskMetrics");
 // Deliberately higher than dashboardMetrics' 25% risk-penalty floor, which
 // is tuned for a continuous score, not a discrete action trigger.
 const CONCENTRATION_OVERRIDE_THRESHOLD_PCT = 35;
+
+// Sprint 16 Phase D — documented, transparent weights for the quality
+// score rollup (requirement: "expose the score and its components").
+const QUALITY_WEIGHTS = {
+  sourceQuality: 0.15,
+  evidenceFreshness: 0.15,
+  portfolioRelevance: 0.2,
+  evidenceAgreement: 0.2,
+  dataCompleteness: 0.1,
+  modelConfidence: 0.2,
+};
 
 function buildUniverse(heldSymbols = [], watchlistSymbols = []) {
   const merged = new Set([...heldSymbols, ...watchlistSymbols, ...autonomousMarketService.DEFAULT_WATCHLIST]);
@@ -59,20 +71,278 @@ function buildPersonalRelevance({ symbol, heldPosition, positionWeightPct, watch
   return `${symbol} is part of today's broader market scan.`;
 }
 
+// Sprint 16 Phase D — capped at 5 (was 3 through Phase C) so the
+// explanation/scenario builders below have enough source material to do a
+// real supporting-vs-opposing split, not just a short citation list.
 function findMatchedEvents(feed, symbol, context = {}) {
   return (feed || [])
     .filter((item) => (item.relatedTickers || []).includes(symbol) || (item.affectedAssets || []).includes(symbol))
-    .slice(0, 3)
+    .slice(0, 5)
     .map((item) => ({
       headline: item.headline,
       importanceScore: item.importanceScore,
       whyItMatters: item.whyItMatters,
       sourceUrl: item.sourceUrl || null,
       sourceName: item.sourceName || null,
+      publishedAt: item.publishedAt || null,
       confidence: item.confidence ?? null,
       reliability: item.reliability || null,
+      impactType: item.impactType || "neutral",
+      riskLevel: item.riskLevel || "low",
+      timeHorizon: item.timeHorizon || null,
+      counterarguments: item.explainability?.counterarguments || [],
+      invalidationSignals: item.explainability?.invalidationSignals || [],
       personalRelevance: buildPersonalRelevance({ symbol, ...context }),
     }));
+}
+
+// Sprint 16 Phase D — splits matched events into ones that support the
+// recommended action vs. ones that argue against it, using each event's
+// already-computed impactType. Neutral events land in neither bucket
+// rather than inflating either side.
+function splitMatchedEvents({ matchedEvents, action }) {
+  const favorableType = action === "BUY" ? "opportunity" : "risk";
+  const unfavorableType = action === "BUY" ? "risk" : "opportunity";
+
+  return {
+    supporting: matchedEvents.filter((event) => event.impactType === favorableType),
+    opposing: matchedEvents.filter((event) => event.impactType === unfavorableType),
+  };
+}
+
+function buildThesis({ symbol, action, rankingItem }) {
+  const verb = action === "BUY" ? "Buy" : action === "REDUCE" ? "Reduce" : "Exit";
+  const driver = rankingItem.primaryDriver && rankingItem.primaryDriver !== "No dominant event"
+    ? rankingItem.primaryDriver
+    : rankingItem.explanation;
+  return `${verb} ${symbol}: ${driver}`;
+}
+
+function buildKeyRisks({ opposing, sectorWeightPct, concentrationTriggered, macroRegime }) {
+  const risks = opposing
+    .filter((event) => event.riskLevel === "high")
+    .map((event) => event.headline);
+
+  if (concentrationTriggered) {
+    risks.push(`Sector concentration: ${Math.round(sectorWeightPct)}% of portfolio in this sector.`);
+  }
+  if (macroRegime?.recessionRisk === "high") {
+    risks.push("Elevated macro recession risk.");
+  }
+  if (macroRegime?.inflationPressure === "high") {
+    risks.push("Elevated inflation pressure.");
+  }
+
+  return Array.from(new Set(risks));
+}
+
+function buildInvalidationConditions(matchedEvents) {
+  const all = matchedEvents.flatMap((event) => event.invalidationSignals || []);
+  return Array.from(new Set(all)).slice(0, 5);
+}
+
+function buildConfidenceFactors(rankingItem) {
+  const drivers = [];
+  const reducers = [];
+
+  if (rankingItem.opportunityScore >= 70) drivers.push(`Strong opportunity score (${rankingItem.opportunityScore}/100).`);
+  if (rankingItem.riskScore <= 40) drivers.push(`Low underlying risk score (${rankingItem.riskScore}/100).`);
+  else if (rankingItem.riskScore >= 70) reducers.push(`Elevated underlying risk score (${rankingItem.riskScore}/100).`);
+  if (rankingItem.momentum >= 65) drivers.push(`Positive price momentum (${rankingItem.momentum}/100).`);
+  else if (rankingItem.momentum <= 35) reducers.push(`Weak price momentum (${rankingItem.momentum}/100).`);
+  if (rankingItem.institutionalActivity >= 65) drivers.push("Favorable institutional positioning.");
+  if (rankingItem.predictionMarketSignal >= 65) drivers.push("Prediction markets lean favorable.");
+  else if (rankingItem.predictionMarketSignal <= 35) reducers.push("Prediction markets lean unfavorable.");
+  if (rankingItem.macroExposure >= 70) reducers.push(`High macro exposure to broader conditions (${rankingItem.macroExposure}/100).`);
+
+  if (!drivers.length) drivers.push("Signal strength alone is the primary basis for this recommendation.");
+  if (!reducers.length) reducers.push("No material confidence reducers detected this run.");
+
+  return { confidenceDrivers: drivers, confidenceReducers: reducers };
+}
+
+/**
+ * Sprint 16 Phase D — requirement #1. Aggregates data `processEvent`
+ * already computes per matched event (impactType, riskLevel,
+ * counterarguments, invalidationSignals) into one structured,
+ * challengeable explanation, rather than generating new analysis.
+ */
+function buildExplanation({ symbol, action, rankingItem, matchedEvents, heldPosition, positionWeightPct, watchlistSymbols, portfolioAction, sectorWeightPct, concentrationTriggered, macroRegime }) {
+  const { supporting, opposing } = splitMatchedEvents({ matchedEvents, action });
+  const { confidenceDrivers, confidenceReducers } = buildConfidenceFactors(rankingItem);
+
+  return {
+    thesis: buildThesis({ symbol, action, rankingItem }),
+    supportingEvidence: supporting.map((event) => ({ headline: event.headline, whyItMatters: event.whyItMatters, sourceName: event.sourceName, sourceUrl: event.sourceUrl })),
+    opposingEvidence: opposing.map((event) => ({ headline: event.headline, whyItMatters: event.whyItMatters, sourceName: event.sourceName, sourceUrl: event.sourceUrl, counterarguments: event.counterarguments })),
+    keyRisks: buildKeyRisks({ opposing, sectorWeightPct, concentrationTriggered, macroRegime }),
+    invalidationConditions: buildInvalidationConditions(matchedEvents),
+    timeHorizon: portfolioAction.timeHorizon,
+    affectedPositions: heldPosition
+      ? [{ symbol, quantity: heldPosition.quantity, marketValue: heldPosition.marketValue, weightPct: positionWeightPct, sector: heldPosition.sector }]
+      : [],
+    affectedWatchlistSymbols: watchlistSymbols.includes(symbol) ? [symbol] : [],
+    confidenceDrivers,
+    confidenceReducers,
+  };
+}
+
+// Sprint 16 Phase D — reuses the existing conviction-tiered
+// buildPortfolioAction (Phase A) three times with a score offset, rather
+// than a new price-impact formula: bull = conviction+15, base = actual
+// conviction, bear = conviction-15.
+function buildScenarioPriceImpacts(convictionScore) {
+  const bullScore = portfolioRiskMetrics.clamp(convictionScore + 15, 0, 100);
+  const bearScore = portfolioRiskMetrics.clamp(convictionScore - 15, 0, 100);
+
+  return {
+    bull: autonomousMarketService.buildPortfolioAction({ convictionScore: bullScore }).expectedUpside,
+    base: autonomousMarketService.buildPortfolioAction({ convictionScore }).expectedUpside,
+    bear: autonomousMarketService.buildPortfolioAction({ convictionScore: bearScore }).stopLevel,
+  };
+}
+
+function parseMidpointPercent(rangeText) {
+  const matches = String(rangeText || "").match(/-?\d+(\.\d+)?/g);
+  if (!matches || !matches.length) {
+    return null;
+  }
+  const numbers = matches.map(Number);
+  return numbers.reduce((sum, value) => sum + value, 0) / numbers.length;
+}
+
+/**
+ * Only returns a number when the price-impact text is actually numeric
+ * (e.g. "10-16%") — tiers like "Wait for confirmation" have no midpoint to
+ * extract, so this returns null rather than guessing.
+ */
+function buildPortfolioImpact({ priceImpactText, positionWeightPct, heldPosition }) {
+  if (!heldPosition) {
+    return null;
+  }
+  const midpoint = parseMidpointPercent(priceImpactText);
+  if (midpoint === null) {
+    return null;
+  }
+  const impactPct = Number(((midpoint * positionWeightPct) / 100).toFixed(2));
+  return `${impactPct >= 0 ? "+" : ""}${impactPct}% of total portfolio value (approx.)`;
+}
+
+/**
+ * Sprint 16 Phase D — requirement #2. Reuses the existing
+ * scenarioEngineService.getScenario (theme-matched bull/base/bear
+ * narratives + probabilities + sector rotation, previously unused by the
+ * recommendation engine) and layers on catalysts/risks/invalidation drawn
+ * from the same matched-event split used for the explanation.
+ */
+function buildScenarios({ symbol, rankingItem, action, matchedEvents, heldPosition, positionWeightPct, convictionScore }) {
+  const base = scenarioEngineService.getScenario(rankingItem.primaryDriver || rankingItem.explanation || symbol);
+  const priceImpacts = buildScenarioPriceImpacts(convictionScore);
+  const { supporting, opposing } = splitMatchedEvents({ matchedEvents, action });
+  const invalidationConditions = buildInvalidationConditions(matchedEvents);
+
+  const catalysts = supporting.map((event) => event.headline).slice(0, 3);
+  const risks = opposing.map((event) => event.headline).slice(0, 3);
+
+  return [
+    {
+      case: "bull",
+      narrative: base.bullCase.narrative,
+      probability: base.bullCase.probability,
+      priceImpact: priceImpacts.bull,
+      portfolioImpact: buildPortfolioImpact({ priceImpactText: priceImpacts.bull, positionWeightPct, heldPosition }),
+      catalysts: catalysts.length ? catalysts : [base.expectedMarketReaction],
+      risks: risks.slice(0, 2),
+      invalidationTrigger: invalidationConditions[0] || "Supporting data fails to confirm the first-order move.",
+    },
+    {
+      case: "base",
+      narrative: base.baseCase.narrative,
+      probability: base.baseCase.probability,
+      priceImpact: priceImpacts.base,
+      portfolioImpact: buildPortfolioImpact({ priceImpactText: priceImpacts.base, positionWeightPct, heldPosition }),
+      catalysts: [base.expectedMarketReaction],
+      risks: risks.slice(0, 3),
+      invalidationTrigger: invalidationConditions[1] || invalidationConditions[0] || "Base-case assumptions fail to hold over the stated horizon.",
+    },
+    {
+      case: "bear",
+      narrative: base.bearCase.narrative,
+      probability: base.bearCase.probability,
+      priceImpact: priceImpacts.bear,
+      portfolioImpact: buildPortfolioImpact({ priceImpactText: priceImpacts.bear, positionWeightPct, heldPosition }),
+      catalysts: risks.length ? risks : [base.expectedMarketReaction],
+      risks: risks.length ? risks : ["Broader risk-off macro shift."],
+      invalidationTrigger: invalidationConditions[invalidationConditions.length - 1] || "Bear-case catalysts fail to materialize.",
+    },
+  ];
+}
+
+/**
+ * Sprint 16 Phase D — requirement #3. Six 0-100 components, each traced
+ * to real computed data (see QUALITY_WEIGHTS for the documented rollup
+ * weights) — not a single opaque number.
+ */
+function computeQualityScore({ matchedEvents, symbolSource, positionWeightPct, convictionScore, rankingItem, macroRegime, supportingCount, opposingCount }) {
+  const sourceQuality = matchedEvents.length
+    ? Math.round(matchedEvents.reduce((sum, event) => sum + autonomousMarketService.sourceQualityScore(event.sourceName), 0) / matchedEvents.length)
+    : 50;
+
+  const evidenceFreshness = matchedEvents.length
+    ? Math.round(matchedEvents.reduce((sum, event) => sum + autonomousMarketService.recencyScore(event.publishedAt), 0) / matchedEvents.length)
+    : 40;
+
+  const relevanceBase = symbolSource === "portfolio" ? 100 : symbolSource === "watchlist" ? 70 : 40;
+  const portfolioRelevance = portfolioRiskMetrics.clamp(
+    Math.round(relevanceBase + (symbolSource === "portfolio" ? Math.min(20, positionWeightPct) : 0)),
+    0,
+    100
+  );
+
+  const totalDirectional = supportingCount + opposingCount;
+  const evidenceAgreement = totalDirectional > 0 ? Math.round((supportingCount / totalDirectional) * 100) : 50;
+
+  let dataCompleteness = 0;
+  if (matchedEvents.length > 0) dataCompleteness += 25;
+  if (Number.isFinite(rankingItem.currentPrice)) dataCompleteness += 25;
+  if (macroRegime) dataCompleteness += 25;
+  if (matchedEvents.some((event) => event.sourceUrl)) dataCompleteness += 25;
+
+  const modelConfidence = convictionScore;
+
+  const qualityComponents = { sourceQuality, evidenceFreshness, portfolioRelevance, evidenceAgreement, dataCompleteness, modelConfidence };
+
+  const qualityScore = portfolioRiskMetrics.clamp(
+    Math.round(
+      sourceQuality * QUALITY_WEIGHTS.sourceQuality +
+        evidenceFreshness * QUALITY_WEIGHTS.evidenceFreshness +
+        portfolioRelevance * QUALITY_WEIGHTS.portfolioRelevance +
+        evidenceAgreement * QUALITY_WEIGHTS.evidenceAgreement +
+        dataCompleteness * QUALITY_WEIGHTS.dataCompleteness +
+        modelConfidence * QUALITY_WEIGHTS.modelConfidence
+    ),
+    0,
+    100
+  );
+
+  return { qualityScore, qualityComponents };
+}
+
+/**
+ * Sprint 16 Phase D — requirement #4. Contains only already-processed
+ * application data (ranking scores, matched-event summaries, portfolio
+ * snapshot) — never a raw provider HTTP response or an API key, so there
+ * is nothing here that could leak a secret.
+ */
+function buildDecisionTraceInput({ rankingItem, matchedEvents, heldPosition, sectorWeightPct, positionWeightPct, macroRegime }) {
+  return {
+    rankingItem,
+    matchedEvents,
+    portfolioSnapshot: heldPosition
+      ? { symbol: heldPosition.symbol, quantity: heldPosition.quantity, marketValue: heldPosition.marketValue, sector: heldPosition.sector, sectorWeightPct, positionWeightPct }
+      : null,
+    macroRegime,
+  };
 }
 
 function buildReasoning({ symbol, action, rankingItem, portfolioAction, heldPosition, sectorWeightPct, concentrationTriggered }) {
@@ -135,6 +405,32 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
   const matchedEvents = findMatchedEvents(feed, symbol, { heldPosition, positionWeightPct, watchlistSymbols });
   const reasoning = buildReasoning({ symbol, action, rankingItem, portfolioAction, heldPosition, sectorWeightPct, concentrationTriggered });
 
+  const { supporting, opposing } = splitMatchedEvents({ matchedEvents, action });
+  const explanation = buildExplanation({
+    symbol,
+    action,
+    rankingItem,
+    matchedEvents,
+    heldPosition,
+    positionWeightPct,
+    watchlistSymbols,
+    portfolioAction,
+    sectorWeightPct,
+    concentrationTriggered,
+    macroRegime,
+  });
+  const scenarios = buildScenarios({ symbol, rankingItem, action, matchedEvents, heldPosition, positionWeightPct, convictionScore });
+  const { qualityScore, qualityComponents } = computeQualityScore({
+    matchedEvents,
+    symbolSource,
+    positionWeightPct,
+    convictionScore,
+    rankingItem,
+    macroRegime,
+    supportingCount: supporting.length,
+    opposingCount: opposing.length,
+  });
+
   const portfolioContext = heldPosition
     ? {
         quantity: heldPosition.quantity,
@@ -155,13 +451,18 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
     riskLabel,
     positionSizeSuggestion: portfolioAction.positionSize,
     reasoning,
+    timeHorizon: portfolioAction.timeHorizon,
+    explanation,
+    scenarios,
+    qualityScore,
+    qualityComponents,
     evidence: {
       overallAiScore: rankingItem.overallAiScore,
       opportunityScore: rankingItem.opportunityScore,
       riskScore: rankingItem.riskScore,
       convictionScore,
       primaryDriver: rankingItem.primaryDriver,
-      explanation: rankingItem.explanation,
+      rankingExplanation: rankingItem.explanation,
       matchedEvents,
       sectorWeightPct,
       concentrationTriggered,
@@ -174,6 +475,21 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
   });
 
   await autonomousRecommendationRepository.supersedeActiveForSymbol(symbol, created.id);
+
+  await autonomousRecommendationRepository.createDecisionTrace({
+    recommendationId: created.id,
+    inputEvidence: buildDecisionTraceInput({ rankingItem, matchedEvents, heldPosition, sectorWeightPct, positionWeightPct, macroRegime }),
+    rankingResult: { convictionScore, portfolioAction, symbolSource, action, concentrationTriggered },
+    confidenceCalculation: { qualityScore, qualityComponents, riskScore, riskLabel },
+    finalOutput: {
+      action,
+      expectedUpside: portfolioAction.expectedUpside,
+      expectedDownside: portfolioAction.stopLevel,
+      positionSizeSuggestion: portfolioAction.positionSize,
+      timeHorizon: portfolioAction.timeHorizon,
+      reasoning,
+    },
+  });
 
   return created;
 }
@@ -239,4 +555,10 @@ async function runOnce({ watchlist = [] } = {}) {
 module.exports = {
   buildUniverse,
   runOnce,
+  // Exported directly for unit testing per Sprint 16 Phase D requirement
+  // #7 ("direct tests for score calculation and decision trace creation").
+  computeQualityScore,
+  buildExplanation,
+  buildScenarios,
+  QUALITY_WEIGHTS,
 };

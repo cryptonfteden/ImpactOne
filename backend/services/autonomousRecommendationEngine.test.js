@@ -85,6 +85,131 @@ test("runOnce generates a BUY recommendation for a strong non-held signal", asyn
   );
 });
 
+test("runOnce generates a structured explanation, bull/base/bear scenarios, a transparent quality score, and an immutable decision trace", async () => {
+  const publishedNow = new Date().toISOString();
+
+  await withMocks(
+    {
+      rankings: [
+        { symbol: "NVDA", opportunityScore: 92, riskScore: 25, overallAiScore: 90, primaryDriver: "AI capex supercycle", explanation: "Strong AI capex tailwind.", currentPrice: 210, dayChangePercent: 3.1 },
+        neutralRanking("AAPL"),
+        neutralRanking("TSLA"),
+      ],
+      feed: [
+        {
+          headline: "AI capex supercycle",
+          importanceScore: 88,
+          whyItMatters: "Hyperscaler spend accelerating.",
+          relatedTickers: ["NVDA"],
+          affectedAssets: [],
+          sourceUrl: "https://news.example.com/ai-capex",
+          sourceName: "Reuters",
+          publishedAt: publishedNow,
+          confidence: 85,
+          reliability: "high",
+          impactType: "opportunity",
+          riskLevel: "medium",
+          timeHorizon: "1-3 months",
+          explainability: {
+            counterarguments: ["Positioning may already reflect the headline."],
+            invalidationSignals: ["Supporting data fails to confirm the first-order move."],
+          },
+        },
+        {
+          headline: "Valuation stretched after rally",
+          importanceScore: 60,
+          whyItMatters: "Multiple expansion outpacing earnings.",
+          relatedTickers: ["NVDA"],
+          affectedAssets: [],
+          sourceUrl: null,
+          sourceName: null,
+          publishedAt: null,
+          confidence: 55,
+          reliability: "developing",
+          impactType: "risk",
+          riskLevel: "high",
+          timeHorizon: "2-6 weeks",
+          explainability: {
+            counterarguments: ["Valuation concerns may already be priced in."],
+            invalidationSignals: ["Sector leadership rotates away from affected assets."],
+          },
+        },
+      ],
+      portfolioSummary: buildPortfolioSummary({}),
+    },
+    async () => {
+      await autonomousRecommendationEngine.runOnce();
+      const active = await autonomousRecommendationRepository.listActive();
+      const nvda = active.find((item) => item.symbol === "NVDA");
+      assert.ok(nvda, "expected a recommendation for NVDA");
+
+      // --- explanation (requirement #1) ---
+      assert.match(nvda.explanation.thesis, /NVDA/);
+      assert.equal(nvda.explanation.supportingEvidence.length, 1);
+      assert.equal(nvda.explanation.supportingEvidence[0].headline, "AI capex supercycle");
+      assert.equal(nvda.explanation.opposingEvidence.length, 1);
+      assert.equal(nvda.explanation.opposingEvidence[0].headline, "Valuation stretched after rally");
+      assert.ok(nvda.explanation.opposingEvidence[0].counterarguments.length > 0);
+      assert.ok(nvda.explanation.keyRisks.includes("Valuation stretched after rally"), "high-riskLevel opposing event should appear in keyRisks");
+      assert.ok(nvda.explanation.invalidationConditions.length > 0);
+      assert.equal(nvda.explanation.timeHorizon, "1-3 months");
+      assert.deepEqual(nvda.explanation.affectedPositions, [], "NVDA is not held in this scenario");
+      assert.deepEqual(nvda.explanation.affectedWatchlistSymbols, [], "NVDA is not on the passed watchlist in this scenario");
+      assert.ok(nvda.explanation.confidenceDrivers.length > 0);
+      assert.ok(nvda.explanation.confidenceReducers.length > 0);
+      assert.equal(nvda.timeHorizon, "1-3 months");
+
+      // renamed evidence field (Phase D — avoids colliding with the new
+      // top-level `explanation` object)
+      assert.equal(nvda.evidence.rankingExplanation, "Strong AI capex tailwind.");
+      assert.equal(nvda.evidence.explanation, undefined);
+
+      // --- scenarios (requirement #2) ---
+      assert.equal(nvda.scenarios.length, 3);
+      const [bull, base, bear] = nvda.scenarios;
+      assert.equal(bull.case, "bull");
+      assert.equal(base.case, "base");
+      assert.equal(bear.case, "bear");
+      [bull, base, bear].forEach((scenario) => {
+        assert.ok(scenario.probability > 0 && scenario.probability <= 1, "probability is a 0-1 fraction");
+        assert.ok(scenario.priceImpact);
+        assert.ok(Array.isArray(scenario.catalysts));
+        assert.ok(Array.isArray(scenario.risks));
+        assert.ok(scenario.invalidationTrigger);
+      });
+      assert.ok(bull.catalysts.includes("AI capex supercycle"));
+      assert.ok(bear.risks.includes("Valuation stretched after rally"));
+
+      // --- quality score (requirement #3) ---
+      const qualityScore = Number(nvda.qualityScore);
+      assert.ok(qualityScore >= 0 && qualityScore <= 100);
+      const c = nvda.qualityComponents;
+      ["sourceQuality", "evidenceFreshness", "portfolioRelevance", "evidenceAgreement", "dataCompleteness", "modelConfidence"].forEach((key) => {
+        assert.ok(Number.isFinite(c[key]), `expected qualityComponents.${key} to be a finite number`);
+      });
+      assert.equal(c.modelConfidence, Number(nvda.confidenceScore));
+      assert.equal(c.dataCompleteness, 100, "matched events + live price + macro regime + a citation are all present");
+
+      // --- decision trace (requirement #4) ---
+      const trace = await autonomousRecommendationRepository.getDecisionTraceByRecommendationId(nvda.id);
+      assert.ok(trace, "expected a decision trace row for this recommendation");
+      assert.equal(trace.rankingResult.action, "BUY");
+      assert.equal(trace.finalOutput.action, "BUY");
+      assert.equal(trace.confidenceCalculation.qualityScore, qualityScore);
+      assert.ok(trace.inputEvidence.matchedEvents.length === 2);
+
+      // no secrets/credentials ever end up in the trace
+      const serialized = JSON.stringify(trace);
+      ["FINNHUB_API_KEY", "NEWS_API_KEY", "OPENAI_API_KEY"].forEach((envVar) => {
+        const value = process.env[envVar];
+        if (value) {
+          assert.ok(!serialized.includes(value), `decision trace must never contain the ${envVar} value`);
+        }
+      });
+    }
+  );
+});
+
 test("runOnce threads a caller-provided watchlist into the evaluation universe and marks its symbols as watchlist-sourced", async () => {
   await withMocks(
     {

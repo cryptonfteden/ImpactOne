@@ -121,6 +121,40 @@ test("GET /api/v2/recommendations/:id returns 404 for an unknown id", async () =
   assert.equal(response.status, 404);
 });
 
+test("GET /api/v2/recommendations/:id includes explanation, scenarios, and qualityScore", async () => {
+  await withMocks(async () => {
+    await request(app).post("/api/v2/recommendations/run");
+    const listResponse = await request(app).get("/api/v2/recommendations");
+    const id = listResponse.body.recommendations[0].id;
+
+    const detailResponse = await request(app).get(`/api/v2/recommendations/${id}`);
+    assert.equal(detailResponse.status, 200);
+    assert.ok(detailResponse.body.explanation.thesis);
+    assert.equal(detailResponse.body.scenarios.length, 3);
+    assert.ok(Number.isFinite(Number(detailResponse.body.qualityScore)));
+    assert.ok(detailResponse.body.qualityComponents.modelConfidence !== undefined);
+  });
+});
+
+test("GET /api/v2/recommendations/:id/decision-trace returns the trace for a generated recommendation", async () => {
+  await withMocks(async () => {
+    await request(app).post("/api/v2/recommendations/run");
+    const listResponse = await request(app).get("/api/v2/recommendations");
+    const id = listResponse.body.recommendations[0].id;
+
+    const traceResponse = await request(app).get(`/api/v2/recommendations/${id}/decision-trace`);
+    assert.equal(traceResponse.status, 200);
+    assert.equal(traceResponse.body.recommendationId, id);
+    assert.ok(traceResponse.body.rankingResult);
+    assert.ok(traceResponse.body.finalOutput);
+  });
+});
+
+test("GET /api/v2/recommendations/:id/decision-trace returns 404 for an unknown recommendation id", async () => {
+  const response = await request(app).get("/api/v2/recommendations/does-not-exist/decision-trace");
+  assert.equal(response.status, 404);
+});
+
 test("this feature never places an order as a side effect", async () => {
   await withMocks(async () => {
     await request(app).post("/api/v2/recommendations/run");

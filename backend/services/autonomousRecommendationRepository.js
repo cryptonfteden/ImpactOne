@@ -67,6 +67,19 @@ async function getLatestRunLog() {
   return prisma.autonomousRunLog.findFirst({ orderBy: { startedAt: "desc" } });
 }
 
+// Sprint 16 Phase D — DecisionTrace is immutable by convention: this file
+// deliberately exposes only create + read for it, never an update, so
+// there is no code path anywhere that can mutate a trace after creation.
+async function createDecisionTrace(data) {
+  const prisma = getPrismaClient();
+  return prisma.decisionTrace.create({ data });
+}
+
+async function getDecisionTraceByRecommendationId(recommendationId) {
+  const prisma = getPrismaClient();
+  return prisma.decisionTrace.findUnique({ where: { recommendationId } });
+}
+
 module.exports = {
   createRecommendation,
   listActive,
@@ -76,4 +89,6 @@ module.exports = {
   supersedeActiveForSymbol,
   createRunLog,
   getLatestRunLog,
+  createDecisionTrace,
+  getDecisionTraceByRecommendationId,
 };

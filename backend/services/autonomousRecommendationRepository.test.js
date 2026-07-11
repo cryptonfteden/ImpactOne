@@ -19,6 +19,26 @@ function baseData(overrides = {}) {
     reasoning: "Strong AI capex tailwind.",
     evidence: { overallAiScore: 88 },
     portfolioContext: null,
+    timeHorizon: "1-3 months",
+    explanation: { thesis: "Buy NVDA: AI capex tailwind.", supportingEvidence: [], opposingEvidence: [], keyRisks: [], invalidationConditions: [], timeHorizon: "1-3 months", affectedPositions: [], affectedWatchlistSymbols: [], confidenceDrivers: [], confidenceReducers: [] },
+    scenarios: [
+      { case: "bull", narrative: "n", probability: 0.3, priceImpact: "15-22%", portfolioImpact: null, catalysts: [], risks: [], invalidationTrigger: "x" },
+      { case: "base", narrative: "n", probability: 0.5, priceImpact: "4-9%", portfolioImpact: null, catalysts: [], risks: [], invalidationTrigger: "x" },
+      { case: "bear", narrative: "n", probability: 0.2, priceImpact: "-7% tactical stop", portfolioImpact: null, catalysts: [], risks: [], invalidationTrigger: "x" },
+    ],
+    qualityScore: 75,
+    qualityComponents: { sourceQuality: 80, evidenceFreshness: 70, portfolioRelevance: 40, evidenceAgreement: 100, dataCompleteness: 75, modelConfidence: 90 },
+    ...overrides,
+  };
+}
+
+function baseTraceData(recommendationId, overrides = {}) {
+  return {
+    recommendationId,
+    inputEvidence: { rankingItem: { symbol: "NVDA" }, matchedEvents: [], portfolioSnapshot: null, macroRegime: null },
+    rankingResult: { convictionScore: 90, action: "BUY" },
+    confidenceCalculation: { qualityScore: 75, qualityComponents: {} },
+    finalOutput: { action: "BUY", expectedUpside: "15-22%" },
     ...overrides,
   };
 }
@@ -73,4 +93,38 @@ test("createRunLog and getLatestRunLog", async () => {
   const fetched = await autonomousRecommendationRepository.getLatestRunLog();
   assert.equal(fetched.id, latest.id);
   assert.equal(fetched.symbolsEvaluated, 5);
+});
+
+test("createDecisionTrace persists and getDecisionTraceByRecommendationId retrieves it", async () => {
+  const recommendation = await autonomousRecommendationRepository.createRecommendation(baseData());
+  const trace = await autonomousRecommendationRepository.createDecisionTrace(baseTraceData(recommendation.id));
+
+  const fetched = await autonomousRecommendationRepository.getDecisionTraceByRecommendationId(recommendation.id);
+  assert.equal(fetched.id, trace.id);
+  assert.equal(fetched.rankingResult.action, "BUY");
+  assert.equal(fetched.finalOutput.expectedUpside, "15-22%");
+});
+
+test("getDecisionTraceByRecommendationId returns null when no trace exists", async () => {
+  const recommendation = await autonomousRecommendationRepository.createRecommendation(baseData());
+  const fetched = await autonomousRecommendationRepository.getDecisionTraceByRecommendationId(recommendation.id);
+  assert.equal(fetched, null);
+});
+
+test("deleting a recommendation cascades to its decision trace", async () => {
+  const recommendation = await autonomousRecommendationRepository.createRecommendation(baseData());
+  await autonomousRecommendationRepository.createDecisionTrace(baseTraceData(recommendation.id));
+
+  const { getPrismaClient } = require("../db/prismaClient");
+  const prisma = getPrismaClient();
+  await prisma.recommendation.delete({ where: { id: recommendation.id } });
+
+  const fetched = await autonomousRecommendationRepository.getDecisionTraceByRecommendationId(recommendation.id);
+  assert.equal(fetched, null);
+});
+
+test("the repository exposes no update method for decision traces (immutable by convention)", () => {
+  const exportedNames = Object.keys(autonomousRecommendationRepository);
+  const hasTraceUpdateMethod = exportedNames.some((name) => /decisiontrace/i.test(name) && /update/i.test(name));
+  assert.equal(hasTraceUpdateMethod, false, "no updateDecisionTrace-style export should ever exist");
 });
