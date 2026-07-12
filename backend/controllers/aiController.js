@@ -43,7 +43,11 @@ async function analyze(req, res, next) {
         ...analysis,
         marketImpact,
         alternativeDataSignals: altDataSummary?.signals || null,
-        committee: committeeReport?.committee || null,
+        // Sprint 18A — renamed from `committee` to `committeeDebate`: the
+        // shape changed (no more independent cio.decision) and a silent
+        // rename-under-the-old-key would be a worse, more deceptive break
+        // than a clearly-signaled one. See investmentCommitteeService.js.
+        committeeDebate: committeeReport?.committeeDebate || null,
         committeeTrackRecord: committeeReport?.trackRecord?.stats || null,
       },
     });

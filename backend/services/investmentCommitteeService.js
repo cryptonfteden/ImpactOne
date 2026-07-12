@@ -5,7 +5,13 @@ const { getAltDataSummary } = require("./altDataService");
 const { analyzeMarketImpact } = require("./marketImpactService");
 const { analyzeIntelligence } = require("./impactIntelligenceService");
 const { get, set } = require("./intelligenceCache");
-const { upsertCommitteeDecision, getCommitteeTrackRecord } = require("./committeeTrackRecordService");
+// Sprint 18A — upsertCommitteeDecision is deliberately no longer imported:
+// the committee stops writing its own persisted decision (see
+// INTELLIGENCE_PLATFORM_REVIEW.md §5/§9 — this was a synchronous,
+// unlocked JSON-file write flagged as a bottleneck). getCommitteeTrackRecord
+// still reads that same store as a frozen, labeled legacy/historical view —
+// existing data is preserved and readable, never discarded.
+const { getCommitteeTrackRecord } = require("./committeeTrackRecordService");
 
 const COMMITTEE_VOTES = ["Strong Buy", "Buy", "Hold", "Reduce", "Sell", "Strong Sell"];
 const ASSET_ALIASES = {
@@ -390,6 +396,53 @@ async function buildBaseContext(asset, incomingContext = {}) {
   };
 }
 
+// Sprint 18A — Canonical Decision Architecture. The committee's five
+// agent-builder functions above are untouched; only how their output is
+// *assembled and published* changes below. Each helper here maps agent
+// output onto exactly the fields Sprint 18A requirement #2 allows
+// (supportingArguments, opposingArguments, expertVotes, disagreementLevel,
+// consensusLevel, specialistObservations) — none of them ever surfaces a
+// decision/verdict/action field. See canonicalVerdict.js for the
+// structural (not just conventional) guard against that.
+function buildExpertVotes(agents) {
+  return agents.map((agent) => ({
+    agent: agent.agent,
+    vote: agent.vote,
+    confidence: agent.confidence,
+    rationale: agent.bullArguments?.[0] || agent.bearArguments?.[0] || null,
+  }));
+}
+
+function buildSupportingArguments(agents) {
+  return agents.flatMap((agent) => (agent.bullArguments || []).map((argument) => ({ agent: agent.agent, argument })));
+}
+
+function buildOpposingArguments(agents) {
+  return agents.flatMap((agent) => (agent.bearArguments || []).map((argument) => ({ agent: agent.agent, argument })));
+}
+
+function buildSpecialistObservations(agents) {
+  return agents.map((agent) => ({
+    agent: agent.agent,
+    focus: agent.focus,
+    supportingEvidence: agent.supportingEvidence,
+    unknowns: agent.unknowns,
+  }));
+}
+
+/**
+ * The CIO synthesis stays useful narrative/explanatory content (expected
+ * return, risk label, catalysts, threats, horizon, allocation suggestion)
+ * but its `decision` field is deliberately dropped here — that field is
+ * exactly the independent verdict this sprint removes. The canonical
+ * action, when one exists, comes only from a persisted Recommendation
+ * (see canonicalVerdict.buildCanonicalVerdictView).
+ */
+function buildSynthesis(cio) {
+  const { decision, ...synthesis } = cio;
+  return synthesis;
+}
+
 async function analyzeInvestmentCommittee({ symbol = "NVDA", context = {}, intelligenceReport = null, altDataSummary = null, marketImpact = null } = {}) {
   const asset = resolveAsset(symbol);
   const cacheKey = JSON.stringify({ symbol: asset.normalized, context, intelligenceReport, hasAlt: Boolean(altDataSummary), hasImpact: Boolean(marketImpact) });
@@ -417,29 +470,29 @@ async function analyzeInvestmentCommittee({ symbol = "NVDA", context = {}, intel
   const cio = await buildOpenAiCioSummary(asset, agents, fallbackCio);
   const disagreement = buildDisagreement(agents);
 
-  const recordSummary = upsertCommitteeDecision({
-    symbol: asset.normalized,
-    displaySymbol: asset.displaySymbol,
-    generatedAt: new Date().toISOString(),
-    finalDecision: cio.decision,
-    confidence: cio.confidence,
-    entryPrice: Number(baseContext.quote?.price || NaN),
-    expectedReturn: cio.expectedReturn,
-    disagreementScore: disagreement.disagreementScore,
-    assetClass: asset.assetClass,
-  });
+  // Sprint 18A — no more upsertCommitteeDecision call here: the committee
+  // no longer independently persists a decision. getCommitteeTrackRecord
+  // still reads the existing, frozen JSON store below as a labeled legacy
+  // view — historical entries are preserved and readable, just no longer
+  // added to by this path.
   const trackRecord = await getCommitteeTrackRecord({ symbol: asset.normalized });
 
   const result = {
     symbol: asset.normalized,
     displaySymbol: asset.displaySymbol,
-    committee: {
+    committeeDebate: {
       generatedAt: new Date().toISOString(),
       eventHint,
-      agents,
-      cio,
-      ...disagreement,
-      trackRecordSummary: trackRecord.stats || recordSummary,
+      supportingArguments: buildSupportingArguments(agents),
+      opposingArguments: buildOpposingArguments(agents),
+      expertVotes: buildExpertVotes(agents),
+      disagreementLevel: disagreement.disagreementScore,
+      consensusLevel: disagreement.committeeAgreement,
+      expertsDisagree: disagreement.expertsDisagree,
+      disagreementExplanation: disagreement.disagreementExplanation,
+      voteBreakdown: disagreement.voteBreakdown,
+      specialistObservations: buildSpecialistObservations(agents),
+      synthesis: buildSynthesis(cio),
     },
     trackRecord,
   };
@@ -450,4 +503,12 @@ async function analyzeInvestmentCommittee({ symbol = "NVDA", context = {}, intel
 
 module.exports = {
   analyzeInvestmentCommittee,
+  // Exported directly for unit testing (Sprint 18A requirement: "debate
+  // shape, no independent decision field") without needing to mock the
+  // full external-provider fan-out analyzeInvestmentCommittee performs.
+  buildExpertVotes,
+  buildSupportingArguments,
+  buildOpposingArguments,
+  buildSpecialistObservations,
+  buildSynthesis,
 };
