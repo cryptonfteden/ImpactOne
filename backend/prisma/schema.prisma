@@ -220,6 +220,16 @@ model DecisionTrace {
   finalOutput            Json
   createdAt              DateTime       @default(now())
 
+  // Sprint 18A — Canonical Decision Architecture. All three are nullable:
+  // historical rows predate the Committee merge and canonical event
+  // envelope, and stay valid/readable exactly as they were (backward
+  // compatible, nothing backfilled or discarded). Still immutable by
+  // convention — the repository exposes no update method for this model,
+  // unchanged by this migration.
+  committeeDebate       Json? // supportingArguments/opposingArguments/expertVotes/disagreementLevel/consensusLevel/specialistObservations — never an action/decision field, see canonicalVerdict.js.
+  evidenceReferences    Json? // canonical Event Envelope array (eventEnvelope.js), additive alongside inputEvidence.matchedEvents.
+  modelVersionMetadata  Json? // { eventEnvelopeVersion, contractVersion } recorded at creation time, for future auditability as these contracts evolve.
+
   @@map("decision_traces")
 }
 
