@@ -14,6 +14,7 @@ async function truncateAll() {
   await prisma.decisionTrace.deleteMany();
   await prisma.recommendation.deleteMany();
   await prisma.autonomousRunLog.deleteMany();
+  await prisma.investorProfile.deleteMany();
 }
 
 module.exports = { truncateAll };

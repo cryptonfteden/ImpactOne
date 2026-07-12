@@ -242,3 +242,50 @@ model AutonomousRunLog {
 
   @@map("autonomous_run_logs")
 }
+
+enum InvestorExperienceLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum InvestmentGoal {
+  WEALTH
+  RETIREMENT
+  PASSIVE_INCOME
+  LEARNING
+  HOUSE
+  OTHER
+}
+
+enum RiskTolerance {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum InvestmentHorizonBucket {
+  SHORT_TERM
+  MEDIUM_TERM
+  LONG_TERM
+}
+
+// Sprint 20 — single-tenant singleton, same convention as Portfolio
+// (no userId: the app has no auth yet, this is deliberate at this stage,
+// not an oversight — see VISION.md's Personalization Principles). Unlike
+// DecisionTrace this is user-editable settings data, not an immutable
+// audit record, so a real update path is correct here.
+model InvestorProfile {
+  id                       String                    @id @default(uuid())
+  age                      Int
+  country                  String?
+  experienceLevel          InvestorExperienceLevel?
+  monthlyInvestmentAmount  Decimal?                  @db.Decimal(14, 2)
+  investmentGoal           InvestmentGoal?
+  riskTolerance            RiskTolerance?
+  investmentHorizon        InvestmentHorizonBucket?
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+
+  @@map("investor_profiles")
+}
