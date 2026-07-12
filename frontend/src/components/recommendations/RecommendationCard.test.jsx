@@ -71,4 +71,32 @@ describe("RecommendationCard", () => {
     rerender(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
     expect(screen.queryByRole("button", { name: /place order/i })).not.toBeInTheDocument();
   });
+
+  it("shows the committee debate (consensus, disagreement, expert votes) when expanded, with no second verdict pill", () => {
+    const withDebate = {
+      ...RECOMMENDATION_FIXTURE,
+      explanation: {
+        ...RECOMMENDATION_FIXTURE.explanation,
+        committeeDebate: {
+          consensusLevel: 80,
+          disagreementLevel: 20,
+          expertVotes: [
+            { agent: "Equity Analyst", vote: "Buy", confidence: 74 },
+            { agent: "Risk Manager", vote: "Hold", confidence: 60 },
+          ],
+        },
+      },
+    };
+
+    render(<RecommendationCard recommendation={withDebate} isExpanded onToggleExpand={vi.fn()} />);
+
+    expect(screen.getByText("Committee debate")).toBeInTheDocument();
+    expect(screen.getByText(/Consensus 80%/)).toBeInTheDocument();
+    expect(screen.getByText(/Equity Analyst: Buy \(74\/100\)/)).toBeInTheDocument();
+  });
+
+  it("renders no committee debate section when none is present on the recommendation", () => {
+    render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
+    expect(screen.queryByText("Committee debate")).not.toBeInTheDocument();
+  });
 });

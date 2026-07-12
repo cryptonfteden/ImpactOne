@@ -148,6 +148,20 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
             </div>
           ) : null}
 
+          {explanation.committeeDebate ? (
+            <div className="explanation-section">
+              <p className="explanation-section__title">Committee debate</p>
+              <p className="company-description subtle">
+                Consensus {explanation.committeeDebate.consensusLevel ?? 0}% · Disagreement {explanation.committeeDebate.disagreementLevel ?? 0}%
+              </p>
+              {(explanation.committeeDebate.expertVotes || []).map((vote) => (
+                <p key={vote.agent} className="company-description subtle">
+                  {vote.agent}: {vote.vote} ({vote.confidence}/100)
+                </p>
+              ))}
+            </div>
+          ) : null}
+
           {matchedEvents.length ? (
             <div className="matched-events">
               {matchedEvents.map((event, index) => (

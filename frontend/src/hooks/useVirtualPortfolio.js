@@ -82,6 +82,21 @@ function committeeVotePass(vote = "Hold") {
   return ["Strong Buy", "Buy", "Hold"].includes(String(vote || "Hold"));
 }
 
+// Sprint 18A — the committee no longer publishes an independent cio.decision
+// (see investmentCommitteeService.js). This client-side helper computes the
+// same style of majority-vote string from the raw expertVotes array the
+// committee still legitimately publishes, so this legacy auto-trading rule
+// keeps its original threshold semantics without relying on a server-side
+// synthesized verdict.
+function majorityCommitteeVote(expertVotes = []) {
+  const counts = {};
+  for (const { vote } of expertVotes || []) {
+    counts[vote] = (counts[vote] || 0) + 1;
+  }
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  return sorted.length ? sorted[0][0] : "Hold";
+}
+
 function buildTradeRecord({ symbol, action, confidence, reason, sourceSignals, entryPrice, suggestedPositionSize, stopLevel, targetPrice, timeHorizon, quantity, value, thesis }) {
   return {
     id: `${symbol}:${action}:${Date.now()}`,
@@ -264,7 +279,7 @@ function openOrAddPosition(state, candidate, committee, quote, overview) {
     timeHorizon: candidate.portfolioAction?.timeHorizon,
     quantity,
     value,
-    thesis: committee?.committee?.cio?.executiveSummary || candidate.thesis,
+    thesis: committee?.committeeDebate?.synthesis?.executiveSummary || candidate.thesis,
   });
 
   const nextPositions = [...(state.positions || [])];
@@ -334,7 +349,7 @@ async function syncPortfolioState(currentState, watchlist, overview) {
     }
 
     const committee = await committeeApi.analyze({ symbol }).catch(() => null);
-    const committeeVote = committee?.committee?.cio?.decision || "Hold";
+    const committeeVote = majorityCommitteeVote(committee?.committeeDebate?.expertVotes);
     const meetsThresholds = conviction >= Number(nextState.rules?.minConfidence || 75)
       && riskReward >= Number(nextState.rules?.minRiskReward || 1.5)
       && committeeVotePass(committeeVote)
@@ -368,7 +383,7 @@ async function syncPortfolioState(currentState, watchlist, overview) {
         timeHorizon: candidate.portfolioAction?.timeHorizon,
         quantity: 0,
         value: 0,
-        thesis: committee?.committee?.cio?.executiveSummary || candidate.thesis,
+        thesis: committee?.committeeDebate?.synthesis?.executiveSummary || candidate.thesis,
       });
       nextState.trades = [...(nextState.trades || []), holdTrade];
     }
