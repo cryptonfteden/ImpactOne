@@ -105,6 +105,33 @@ test("createDecisionTrace persists and getDecisionTraceByRecommendationId retrie
   assert.equal(fetched.finalOutput.expectedUpside, "15-22%");
 });
 
+test("Sprint 18A fields (committeeDebate, evidenceReferences, modelVersionMetadata) persist and read back correctly", async () => {
+  const recommendation = await autonomousRecommendationRepository.createRecommendation(baseData());
+  const trace = await autonomousRecommendationRepository.createDecisionTrace(
+    baseTraceData(recommendation.id, {
+      committeeDebate: { expertVotes: [{ agent: "Equity Analyst", vote: "Buy", confidence: 70 }], consensusLevel: 80, disagreementLevel: 20 },
+      evidenceReferences: [{ eventId: "abc123", eventType: "ai", sourceType: "news", symbols: ["NVDA"] }],
+      modelVersionMetadata: { eventEnvelopeVersion: "1.0.0", contractVersion: "1.0.0" },
+    })
+  );
+
+  const fetched = await autonomousRecommendationRepository.getDecisionTraceByRecommendationId(recommendation.id);
+  assert.equal(fetched.id, trace.id);
+  assert.equal(fetched.committeeDebate.consensusLevel, 80);
+  assert.equal(fetched.evidenceReferences[0].eventId, "abc123");
+  assert.equal(fetched.modelVersionMetadata.contractVersion, "1.0.0");
+});
+
+test("Sprint 18A fields default to null for a trace created without them (backward compatible with pre-Sprint-18A callers)", async () => {
+  const recommendation = await autonomousRecommendationRepository.createRecommendation(baseData());
+  await autonomousRecommendationRepository.createDecisionTrace(baseTraceData(recommendation.id));
+
+  const fetched = await autonomousRecommendationRepository.getDecisionTraceByRecommendationId(recommendation.id);
+  assert.equal(fetched.committeeDebate, null);
+  assert.equal(fetched.evidenceReferences, null);
+  assert.equal(fetched.modelVersionMetadata, null);
+});
+
 test("getDecisionTraceByRecommendationId returns null when no trace exists", async () => {
   const recommendation = await autonomousRecommendationRepository.createRecommendation(baseData());
   const fetched = await autonomousRecommendationRepository.getDecisionTraceByRecommendationId(recommendation.id);

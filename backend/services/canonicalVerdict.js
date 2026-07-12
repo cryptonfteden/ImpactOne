@@ -16,6 +16,8 @@
 // fields (Sprint 18A requirement #2) are: supportingArguments,
 // opposingArguments, expertVotes, disagreementLevel, consensusLevel,
 // specialistObservations — never an action/decision/verdict field.
+const CANONICAL_VERDICT_CONTRACT_VERSION = "1.0.0";
+
 const CANONICAL_ACTIONS = ["BUY", "REDUCE", "EXIT", "HOLD"];
 
 const COMMITTEE_VOTE_TO_ACTION = {
@@ -79,6 +81,7 @@ function buildCanonicalVerdictView({ recommendation = null, committeeDebate = nu
 }
 
 module.exports = {
+  CANONICAL_VERDICT_CONTRACT_VERSION,
   CANONICAL_ACTIONS,
   COMMITTEE_VOTE_TO_ACTION,
   FORBIDDEN_COMMITTEE_KEYS,

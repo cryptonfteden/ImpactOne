@@ -12,6 +12,11 @@ const portfolioEngineService = require("./portfolioEngineService");
 const autonomousRecommendationRepository = require("./autonomousRecommendationRepository");
 const portfolioRiskMetrics = require("../utils/portfolioRiskMetrics");
 const scenarioEngineService = require("./scenarioEngineService");
+// Sprint 18A — Canonical Decision Architecture.
+const investmentCommitteeService = require("./investmentCommitteeService");
+const eventEnvelope = require("./eventEnvelope");
+const scoringVocabulary = require("./scoringVocabulary");
+const canonicalVerdict = require("./canonicalVerdict");
 
 // Above this sector weight (%), a held position's concentration risk can
 // independently trigger a REDUCE recommendation even when the underlying
@@ -167,7 +172,7 @@ function buildConfidenceFactors(rankingItem) {
  * counterarguments, invalidationSignals) into one structured,
  * challengeable explanation, rather than generating new analysis.
  */
-function buildExplanation({ symbol, action, rankingItem, matchedEvents, heldPosition, positionWeightPct, watchlistSymbols, portfolioAction, sectorWeightPct, concentrationTriggered, macroRegime }) {
+function buildExplanation({ symbol, action, rankingItem, matchedEvents, heldPosition, positionWeightPct, watchlistSymbols, portfolioAction, sectorWeightPct, concentrationTriggered, macroRegime, committeeDebate }) {
   const { supporting, opposing } = splitMatchedEvents({ matchedEvents, action });
   const { confidenceDrivers, confidenceReducers } = buildConfidenceFactors(rankingItem);
 
@@ -184,6 +189,12 @@ function buildExplanation({ symbol, action, rankingItem, matchedEvents, heldPosi
     affectedWatchlistSymbols: watchlistSymbols.includes(symbol) ? [symbol] : [],
     confidenceDrivers,
     confidenceReducers,
+    // Sprint 18A — the Committee's debate as explanatory context only.
+    // Never a second verdict: committeeDebate is sanitized (see
+    // canonicalVerdict.sanitizeCommitteeDebate) so it structurally cannot
+    // carry an action/decision/verdict field, on top of
+    // investmentCommitteeService.js already never producing one.
+    committeeDebate: canonicalVerdict.sanitizeCommitteeDebate(committeeDebate),
   };
 }
 
@@ -345,6 +356,43 @@ function buildDecisionTraceInput({ rankingItem, matchedEvents, heldPosition, sec
   };
 }
 
+/**
+ * Sprint 18A — runs the Committee's debate/explanation layer for symbols
+ * where an action has already triggered (same gate as recommendation
+ * creation itself, so this never runs against the full scan universe —
+ * only the bounded set of symbols that were already going to produce a
+ * recommendation). Already off the request path since evaluateSymbol only
+ * runs inside runOnce()'s scheduled background job. Never fails a
+ * recommendation: a committee-call failure degrades to no debate, not a
+ * broken run — consistent with the rest of this engine's fallback
+ * discipline.
+ */
+async function buildCommitteeDebate({ symbol, rankingItem }) {
+  try {
+    const result = await investmentCommitteeService.analyzeInvestmentCommittee({
+      symbol,
+      context: {
+        quote: Number.isFinite(rankingItem?.currentPrice)
+          ? { price: rankingItem.currentPrice, change: rankingItem.dayChangePercent }
+          : null,
+      },
+    });
+    return result?.committeeDebate || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Sprint 18A — projects each matched event onto the canonical Event
+ * Envelope (eventEnvelope.js), stored in DecisionTrace.evidenceReferences
+ * *alongside*, not instead of, evidence.matchedEvents — preserving the
+ * existing shape other code/tests/UI already depend on.
+ */
+function buildEvidenceReferences({ matchedEvents, symbol }) {
+  return matchedEvents.map((event) => eventEnvelope.adaptLegacyFeedItemToEnvelope(event, { symbol }));
+}
+
 function buildReasoning({ symbol, action, rankingItem, portfolioAction, heldPosition, sectorWeightPct, concentrationTriggered }) {
   const parts = [];
 
@@ -405,6 +453,10 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
   const matchedEvents = findMatchedEvents(feed, symbol, { heldPosition, positionWeightPct, watchlistSymbols });
   const reasoning = buildReasoning({ symbol, action, rankingItem, portfolioAction, heldPosition, sectorWeightPct, concentrationTriggered });
 
+  // Sprint 18A — the Committee runs only for symbols that already triggered
+  // an action (this line), never across the full scan universe.
+  const committeeDebate = await buildCommitteeDebate({ symbol, rankingItem });
+
   const { supporting, opposing } = splitMatchedEvents({ matchedEvents, action });
   const explanation = buildExplanation({
     symbol,
@@ -418,6 +470,7 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
     sectorWeightPct,
     concentrationTriggered,
     macroRegime,
+    committeeDebate,
   });
   const scenarios = buildScenarios({ symbol, rankingItem, action, matchedEvents, heldPosition, positionWeightPct, convictionScore });
   const { qualityScore, qualityComponents } = computeQualityScore({
@@ -476,11 +529,27 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
 
   await autonomousRecommendationRepository.supersedeActiveForSymbol(symbol, created.id);
 
+  // Sprint 18A — confidenceCalculation gains the full shared scoring-
+  // vocabulary breakdown (conviction, uncertainty) alongside the existing
+  // qualityScore/qualityComponents/riskScore/riskLabel; three new,
+  // additive DecisionTrace columns capture the committee debate, the
+  // canonical event-envelope evidence references, and version metadata.
+  // Immutability is unchanged — this is still the only write, at creation.
   await autonomousRecommendationRepository.createDecisionTrace({
     recommendationId: created.id,
     inputEvidence: buildDecisionTraceInput({ rankingItem, matchedEvents, heldPosition, sectorWeightPct, positionWeightPct, macroRegime }),
     rankingResult: { convictionScore, portfolioAction, symbolSource, action, concentrationTriggered },
-    confidenceCalculation: { qualityScore, qualityComponents, riskScore, riskLabel },
+    confidenceCalculation: {
+      qualityScore,
+      qualityComponents,
+      riskScore,
+      riskLabel,
+      conviction: convictionScore,
+      uncertainty: scoringVocabulary.computeUncertainty({
+        evidenceAgreement: qualityComponents.evidenceAgreement,
+        consensusLevel: committeeDebate?.consensusLevel,
+      }),
+    },
     finalOutput: {
       action,
       expectedUpside: portfolioAction.expectedUpside,
@@ -488,6 +557,12 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
       positionSizeSuggestion: portfolioAction.positionSize,
       timeHorizon: portfolioAction.timeHorizon,
       reasoning,
+    },
+    committeeDebate: canonicalVerdict.sanitizeCommitteeDebate(committeeDebate),
+    evidenceReferences: buildEvidenceReferences({ matchedEvents, symbol }),
+    modelVersionMetadata: {
+      eventEnvelopeVersion: eventEnvelope.EVENT_ENVELOPE_VERSION,
+      contractVersion: canonicalVerdict.CANONICAL_VERDICT_CONTRACT_VERSION,
     },
   });
 
@@ -561,4 +636,7 @@ module.exports = {
   buildExplanation,
   buildScenarios,
   QUALITY_WEIGHTS,
+  // Sprint 18A — exported directly for unit testing the committee/event-
+  // envelope integration without needing a full evaluateSymbol run.
+  buildEvidenceReferences,
 };

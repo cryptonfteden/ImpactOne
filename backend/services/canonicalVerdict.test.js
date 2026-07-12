@@ -4,6 +4,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  CANONICAL_VERDICT_CONTRACT_VERSION,
   CANONICAL_ACTIONS,
   FORBIDDEN_COMMITTEE_KEYS,
   normalizeCommitteeVoteToAction,
@@ -13,6 +14,11 @@ const {
 
 test("CANONICAL_ACTIONS is exactly BUY/REDUCE/EXIT/HOLD", () => {
   assert.deepEqual(CANONICAL_ACTIONS, ["BUY", "REDUCE", "EXIT", "HOLD"]);
+});
+
+test("CANONICAL_VERDICT_CONTRACT_VERSION is a non-empty version string", () => {
+  assert.equal(typeof CANONICAL_VERDICT_CONTRACT_VERSION, "string");
+  assert.ok(CANONICAL_VERDICT_CONTRACT_VERSION.length > 0);
 });
 
 test("normalizeCommitteeVoteToAction maps every 6-way vote to a canonical action", () => {

@@ -8,6 +8,25 @@ const autonomousMarketService = require("./autonomousMarketService");
 const portfolioEngineService = require("./portfolioEngineService");
 const autonomousRecommendationRepository = require("./autonomousRecommendationRepository");
 const autonomousRecommendationEngine = require("./autonomousRecommendationEngine");
+const investmentCommitteeService = require("./investmentCommitteeService");
+
+// Sprint 18A — a realistic committeeDebate fixture, standing in for a real
+// analyzeInvestmentCommittee call (which fans out to several external
+// providers) so this suite stays fast and deterministic.
+const DEFAULT_COMMITTEE_DEBATE = {
+  generatedAt: new Date().toISOString(),
+  eventHint: "Test event",
+  supportingArguments: [{ agent: "Equity Analyst", argument: "Business quality supports upside." }],
+  opposingArguments: [],
+  expertVotes: [{ agent: "Equity Analyst", vote: "Buy", confidence: 70, rationale: "Business quality supports upside." }],
+  disagreementLevel: 20,
+  consensusLevel: 80,
+  expertsDisagree: false,
+  disagreementExplanation: "Committee alignment is high enough to support a cleaner final recommendation.",
+  voteBreakdown: [{ vote: "Buy", count: 5 }],
+  specialistObservations: [],
+  synthesis: { executiveSummary: "Balance of views points to buy.", expectedReturn: "12-18%", risk: "Moderate", confidence: 74 },
+};
 
 // A neutral, "Wait"-tier ranking entry (conviction ~60) so filler symbols in
 // the universe never generate a recommendation of their own and don't
@@ -26,10 +45,11 @@ function buildPortfolioSummary({ positions = [], bySector = [], totalValue = 100
   };
 }
 
-function withMocks({ rankings, feed = [], macroRegime = { recessionRisk: "low", inflationPressure: "low" }, portfolioSummary }, run) {
+function withMocks({ rankings, feed = [], macroRegime = { recessionRisk: "low", inflationPressure: "low" }, portfolioSummary, committeeDebate = DEFAULT_COMMITTEE_DEBATE }, run) {
   const originalOverview = autonomousMarketService.getAutonomousOverview;
   const originalSummary = portfolioEngineService.getPortfolioSummary;
   const originalPlaceOrder = portfolioEngineService.placeOrder;
+  const originalAnalyzeCommittee = investmentCommitteeService.analyzeInvestmentCommittee;
 
   let placeOrderCalls = 0;
   portfolioEngineService.placeOrder = async () => {
@@ -43,12 +63,14 @@ function withMocks({ rankings, feed = [], macroRegime = { recessionRisk: "low", 
     globalMap: { macroRegime },
   });
   portfolioEngineService.getPortfolioSummary = async () => portfolioSummary;
+  investmentCommitteeService.analyzeInvestmentCommittee = async () => ({ committeeDebate });
 
   return Promise.resolve(run(() => placeOrderCalls))
     .finally(() => {
       autonomousMarketService.getAutonomousOverview = originalOverview;
       portfolioEngineService.getPortfolioSummary = originalSummary;
       portfolioEngineService.placeOrder = originalPlaceOrder;
+      investmentCommitteeService.analyzeInvestmentCommittee = originalAnalyzeCommittee;
     });
 }
 
@@ -206,6 +228,24 @@ test("runOnce generates a structured explanation, bull/base/bear scenarios, a tr
           assert.ok(!serialized.includes(value), `decision trace must never contain the ${envVar} value`);
         }
       });
+
+      // --- Sprint 18A: committee debate, event envelope, version metadata ---
+      assert.equal(trace.committeeDebate.consensusLevel, 80, "the mocked committee debate should thread straight through");
+      assert.ok(!("action" in trace.committeeDebate) && !("decision" in trace.committeeDebate), "the trace's committee debate must never carry a verdict field");
+      assert.equal(nvda.explanation.committeeDebate.consensusLevel, 80, "committeeDebate is also embedded in explanation for direct UI consumption");
+
+      assert.equal(trace.evidenceReferences.length, 2, "one canonical envelope per matched event");
+      trace.evidenceReferences.forEach((envelope) => {
+        assert.equal(envelope.symbols[0], "NVDA");
+        assert.ok(Number.isFinite(envelope.credibilityScore));
+        assert.ok(Number.isFinite(envelope.freshnessScore));
+        assert.ok(envelope.deduplicationKey);
+      });
+
+      assert.equal(trace.modelVersionMetadata.eventEnvelopeVersion, "1.0.0");
+      assert.ok(trace.modelVersionMetadata.contractVersion);
+      assert.ok(Number.isFinite(trace.confidenceCalculation.uncertainty), "uncertainty should be computed from evidenceAgreement + committee consensus");
+      assert.equal(trace.confidenceCalculation.conviction, Number(nvda.confidenceScore));
     }
   );
 });

@@ -7,15 +7,34 @@ const request = require("supertest");
 const { truncateAll } = require("../test/dbHelpers");
 const autonomousMarketService = require("../services/autonomousMarketService");
 const portfolioEngineService = require("../services/portfolioEngineService");
+const investmentCommitteeService = require("../services/investmentCommitteeService");
 const app = require("../app");
 
 function neutralRanking(symbol) {
   return { symbol, opportunityScore: 55, riskScore: 45, overallAiScore: 58, primaryDriver: "No dominant event", explanation: `${symbol} is range-bound.` };
 }
 
+// Sprint 18A — stands in for a real analyzeInvestmentCommittee call so
+// these route-level tests stay fast and don't depend on external providers.
+const TEST_COMMITTEE_DEBATE = {
+  generatedAt: new Date().toISOString(),
+  eventHint: "Test event",
+  supportingArguments: [{ agent: "Equity Analyst", argument: "Business quality supports upside." }],
+  opposingArguments: [],
+  expertVotes: [{ agent: "Equity Analyst", vote: "Buy", confidence: 70, rationale: null }],
+  disagreementLevel: 20,
+  consensusLevel: 80,
+  expertsDisagree: false,
+  disagreementExplanation: "Committee alignment is high enough to support a cleaner final recommendation.",
+  voteBreakdown: [{ vote: "Buy", count: 5 }],
+  specialistObservations: [],
+  synthesis: { executiveSummary: "Balance of views points to buy.", expectedReturn: "12-18%", risk: "Moderate", confidence: 74 },
+};
+
 async function withMocks(run) {
   const originalOverview = autonomousMarketService.getAutonomousOverview;
   const originalSummary = portfolioEngineService.getPortfolioSummary;
+  const originalAnalyzeCommittee = investmentCommitteeService.analyzeInvestmentCommittee;
 
   autonomousMarketService.getAutonomousOverview = async () => ({
     feed: [],
@@ -33,12 +52,14 @@ async function withMocks(run) {
     positions: [],
     allocation: { bySector: [], byAssetType: [] },
   });
+  investmentCommitteeService.analyzeInvestmentCommittee = async () => ({ committeeDebate: TEST_COMMITTEE_DEBATE });
 
   try {
     return await run();
   } finally {
     autonomousMarketService.getAutonomousOverview = originalOverview;
     portfolioEngineService.getPortfolioSummary = originalSummary;
+    investmentCommitteeService.analyzeInvestmentCommittee = originalAnalyzeCommittee;
   }
 }
 
@@ -73,6 +94,7 @@ test("POST /api/v2/recommendations/run generates recommendations, then GET lists
 test("POST /api/v2/recommendations/run accepts a watchlist in the request body and marks its symbols as watchlist-sourced", async () => {
   const originalOverview = autonomousMarketService.getAutonomousOverview;
   const originalSummary = portfolioEngineService.getPortfolioSummary;
+  const originalAnalyzeCommittee = investmentCommitteeService.analyzeInvestmentCommittee;
 
   autonomousMarketService.getAutonomousOverview = async ({ watchlist }) => ({
     feed: [],
@@ -90,6 +112,7 @@ test("POST /api/v2/recommendations/run accepts a watchlist in the request body a
     positions: [],
     allocation: { bySector: [], byAssetType: [] },
   });
+  investmentCommitteeService.analyzeInvestmentCommittee = async () => ({ committeeDebate: TEST_COMMITTEE_DEBATE });
 
   try {
     const runResponse = await request(app).post("/api/v2/recommendations/run").send({ watchlist: ["PLTRX"] });
@@ -102,6 +125,7 @@ test("POST /api/v2/recommendations/run accepts a watchlist in the request body a
   } finally {
     autonomousMarketService.getAutonomousOverview = originalOverview;
     portfolioEngineService.getPortfolioSummary = originalSummary;
+    investmentCommitteeService.analyzeInvestmentCommittee = originalAnalyzeCommittee;
   }
 });
 
