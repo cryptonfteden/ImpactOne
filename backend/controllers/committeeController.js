@@ -1,5 +1,8 @@
-const { analyzeInvestmentCommittee } = require("../services/investmentCommitteeService");
-const { getCommitteeTrackRecord } = require("../services/committeeTrackRecordService");
+// Namespace-style imports (not destructured) so tests can monkey-patch
+// these methods directly, matching this codebase's established test-seam
+// convention.
+const investmentCommitteeService = require("../services/investmentCommitteeService");
+const committeeTrackRecordService = require("../services/committeeTrackRecordService");
 const autonomousRecommendationRepository = require("../services/autonomousRecommendationRepository");
 const { buildCanonicalVerdictView } = require("../services/canonicalVerdict");
 
@@ -20,7 +23,7 @@ async function analyzeCommittee(req, res, next) {
     const marketImpact = req.body?.marketImpact || null;
 
     const [result, activeRecommendation] = await Promise.all([
-      analyzeInvestmentCommittee({ symbol, context, intelligenceReport, altDataSummary, marketImpact }),
+      investmentCommitteeService.analyzeInvestmentCommittee({ symbol, context, intelligenceReport, altDataSummary, marketImpact }),
       autonomousRecommendationRepository.getActiveForSymbol(String(symbol || "").toUpperCase()).catch(() => null),
     ]);
 
@@ -51,7 +54,7 @@ async function analyzeCommittee(req, res, next) {
 async function getCommitteeTrackRecordController(req, res, next) {
   try {
     const symbol = req.query.symbol || undefined;
-    const result = await getCommitteeTrackRecord({ symbol });
+    const result = await committeeTrackRecordService.getCommitteeTrackRecord({ symbol });
     res.json(result);
   } catch (error) {
     next(error);
