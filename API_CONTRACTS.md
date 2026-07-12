@@ -409,7 +409,7 @@ GET /api/quote?symbol=AAPL
   - `metrics`
 
 **Response schema**
-- `{ symbol: string, analysis: { executiveSummary, bullCase, bearCase, valuation, keyRisks, catalysts, shortTermOutlook, longTermOutlook, investmentRating, confidenceScore, whatChangedToday, requiresApiKey, source, providerError?, providerNotice?, marketImpact, alternativeDataSignals, committee, committeeTrackRecord } }`
+- `{ symbol: string, analysis: { executiveSummary, bullCase, bearCase, valuation, keyRisks, catalysts, shortTermOutlook, longTermOutlook, investmentRating, confidenceScore, whatChangedToday, requiresApiKey, source, providerError?, providerNotice?, marketImpact, alternativeDataSignals, committeeDebate, committeeTrackRecord } }` — `committeeDebate` (renamed from `committee` in Sprint 18A; see 3.8) is debate/explanation context only, never an independent verdict. `investmentRating` above is a separate, pre-existing field from this endpoint's own OpenAI-backed analysis and is out of scope for the Sprint 18A canonical-verdict merge (see `INTELLIGENCE_PLATFORM_REVIEW.md`, which scoped the merge to the Investment Committee and Recommendation Engines specifically).
 
 **Error responses**
 - `500 { error: "..." }` via global error handler for uncaught failures.
@@ -477,7 +477,7 @@ Content-Type: application/json
       "relatedTickers": [],
       "confidenceScore": 78
     },
-    "committee": null,
+    "committeeDebate": null,
     "committeeTrackRecord": null
   }
 }
@@ -539,6 +539,8 @@ GET /api/compare?symbol=AAPL
 
 ### 3.8 `GET /api/committee/analyze` and `POST /api/committee/analyze`
 
+**Sprint 18A — Canonical Decision Architecture.** The committee is a debate/explanation layer, not an independent verdict engine. Its response never contains a `decision`/`action`/`verdict`-shaped field on its own (see `backend/services/canonicalVerdict.js`, which structurally strips any such key even if one somehow appeared). The one canonical action for a symbol, when one exists, comes only from a persisted `Recommendation` — surfaced here as `relatedRecommendation` and reflected in `canonicalVerdict`.
+
 **Route**
 - `/api/committee/analyze`
 
@@ -553,7 +555,13 @@ GET /api/compare?symbol=AAPL
 - `marketImpact` optional object.
 
 **Response schema**
-- `{ symbol, displaySymbol, committee: { generatedAt, eventHint, agents, cio, committeeAgreement, disagreementScore, expertsDisagree, disagreementExplanation, voteBreakdown, trackRecordSummary }, trackRecord }`
+- `{ symbol, displaySymbol, committeeDebate: { generatedAt, eventHint, supportingArguments, opposingArguments, expertVotes, disagreementLevel, consensusLevel, expertsDisagree, disagreementExplanation, voteBreakdown, specialistObservations, synthesis }, trackRecord, relatedRecommendation, canonicalVerdict }`
+  - `committeeDebate.expertVotes`: `Array<{ agent, vote, confidence, rationale }>` — each agent's raw vote on the original 6-way scale (`Strong Buy`…`Strong Sell`). This is the committee's individual-expert opinion, not a published aggregate verdict.
+  - `committeeDebate.supportingArguments` / `opposingArguments`: `Array<{ agent, argument }>` — every bull/bear argument, tagged by the agent that raised it.
+  - `committeeDebate.synthesis`: the CIO narrative (`executiveSummary`, `expectedReturn`, `risk`, `confidence`, `investmentHorizon`, `portfolioAllocationSuggestion`, `providerNotice`, `source`) with its `decision` field deliberately removed.
+  - `relatedRecommendation`: `null`, or `{ id, action, confidenceScore, qualityScore, riskLabel, createdAt }` read from an ACTIVE `Recommendation` row when one exists for this symbol — the platform's one canonical call, shown at most once.
+  - `canonicalVerdict`: `{ hasCanonicalRecommendation, action, confidenceScore, qualityScore, riskLabel, committeeDebate }` — the same assembly `buildCanonicalVerdictView` produces internally; `action` is `null` when no persisted recommendation exists yet (never a synthesized substitute).
+  - `trackRecord`: unchanged shape, now a **frozen/legacy** view — see 3.9.
 
 **Error responses**
 - `500 { error: "Internal Server Error" }` via global error handler for uncaught failures.
@@ -585,30 +593,33 @@ Content-Type: application/json
 {
   "symbol": "NVDA",
   "displaySymbol": "NVDA",
-  "committee": {
-    "generatedAt": "2026-07-11T12:00:00.000Z",
+  "committeeDebate": {
+    "generatedAt": "2026-07-12T12:00:00.000Z",
     "eventHint": "AI capex remains strong",
-    "agents": [
-      { "role": "Macro Strategist", "vote": "Buy" },
-      { "role": "Equity Analyst", "vote": "Buy" }
+    "supportingArguments": [{ "agent": "Equity Analyst", "argument": "Business quality supports upside." }],
+    "opposingArguments": [{ "agent": "Risk Manager", "argument": "Tail risk remains elevated." }],
+    "expertVotes": [
+      { "agent": "Macro Strategist", "vote": "Buy", "confidence": 70, "rationale": "Macro regime is currently risk-on." },
+      { "agent": "Equity Analyst", "vote": "Buy", "confidence": 74, "rationale": "Business quality supports upside." }
     ],
-    "cio": {
-      "executiveSummary": "...",
-      "decision": "Buy",
-      "expectedReturn": "+12%",
-      "risk": "Medium",
-      "confidence": 74,
-      "catalysts": ["..."],
-      "threats": ["..."],
-      "investmentHorizon": "1-3 months",
-      "portfolioAllocationSuggestion": "3-4%"
-    },
-    "committeeAgreement": 80,
-    "disagreementScore": 20,
+    "disagreementLevel": 20,
+    "consensusLevel": 80,
     "expertsDisagree": false,
     "disagreementExplanation": "Committee alignment is high enough to support a cleaner final recommendation.",
     "voteBreakdown": [{ "vote": "Buy", "count": 4 }],
-    "trackRecordSummary": { "totalDecisions": 12, "symbolsCovered": 7, "pendingEvaluations": 12 }
+    "specialistObservations": [
+      { "agent": "Equity Analyst", "focus": ["Valuation"], "supportingEvidence": ["Analyst posture: Buy"], "unknowns": ["Future earnings quality is still uncertain."] }
+    ],
+    "synthesis": {
+      "executiveSummary": "Balance of views points to buy with moderate conviction.",
+      "expectedReturn": "12-18%",
+      "risk": "Moderate",
+      "confidence": 74,
+      "investmentHorizon": "3-12 months",
+      "portfolioAllocationSuggestion": "3-5% tactical allocation",
+      "providerNotice": null,
+      "source": "openai"
+    }
   },
   "trackRecord": {
     "entries": [],
@@ -621,13 +632,17 @@ Content-Type: application/json
       "averageReturn": 6.12,
       "pendingEvaluations": 8
     }
-  }
+  },
+  "relatedRecommendation": { "id": "rec-1", "action": "BUY", "confidenceScore": 88, "qualityScore": 82, "riskLabel": "Low", "createdAt": "2026-07-12T11:30:00.000Z" },
+  "canonicalVerdict": { "hasCanonicalRecommendation": true, "action": "BUY", "confidenceScore": 88, "qualityScore": 82, "riskLabel": "Low", "committeeDebate": { "...": "sanitized copy of committeeDebate above" } }
 }
 ```
 
 ---
 
 ### 3.9 `GET /api/committee/track-record`
+
+**Sprint 18A note:** this endpoint's underlying store (`backend/data/committeeTrackRecord.json`) is now **frozen** — `analyzeInvestmentCommittee` no longer writes new entries to it (that write, `upsertCommitteeDecision`, was removed as part of folding the committee into a debate layer; see 3.8). Existing historical entries remain fully readable via this endpoint, unchanged and undiscarded. A future Alpha Attribution Engine (see `INTELLIGENCE_PLATFORM_BLUEPRINT.md`) is the intended eventual replacement for real, ongoing committee/recommendation outcome tracking.
 
 **Route**
 - `/api/committee/track-record`
@@ -650,7 +665,7 @@ Content-Type: application/json
 
 **Validation rules**
 - Symbol filter is optional.
-- Entries are enriched with live quote data when possible.
+- Entries are enriched with live quote data when possible. The entry set itself no longer grows — it reflects committee decisions made before Sprint 18A only.
 
 **Example request**
 ```http
@@ -2245,7 +2260,7 @@ Content-Type: application/json
 **Response schema**
 - `{ recommendations: Array<Recommendation> }`, where `Recommendation` is:
   - `id, createdAt, symbol, action ("BUY"|"REDUCE"|"EXIT"), confidenceScore, expectedUpside, expectedDownside, riskScore, riskLabel, positionSizeSuggestion, reasoning, timeHorizon, status, supersededById, expiresAt`
-  - `explanation: { thesis, supportingEvidence: Array<{headline, whyItMatters, sourceName, sourceUrl}>, opposingEvidence: Array<{headline, whyItMatters, sourceName, sourceUrl, counterarguments}>, keyRisks: string[], invalidationConditions: string[], timeHorizon, affectedPositions: Array<{symbol, quantity, marketValue, weightPct, sector}>, affectedWatchlistSymbols: string[], confidenceDrivers: string[], confidenceReducers: string[] }`
+  - `explanation: { thesis, supportingEvidence: Array<{headline, whyItMatters, sourceName, sourceUrl}>, opposingEvidence: Array<{headline, whyItMatters, sourceName, sourceUrl, counterarguments}>, keyRisks: string[], invalidationConditions: string[], timeHorizon, affectedPositions: Array<{symbol, quantity, marketValue, weightPct, sector}>, affectedWatchlistSymbols: string[], confidenceDrivers: string[], confidenceReducers: string[], committeeDebate: object|null }` — Sprint 18A: `committeeDebate` is the sanitized Investment Committee debate for this symbol (same shape as 3.8's `committeeDebate`, minus any raw-response fields), embedded here so the UI never needs a second fetch; `null` when the committee call failed or hadn't run.
   - `scenarios: Array<{ case: "bull"|"base"|"bear", narrative, probability (0-1), priceImpact, portfolioImpact (string|null), catalysts: string[], risks: string[], invalidationTrigger }>` (always exactly 3 entries)
   - `qualityScore` (0-100) and `qualityComponents: { sourceQuality, evidenceFreshness, portfolioRelevance, evidenceAgreement, dataCompleteness, modelConfidence }` (each 0-100; weighted 15/15/20/20/10/20% respectively to produce `qualityScore`)
   - `evidence: { overallAiScore, opportunityScore, riskScore, convictionScore, primaryDriver, rankingExplanation, matchedEvents, sectorWeightPct, concentrationTriggered, macroRegime, currentPrice, dayChangePercent, symbolSource ("portfolio"|"watchlist"|"market-scan") }`, where each `matchedEvents` entry is `{ headline, importanceScore, whyItMatters, sourceUrl, sourceName, publishedAt, confidence, reliability, impactType, riskLevel, timeHorizon, counterarguments, invalidationSignals, personalRelevance }`
@@ -2421,6 +2436,7 @@ GET /api/v2/recommendations/status
 
 **Purpose**
 - Sprint 16 Phase D — returns the immutable decision trace for a recommendation: the input evidence, ranking result, confidence calculation, and final output used to generate it. A separate resource from the main detail response so the (more verbose) audit payload only downloads when specifically requested. Contains only already-processed application data — never a raw provider HTTP response or an API key.
+- **Sprint 18A** adds three additive, nullable fields (`committeeDebate`, `evidenceReferences`, `modelVersionMetadata`) and enriches `confidenceCalculation` with `conviction` and `uncertainty`. Historical traces created before Sprint 18A simply have `null` for the three new fields — nothing was backfilled or discarded. The trace remains immutable: still create + read only, no update path exists anywhere in the repository.
 
 **Route**
 - `/api/v2/recommendations/:id/decision-trace`
@@ -2432,7 +2448,12 @@ GET /api/v2/recommendations/status
 - None.
 
 **Response schema**
-- `{ id, recommendationId, inputEvidence: { rankingItem, matchedEvents, portfolioSnapshot, macroRegime }, rankingResult: { convictionScore, portfolioAction, symbolSource, action, concentrationTriggered }, confidenceCalculation: { qualityScore, qualityComponents, riskScore, riskLabel }, finalOutput: { action, expectedUpside, expectedDownside, positionSizeSuggestion, timeHorizon, reasoning }, createdAt }`
+- `{ id, recommendationId, inputEvidence: { rankingItem, matchedEvents, portfolioSnapshot, macroRegime }, rankingResult: { convictionScore, portfolioAction, symbolSource, action, concentrationTriggered }, confidenceCalculation: { qualityScore, qualityComponents, riskScore, riskLabel, conviction, uncertainty }, finalOutput: { action, expectedUpside, expectedDownside, positionSizeSuggestion, timeHorizon, reasoning }, committeeDebate: object|null, evidenceReferences: Array<EventEnvelope>|null, modelVersionMetadata: { eventEnvelopeVersion, contractVersion }|null, createdAt }`
+  - `confidenceCalculation.conviction`: alias of `rankingResult.convictionScore`, included here so the full shared scoring vocabulary is readable from one object (see §3.44 below).
+  - `confidenceCalculation.uncertainty`: 0-100, `computeUncertainty()` — distinct from confidence; reflects disagreement (evidence agreement + committee consensus), not signal strength.
+  - `committeeDebate`: the exact sanitized debate object used at decision time (see 3.8) — an immutable snapshot, not a live pointer to the committee's current view.
+  - `evidenceReferences`: each matched event projected onto the canonical Event Envelope (see §3.45), stored **alongside**, not instead of, `inputEvidence.matchedEvents`.
+  - `modelVersionMetadata`: `{ eventEnvelopeVersion: "1.0.0", contractVersion: "1.0.0" }` — the schema versions in effect when this trace was created.
 
 **Error responses**
 - `404 { error: "Recommendation not found." }` when the recommendation id doesn't exist.
@@ -2456,9 +2477,82 @@ GET /api/v2/recommendations/rec-id/decision-trace
   "id": "trace-id",
   "recommendationId": "rec-id",
   "rankingResult": { "action": "BUY", "convictionScore": 84, "symbolSource": "market-scan", "concentrationTriggered": false },
-  "confidenceCalculation": { "qualityScore": 82, "qualityComponents": { "sourceQuality": 95, "evidenceFreshness": 80, "portfolioRelevance": 40, "evidenceAgreement": 100, "dataCompleteness": 100, "modelConfidence": 84 } },
+  "confidenceCalculation": {
+    "qualityScore": 82,
+    "qualityComponents": { "sourceQuality": 95, "evidenceFreshness": 80, "portfolioRelevance": 40, "evidenceAgreement": 100, "dataCompleteness": 100, "modelConfidence": 84 },
+    "riskScore": 30,
+    "riskLabel": "Low",
+    "conviction": 84,
+    "uncertainty": 15
+  },
   "finalOutput": { "action": "BUY", "expectedUpside": "10-16%", "expectedDownside": "-8% tactical stop", "timeHorizon": "1-3 months" },
-  "createdAt": "2026-07-11T12:00:00.000Z"
+  "committeeDebate": { "consensusLevel": 85, "disagreementLevel": 15, "expertVotes": [{ "agent": "Equity Analyst", "vote": "Buy", "confidence": 74 }] },
+  "evidenceReferences": [
+    { "eventId": "a1b2...", "eventType": "ai", "sourceType": "news", "sourceName": "Reuters", "symbols": ["NVDA"], "credibilityScore": 95, "freshnessScore": 100, "relevanceScore": 88, "deduplicationKey": "a1b2..." }
+  ],
+  "modelVersionMetadata": { "eventEnvelopeVersion": "1.0.0", "contractVersion": "1.0.0" },
+  "createdAt": "2026-07-12T12:00:00.000Z"
+}
+```
+
+---
+
+### 3.44 Shared Scoring Vocabulary (Sprint 18A)
+
+**Purpose**
+- One documented contract for every score this platform computes, defined in `backend/services/scoringVocabulary.js` (`SCORE_DEFINITIONS`) and reused — not reimplemented — across the Recommendation Engine and the Investment Committee. This is not an HTTP endpoint; it documents the fields referenced throughout §3.39-3.43 and §3.8.
+
+| Score | Range | Meaning | Formula/source | Fallback | API field |
+|---|---|---|---|---|---|
+| `confidence` | 0-100 | Strength of the engine's signal for the recommended action | Equal to `conviction` today (see note) | Always computed | `Recommendation.confidenceScore` |
+| `conviction` | 0-100 | The engine's raw opportunity/risk/momentum blend that selects the action tier | `computeConvictionScore(rankingItem)` | Always computed | `DecisionTrace.rankingResult.convictionScore`, `confidenceCalculation.conviction` |
+| `quality` | 0-100 | Weighted rollup of the six components below | Weighted average, `QUALITY_WEIGHTS` (15/15/20/20/10/20%) | Always computable | `Recommendation.qualityScore` |
+| `risk` | 0-100 | Downside/volatility risk, folding in concentration and macro exposure | `computeSymbolRiskScore` | baseRisk defaults to 50 | `Recommendation.riskScore`/`riskLabel` |
+| `relevance` | 0-100 | How directly evidence applies to this user's actual holdings/watchlist | `portfolioRelevance` component (100/70/40 base by symbol source) | 40 (market-scan) | `qualityComponents.portfolioRelevance` |
+| `sourceCredibility` | 0-100 | Reliability of an evidence source | `sourceQualityScore(sourceName)` | 60 (unrecognized/missing) | `qualityComponents.sourceQuality` |
+| `evidenceFreshness` | 0-100 | Recency of evidence, decayed over time | `recencyScore(publishedAt)` | 40 (missing `publishedAt`) | `qualityComponents.evidenceFreshness` |
+| `evidenceAgreement` | 0-100 | Fraction of directional evidence supporting the action | `supportingCount / (supportingCount + opposingCount) * 100` | 50 (no directional evidence) | `qualityComponents.evidenceAgreement` |
+| `uncertainty` | 0-100 | Genuine disagreement across evidence and committee opinion — distinct from confidence | `computeUncertainty()` — 100 minus the average of `evidenceAgreement` and the committee's `consensusLevel` | 50 (neither input available) | `confidenceCalculation.uncertainty` |
+
+**Note on `confidence`/`conviction`/`modelConfidence`:** these three are currently the same underlying number under three names — an intentional, documented simplification (see `scoringVocabulary.js`), not a bug. Differentiating them requires real outcome-calibration data this platform does not yet have (see `FIVE_YEAR_ARCHITECTURE_ROADMAP.md`'s Alpha Attribution Engine milestone).
+
+**UI representation:** `quality` renders as a pill (opportunity-colored ≥75, neutral ≥50, risk-colored below); `risk` renders as its label (`Low`/`Moderate`/`High`); `relevance` renders as the symbol-source badge, not the raw number; the remaining scores currently surface only via the decision-trace API, not a dedicated UI element.
+
+---
+
+### 3.45 Canonical Event Envelope (Sprint 18A)
+
+**Purpose**
+- The one event schema intelligence evidence is normalized into, defined in `backend/services/eventEnvelope.js` — frozen ahead of the Research Intelligence Engine build (`RESEARCH_INTELLIGENCE_ENGINE_DESIGN.md`) so multiple engines integrate against one locked shape. Not an HTTP endpoint on its own; it's the `EventEnvelope` type referenced by `evidenceReferences` in §3.43.
+
+**Fields** (all 19 required — `validateEventEnvelope` checks presence, not non-emptiness):
+
+`eventId, eventType, sourceType, sourceName, sourceUrl, publishedAt, ingestedAt, entities, symbols, sectors, countries, summary, rawReference, credibilityScore, freshnessScore, relevanceScore, confidence, provenance, deduplicationKey`
+
+**Today's only real source:** `adaptLegacyFeedItemToEnvelope(feedItem, { symbol })` projects `autonomousMarketService`'s existing matched-event feed items onto this schema, reusing `classifyEventType`, `sourceQualityScore`, and `recencyScore` rather than new analysis. `credibilityScore`/`freshnessScore` come directly from the Shared Scoring Vocabulary (§3.44). `deduplicationKey` is a deterministic hash of `(sourceType, sourceUrl or headline, publishedAt)` — the same underlying evidence always produces the same key.
+
+**Example**
+```json
+{
+  "eventId": "a1b2c3...",
+  "eventType": "ai",
+  "sourceType": "news",
+  "sourceName": "Reuters",
+  "sourceUrl": "https://news.example.com/nvda-chip",
+  "publishedAt": "2026-07-12T10:00:00.000Z",
+  "ingestedAt": "2026-07-12T10:05:00.000Z",
+  "entities": [],
+  "symbols": ["NVDA"],
+  "sectors": [],
+  "countries": [],
+  "summary": "Expands NVDA's data-center AI compute footprint.",
+  "rawReference": "NVDA announces new AI chip partnership",
+  "credibilityScore": 95,
+  "freshnessScore": 100,
+  "relevanceScore": 78,
+  "confidence": 82,
+  "provenance": { "sourceName": "Reuters", "sourceUrl": "https://news.example.com/nvda-chip" },
+  "deduplicationKey": "a1b2c3..."
 }
 ```
 

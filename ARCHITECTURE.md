@@ -199,7 +199,7 @@ The service layer contains the actual domain logic. Major service groups include
 
 - Market and quote aggregation
 - AI analysis
-- Committee analysis and track record
+- Committee debate/explanation layer, folded into the Recommendation Engine's decision pipeline (Sprint 18A — see §6.5)
 - Alternative-data fusion
 - Autonomous market intelligence
 - Daily brief generation and archive capture
@@ -417,8 +417,8 @@ The AI layer is split into several cooperating services rather than one monolith
 
 - `openaiService` provides ticker-level report generation with fallback behavior when the API key is missing or OpenAI fails.
 - `impactIntelligenceService` orchestrates event analysis, impact scoring, historical similarity, propagation, and portfolio relevance.
-- `investmentCommitteeService` synthesizes committee-style investment decisions.
-- `committeeTrackRecordService` tracks committee outcomes over time.
+- `investmentCommitteeService` runs a five-agent debate (bull/bear arguments, votes, confidence per persona) and a CIO synthesis narrative. **As of Sprint 18A it never publishes an independent decision** — it is a debate/explanation layer feeding the Recommendation Engine, not a second verdict engine (see §6.5).
+- `committeeTrackRecordService` is a **frozen, legacy** read-only store (Sprint 18A) — historical committee decisions from before the canonical-verdict merge remain readable, but nothing writes new entries here anymore.
 - `marketImpactService` converts market data into event-driven impact signals.
 - `scenarioEngineService` builds structured scenario outputs.
 - `propagationEngineService` and `relationshipGraphService` support cross-asset / cross-sector propagation logic.
@@ -444,6 +444,16 @@ The system prefers deterministic fallback outputs over hard failures. That means
 ### 6.4 AI Caching
 
 Several AI and intelligence services use in-memory caches to avoid repeated calls during rapid screen refreshes. This keeps the UX responsive but means the cache resets on server restart.
+
+### 6.5 Canonical Decision Architecture (Sprint 18A)
+
+An independent architecture review (`INTELLIGENCE_PLATFORM_REVIEW.md`) found that the Investment Committee and the Recommendation Engine independently computed two verdicts (`Strong Buy…Strong Sell` vs. `BUY/REDUCE/EXIT`) that could disagree in front of the same user on the same symbol. Sprint 18A corrects this with three new shared modules, all in `backend/services/`:
+
+- **`canonicalVerdict.js`** — the one place the Committee's 6-way vote scale is reconciled against the Recommendation Engine's action vocabulary, and the one function (`buildCanonicalVerdictView`) that assembles what an API response exposes. It structurally strips any `action`/`decision`/`verdict`-shaped key from committee output before it can reach a response — a guard independent of, not just reliant on, `investmentCommitteeService.js`'s own discipline.
+- **`scoringVocabulary.js`** — one documented contract (range/meaning/formula/fallback) for every score the platform computes: `confidence`, `conviction`, `quality`, `risk`, `relevance`, `sourceCredibility`, `evidenceFreshness`, `evidenceAgreement`, and a genuinely new `uncertainty` score. It wraps existing, already-tested scorers rather than duplicating them. Full detail: `API_CONTRACTS.md` §3.44.
+- **`eventEnvelope.js`** — the canonical 19-field Event Envelope, frozen ahead of the Research Intelligence Engine build (`RESEARCH_INTELLIGENCE_ENGINE_DESIGN.md`) so multiple future engines integrate against one locked shape. `adaptLegacyFeedItemToEnvelope` proves the schema against the one real event source that exists today. Full detail: `API_CONTRACTS.md` §3.45.
+
+**What changed structurally:** `investmentCommitteeService.js` no longer writes to `committeeTrackRecordService`'s JSON-file store and no longer returns an independent `cio.decision`. Its debate (arguments, expert votes, disagreement/consensus levels, synthesis narrative) is threaded into `autonomousRecommendationEngine.js`'s `evaluateSymbol()` — gated to symbols where an action already triggered, so it never runs across the full scan universe — and stored in both `Recommendation.explanation.committeeDebate` (for direct UI consumption) and the immutable `DecisionTrace.committeeDebate` (audit copy). `DecisionTrace` also gained `evidenceReferences` (canonical-envelope evidence, additive alongside the pre-existing `matchedEvents` shape) and `modelVersionMetadata`. `DecisionTrace` remains create-and-read-only — no update path was introduced.
 
 ---
 
