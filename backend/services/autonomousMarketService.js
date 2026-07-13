@@ -27,6 +27,8 @@ const CORE_EVENT_TYPES = {
   space: ["space", "launch", "satellite", "orbital"],
   nuclear: ["nuclear", "uranium", "reactor"],
   cybersecurity: ["cyber", "security", "breach", "software security"],
+  // Sprint 20, Part 6 — Theme Dashboard's seventh theme.
+  quantum: ["quantum", "qubit", "quantum computing"],
 };
 
 const DEFAULT_WATCHLIST = ["AAPL", "NVDA", "TSLA"];
@@ -62,6 +64,8 @@ const AUTONOMOUS_SCAN_UNIVERSE = {
   healthcare: ["Healthcare innovation re-rating"],
   consumer: ["Consumer discretionary slowdown"],
   financials: ["Bank funding stress"],
+  // Sprint 20, Part 6 — Theme Dashboard's seventh theme.
+  quantum: ["Quantum computing breakthrough"],
 };
 const COUNTRY_UNIVERSE = ["US", "EU", "China", "Taiwan", "Japan", "Middle East", "UK", "India"];
 

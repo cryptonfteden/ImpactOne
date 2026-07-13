@@ -270,6 +270,22 @@ enum InvestmentHorizonBucket {
   LONG_TERM
 }
 
+// Sprint 20, Part 6 — one row per theme per calendar day, upserted by a
+// best-effort daily snapshot job (same pattern as DailyBriefSnapshot).
+// Builds real confidence-trend history starting from whenever this ships —
+// never backfilled with invented data.
+model ThemeConfidenceSnapshot {
+  id              String   @id @default(uuid())
+  themeKey        String
+  date            String // YYYY-MM-DD
+  confidenceScore Decimal  @db.Decimal(5, 2)
+  maturityLabel   String
+  capturedAt      DateTime @default(now())
+
+  @@unique([themeKey, date])
+  @@map("theme_confidence_snapshots")
+}
+
 // Sprint 20 — single-tenant singleton, same convention as Portfolio
 // (no userId: the app has no auth yet, this is deliberate at this stage,
 // not an oversight — see VISION.md's Personalization Principles). Unlike
