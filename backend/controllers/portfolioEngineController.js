@@ -65,6 +65,15 @@ async function capturePerformanceSnapshot(req, res, next) {
   }
 }
 
+async function getPerformanceDelta(req, res, next) {
+  try {
+    const delta = await portfolioEngineService.getPerformanceDelta();
+    res.json(delta);
+  } catch (error) {
+    handleKnownError(error, res, next);
+  }
+}
+
 async function resetPortfolio(req, res, next) {
   try {
     const summary = await portfolioEngineService.resetPortfolio();
@@ -81,5 +90,6 @@ module.exports = {
   getTransactionLog,
   getPerformanceTimeline,
   capturePerformanceSnapshot,
+  getPerformanceDelta,
   resetPortfolio,
 };

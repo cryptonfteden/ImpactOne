@@ -6,6 +6,7 @@ const {
   getTransactionLog,
   getPerformanceTimeline,
   capturePerformanceSnapshot,
+  getPerformanceDelta,
   resetPortfolio,
 } = require("../controllers/portfolioEngineController");
 
@@ -17,6 +18,7 @@ router.get("/trades", getTradeHistory);
 router.get("/transactions", getTransactionLog);
 router.get("/performance", getPerformanceTimeline);
 router.post("/performance/snapshot", capturePerformanceSnapshot);
+router.get("/performance/delta", getPerformanceDelta);
 router.post("/reset", resetPortfolio);
 
 module.exports = router;

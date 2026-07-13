@@ -6,6 +6,7 @@ const assert = require("node:assert/strict");
 const { truncateAll } = require("../test/dbHelpers");
 const finnhubService = require("./finnhubService");
 const portfolioEngineService = require("./portfolioEngineService");
+const portfolioRepository = require("./portfolioRepository");
 
 function mockQuote(price, changePercent = 0) {
   return async (symbol) => ({
@@ -148,6 +149,60 @@ test("capturePerformanceSnapshot and getPerformanceTimeline record a point-in-ti
   assert.equal(timeline[0].totalValue, 100000);
   assert.equal(timeline[0].cashBalance, 99500);
   assert.equal(timeline[0].benchmarkReturnPct, null);
+});
+
+test("getPerformanceDelta reports hasComparison: false when no prior-day snapshot exists", async () => {
+  const delta = await portfolioEngineService.getPerformanceDelta();
+  assert.equal(delta.hasComparison, false);
+  assert.equal(delta.changes.length, 0);
+});
+
+test("getPerformanceDelta computes a real value change against yesterday's snapshot", async () => {
+  const portfolio = await portfolioEngineService.getOrCreateDefaultPortfolio();
+  const yesterday = new Date();
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  await portfolioRepository.createPerformanceSnapshot({
+    portfolioId: portfolio.id,
+    capturedAt: yesterday,
+    totalValue: 100000,
+    cashBalance: 100000,
+    positionsValue: 0,
+    realizedPnl: 0,
+    unrealizedPnl: 0,
+    totalReturnPct: 0,
+    benchmarkReturnPct: null,
+  });
+
+  await withMockedQuote(200, async () => {
+    await portfolioEngineService.placeOrder({ symbol: "AMZN", side: "BUY", quantity: 10 });
+  });
+
+  const delta = await portfolioEngineService.getPerformanceDelta();
+  assert.equal(delta.hasComparison, true);
+  assert.equal(delta.totalValue, 100000);
+  assert.ok(Array.isArray(delta.changes));
+});
+
+test("getPerformanceDelta stays quiet (no changes) when the value move is below the meaningful threshold", async () => {
+  const portfolio = await portfolioEngineService.getOrCreateDefaultPortfolio();
+  const yesterday = new Date();
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  await portfolioRepository.createPerformanceSnapshot({
+    portfolioId: portfolio.id,
+    capturedAt: yesterday,
+    totalValue: 100000,
+    cashBalance: 100000,
+    positionsValue: 0,
+    realizedPnl: 0,
+    unrealizedPnl: 0,
+    totalReturnPct: 0,
+    benchmarkReturnPct: null,
+  });
+
+  const delta = await portfolioEngineService.getPerformanceDelta();
+  assert.equal(delta.hasComparison, true);
+  assert.equal(delta.changes.length, 0, "an unchanged $100k portfolio should report zero meaningful changes");
+  assert.match(delta.summary, /No meaningful change/);
 });
 
 test("resetPortfolio clears positions, trades, and ledger back to $100k", async () => {

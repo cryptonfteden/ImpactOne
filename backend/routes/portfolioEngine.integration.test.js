@@ -85,6 +85,10 @@ test("full order lifecycle is reflected across trades, transactions, and reset e
   const performanceResponse = await request(app).get("/api/v2/portfolio/performance");
   assert.equal(performanceResponse.body.timeline.length, 1);
 
+  const deltaResponse = await request(app).get("/api/v2/portfolio/performance/delta");
+  assert.equal(deltaResponse.status, 200);
+  assert.equal(typeof deltaResponse.body.hasComparison, "boolean");
+
   const resetResponse = await request(app).post("/api/v2/portfolio/reset");
   assert.equal(resetResponse.status, 200);
   assert.equal(resetResponse.body.cashBalance, 100000);

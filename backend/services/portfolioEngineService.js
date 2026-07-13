@@ -352,6 +352,82 @@ async function capturePerformanceSnapshot() {
   };
 }
 
+/**
+ * Sprint 24 — real, sourced "today vs yesterday" for Portfolio Intelligence
+ * and Home's "what changed for my portfolio." Compares the current live
+ * summary against the most recent PerformanceSnapshot captured before
+ * today (not merely the previous row, since capture is currently
+ * on-demand, not scheduled — the "prior" snapshot could be from any
+ * earlier date). Honest about absence: when no snapshot exists from a
+ * prior day, this says so explicitly rather than fabricating a zero delta.
+ * MEANINGFUL_CHANGE_THRESHOLD_PCT keeps this "highlight only meaningful
+ * changes," not noise.
+ */
+const MEANINGFUL_CHANGE_THRESHOLD_PCT = 0.5;
+
+function startOfTodayUtc() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+async function getPerformanceDelta() {
+  const portfolio = await getOrCreateDefaultPortfolio();
+  const today = await getPortfolioSummary();
+  const allSnapshots = await portfolioRepository.getPerformanceSnapshots(portfolio.id, { limit: 365 });
+
+  const cutoff = startOfTodayUtc();
+  const priorSnapshots = allSnapshots.filter((snapshot) => new Date(snapshot.capturedAt) < cutoff);
+  const previous = priorSnapshots.length ? priorSnapshots[priorSnapshots.length - 1] : null;
+
+  if (!previous) {
+    return {
+      hasComparison: false,
+      totalValue: round2(today.totalValue),
+      changes: [],
+      summary: "No prior-day snapshot yet — this is the first day being tracked.",
+    };
+  }
+
+  const previousTotalValue = Number(previous.totalValue);
+  const valueChangeAbs = today.totalValue - previousTotalValue;
+  const valueChangePct = previousTotalValue !== 0 ? (valueChangeAbs / previousTotalValue) * 100 : 0;
+
+  const changes = [];
+  if (Math.abs(valueChangePct) >= MEANINGFUL_CHANGE_THRESHOLD_PCT) {
+    changes.push({
+      dimension: "totalValue",
+      label: "Total portfolio value",
+      beforeValue: round2(previousTotalValue),
+      afterValue: round2(today.totalValue),
+      changePct: round2(valueChangePct),
+    });
+  }
+
+  const previousUnrealizedPnl = Number(previous.unrealizedPnl);
+  const unrealizedPnlChange = today.unrealizedPnl - previousUnrealizedPnl;
+  if (Math.abs(unrealizedPnlChange) >= 1) {
+    changes.push({
+      dimension: "unrealizedPnl",
+      label: "Unrealized P/L",
+      beforeValue: round2(previousUnrealizedPnl),
+      afterValue: round2(today.unrealizedPnl),
+      changePct: null,
+    });
+  }
+
+  return {
+    hasComparison: true,
+    previousCapturedAt: previous.capturedAt,
+    totalValue: round2(today.totalValue),
+    valueChangeAbs: round2(valueChangeAbs),
+    valueChangePct: round2(valueChangePct),
+    changes,
+    summary: changes.length
+      ? `Portfolio value ${valueChangeAbs >= 0 ? "up" : "down"} ${Math.abs(round2(valueChangePct))}% since the last snapshot.`
+      : "No meaningful change in your portfolio since the last snapshot.",
+  };
+}
+
 async function resetPortfolio() {
   const portfolio = await getOrCreateDefaultPortfolio();
   await portfolioRepository.resetPortfolio(portfolio.id);
@@ -366,5 +442,6 @@ module.exports = {
   getTransactionLog,
   getPerformanceTimeline,
   capturePerformanceSnapshot,
+  getPerformanceDelta,
   resetPortfolio,
 };
