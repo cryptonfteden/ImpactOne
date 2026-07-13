@@ -9,3 +9,4 @@ export { default as RecommendationsFeature } from "./recommendations/Recommendat
 export { default as MyProfileFeature } from "./profile/MyProfileFeature";
 export { default as HomeFeature } from "./home/HomeFeature";
 export { default as ThemesFeature } from "./themes/ThemesFeature";
+export { default as IntelligenceConsoleFeature } from "./console/IntelligenceConsoleFeature";

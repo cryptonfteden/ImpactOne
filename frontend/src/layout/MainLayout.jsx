@@ -15,6 +15,7 @@ import {
   MyProfileFeature,
   HomeFeature,
   ThemesFeature,
+  IntelligenceConsoleFeature,
 } from "../features";
 
 const GlobalIntelligenceFeature = lazy(() => import("../features/intelligence/GlobalIntelligenceFeature"));
@@ -33,6 +34,13 @@ const screenMap = {
   "My Profile": MyProfileFeature,
   Settings: SettingsFeature,
 };
+
+// Sprint 23A — developer-only, same VITE_DEV_CONSOLE gate as Sidebar.jsx's
+// navItems; the screen exists in the bundle but is unreachable unless the
+// flag is set (no nav entry, and activeView can never equal this key).
+if (import.meta.env.VITE_DEV_CONSOLE === "true") {
+  screenMap["Intelligence Console"] = IntelligenceConsoleFeature;
+}
 
 export default function MainLayout() {
   // Sprint 20 — Home is now the default landing screen (four questions

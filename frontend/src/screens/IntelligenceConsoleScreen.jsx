@@ -1,0 +1,185 @@
+import { useEffect, useState } from "react";
+import SectionCard from "../components/SectionCard";
+import { Button, LoadingSpinner } from "../components/ui";
+import { providerApi } from "../services/api";
+import { logError } from "../utils/errorHandling";
+
+/**
+ * Sprint 23A — developer-only Intelligence Console. Read-only ops
+ * visibility into the provider framework (health/metrics/diagnostics/
+ * metadata) plus a manual "Run now" trigger — no destructive controls, no
+ * recommendation/portfolio/outcome data anywhere on this screen. Gated
+ * entirely at the layout level (see MainLayout.jsx/Sidebar.jsx) behind
+ * VITE_DEV_CONSOLE — this component itself has no gating logic, it is
+ * simply never registered in a normal build.
+ */
+function ProviderDetail({ providerId }) {
+  const [metrics, setMetrics] = useState(null);
+  const [diagnostics, setDiagnostics] = useState(null);
+  const [metadata, setMetadata] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const [metricsData, diagnosticsData, metadataData] = await Promise.all([
+          providerApi.getMetrics(providerId),
+          providerApi.getDiagnostics(providerId),
+          providerApi.getMetadata(providerId),
+        ]);
+        if (!cancelled) {
+          setMetrics(metricsData);
+          setDiagnostics(diagnosticsData);
+          setMetadata(metadataData);
+          setError("");
+        }
+      } catch (loadError) {
+        logError("provider detail load failed", loadError);
+        if (!cancelled) setError("Couldn't load this provider's detail right now.");
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [providerId]);
+
+  if (isLoading) return <LoadingSpinner label={`Loading ${providerId}`} />;
+  if (error) return <p className="company-description negative">{error}</p>;
+
+  return (
+    <div className="explanation-section">
+      <div className="explanation-section">
+        <p className="explanation-section__title">Metadata</p>
+        <p className="company-description subtle">
+          Source type: {metadata.sourceType} · Category: {metadata.category} · Rate limit: {metadata.rateLimit.maxPerMinute}/min
+        </p>
+        <p className="company-description subtle">
+          Default themes: {metadata.defaultThemes.length ? metadata.defaultThemes.join(", ") : "None"}
+        </p>
+      </div>
+
+      <div className="explanation-section">
+        <p className="explanation-section__title">Metrics</p>
+        <p className="company-description subtle">
+          {metrics.totalRuns} total runs · {metrics.totalItemsPersisted} items persisted · {metrics.totalItemsDeduped} deduped
+          {metrics.dedupRate !== null ? ` (${metrics.dedupRate}% dedup rate)` : ""}
+        </p>
+        <p className="company-description subtle">
+          Error rate: {metrics.errorRate !== null ? `${metrics.errorRate}%` : "N/A"} · Avg duration:{" "}
+          {metrics.avgDurationMs !== null ? `${metrics.avgDurationMs}ms` : "N/A"}
+        </p>
+      </div>
+
+      <div className="explanation-section">
+        <p className="explanation-section__title">Diagnostics</p>
+        <p className={`company-description ${diagnostics.contractValid ? "subtle" : "negative"}`}>
+          Contract: {diagnostics.contractValid ? "Valid" : `Invalid — missing ${diagnostics.contractIssues.join(", ")}`}
+        </p>
+        <p className="company-description subtle">
+          Rate limiter: {diagnostics.rateLimiter.currentCount}/{diagnostics.rateLimiter.maxPerMinute} used this window
+        </p>
+        {diagnostics.lastError ? (
+          <p className="company-description negative">Last error: {diagnostics.lastError.message}</p>
+        ) : (
+          <p className="company-description subtle">No errors on record.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function IntelligenceConsoleScreen() {
+  const [providers, setProviders] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [expandedId, setExpandedId] = useState(null);
+  const [runningId, setRunningId] = useState(null);
+  const [runResultById, setRunResultById] = useState({});
+
+  const loadProviders = async () => {
+    try {
+      const data = await providerApi.list();
+      setProviders(data.providers || []);
+      setError("");
+    } catch (loadError) {
+      logError("provider list load failed", loadError);
+      setError("We couldn't load providers right now.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProviders();
+  }, []);
+
+  const handleRun = async (providerId) => {
+    setRunningId(providerId);
+    try {
+      const result = await providerApi.run(providerId);
+      setRunResultById((current) => ({ ...current, [providerId]: result }));
+      await loadProviders();
+    } catch (runError) {
+      logError("provider run failed", runError);
+    } finally {
+      setRunningId(null);
+    }
+  };
+
+  return (
+    <div className="screen-page">
+      <section className="screen-hero">
+        <div>
+          <p className="eyebrow">Intelligence Console</p>
+          <h1>Provider framework ops visibility</h1>
+          <p className="subtext">Developer tooling — health, metrics, diagnostics, and manual runs. Read-only aside from "Run now."</p>
+        </div>
+      </section>
+
+      {isLoading ? (
+        <LoadingSpinner label="Loading providers" />
+      ) : error ? (
+        <p className="company-description negative">{error}</p>
+      ) : (
+        <div className="opportunity-grid">
+          {providers.map((provider) => (
+            <SectionCard key={provider.providerId} title={provider.label} className="screen-card" icon="⚙">
+              <p className="company-description subtle">
+                {provider.sourceType} · Last status: {provider.lastStatus || "Never run"}
+                {provider.successRate !== null ? ` · ${provider.successRate}% success` : ""}
+              </p>
+              <div className="opportunity-item__actions">
+                <Button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => setExpandedId(expandedId === provider.providerId ? null : provider.providerId)}
+                >
+                  {expandedId === provider.providerId ? "Hide details" : "Show details"}
+                </Button>
+                <Button
+                  type="button"
+                  className="ghost-button"
+                  disabled={runningId === provider.providerId}
+                  onClick={() => handleRun(provider.providerId)}
+                >
+                  {runningId === provider.providerId ? "Running…" : "Run now"}
+                </Button>
+              </div>
+              {runResultById[provider.providerId] ? (
+                <p className="company-description subtle">
+                  Last manual run: {runResultById[provider.providerId].status} — {runResultById[provider.providerId].itemsFetched} fetched
+                </p>
+              ) : null}
+              {expandedId === provider.providerId ? <ProviderDetail providerId={provider.providerId} /> : null}
+            </SectionCard>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
