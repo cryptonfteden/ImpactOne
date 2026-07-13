@@ -9,6 +9,7 @@ const {
   validateEventEnvelope,
   buildDeduplicationKey,
   adaptLegacyFeedItemToEnvelope,
+  deriveThemes,
 } = require("./eventEnvelope");
 
 function legacyFeedItem(overrides = {}) {
@@ -31,9 +32,44 @@ function legacyFeedItem(overrides = {}) {
   };
 }
 
-test("buildEventEnvelope produces an object with exactly the 19 required fields", () => {
+test("buildEventEnvelope produces an object with exactly the required fields", () => {
   const envelope = buildEventEnvelope({ sourceName: "Reuters", sourceUrl: "https://x.example.com/1" });
   assert.deepEqual(Object.keys(envelope).sort(), [...REQUIRED_FIELDS].sort());
+});
+
+test("buildEventEnvelope derives category/region/language defaults and themes from the summary", () => {
+  const envelope = buildEventEnvelope({
+    sourceName: "Reuters",
+    summary: "Quantum computing breakthrough announced by IBM",
+    countries: ["US"],
+  });
+  assert.equal(envelope.category, envelope.eventType);
+  assert.equal(envelope.region, "US");
+  assert.equal(envelope.language, "en");
+  assert.deepEqual(envelope.companies, []);
+  assert.ok(envelope.themes.includes("quantum"));
+});
+
+test("buildEventEnvelope honors explicit companies/themes/language/region/category overrides", () => {
+  const envelope = buildEventEnvelope({
+    sourceName: "SEC",
+    companies: ["Apple Inc."],
+    themes: ["ai"],
+    language: "fr",
+    region: "EU",
+    category: "regulation",
+  });
+  assert.deepEqual(envelope.companies, ["Apple Inc."]);
+  assert.deepEqual(envelope.themes, ["ai"]);
+  assert.equal(envelope.language, "fr");
+  assert.equal(envelope.region, "EU");
+  assert.equal(envelope.category, "regulation");
+});
+
+test("deriveThemes matches known theme keys and returns [] for unrelated text", () => {
+  assert.deepEqual(deriveThemes("Defense contractor wins new missile deal"), ["defense"]);
+  assert.deepEqual(deriveThemes("Local bakery opens new storefront"), []);
+  assert.deepEqual(deriveThemes(""), []);
 });
 
 test("validateEventEnvelope passes for a well-formed envelope", () => {

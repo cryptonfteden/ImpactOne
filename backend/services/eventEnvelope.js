@@ -16,8 +16,9 @@
 const crypto = require("crypto");
 const autonomousMarketService = require("./autonomousMarketService");
 const scoringVocabulary = require("./scoringVocabulary");
+const themeIntelligenceService = require("./themeIntelligenceService");
 
-const EVENT_ENVELOPE_VERSION = "1.0.0";
+const EVENT_ENVELOPE_VERSION = "1.1.0";
 
 const REQUIRED_FIELDS = [
   "eventId",
@@ -31,6 +32,11 @@ const REQUIRED_FIELDS = [
   "symbols",
   "sectors",
   "countries",
+  "companies",
+  "themes",
+  "language",
+  "region",
+  "category",
   "summary",
   "rawReference",
   "credibilityScore",
@@ -40,6 +46,18 @@ const REQUIRED_FIELDS = [
   "provenance",
   "deduplicationKey",
 ];
+
+/**
+ * Sprint 21A — derives themes by matching a headline/summary against the
+ * same 7 theme keys the Theme Dashboard already uses (themeIntelligenceService
+ * THEME_DEFINITIONS), so the provider framework never invents a second theme
+ * taxonomy alongside it.
+ */
+function deriveThemes(text) {
+  const haystack = (text || "").toLowerCase();
+  if (!haystack) return [];
+  return Object.keys(themeIntelligenceService.THEME_DEFINITIONS).filter((themeKey) => haystack.includes(themeKey));
+}
 
 /**
  * Deterministic — the same (sourceType, sourceUrl or headline, publishedAt)
@@ -55,9 +73,11 @@ function buildDeduplicationKey({ sourceType, sourceUrl, headline, publishedAt } 
 }
 
 function buildEventEnvelope(raw = {}) {
+  const eventType = raw.eventType || "unclassified";
+  const countries = raw.countries || [];
   return {
     eventId: raw.eventId || buildDeduplicationKey(raw),
-    eventType: raw.eventType || "unclassified",
+    eventType,
     sourceType: raw.sourceType || "news",
     sourceName: raw.sourceName || null,
     sourceUrl: raw.sourceUrl || null,
@@ -66,7 +86,12 @@ function buildEventEnvelope(raw = {}) {
     entities: raw.entities || [],
     symbols: raw.symbols || [],
     sectors: raw.sectors || [],
-    countries: raw.countries || [],
+    countries,
+    companies: raw.companies || [],
+    themes: raw.themes || deriveThemes(raw.summary || raw.headline || ""),
+    language: raw.language || "en",
+    region: raw.region || countries[0] || null,
+    category: raw.category || eventType,
     summary: raw.summary || "",
     rawReference: raw.rawReference || null,
     credibilityScore: Number.isFinite(raw.credibilityScore) ? raw.credibilityScore : null,
@@ -120,4 +145,5 @@ module.exports = {
   validateEventEnvelope,
   buildDeduplicationKey,
   adaptLegacyFeedItemToEnvelope,
+  deriveThemes,
 };

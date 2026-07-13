@@ -242,7 +242,7 @@ test("runOnce generates a structured explanation, bull/base/bear scenarios, a tr
         assert.ok(envelope.deduplicationKey);
       });
 
-      assert.equal(trace.modelVersionMetadata.eventEnvelopeVersion, "1.0.0");
+      assert.equal(trace.modelVersionMetadata.eventEnvelopeVersion, "1.1.0");
       assert.ok(trace.modelVersionMetadata.contractVersion);
       assert.ok(Number.isFinite(trace.confidenceCalculation.uncertainty), "uncertainty should be computed from evidenceAgreement + committee consensus");
       assert.equal(trace.confidenceCalculation.conviction, Number(nvda.confidenceScore));
