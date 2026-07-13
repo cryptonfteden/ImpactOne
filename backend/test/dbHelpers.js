@@ -18,6 +18,19 @@ async function truncateAll() {
   await prisma.themeConfidenceSnapshot.deleteMany();
   await prisma.canonicalEvent.deleteMany();
   await prisma.providerRunLog.deleteMany();
+
+  // World Memory (Sprint 21B) — satellites before the spine, since none of
+  // these use enforced Prisma-level FK relations (plain string reference
+  // columns, same convention as CanonicalEvent.providerId), but this keeps
+  // the deletion order honest for when relations are added later.
+  await prisma.worldMemoryLesson.deleteMany();
+  await prisma.outcome.deleteMany();
+  await prisma.worldMemoryPrediction.deleteMany();
+  await prisma.worldMemoryThesisRevision.deleteMany();
+  await prisma.worldMemorySectorImpact.deleteMany();
+  await prisma.worldMemoryStateChange.deleteMany();
+  await prisma.worldMemoryCausalLink.deleteMany();
+  await prisma.worldMemoryRecord.deleteMany();
 }
 
 module.exports = { truncateAll };

@@ -211,14 +211,14 @@ model Recommendation {
 // application data (ranking scores, matched-event summaries, portfolio
 // snapshot), never raw provider HTTP responses or API keys.
 model DecisionTrace {
-  id                     String         @id @default(uuid())
-  recommendationId       String         @unique
-  recommendation         Recommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
-  inputEvidence          Json
-  rankingResult          Json
-  confidenceCalculation  Json
-  finalOutput            Json
-  createdAt              DateTime       @default(now())
+  id                    String         @id @default(uuid())
+  recommendationId      String         @unique
+  recommendation        Recommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  inputEvidence         Json
+  rankingResult         Json
+  confidenceCalculation Json
+  finalOutput           Json
+  createdAt             DateTime       @default(now())
 
   // Sprint 18A — Canonical Decision Architecture. All three are nullable:
   // historical rows predate the Committee merge and canonical event
@@ -226,9 +226,9 @@ model DecisionTrace {
   // compatible, nothing backfilled or discarded). Still immutable by
   // convention — the repository exposes no update method for this model,
   // unchanged by this migration.
-  committeeDebate       Json? // supportingArguments/opposingArguments/expertVotes/disagreementLevel/consensusLevel/specialistObservations — never an action/decision field, see canonicalVerdict.js.
-  evidenceReferences    Json? // canonical Event Envelope array (eventEnvelope.js), additive alongside inputEvidence.matchedEvents.
-  modelVersionMetadata  Json? // { eventEnvelopeVersion, contractVersion } recorded at creation time, for future auditability as these contracts evolve.
+  committeeDebate      Json? // supportingArguments/opposingArguments/expertVotes/disagreementLevel/consensusLevel/specialistObservations — never an action/decision field, see canonicalVerdict.js.
+  evidenceReferences   Json? // canonical Event Envelope array (eventEnvelope.js), additive alongside inputEvidence.matchedEvents.
+  modelVersionMetadata Json? // { eventEnvelopeVersion, contractVersion } recorded at creation time, for future auditability as these contracts evolve.
 
   @@map("decision_traces")
 }
@@ -292,16 +292,16 @@ model ThemeConfidenceSnapshot {
 // DecisionTrace this is user-editable settings data, not an immutable
 // audit record, so a real update path is correct here.
 model InvestorProfile {
-  id                       String                    @id @default(uuid())
-  age                      Int
-  country                  String?
-  experienceLevel          InvestorExperienceLevel?
-  monthlyInvestmentAmount  Decimal?                  @db.Decimal(14, 2)
-  investmentGoal           InvestmentGoal?
-  riskTolerance            RiskTolerance?
-  investmentHorizon        InvestmentHorizonBucket?
-  createdAt                DateTime                  @default(now())
-  updatedAt                DateTime                  @updatedAt
+  id                      String                   @id @default(uuid())
+  age                     Int
+  country                 String?
+  experienceLevel         InvestorExperienceLevel?
+  monthlyInvestmentAmount Decimal?                 @db.Decimal(14, 2)
+  investmentGoal          InvestmentGoal?
+  riskTolerance           RiskTolerance?
+  investmentHorizon       InvestmentHorizonBucket?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
 
   @@map("investor_profiles")
 }
@@ -318,31 +318,31 @@ enum ProviderRunStatus {
 // underlying evidence twice is a no-op at the DB level, not app-level
 // create-then-catch (same discipline as ThemeConfidenceSnapshot's upsert).
 model CanonicalEvent {
-  id                String   @id @default(uuid())
-  providerId        String
-  eventType         String
-  sourceType        String
-  sourceName        String?
-  sourceUrl         String?
-  publishedAt       DateTime?
-  ingestedAt        DateTime @default(now())
-  entities          Json
-  symbols           Json
-  sectors           Json
-  countries         Json
-  companies         Json
-  themes            Json
-  language          String
-  region            String?
-  category          String
-  summary           String
-  rawReference      Json?
-  credibilityScore  Decimal? @db.Decimal(5, 2)
-  freshnessScore    Decimal? @db.Decimal(5, 2)
-  relevanceScore    Decimal? @db.Decimal(5, 2)
-  confidence        Decimal? @db.Decimal(5, 2)
-  provenance        Json?
-  deduplicationKey  String   @unique
+  id               String    @id @default(uuid())
+  providerId       String
+  eventType        String
+  sourceType       String
+  sourceName       String?
+  sourceUrl        String?
+  publishedAt      DateTime?
+  ingestedAt       DateTime  @default(now())
+  entities         Json
+  symbols          Json
+  sectors          Json
+  countries        Json
+  companies        Json
+  themes           Json
+  language         String
+  region           String?
+  category         String
+  summary          String
+  rawReference     Json?
+  credibilityScore Decimal?  @db.Decimal(5, 2)
+  freshnessScore   Decimal?  @db.Decimal(5, 2)
+  relevanceScore   Decimal?  @db.Decimal(5, 2)
+  confidence       Decimal?  @db.Decimal(5, 2)
+  provenance       Json?
+  deduplicationKey String    @unique
 
   @@index([providerId])
   @@map("canonical_events")
@@ -354,17 +354,216 @@ model CanonicalEvent {
 // caller, it just logs a FAILED row (same "never breaks the caller"
 // discipline as dailyBriefArchiveService).
 model ProviderRunLog {
-  id              String            @id @default(uuid())
-  providerId      String
-  startedAt       DateTime          @default(now())
-  finishedAt      DateTime?
-  status          ProviderRunStatus
-  itemsFetched    Int               @default(0)
-  itemsPersisted  Int               @default(0)
-  itemsDeduped    Int               @default(0)
-  errorMessage    String?
-  durationMs      Int?
+  id             String            @id @default(uuid())
+  providerId     String
+  startedAt      DateTime          @default(now())
+  finishedAt     DateTime?
+  status         ProviderRunStatus
+  itemsFetched   Int               @default(0)
+  itemsPersisted Int               @default(0)
+  itemsDeduped   Int               @default(0)
+  errorMessage   String?
+  durationMs     Int?
 
   @@index([providerId])
   @@map("provider_run_logs")
+}
+
+// ============================================================================
+// Sprint 21B — World Memory. Every table below is append-only by design:
+// the repository (worldMemoryRepository.js) exposes no update/delete for
+// any of them. Where understanding of the past changes, a NEW row is
+// written referencing the one it supersedes — history is never rewritten,
+// only added to. Interpretive tables carry methodologyVersion so a query
+// against old data is never silently reinterpreted through a later
+// methodology. This is designed to remain correct and queryable across
+// years of accumulation, not just the current sprint.
+// ============================================================================
+
+enum TimeWindow {
+  D1
+  W1
+  M1
+  M3
+  M6
+  Y1
+}
+
+enum GradeLabel {
+  CORRECT
+  PARTIALLY_CORRECT
+  INCORRECT
+  UNGRADEABLE
+}
+
+enum SectorImpactDirection {
+  BENEFITED
+  HURT
+}
+
+enum SectorImpactMagnitude {
+  MINOR
+  MODERATE
+  MAJOR
+}
+
+// The spine. One row per real-world occurrence judged memory-worthy —
+// distinct from CanonicalEvent (which is one row per deduplicated provider
+// report of that occurrence). Identity only, never edited after creation;
+// canonicalEventId is nullable because a WorldMemoryRecord may anchor
+// several CanonicalEvent rows from different providers reporting the same
+// underlying occurrence.
+model WorldMemoryRecord {
+  id               String   @id @default(uuid())
+  canonicalEventId String?
+  occurredAt       DateTime
+  primaryThemeKey  String?
+  symbols          Json
+  sectors          Json
+  headline         String
+  createdAt        DateTime @default(now())
+
+  @@index([occurredAt])
+  @@index([primaryThemeKey])
+  @@map("world_memory_records")
+}
+
+// "Why did it happen" — an append-only causal edge list, so the causal
+// graph accumulates from real recorded reasoning over years rather than
+// being recomputed from a small hardcoded node set each request.
+model WorldMemoryCausalLink {
+  id                 String   @id @default(uuid())
+  effectRecordId     String
+  causeRecordId      String?
+  explanation        String   @db.Text
+  confidence         Decimal  @db.Decimal(5, 2)
+  methodologyVersion String
+  recordedAt         DateTime @default(now())
+
+  @@index([effectRecordId])
+  @@index([causeRecordId])
+  @@map("world_memory_causal_links")
+}
+
+// "What changed" — a generic, dimension-agnostic before/after ledger row.
+// Json values (not fixed columns) so new kinds of tracked change don't
+// require a schema migration every time.
+model WorldMemoryStateChange {
+  id                  String   @id @default(uuid())
+  worldMemoryRecordId String
+  dimension           String
+  beforeValue         Json
+  afterValue          Json
+  changedAt           DateTime @default(now())
+  methodologyVersion  String
+
+  @@index([worldMemoryRecordId])
+  @@index([dimension])
+  @@map("world_memory_state_changes")
+}
+
+// "What prediction did we make" — a thin link into the existing
+// Recommendation/DecisionTrace tables, plus a frozen snapshot of the
+// action/confidence as stated at the time. The live Recommendation row
+// remains the source of truth while active; this snapshot guarantees the
+// prediction-as-stated stays queryable even if a future engine version
+// changes how Recommendation is interpreted.
+model WorldMemoryPrediction {
+  id                  String   @id @default(uuid())
+  worldMemoryRecordId String
+  recommendationId    String?
+  decisionTraceId     String?
+  predictedAction     String
+  predictedConfidence Int
+  predictedAt         DateTime @default(now())
+
+  @@index([worldMemoryRecordId])
+  @@index([recommendationId])
+  @@map("world_memory_predictions")
+}
+
+// "Was it correct" — Sprint 19's OUTCOME_INTELLIGENCE_ENGINE.md design,
+// implemented here as schema only. No grading algorithm is written this
+// sprint; worldMemoryPredictionId is the one addition wiring it into World
+// Memory. A future grading engine has somewhere real to write.
+model Outcome {
+  id                           String     @id @default(uuid())
+  recommendationId             String
+  decisionTraceId              String?
+  worldMemoryPredictionId      String?
+  symbol                       String
+  action                       String
+  timeWindow                   TimeWindow
+  windowStartPrice             Decimal    @db.Decimal(14, 4)
+  windowEndPrice               Decimal?   @db.Decimal(14, 4)
+  windowReturnPct              Decimal?   @db.Decimal(8, 4)
+  benchmarkSymbol              String?
+  benchmarkReturnPct           Decimal?   @db.Decimal(8, 4)
+  riskAdjustedReturnPct        Decimal?   @db.Decimal(8, 4)
+  directionCorrect             Boolean?
+  magnitudeWithinExpectedRange Boolean?
+  realizedAtWindowFraction     Decimal?   @db.Decimal(5, 4)
+  grade                        Decimal?   @db.Decimal(5, 2)
+  gradeLabel                   GradeLabel
+  ungradeableReason            String?
+  methodologyVersion           String
+  dataSourceSnapshot           Json
+  gradedAt                     DateTime   @default(now())
+
+  @@unique([recommendationId, timeWindow, methodologyVersion])
+  @@index([symbol])
+  @@map("outcomes")
+}
+
+// "Which thesis changed" — the first place thesis TEXT history (not just a
+// confidence number) is persisted. themeIntelligenceService's live thesis
+// is a read-time computation; ThemeConfidenceSnapshot only ever tracks a
+// score. revisionNumber is assigned by the repository inside a
+// transaction, never by the caller, so concurrent writers can't collide.
+model WorldMemoryThesisRevision {
+  id                 String   @id @default(uuid())
+  themeKey           String
+  revisionNumber     Int
+  previousThesis     String?  @db.Text
+  newThesis          String   @db.Text
+  triggeringRecordId String?
+  changedAt          DateTime @default(now())
+
+  @@unique([themeKey, revisionNumber])
+  @@map("world_memory_thesis_revisions")
+}
+
+// "Which sectors benefited / were hurt" — one row per sector per record,
+// since a single event routinely benefits some sectors while hurting
+// others simultaneously.
+model WorldMemorySectorImpact {
+  id                  String                @id @default(uuid())
+  worldMemoryRecordId String
+  sector              String
+  direction           SectorImpactDirection
+  magnitude           SectorImpactMagnitude
+  rationale           String                @db.Text
+  recordedAt          DateTime              @default(now())
+
+  @@index([worldMemoryRecordId])
+  @@index([sector])
+  @@map("world_memory_sector_impacts")
+}
+
+// "What did we learn" — never edited or deleted. If understanding of a
+// past event improves, a NEW lesson row is written with supersedesId
+// pointing at the old one; the old lesson's text stays exactly as written,
+// preserving an honest record of what was believed and when.
+model WorldMemoryLesson {
+  id                  String   @id @default(uuid())
+  worldMemoryRecordId String?
+  outcomeId           String?
+  lessonText          String   @db.Text
+  supersedesId        String?
+  methodologyVersion  String
+  generatedAt         DateTime @default(now())
+
+  @@index([worldMemoryRecordId])
+  @@index([outcomeId])
+  @@map("world_memory_lessons")
 }
