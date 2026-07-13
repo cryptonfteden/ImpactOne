@@ -65,6 +65,20 @@ test("GET /api/v2/providers/:providerId/diagnostics reports contract validity an
   assert.equal(response.body.lastError, null);
 });
 
+test("GET /api/v2/providers/:providerId/metadata 404s for an unknown provider", async () => {
+  const response = await request(app).get("/api/v2/providers/does-not-exist/metadata");
+  assert.equal(response.status, 404);
+});
+
+test("GET /api/v2/providers/:providerId/metadata returns the static registry entry", async () => {
+  const response = await request(app).get("/api/v2/providers/polymarket/metadata");
+  assert.equal(response.status, 200);
+  assert.equal(response.body.providerId, "polymarket");
+  assert.equal(response.body.sourceType, "prediction-market");
+  assert.ok(Array.isArray(response.body.defaultThemes));
+  assert.ok(Number.isFinite(response.body.rateLimit.maxPerMinute));
+});
+
 test("POST /api/v2/providers/:providerId/run triggers a clean run for a stub provider", async () => {
   const response = await request(app).post("/api/v2/providers/fda/run");
   assert.equal(response.status, 200);

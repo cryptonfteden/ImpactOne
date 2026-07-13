@@ -56,6 +56,15 @@ async function getProviderDiagnostics(req, res, next) {
   }
 }
 
+function getProviderMetadata(req, res) {
+  const provider = providerRegistry.getProvider(req.params.providerId);
+  if (!provider) {
+    return res.status(404).json({ error: `Unknown provider: ${req.params.providerId}` });
+  }
+  const { providerId, label, sourceType, category, defaultThemes, rateLimit } = provider;
+  res.json({ providerId, label, sourceType, category, defaultThemes, rateLimit });
+}
+
 async function runProvider(req, res, next) {
   try {
     if (!providerRegistry.getProvider(req.params.providerId)) {
@@ -68,4 +77,11 @@ async function runProvider(req, res, next) {
   }
 }
 
-module.exports = { listProviders, getProviderHealth, getProviderMetrics, getProviderDiagnostics, runProvider };
+module.exports = {
+  listProviders,
+  getProviderHealth,
+  getProviderMetrics,
+  getProviderDiagnostics,
+  getProviderMetadata,
+  runProvider,
+};
