@@ -13,7 +13,7 @@ test.beforeEach(async () => {
   await truncateAll();
 });
 
-test("GET /api/v2/home-summary returns exactly the four required fields", async () => {
+test("GET /api/v2/home-summary returns all six question fields (Sprint 24)", async () => {
   const originalOverview = autonomousMarketService.getAutonomousOverview;
   const originalSummary = portfolioEngineService.getPortfolioSummary;
 
@@ -32,6 +32,9 @@ test("GET /api/v2/home-summary returns exactly the four required fields", async 
     assert.ok("whatHappened" in response.body);
     assert.ok("whyShouldICare" in response.body);
     assert.ok("howDoesItAffectMe" in response.body);
+    assert.ok("whatChangedSinceYesterday" in response.body);
+    assert.ok("whatChangedForMyPortfolio" in response.body);
+    assert.ok("whatChangedInBeliefs" in response.body);
     assert.ok("shouldIDoAnythingToday" in response.body);
     assert.equal(response.body.shouldIDoAnythingToday.hasAction, false);
   } finally {

@@ -7,6 +7,7 @@ const { truncateAll } = require("../test/dbHelpers");
 const autonomousMarketService = require("./autonomousMarketService");
 const portfolioEngineService = require("./portfolioEngineService");
 const autonomousRecommendationRepository = require("./autonomousRecommendationRepository");
+const worldMemoryRepository = require("./worldMemoryRepository");
 const homeSummaryService = require("./homeSummaryService");
 
 function recommendationData(overrides = {}) {
@@ -106,6 +107,32 @@ test("surfaces the real canonical action when an active recommendation exists fo
       assert.equal(summary.shouldIDoAnythingToday.recommendationId, created.id);
     }
   );
+});
+
+test("whatChangedForMyPortfolio and whatChangedSinceYesterday are always present, honest-empty when there's no prior data", async () => {
+  await withMocks({ feed: [], portfolioSummary: buildPortfolioSummary({}) }, async () => {
+    const summary = await homeSummaryService.buildHomeSummary({});
+    assert.equal(summary.whatChangedForMyPortfolio.hasComparison, false);
+    assert.ok(Array.isArray(summary.whatChangedSinceYesterday));
+  });
+});
+
+test("whatChangedInBeliefs is an honest empty array when no thesis has changed", async () => {
+  await withMocks({ feed: [], portfolioSummary: buildPortfolioSummary({}) }, async () => {
+    const summary = await homeSummaryService.buildHomeSummary({});
+    assert.deepEqual(summary.whatChangedInBeliefs, []);
+  });
+});
+
+test("whatChangedInBeliefs surfaces a real recent WorldMemoryThesisRevision", async () => {
+  await worldMemoryRepository.appendThesisRevision({ themeKey: "ai", newThesis: "AI capex accelerating." });
+
+  await withMocks({ feed: [], portfolioSummary: buildPortfolioSummary({}) }, async () => {
+    const summary = await homeSummaryService.buildHomeSummary({});
+    assert.equal(summary.whatChangedInBeliefs.length, 1);
+    assert.equal(summary.whatChangedInBeliefs[0].themeKey, "ai");
+    assert.equal(summary.whatChangedInBeliefs[0].themeLabel, "AI");
+  });
 });
 
 test("never fabricates a second verdict — the action always comes from canonicalVerdict.buildCanonicalVerdictView", async () => {
