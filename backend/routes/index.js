@@ -23,6 +23,7 @@ const chatRoutes = require("./chatRoutes");
 const autonomousRecommendationRoutes = require("./autonomousRecommendationRoutes");
 const investorProfileRoutes = require("./investorProfileRoutes");
 const themeRoutes = require("./themeRoutes");
+const providerRoutes = require("./providerRoutes");
 
 const router = express.Router();
 
@@ -50,6 +51,7 @@ router.use("/v2/recommendations", autonomousRecommendationRoutes);
 router.use("/v2/investor-profile", investorProfileRoutes);
 router.get("/v2/home-summary", getHomeSummary);
 router.use("/v2/themes", themeRoutes);
+router.use("/v2/providers", providerRoutes);
 router.use("/chat", chatRoutes);
 
 module.exports = router;

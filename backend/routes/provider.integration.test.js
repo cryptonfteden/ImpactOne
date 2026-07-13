@@ -1,0 +1,45 @@
+require("../test/testEnv");
+
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const request = require("supertest");
+
+const { truncateAll } = require("../test/dbHelpers");
+const app = require("../app");
+
+test.beforeEach(async () => {
+  await truncateAll();
+});
+
+test("GET /api/v2/providers lists all 15 registered providers with honest empty health", async () => {
+  const response = await request(app).get("/api/v2/providers");
+  assert.equal(response.status, 200);
+  assert.equal(response.body.providers.length, 15);
+  const sec = response.body.providers.find((entry) => entry.providerId === "sec");
+  assert.equal(sec.lastRunAt, null);
+});
+
+test("GET /api/v2/providers/:providerId/health 404s for an unknown provider", async () => {
+  const response = await request(app).get("/api/v2/providers/does-not-exist/health");
+  assert.equal(response.status, 404);
+});
+
+test("GET /api/v2/providers/:providerId/health returns recentRuns for a known provider", async () => {
+  await request(app).post("/api/v2/providers/reddit/run");
+  const response = await request(app).get("/api/v2/providers/reddit/health");
+  assert.equal(response.status, 200);
+  assert.equal(response.body.providerId, "reddit");
+  assert.ok(Array.isArray(response.body.recentRuns));
+});
+
+test("POST /api/v2/providers/:providerId/run triggers a clean run for a stub provider", async () => {
+  const response = await request(app).post("/api/v2/providers/fda/run");
+  assert.equal(response.status, 200);
+  assert.equal(response.body.status, "SUCCESS");
+  assert.equal(response.body.itemsFetched, 0);
+});
+
+test("POST /api/v2/providers/:providerId/run 404s for an unknown provider", async () => {
+  const response = await request(app).post("/api/v2/providers/does-not-exist/run");
+  assert.equal(response.status, 404);
+});
