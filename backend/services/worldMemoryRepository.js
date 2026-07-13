@@ -107,6 +107,29 @@ async function appendThesisRevision({ themeKey, newThesis, triggeringRecordId })
   }
 }
 
+async function getLatestThesisRevision(themeKey) {
+  const prisma = getPrismaClient();
+  return prisma.worldMemoryThesisRevision.findFirst({
+    where: { themeKey },
+    orderBy: { revisionNumber: "desc" },
+  });
+}
+
+/**
+ * Sprint 24 — Home's "what changed in the platform's beliefs" reads this:
+ * every thesis revision across all themes written within the lookback
+ * window, newest first. A real, sourced answer, not a fabricated one — if
+ * nothing changed, this honestly returns an empty array.
+ */
+async function listRecentThesisRevisions({ since, limit = 20 } = {}) {
+  const prisma = getPrismaClient();
+  return prisma.worldMemoryThesisRevision.findMany({
+    where: since ? { changedAt: { gte: since } } : undefined,
+    orderBy: { changedAt: "desc" },
+    take: limit,
+  });
+}
+
 async function appendSectorImpact({ worldMemoryRecordId, sector, direction, magnitude, rationale }) {
   const prisma = getPrismaClient();
   return prisma.worldMemorySectorImpact.create({
@@ -164,6 +187,8 @@ module.exports = {
   createOutcome,
   listOutcomesForRecord,
   appendThesisRevision,
+  getLatestThesisRevision,
+  listRecentThesisRevisions,
   appendSectorImpact,
   appendLesson,
   getRecordWithHistory,

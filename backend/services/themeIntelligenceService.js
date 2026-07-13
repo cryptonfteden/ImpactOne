@@ -8,6 +8,7 @@
 // cost/complexity bounded.
 const autonomousMarketService = require("./autonomousMarketService");
 const themeSnapshotRepository = require("./themeSnapshotRepository");
+const worldMemoryRepository = require("./worldMemoryRepository");
 
 const THEME_DEFINITIONS = {
   ai: { label: "AI", companies: ["NVDA", "MSFT", "GOOGL", "META"], etfs: ["BOTZ", "ROBO", "AIQ"] },
@@ -106,6 +107,13 @@ function listThemes() {
  * breaks the caller" discipline exactly — one row per theme per day,
  * building real confidence-trend history starting from whenever this
  * first runs, never backfilled.
+ *
+ * Sprint 24 — also the first real writer for WorldMemoryThesisRevision
+ * (schema existed since Sprint 21B but had zero writers until now). A
+ * revision is appended only when the deterministically-generated thesis
+ * text has actually changed since the last stored revision — this is what
+ * finally gives Home's "what changed in the platform's beliefs" a real,
+ * sourced answer instead of no data source at all.
  */
 async function captureTodaySnapshotForAllThemes() {
   const results = [];
@@ -117,6 +125,15 @@ async function captureTodaySnapshotForAllThemes() {
         confidenceScore: intelligence.confidenceScore,
         maturityLabel: intelligence.maturity,
       });
+
+      const latestRevision = await worldMemoryRepository.getLatestThesisRevision(themeKey);
+      if (!latestRevision || latestRevision.newThesis !== intelligence.thesis) {
+        await worldMemoryRepository.appendThesisRevision({
+          themeKey,
+          newThesis: intelligence.thesis,
+        });
+      }
+
       results.push({ themeKey, ok: true });
     } catch (error) {
       results.push({ themeKey, ok: false, error: error.message });

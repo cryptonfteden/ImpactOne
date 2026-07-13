@@ -6,6 +6,7 @@ const assert = require("node:assert/strict");
 const { truncateAll } = require("../test/dbHelpers");
 const autonomousMarketService = require("./autonomousMarketService");
 const themeIntelligenceService = require("./themeIntelligenceService");
+const worldMemoryRepository = require("./worldMemoryRepository");
 
 const REQUIRED_THEMES = ["ai", "quantum", "defense", "energy", "space", "cybersecurity", "healthcare"];
 
@@ -84,4 +85,43 @@ test("captureTodaySnapshotForAllThemes persists one snapshot per theme and confi
     assert.equal(result.confidenceTrend.length, 1);
     assert.equal(result.confidenceTrend[0].confidenceScore, 65);
   });
+});
+
+test("captureTodaySnapshotForAllThemes appends a WorldMemoryThesisRevision the first time a theme's thesis is captured", async () => {
+  await withMockedFeed([{ headline: "AI news", whyItMatters: "x", eventType: "ai", confidence: 65 }], async () => {
+    await themeIntelligenceService.captureTodaySnapshotForAllThemes();
+    const revision = await worldMemoryRepository.getLatestThesisRevision("ai");
+    assert.ok(revision, "expected a thesis revision to be written on first capture");
+    assert.equal(revision.revisionNumber, 1);
+    assert.equal(revision.previousThesis, null);
+    assert.match(revision.newThesis, /AI news/);
+  });
+});
+
+test("captureTodaySnapshotForAllThemes does not append a new revision when the thesis text is unchanged", async () => {
+  await withMockedFeed([{ headline: "AI news", whyItMatters: "x", eventType: "ai", confidence: 65 }], async () => {
+    await themeIntelligenceService.captureTodaySnapshotForAllThemes();
+    await themeIntelligenceService.captureTodaySnapshotForAllThemes();
+    const revision = await worldMemoryRepository.getLatestThesisRevision("ai");
+    assert.equal(revision.revisionNumber, 1, "identical thesis text on a second run must not create a second revision");
+  });
+});
+
+test("captureTodaySnapshotForAllThemes appends a new revision when the thesis text genuinely changes", async () => {
+  await withMockedFeed([{ headline: "AI news", whyItMatters: "x", eventType: "ai", confidence: 65 }], async () => {
+    await themeIntelligenceService.captureTodaySnapshotForAllThemes();
+  });
+  await withMockedFeed(
+    [
+      { headline: "AI news", whyItMatters: "x", eventType: "ai", confidence: 65 },
+      { headline: "AI second signal", whyItMatters: "y", eventType: "ai", confidence: 70 },
+    ],
+    async () => {
+      await themeIntelligenceService.captureTodaySnapshotForAllThemes();
+    }
+  );
+
+  const revision = await worldMemoryRepository.getLatestThesisRevision("ai");
+  assert.equal(revision.revisionNumber, 2, "a genuinely different thesis text must append revision 2");
+  assert.match(revision.previousThesis, /AI news/);
 });
