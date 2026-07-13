@@ -2268,6 +2268,155 @@ body {
   background: rgba(56, 189, 248, 0.12);
 }
 
+/* Sprint 20 — onboarding takeover. Mobile-first: a single centered card,
+   full-viewport, no sidebar/header chrome, generous (>=44px) tap targets. */
+.onboarding-shell {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(circle at top, var(--bg-1) 0%, var(--bg-0) 70%);
+}
+
+.onboarding-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  backdrop-filter: blur(14px);
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: onboarding-step-in 260ms ease-out;
+}
+
+.onboarding-card--centered {
+  align-items: center;
+  text-align: center;
+}
+
+@keyframes onboarding-step-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.onboarding-progress {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.onboarding-progress-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--glass-border);
+  transition: background 200ms ease;
+}
+
+.onboarding-progress-dot.active {
+  background: var(--accent);
+}
+
+.onboarding-progress-dot.complete {
+  background: var(--text-2);
+}
+
+.onboarding-title {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--text-0);
+  text-align: center;
+  text-wrap: balance;
+}
+
+.onboarding-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.onboarding-chip {
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-2);
+  color: var(--text-1);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+}
+
+.onboarding-chip:hover {
+  border-color: var(--accent);
+  color: var(--text-0);
+}
+
+.onboarding-chip.selected {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--text-0);
+}
+
+.onboarding-numeric-step {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.onboarding-numeric-input {
+  width: 100%;
+  min-height: 48px;
+  font-size: 1.1rem;
+  text-align: center;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-2);
+  color: var(--text-0);
+  padding: 10px 16px;
+}
+
+.onboarding-continue-button {
+  min-height: 44px;
+  width: 100%;
+  border-radius: 12px;
+  border: none;
+  background: var(--accent);
+  color: var(--bg-0);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.onboarding-skip-button {
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  align-self: center;
+  text-decoration: underline;
+}
+
+.onboarding-error {
+  color: var(--danger);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .onboarding-card {
+    padding: 24px 18px;
+    border-radius: 16px;
+  }
+}
+
 @media (max-width: 820px) {
   .header-portfolio-glance {
     display: none;

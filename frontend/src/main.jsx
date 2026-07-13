@@ -1,7 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
-import MainLayout from "./layout/MainLayout";
+import AppRoot from "./AppRoot";
 import AppProviders from "./context/AppProviders";
 
 const container = document.getElementById("root");
@@ -10,7 +10,7 @@ if (container) {
   createRoot(container).render(
     <React.StrictMode>
       <AppProviders>
-        <MainLayout />
+        <AppRoot />
       </AppProviders>
     </React.StrictMode>
   );
