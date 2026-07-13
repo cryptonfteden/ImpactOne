@@ -305,3 +305,66 @@ model InvestorProfile {
 
   @@map("investor_profiles")
 }
+
+enum ProviderRunStatus {
+  SUCCESS
+  FAILED
+  PARTIAL
+}
+
+// Sprint 21A — Global Intelligence Platform. Persists the canonical event
+// envelope (eventEnvelope.js) so dedup and provider health survive a
+// restart. deduplicationKey is unique so a provider re-ingesting the same
+// underlying evidence twice is a no-op at the DB level, not app-level
+// create-then-catch (same discipline as ThemeConfidenceSnapshot's upsert).
+model CanonicalEvent {
+  id                String   @id @default(uuid())
+  providerId        String
+  eventType         String
+  sourceType        String
+  sourceName        String?
+  sourceUrl         String?
+  publishedAt       DateTime?
+  ingestedAt        DateTime @default(now())
+  entities          Json
+  symbols           Json
+  sectors           Json
+  countries         Json
+  companies         Json
+  themes            Json
+  language          String
+  region            String?
+  category          String
+  summary           String
+  rawReference      Json?
+  credibilityScore  Decimal? @db.Decimal(5, 2)
+  freshnessScore    Decimal? @db.Decimal(5, 2)
+  relevanceScore    Decimal? @db.Decimal(5, 2)
+  confidence        Decimal? @db.Decimal(5, 2)
+  provenance        Json?
+  deduplicationKey  String   @unique
+
+  @@index([providerId])
+  @@map("canonical_events")
+}
+
+// Mirrors AutonomousRunLog's shape, scoped to provider ingestion runs
+// instead of recommendation runs. Written best-effort by
+// providerIngestionService — a failed provider fetch never breaks the
+// caller, it just logs a FAILED row (same "never breaks the caller"
+// discipline as dailyBriefArchiveService).
+model ProviderRunLog {
+  id              String            @id @default(uuid())
+  providerId      String
+  startedAt       DateTime          @default(now())
+  finishedAt      DateTime?
+  status          ProviderRunStatus
+  itemsFetched    Int               @default(0)
+  itemsPersisted  Int               @default(0)
+  itemsDeduped    Int               @default(0)
+  errorMessage    String?
+  durationMs      Int?
+
+  @@index([providerId])
+  @@map("provider_run_logs")
+}
