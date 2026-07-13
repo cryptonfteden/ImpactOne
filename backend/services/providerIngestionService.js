@@ -133,4 +133,4 @@ async function finalizeRun({ providerId, startedAt, status, itemsFetched = 0, it
   return { providerId, status, itemsFetched, itemsPersisted, itemsDeduped, errorMessage, durationMs, runLog };
 }
 
-module.exports = { runProviderIngestion, mapRawItemToEnvelope };
+module.exports = { runProviderIngestion, mapRawItemToEnvelope, getLimiterFor };
