@@ -1091,6 +1091,28 @@ Not in scope for Sprint 21A:
 - A real queue/distributed execution — `runProviderIngestion(providerId)` is deliberately a discrete, stateless, idempotent unit of work as the explicit future extension point, but no queue library was added.
 - Reusing the pre-existing `altDataService` SEC/Congress/Polymarket integrations (`GET /api/alt-data/sec`, `/congress`, `/polymarket`) inside their matching new providers — a real opportunity for a future sprint to give 3 of the 14 stubs a real `fetchImpl` at low cost, noted here rather than done opportunistically mid-sprint.
 
+## 28. Sprint 21B - World Memory (Permanent Memory Model)
+
+Scope note: explicitly schema-and-persistence-only — "do not implement prediction improvements," no grading algorithm, no new routes, no scheduler, no UI. Builds the permanent, append-only historical layer that every ingested event should eventually be traceable through, designed to remain correct after years of accumulation, not days.
+
+Sprint 21B outcomes:
+- **8 new models** (`backend/prisma/schema.prisma`, migration `20260713192156_add_world_memory_model`) — `WorldMemoryRecord` (the spine: one row per real-world occurrence, distinct from Sprint 21A's `CanonicalEvent`, which is one row per deduplicated provider report of that occurrence) plus 6 satellites (`WorldMemoryCausalLink`, `WorldMemoryStateChange`, `WorldMemoryPrediction`, `WorldMemoryThesisRevision`, `WorldMemorySectorImpact`, `WorldMemoryLesson`) and `Outcome` — the first real implementation of Sprint 19's `OUTCOME_INTELLIGENCE_ENGINE.md` design (schema only; zero grading logic, as instructed).
+- **Append-only enforced at the API-surface level, not just by convention** — `worldMemoryRepository.js` exposes only `.create()` functions (plus reads); a source-scanning test strips comments and asserts the file contains no `.update()`/`.delete()`/`.upsert()` anywhere, so the guarantee can't be silently broken by a future edit or faked by a doc comment.
+- **Revision-safe thesis history** — `appendThesisRevision` assigns `revisionNumber` itself (never caller-supplied) inside a retry-on-conflict loop against the `[themeKey, revisionNumber]` unique constraint; proven under true concurrency (8 simultaneous `Promise.all` calls) to produce exactly `1..N` with no duplicates or gaps.
+- **Lessons are corrected by addition, never edited** — `appendLesson`'s `supersedesId` links a revised understanding to the lesson it replaces while leaving the original's `lessonText` and `supersedesId` (`null`) exactly as originally written, proven by a dedicated test.
+- **No content duplication** — every satellite table cross-references `CanonicalEvent`/`Recommendation`/`DecisionTrace` by id (plain string reference columns, same convention as `CanonicalEvent.providerId` — no enforced Prisma-level FK relation, so a future archival/pruning pass on those tables is never blocked), never copying their content wholesale, except `WorldMemoryPrediction`'s deliberate frozen `predictedAction`/`predictedConfidence` snapshot (defense-in-depth against the live `Recommendation` row's interpretation changing later).
+- **`methodologyVersion`** is carried on every interpretive table (`WorldMemoryCausalLink`, `WorldMemoryStateChange`, `Outcome`, `WorldMemoryThesisRevision`, `WorldMemoryLesson`), so a query against old data is never silently reinterpreted through a later methodology.
+
+Sprint 21B verification:
+- `npm run test:backend` — full suite passing at completion (no frontend changes this sprint).
+- Dedicated tests: 13 functional tests proving each append function persists and links correctly, plus `getRecordWithHistory`'s aggregate read; 5 dedicated immutability/persistence-strategy tests (the source-scan, the concurrency race, per-themeKey independence, lesson-supersede non-mutation, and an export-name check that no function name suggests mutation).
+- No browser verification — no UI or routes were touched, per this sprint's own explicit constraint.
+
+Not in scope for Sprint 21B:
+- Any grading algorithm for `Outcome` (benchmark selection, walk-forward backtesting, calibration math) — `OUTCOME_ENGINE_REVIEW.md`'s 8 flagged gaps (fixed-ex-ante benchmark, minimum-sample gate, Brier/reliability-diagram methodology, superseded-recommendation grading rule, etc.) remain fully open; this sprint only gave the grading engine somewhere real to eventually write.
+- Any automated population of World Memory records — no scheduler or job promotes `CanonicalEvent`s into `WorldMemoryRecord`s yet; the repository is ready to be called, but nothing calls it automatically.
+- `CalibrationBucket`, `AttributionSnapshot`, `EvidenceOutcomeLink`, `DriftAlert`, `RecalibrationProposal` — the remaining 5 tables from Sprint 19's design, not needed to satisfy this sprint's nine named questions and left for the grading-engine sprint that actually needs them.
+
 ## Quick Handoff For New Developers
 1. Install dependencies at root (`npm install`) and frontend if needed (`npm --prefix frontend install`).
 2. Configure keys in env files (`FINNHUB_API_KEY`, `OPENAI_API_KEY`, `VITE_API_BASE_URL`).

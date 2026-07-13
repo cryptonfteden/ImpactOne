@@ -481,6 +481,23 @@ A new `InvestorProfile` model (`backend/services/investorProfileService.js`/`inv
 - **`feedPersonalizationService.js`** — layers age/risk-tolerance/investment-horizon-derived weighting on top of the existing relevance/recency/source-quality scoring (`autonomousMarketService.rankNewsArticles`), applied by `GET /api/intelligence/live-feed` only when a profile exists. Reorders only; never mutates an event's underlying facts.
 - **`themeIntelligenceService.js`** — the Theme Dashboard's 7 pages, built on the existing `classifyEventType` classification (`autonomousMarketService.js`) rather than a new data source. `ThemeConfidenceSnapshot` (new model, mirrors `DailyBriefSnapshot`) accumulates real trend history via a new daily best-effort job (`themeSnapshotScheduler.js`, same single-instance `node-cron` convention as `schedulerService.js`).
 
+### 6.7 World Memory (Sprint 21B)
+
+A permanent, append-only historical layer (`backend/services/worldMemoryRepository.js`), designed to remain correct and queryable across years of accumulation rather than days. Distinct from every "snapshot" table before it (`ThemeConfidenceSnapshot`, `DailyBriefSnapshot`), which are overwritten/upserted per period: World Memory tables are never updated or deleted once written — where understanding of the past changes, a new row is added referencing the one it supersedes, and the old row is left exactly as it was.
+
+Eight models, one spine and seven satellites, each answering one of nine standing questions by linking to an existing table rather than duplicating its content:
+
+- **`WorldMemoryRecord`** (spine) — one row per real-world occurrence judged memory-worthy, distinct from `CanonicalEvent` (Sprint 21A, one row per deduplicated provider report of that occurrence); a record may anchor several `CanonicalEvent` rows. Answers *what happened* by linking to them.
+- **`WorldMemoryCausalLink`** — *why did it happen*: an append-only causal edge list between records, accumulating real recorded reasoning over years rather than being recomputed from `relationshipGraphService.js`'s small hardcoded node set on every request.
+- **`WorldMemoryStateChange`** — *what changed*: a dimension-agnostic before/after `Json` ledger row, so new kinds of tracked change never require a schema migration.
+- **`WorldMemoryPrediction`** — *what prediction did we make*: a thin link into `Recommendation`/`DecisionTrace` plus a frozen action/confidence snapshot, so the prediction-as-stated stays queryable even as the live engine evolves.
+- **`Outcome`** — *was it correct*: implements `OUTCOME_INTELLIGENCE_ENGINE.md`'s (Sprint 19, previously design-only) grading schema exactly, wired into World Memory via `worldMemoryPredictionId`. No grading algorithm exists yet — this sprint added the table only, so a future grading engine has somewhere real to write.
+- **`WorldMemoryThesisRevision`** — *which thesis changed*: the first place theme thesis **text** history (not just `ThemeConfidenceSnapshot`'s confidence number) is persisted. `revisionNumber` is assigned by the repository itself inside a retry-on-conflict loop, never by the caller, so concurrent writers can't collide or skip a number.
+- **`WorldMemorySectorImpact`** — *which sectors benefited/were hurt*: one row per sector per record, since a single event routinely helps some sectors while hurting others simultaneously.
+- **`WorldMemoryLesson`** — *what did we learn*: never edited or deleted; a revised understanding is a new row with `supersedesId` pointing at the old one, which stays exactly as originally written.
+
+`worldMemoryRepository.js` enforces this at the API-surface level, not just by convention: every function is a `.create()`, and the file contains no `.update()`/`.delete()`/`.upsert()` call anywhere — verified by a source-scanning test (`worldMemoryRepository.immutability.test.js`) that strips comments before checking, so the guarantee can't be faked by a doc comment. This sprint is schema and persistence only — no grading logic, no new routes, no scheduler, no UI.
+
 ---
 
 ## 7. Portfolio Engine
