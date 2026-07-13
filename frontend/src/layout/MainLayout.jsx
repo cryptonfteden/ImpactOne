@@ -13,11 +13,13 @@ import {
   SettingsFeature,
   RecommendationsFeature,
   MyProfileFeature,
+  HomeFeature,
 } from "../features";
 
 const GlobalIntelligenceFeature = lazy(() => import("../features/intelligence/GlobalIntelligenceFeature"));
 
 const screenMap = {
+  Home: HomeFeature,
   Dashboard: DashboardFeature,
   "Market News": NewsFeature,
   "AI Analysis": AnalysisFeature,
@@ -31,7 +33,9 @@ const screenMap = {
 };
 
 export default function MainLayout() {
-  const [activeView, setActiveView] = useState("Dashboard");
+  // Sprint 20 — Home is now the default landing screen (four questions
+  // only); the existing, richer Dashboard stays reachable from the sidebar.
+  const [activeView, setActiveView] = useState("Home");
   const { watchlist } = useWatchlist();
 
   const handleSelectFavorite = useCallback((ticker) => {

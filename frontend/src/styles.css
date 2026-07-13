@@ -2527,6 +2527,26 @@ body {
   background: var(--text-2);
 }
 
+/* Sprint 20, Part 3 — Home screen. Deliberately minimal: a single-column
+   stack of exactly four cards, no nested grids, one API call — the
+   simplest, most mobile-first layout in the app on purpose. */
+.home-screen {
+  max-width: 640px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.home-card {
+  padding: 20px;
+}
+
+@media (max-width: 480px) {
+  .home-screen {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+}
+
 /* Sprint 20 — allocation bar (Suggested portfolio). */
 .allocation-bar {
   display: flex;

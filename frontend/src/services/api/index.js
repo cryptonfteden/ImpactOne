@@ -8,3 +8,4 @@ export { portfolioEngineApi } from "./portfolioEngineApi";
 export { chatApi } from "./chatApi";
 export { recommendationsApi } from "./recommendationsApi";
 export { investorProfileApi } from "./investorProfileApi";
+export { homeApi } from "./homeApi";
