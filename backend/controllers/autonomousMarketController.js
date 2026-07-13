@@ -1,4 +1,8 @@
 const { getAutonomousOverview } = require("../services/autonomousMarketService");
+// Namespace-style (not destructured) so tests can monkey-patch these,
+// matching this codebase's established test-seam convention.
+const investorProfileService = require("../services/investorProfileService");
+const feedPersonalizationService = require("../services/feedPersonalizationService");
 
 function parseCsv(value = "") {
   return String(value || "")
@@ -19,11 +23,18 @@ async function getAutonomousOverviewController(req, res, next) {
   }
 }
 
+// Sprint 20, Part 5 — personalizes ordering only, never the feed's facts.
+// Reads the InvestorProfile singleton server-side (consistent with the
+// rest of this app's single-tenant pattern) rather than requiring the
+// client to pass profile data over the wire. Backward compatible: with no
+// profile yet (pre-onboarding), behavior is byte-for-byte unchanged.
 async function getLiveFeed(req, res, next) {
   try {
     const watchlist = parseCsv(req.query.watchlist || "AAPL,NVDA,TSLA");
     const overview = await getAutonomousOverview({ watchlist });
-    res.json({ generatedAt: overview.generatedAt, feed: overview.feed, alerts: overview.alerts });
+    const investorProfile = await investorProfileService.getInvestorProfile().catch(() => null);
+    const feed = investorProfile ? feedPersonalizationService.rankFeedForInvestor(overview.feed, { investorProfile }) : overview.feed;
+    res.json({ generatedAt: overview.generatedAt, feed, alerts: overview.alerts });
   } catch (error) {
     next(error);
   }
