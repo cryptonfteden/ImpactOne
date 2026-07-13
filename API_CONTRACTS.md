@@ -4,6 +4,7 @@
 **Scope:** MVP endpoints only  
 **Status:** Based on the current backend implementation where available; missing MVP endpoints are explicitly called out  
 **Date:** 2026-07-11
+**Terminology:** Every field name discussed below that maps to a domain concept (`confidenceScore`, `conviction`, `qualityScore`, `action`, `committeeDebate`, and the rest) is defined exactly once, including its canonical vs. non-canonical synonym status, in `CANONICAL_DOMAIN_MODEL.md`.
 
 ---
 

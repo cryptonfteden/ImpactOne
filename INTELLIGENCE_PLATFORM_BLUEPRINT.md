@@ -12,6 +12,8 @@
 
 **Implementation status update (Sprint 18A):** an independent architecture review (`INTELLIGENCE_PLATFORM_REVIEW.md`) examined this blueprint alongside the current codebase and found the Investment Committee Engine (six-persona debate, `investmentCommitteeService.js`) independently computed a second verdict alongside the Recommendation Engine's synthesis/decision layer above — a real gap in this design, since a fifth engine (Research Intelligence) was about to be built on top of an unresolved two-verdict problem. Sprint 18A corrected this before RIE work proceeds: the Investment Committee is now implemented as a debate/explanation layer feeding the synthesis/decision layer's `DecisionTrace`, never an independent verdict, via `canonicalVerdict.js`. The **shared scoring vocabulary** and **canonical Event Envelope** described conceptually for Engine 1/RIE below are also now real, committed code (`scoringVocabulary.js`, `eventEnvelope.js`) — frozen ahead of RIE's own build, exactly as this blueprint and the review both recommended. Full detail: `PROJECT_STATUS.md` §25, `API_CONTRACTS.md` §3.44-3.45.
 
+**Terminology:** Every node/engine output named below (Event, Thesis, Entity, Recommendation, DecisionTrace, Outcome, and the rest) is defined exactly once in `CANONICAL_DOMAIN_MODEL.md`, including the reconciled Thesis lifecycle (§1.3) that supersedes this document's 5-state `active`/`strengthening`/`weakening`/`invalidated`/`realized` enum in Engine 3 below — that enum is retained here as historical design detail, but `CANONICAL_DOMAIN_MODEL.md` §1.3's maturity/standing-status/closure model governs any future implementation.
+
 ---
 
 ## Engine 1 — Research Intelligence Engine (RIE)

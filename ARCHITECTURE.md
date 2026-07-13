@@ -3,6 +3,7 @@
 **Status:** Current implementation snapshot  
 **Scope:** Full MVP system architecture  
 **Note:** This document describes the codebase as it exists today. Where a capability is not implemented, that gap is called out explicitly.
+**Terminology:** Every domain concept named below (Recommendation, DecisionTrace, Committee Debate, Confidence, Conviction, and the rest) is defined exactly once in `CANONICAL_DOMAIN_MODEL.md`. Where this document names a field or model, that document states what it means and how it relates to every other document's usage of the same word.
 
 ---
 
