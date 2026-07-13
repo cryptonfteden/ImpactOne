@@ -8,3 +8,4 @@ export { default as SettingsFeature } from "./settings/SettingsFeature";
 export { default as RecommendationsFeature } from "./recommendations/RecommendationsFeature";
 export { default as MyProfileFeature } from "./profile/MyProfileFeature";
 export { default as HomeFeature } from "./home/HomeFeature";
+export { default as ThemesFeature } from "./themes/ThemesFeature";
