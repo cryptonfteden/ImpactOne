@@ -32,6 +32,26 @@ test("GET /api/v2/providers/:providerId/health returns recentRuns for a known pr
   assert.ok(Array.isArray(response.body.recentRuns));
 });
 
+test("GET /api/v2/providers/:providerId/metrics 404s for an unknown provider", async () => {
+  const response = await request(app).get("/api/v2/providers/does-not-exist/metrics");
+  assert.equal(response.status, 404);
+});
+
+test("GET /api/v2/providers/:providerId/metrics returns an honest zero-state before any run", async () => {
+  const response = await request(app).get("/api/v2/providers/sec/metrics");
+  assert.equal(response.status, 200);
+  assert.equal(response.body.totalRuns, 0);
+  assert.equal(response.body.dedupRate, null);
+});
+
+test("GET /api/v2/providers/:providerId/metrics reflects a real run", async () => {
+  await request(app).post("/api/v2/providers/nasa/run");
+  const response = await request(app).get("/api/v2/providers/nasa/metrics");
+  assert.equal(response.status, 200);
+  assert.equal(response.body.totalRuns, 1);
+  assert.equal(response.body.errorRate, 0);
+});
+
 test("POST /api/v2/providers/:providerId/run triggers a clean run for a stub provider", async () => {
   const response = await request(app).post("/api/v2/providers/fda/run");
   assert.equal(response.status, 200);

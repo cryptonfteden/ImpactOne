@@ -14,6 +14,14 @@ async function getRecentRunsForProvider(providerId, limit = 10) {
   });
 }
 
+async function getAllRunsForProvider(providerId) {
+  const prisma = getPrismaClient();
+  return prisma.providerRunLog.findMany({
+    where: { providerId },
+    orderBy: { startedAt: "desc" },
+  });
+}
+
 async function getLatestRunPerProvider() {
   const prisma = getPrismaClient();
   const providerIds = await prisma.providerRunLog.findMany({
@@ -28,4 +36,4 @@ async function getLatestRunPerProvider() {
   return latestRuns.filter(Boolean);
 }
 
-module.exports = { createRunLog, getRecentRunsForProvider, getLatestRunPerProvider };
+module.exports = { createRunLog, getRecentRunsForProvider, getAllRunsForProvider, getLatestRunPerProvider };
