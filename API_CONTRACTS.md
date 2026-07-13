@@ -2558,6 +2558,80 @@ GET /api/v2/recommendations/rec-id/decision-trace
 
 ---
 
+### 3.46 `GET /api/v2/investor-profile`, `POST /api/v2/investor-profile`, `PATCH /api/v2/investor-profile`
+
+**Sprint 20** — the onboarding-collected Investor Profile, a single-tenant singleton (same convention as `Portfolio`: `findFirst`, no `userId` yet — see `ARCHITECTURE.md` §6.6). Unlike `DecisionTrace`, this is user-editable settings data.
+
+**Routes / methods**
+- `GET /api/v2/investor-profile` — returns the profile, or `404 { error: "No investor profile exists yet." }` before onboarding.
+- `POST /api/v2/investor-profile` — creates the profile. Body: `{ age (required, integer 5-120), country?, experienceLevel? ("BEGINNER"|"INTERMEDIATE"|"ADVANCED"), monthlyInvestmentAmount?, investmentGoal? ("WEALTH"|"RETIREMENT"|"PASSIVE_INCOME"|"LEARNING"|"HOUSE"|"OTHER"), riskTolerance? ("LOW"|"MEDIUM"|"HIGH"), investmentHorizon? ("SHORT_TERM"|"MEDIUM_TERM"|"LONG_TERM") }`. `400 { error: "age is required and must be an integer between 5 and 120." }` when invalid/missing.
+- `PATCH /api/v2/investor-profile` — updates any subset of the same fields. `404` when no profile exists yet.
+
+**Authentication requirements:** None (single-tenant, pre-auth — see `VISION.md` Personalization Principles on identity/tenancy as a named future prerequisite).
+
+**Example response**
+```json
+{ "id": "p1", "age": 17, "country": "IL", "experienceLevel": "BEGINNER", "monthlyInvestmentAmount": 500, "investmentGoal": "WEALTH", "riskTolerance": "MEDIUM", "investmentHorizon": "LONG_TERM" }
+```
+
+---
+
+### 3.47 `GET /api/v2/investor-profile/investment-profile`
+
+**Sprint 20, Part 2** — the AI Investment Profile: a deterministic (no LLM call) allocation/volatility/educational summary generated from the Investor Profile.
+
+**Response schema**
+```
+{ suggestedAllocation: { stocks, bonds, cash }, diversificationExplanation, expectedVolatility: { lowPct, highPct, label }, suggestedAnnualReturnPct, educationalExplanation, assumptionsDisclosure }
+```
+`assumptionsDisclosure` is always present and always states the figures are illustrations based on configurable assumptions, never promises. `404` before a profile exists.
+
+---
+
+### 3.48 `GET /api/v2/home-summary`
+
+**Sprint 20, Part 3** — the redesigned Home screen's four-question aggregation.
+
+**Query parameters:** `watchlist` (comma-separated symbols, optional).
+
+**Response schema**
+```
+{
+  whatHappened: { headline, sourceName, sourceUrl },
+  whyShouldICare: string,
+  howDoesItAffectMe: string,
+  shouldIDoAnythingToday: { hasAction, action, symbol, recommendationId, reasoning, qualityScore },
+  generatedAt
+}
+```
+`shouldIDoAnythingToday.action` is sourced only from `canonicalVerdict.buildCanonicalVerdictView` against a real, persisted `Recommendation` — never independently computed. `hasAction: false` is an explicit, honest state ("no action needed today"), not a fabricated fallback.
+
+---
+
+### 3.49 `GET /api/intelligence/live-feed` (Sprint 20 addition: personalized ranking)
+
+Unchanged route/response shape from its original documentation — see the existing feed-item shape. **Addition:** when an `InvestorProfile` exists (read server-side), the returned `feed` array is re-ordered by `feedPersonalizationService.rankFeedForInvestor` (age/risk-tolerance/investment-horizon-derived weighting layered on top of existing relevance/recency/source-quality scoring). Personalization only ever changes ordering — every event's `impactType`, `riskLevel`, and other fields are unchanged. With no profile yet, behavior is byte-for-byte identical to before Sprint 20.
+
+---
+
+### 3.50 `GET /api/v2/themes`, `GET /api/v2/themes/:themeKey`
+
+**Sprint 20, Part 6** — the Theme Dashboard.
+
+- `GET /api/v2/themes` → `{ themes: [{ themeKey, label }, ...] }` — exactly 7 entries: `ai`, `quantum`, `defense`, `energy`, `space`, `cybersecurity`, `healthcare`.
+- `GET /api/v2/themes/:themeKey` → full theme intelligence:
+```
+{
+  themeKey, label, maturity ("Early"|"Emerging"|"Growth"|"Mature"),
+  thesis, supportingEvidence: [{headline, whyItMatters, sourceName, sourceUrl, publishedAt}],
+  counterarguments: string[], companies: string[], etfs: string[],
+  confidenceScore, confidenceTrend: [{date, confidenceScore, maturityLabel}]
+}
+```
+`maturity` is a deterministic tier derived from real matching-event volume in the current feed (via the existing `classifyEventType` tagging) — never fabricated. `thesis` is template-generated from real aggregated evidence, deliberately not an LLM call for this first slice. `confidenceTrend` reflects real history captured by a daily best-effort job starting from whenever the platform first ran it — never backfilled. `404 { error: "Unknown theme: ..." }` for an invalid `themeKey`.
+
+---
+
 ## 4. MVP-Missing Endpoint Contracts
 
 The backend currently lacks the following MVP-required endpoints. These are required for a full productized MVP, but they are not present in the current implementation.

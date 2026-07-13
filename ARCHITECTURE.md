@@ -54,15 +54,21 @@ The frontend boots from [frontend/src/main.jsx](frontend/src/main.jsx) and rende
 
 The app is organized as a screen map rather than separate route pages. The current active view is stored in local component state and switched through the sidebar.
 
-Primary screens:
+**Sprint 20 — onboarding gate.** `frontend/src/AppRoot.jsx` sits above `MainLayout` (rendered by `main.jsx` in place of it) and decides, based on `useInvestorProfile()`, whether to render a full-screen `OnboardingFlow` takeover (no sidebar/header chrome) or the normal app shell. The gate is shown once, the first time no `InvestorProfile` exists server-side.
 
+Primary screens (Home is now the default landing view; Dashboard remains fully reachable, unchanged):
+
+- Home
 - Dashboard
 - Global Intelligence
 - AI Analysis
 - Watchlist
 - Portfolio
-- Market News
+- Recommendations
+- Daily Feed
+- Themes
 - Alerts
+- My Profile
 - Settings
 
 ### 2.4 Feature Layer
@@ -454,6 +460,14 @@ An independent architecture review (`INTELLIGENCE_PLATFORM_REVIEW.md`) found tha
 - **`eventEnvelope.js`** — the canonical 19-field Event Envelope, frozen ahead of the Research Intelligence Engine build (`RESEARCH_INTELLIGENCE_ENGINE_DESIGN.md`) so multiple future engines integrate against one locked shape. `adaptLegacyFeedItemToEnvelope` proves the schema against the one real event source that exists today. Full detail: `API_CONTRACTS.md` §3.45.
 
 **What changed structurally:** `investmentCommitteeService.js` no longer writes to `committeeTrackRecordService`'s JSON-file store and no longer returns an independent `cio.decision`. Its debate (arguments, expert votes, disagreement/consensus levels, synthesis narrative) is threaded into `autonomousRecommendationEngine.js`'s `evaluateSymbol()` — gated to symbols where an action already triggered, so it never runs across the full scan universe — and stored in both `Recommendation.explanation.committeeDebate` (for direct UI consumption) and the immutable `DecisionTrace.committeeDebate` (audit copy). `DecisionTrace` also gained `evidenceReferences` (canonical-envelope evidence, additive alongside the pre-existing `matchedEvents` shape) and `modelVersionMetadata`. `DecisionTrace` remains create-and-read-only — no update path was introduced.
+
+### 6.6 Personalization (Sprint 20)
+
+A new `InvestorProfile` model (`backend/services/investorProfileService.js`/`investorProfileRepository.js`) is a single-tenant singleton, following exactly the same `findFirst`/create convention `portfolioRepository.js` established for `Portfolio` — no `userId` field exists anywhere yet, a deliberate, named gap (see `VISION.md`'s Personalization Principles) rather than a real multi-tenant identity layer. It feeds three consumers, all additive to existing engines rather than new parallel systems:
+
+- **`homeSummaryService.js`** — the Home screen's four-question aggregation. Reads a real, persisted `Recommendation` (when one exists) through `canonicalVerdict.buildCanonicalVerdictView` for "should I do anything today" — never a second, independently-computed verdict.
+- **`feedPersonalizationService.js`** — layers age/risk-tolerance/investment-horizon-derived weighting on top of the existing relevance/recency/source-quality scoring (`autonomousMarketService.rankNewsArticles`), applied by `GET /api/intelligence/live-feed` only when a profile exists. Reorders only; never mutates an event's underlying facts.
+- **`themeIntelligenceService.js`** — the Theme Dashboard's 7 pages, built on the existing `classifyEventType` classification (`autonomousMarketService.js`) rather than a new data source. `ThemeConfidenceSnapshot` (new model, mirrors `DailyBriefSnapshot`) accumulates real trend history via a new daily best-effort job (`themeSnapshotScheduler.js`, same single-instance `node-cron` convention as `schedulerService.js`).
 
 ---
 
