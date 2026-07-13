@@ -75,11 +75,15 @@ Primary screens (Home is now the default landing view; Dashboard remains fully r
 
 The `features/` directory acts as a thin adapter layer between `MainLayout` and screen components.
 
+- `HomeFeature` -> Home screen (Sprint 20, default landing view)
 - `DashboardFeature` -> dashboard home
 - `AnalysisFeature` -> AI analysis screen
 - `WatchlistFeature` -> watchlist screen
 - `PortfolioFeature` -> portfolio screen
-- `NewsFeature` -> market news screen
+- `RecommendationsFeature` -> recommendations screen
+- `NewsFeature` -> Daily Feed screen (renamed from Market News in Sprint 20)
+- `ThemesFeature` -> Theme Dashboard screen (Sprint 20)
+- `MyProfileFeature` -> investor profile screen (Sprint 20)
 - `AlertsFeature` -> alerts screen
 - `SettingsFeature` -> settings screen
 - `GlobalIntelligenceFeature` is lazy-loaded for the heavier intelligence experience
@@ -124,15 +128,20 @@ The screens use a few consistent patterns:
 
 ```mermaid
 flowchart TD
-  Main[main.jsx] --> Providers[AppProviders]
-  Providers --> Layout[MainLayout]
+  Main[main.jsx] --> Root[AppRoot]
+  Root --> Onboarding[OnboardingFlow]
+  Root --> Layout[MainLayout]
   Layout --> Sidebar[Sidebar]
   Layout --> Header[Header]
+  Layout --> Home[HomeFeature]
   Layout --> Dashboard[DashboardFeature]
   Layout --> Analysis[AnalysisFeature]
   Layout --> Watchlist[WatchlistFeature]
   Layout --> Portfolio[PortfolioFeature]
+  Layout --> Recommendations[RecommendationsFeature]
   Layout --> News[NewsFeature]
+  Layout --> Themes[ThemesFeature]
+  Layout --> MyProfile[MyProfileFeature]
   Layout --> Alerts[AlertsFeature]
   Layout --> Settings[SettingsFeature]
   Layout --> Global[GlobalIntelligenceFeature]
@@ -156,7 +165,10 @@ flowchart TD
   Watchlist --> WatchlistHook
   Watchlist --> Api1
   Global --> Api4
-  News --> StaticNews[static content today]
+  Home --> HomeApi[homeApi]
+  News --> Api4
+  Themes --> ThemeApi[themeApi]
+  MyProfile --> InvestorProfileApi[investorProfileApi]
 ```
 
 ---
@@ -621,26 +633,36 @@ Provider behavior is designed around graceful degradation:
 
 ## 10. Background Jobs
 
-There is no true server-side scheduler or worker system in the current codebase.
+Three single-instance, in-process `node-cron` schedulers exist today (`schedulerService.js` for the autonomous recommendation engine, gated by `AUTONOMOUS_ENGINE_ENABLED`; `themeSnapshotScheduler.js`, daily; `providerScheduler.js`, Sprint 21A, every 15 minutes). All three share one shape (`start/stop/getStatus/runNow`) and are bootstrapped only from `server.js`, never `app.js`, so tests requiring `app.js` never leak a running timer.
 
 ### 10.1 What Exists Today
 
+- Three `node-cron` schedulers (above)
 - Frontend polling every 60 seconds on certain screens
 - In-memory cache refreshes on demand
 - Best-effort daily brief snapshot capture during brief generation
 - Portfolio performance snapshot capture on demand
+- Best-effort daily theme confidence snapshot capture (Sprint 20)
+- Provider ingestion runs with rate limiting and retry (Sprint 21A — see §10.4)
 
 ### 10.2 What Does Not Exist Yet
 
-- Cron jobs
-- Queue workers
+- Queue workers (Redis/BullMQ or equivalent)
+- Distributed/multi-process execution
 - Event-driven background consumers
-- Scheduled ETL pipelines
-- Retry queues for provider ingestion
+- Scheduled ETL pipelines beyond the three schedulers above
 
 ### 10.3 Practical Impact
 
-This means background behavior is mostly user-triggered or screen-poll driven. The app behaves like a live dashboard, but it is not yet running a durable job orchestration layer.
+Background behavior is now a mix of three lightweight in-process schedulers plus user-triggered/screen-poll-driven work. This is still a single-process job model — there is no durable, multi-worker job orchestration layer, and none is planned until real scale requires it (see §10.4's queue note).
+
+### 10.4 Provider Framework (Sprint 21A)
+
+Distinct from §9's market-data providers (Finnhub, NewsAPI, OpenAI, Polygon, Alpha Vantage — used synchronously inside request handling), the provider framework is a background ingestion layer: `backend/services/providers/` defines 15 source providers (Reuters/Bloomberg wire, SEC, Reddit, X, Telegram, Polymarket, Fed, ECB, FOMC, FDA, NASA, US Treasury, Congress, Major Earnings, Patent Feeds), each built via `providerFactory.createProvider()` against one shared interface (`baseProviderContract.js`). `providerIngestionService.runProviderIngestion(providerId)` rate-limits, retries (`retryPolicy.js`), maps results through the canonical event envelope (`eventEnvelope.js`), and persists them with DB-level dedup (`canonicalEventRepository.js`, unique on `deduplicationKey`) — writing one `ProviderRunLog` row per run, exposed via `providerHealthService.js` and `GET /api/v2/providers`. `providerScheduler.js` runs every registered provider sequentially every 15 minutes.
+
+Only the wire-news provider has a real `fetchImpl` today (delegates to the existing `autonomousMarketService` news pipeline); the other 14 honestly return `[]` — no live integration yet, and no fabricated placeholder data. `runProviderIngestion(providerId)` is deliberately a discrete, stateless, idempotent unit of work — the explicit swap point for a future per-provider queue, which does not exist yet (no queue library has been added).
+
+This layer performs ingestion only. Nothing in `backend/services/providers/` or `providerIngestionService.js` calls `autonomousRecommendationEngine`, `canonicalVerdict`, or any theme/recommendation write path.
 
 ---
 

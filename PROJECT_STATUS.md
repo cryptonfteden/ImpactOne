@@ -1058,7 +1058,7 @@ Sprint 20 outcomes:
 - **Cross-cutting** — every new screen was built mobile-first (single column, ≥44px tap targets) using the existing token system; no buy/execute affordance was added anywhere, including on the Theme Dashboard where it would have been the most tempting shortcut.
 
 Sprint 20 verification:
-- `npm run test` — 180 backend / 84 frontend passing at completion, run before each of the 13 commits.
+- `npm run test` — 180 backend / 84 frontend passing at completion, run before each of the 12 commits (`d7568ae..4e8aa3d`).
 - Dedicated tests proving: the onboarding flow requires only age to advance and completes via single-tap chips; Home renders exactly four `.home-card` sections and no fifth; feed personalization only ever reorders and never mutates an event's facts; Theme Dashboard never renders a buy/execute-labeled control; the live-feed endpoint is byte-for-byte backward compatible with no investor profile.
 - Manual + browser verification: see the Sprint 20 entry in this file's manual QA log for the live pass across onboarding, Home, Daily Feed, and the Theme Dashboard, at both desktop and mobile viewport widths.
 
@@ -1066,6 +1066,30 @@ Not in scope for Sprint 20:
 - Real identity/multi-tenancy — the Investor Profile remains a single-tenant singleton, matching the same, already-named prerequisite gap as `Portfolio`.
 - An LLM-generated (vs. templated) theme thesis, and a real dividend/income-tagging signal for "passive income" goal personalization — both explicitly deferred rather than faked.
 - Fixing the pre-existing Dashboard first-load layout/reflow issue named in `SPRINT_20_PRODUCT_REVIEW.md` — real, but out of this sprint's seven named parts; flagged as a recommended follow-up. Home now being the default screen directly reduces most users' exposure to it.
+
+## 27. Sprint 21A - Global Intelligence Platform (Provider Framework)
+
+Scope note: explicitly infrastructural, not a features sprint — "build the world's information layer," no recommendation logic, no UI, no broker functionality. Builds the foundation for continuous ingestion from many independent external sources into one canonical event format.
+
+Sprint 21A outcomes:
+- **Canonical event envelope extended** — `eventEnvelope.js` gained `companies`, `themes`, `language`, `region`, `category` (additive; version `1.0.0` -> `1.1.0`), all derived from existing classifiers (`autonomousMarketService.classifyEventType`, the Theme Dashboard's own `THEME_DEFINITIONS` keys) rather than a new taxonomy.
+- **Provider framework** (`backend/services/providers/`) — a structural interface (`baseProviderContract.js`, `validateProviderShape`), a factory (`providerFactory.js`) every provider is built through, a fixed-window rate limiter, and exponential-backoff retry (`retryPolicy.js`) — all dependency-free, no queue/broker library added.
+- **15 registered providers** — Reuters/Bloomberg (merged into one wire provider), SEC, Reddit, X, Telegram, Polymarket, Fed, ECB, FOMC, FDA, NASA, US Treasury, Congress, Major Earnings, Patent Feeds. Only the wire-news provider has a real `fetchImpl` (delegates to the existing news pipeline); the other 14 honestly return `[]` — no live integration yet, no fabricated placeholder data presented as real.
+- **Persistence and dedup** — new `CanonicalEvent` model, unique on `deduplicationKey`, persisted via `canonicalEventRepository.upsertIfNew` using `createMany({skipDuplicates: true})` (a real DB-level `ON CONFLICT DO NOTHING`, not app-level create-then-catch).
+- **Orchestration** — `providerIngestionService.runProviderIngestion(providerId)`: rate-limit check, retried fetch, envelope mapping (reusing `scoringVocabulary`'s credibility/freshness normalizers), dedup-on-persist, and a `ProviderRunLog` row per run. Never throws past itself — a failed or rate-limited run is a recorded outcome.
+- **Scheduling and health** — `providerScheduler.js` mirrors the existing single-instance `node-cron` shape (`start/stop/getStatus/runNow`) exactly, running every provider sequentially every 15 minutes, bootstrapped only from `server.js`. `providerHealthService.js` + `GET /api/v2/providers` expose per-provider run history, including honest empty state for providers never run yet.
+- **No recommendation coupling** — grepped every new file for `autonomousRecommendationEngine`/`canonicalVerdict`/`homeSummaryService` imports; zero matches. This layer performs ingestion only.
+- **Doc drift fix** — corrected the Sprint 20 audit's findings in the same pass: `API_CONTRACTS.md`'s endpoint index now lists the Sprint 20 and 21A endpoints it was missing; `ARCHITECTURE.md`'s §2.8 dependency diagram, §2.4 feature list, and §10 Background Jobs section (previously stale even before this sprint) are now accurate; this section's own §26 commit-count typo (13 -> 12) is fixed.
+
+Sprint 21A verification:
+- `npm run test` — 205 backend / 84 frontend passing at completion, run before every commit.
+- Dedicated tests proving: envelope defaults/overrides for the 5 new fields; DB-level dedup idempotency; rate limiter window behavior; retry backoff and give-up behavior; every registered provider's structural conformance; the orchestrator's dedup + run-log behavior including a forced-failure path that never throws past the caller; scheduler start/stop/getStatus/runNow; ops-route behavior including 404s for unknown providers.
+- No browser verification — this sprint adds no UI, per its own explicit constraint.
+
+Not in scope for Sprint 21A:
+- Live integrations for the 14 stub providers (SEC EDGAR, Reddit, X, Telegram, Polymarket, Fed, ECB, FOMC, FDA, NASA, Treasury, Congress, earnings, patents) — the framework now makes wiring each one trivial, but none is implemented yet.
+- A real queue/distributed execution — `runProviderIngestion(providerId)` is deliberately a discrete, stateless, idempotent unit of work as the explicit future extension point, but no queue library was added.
+- Reusing the pre-existing `altDataService` SEC/Congress/Polymarket integrations (`GET /api/alt-data/sec`, `/congress`, `/polymarket`) inside their matching new providers — a real opportunity for a future sprint to give 3 of the 14 stubs a real `fetchImpl` at low cost, noted here rather than done opportunistically mid-sprint.
 
 ## Quick Handoff For New Developers
 1. Install dependencies at root (`npm install`) and frontend if needed (`npm --prefix frontend install`).

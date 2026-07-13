@@ -73,6 +73,16 @@
 - `POST /api/v2/recommendations/run`
 - `GET /api/v2/recommendations/status`
 - `GET /api/v2/recommendations/:id/decision-trace`
+- `GET /api/v2/investor-profile`
+- `POST /api/v2/investor-profile`
+- `PATCH /api/v2/investor-profile`
+- `GET /api/v2/investor-profile/investment-profile`
+- `GET /api/v2/home-summary`
+- `GET /api/v2/themes`
+- `GET /api/v2/themes/:themeKey`
+- `GET /api/v2/providers`
+- `GET /api/v2/providers/:providerId/health`
+- `POST /api/v2/providers/:providerId/run`
 
 ### MVP-required but currently missing
 
@@ -2629,6 +2639,18 @@ Unchanged route/response shape from its original documentation — see the exist
 }
 ```
 `maturity` is a deterministic tier derived from real matching-event volume in the current feed (via the existing `classifyEventType` tagging) — never fabricated. `thesis` is template-generated from real aggregated evidence, deliberately not an LLM call for this first slice. `confidenceTrend` reflects real history captured by a daily best-effort job starting from whenever the platform first ran it — never backfilled. `404 { error: "Unknown theme: ..." }` for an invalid `themeKey`.
+
+---
+
+### 3.51 `GET /api/v2/providers`, `GET /api/v2/providers/:providerId/health`, `POST /api/v2/providers/:providerId/run`
+
+**Sprint 21A — Global Intelligence Platform.** Ops visibility into the provider ingestion framework; no product-facing UI consumes these. Not the same thing as §9's market-data providers (Finnhub/NewsAPI/OpenAI/Polygon/Alpha Vantage, called synchronously within request handling) — these are the 15 background ingestion sources in `backend/services/providers/`.
+
+- `GET /api/v2/providers` → `{ providers: [{ providerId, label, sourceType, lastRunAt, lastStatus, successRate }, ...] }` — all 15 registered providers, including ones never run yet (`lastRunAt: null, lastStatus: null, successRate: null` — an honest empty state, not omitted).
+- `GET /api/v2/providers/:providerId/health` → the same shape plus `recentRuns: ProviderRunLog[]` (last 10). `404 { error: "Unknown provider: ..." }` for an unregistered `providerId`.
+- `POST /api/v2/providers/:providerId/run` → triggers `providerIngestionService.runProviderIngestion(providerId)` synchronously and returns its result: `{ providerId, status ("SUCCESS"|"FAILED"|"PARTIAL"), itemsFetched, itemsPersisted, itemsDeduped, errorMessage, durationMs }`. `404` for an unregistered `providerId`. A rate-limited or upstream-failing provider returns `status: "FAILED"` in a normal `200` response body, not an HTTP error — the run itself is the resource being reported on.
+
+This layer performs ingestion only — no recommendation, verdict, or theme-intelligence write path is reachable from it.
 
 ---
 
