@@ -21,7 +21,7 @@ const GlobalIntelligenceFeature = lazy(() => import("../features/intelligence/Gl
 const screenMap = {
   Home: HomeFeature,
   Dashboard: DashboardFeature,
-  "Market News": NewsFeature,
+  "Daily Feed": NewsFeature,
   "AI Analysis": AnalysisFeature,
   Watchlist: WatchlistFeature,
   "Global Intelligence": GlobalIntelligenceFeature,

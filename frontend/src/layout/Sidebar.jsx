@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Button } from "../components/ui";
 
-const navItems = ["Home", "Dashboard", "Global Intelligence", "AI Analysis", "Watchlist", "Portfolio", "Recommendations", "Market News", "Alerts", "My Profile", "Settings"];
+const navItems = ["Home", "Dashboard", "Global Intelligence", "AI Analysis", "Watchlist", "Portfolio", "Recommendations", "Daily Feed", "Alerts", "My Profile", "Settings"];
 
 function Sidebar({ activeView, onNavigate, favorites = [], onSelectFavorite }) {
   return (

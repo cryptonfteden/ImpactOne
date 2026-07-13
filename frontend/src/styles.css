@@ -2547,6 +2547,39 @@ body {
   }
 }
 
+/* Sprint 20, Part 4 — Daily Feed item card. Overrides news-item--premium's
+   icon-row assumption with a simple column layout, since this card has no
+   icon slot. */
+.feed-item-card {
+  display: flex !important;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-2);
+}
+
+.feed-item-card__stats {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  color: var(--text-2);
+}
+
+.feed-item-card__trace {
+  margin-top: 4px;
+  border-top: 1px solid var(--glass-border);
+  padding-top: 8px;
+}
+
+.feed-item-card__trace summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+
 /* Sprint 20 — allocation bar (Suggested portfolio). */
 .allocation-bar {
   display: flex;

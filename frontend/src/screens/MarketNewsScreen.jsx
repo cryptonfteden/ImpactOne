@@ -1,57 +1,78 @@
+import { useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
+import { LoadingSpinner } from "../components/ui";
+import { intelligenceApi } from "../services/api";
+import useWatchlist from "../hooks/useWatchlist";
+import FeedItemCard from "../components/feed/FeedItemCard";
+import { logError } from "../utils/errorHandling";
 
-const newsItems = [
-  {
-    title: "AI infrastructure demand lifts enterprise software",
-    time: "12 min ago",
-    summary: "Analysts highlight accelerating spending on data centers and cloud compute capacity.",
-  },
-  {
-    title: "Sustainable energy names rebound after policy update",
-    time: "37 min ago",
-    summary: "The market is rotating toward long-duration infrastructure plays with improving margins.",
-  },
-  {
-    title: "Macro signals remain constructive for growth equities",
-    time: "1 hr ago",
-    summary: "Inflation prints suggest steady consumer demand and manageable rate pressure.",
-  },
-];
-
+/**
+ * Sprint 20, Part 4/5 — the Daily Feed. Replaces the previous fully-mock
+ * "Market News" screen with the real, live event feed
+ * (autonomousMarketService's processed events), personalized server-side
+ * by the investor profile when one exists (feedPersonalizationService).
+ */
 export default function MarketNewsScreen() {
+  const { watchlist } = useWatchlist();
+  const [feed, setFeed] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setIsLoading(true);
+      try {
+        const data = await intelligenceApi.liveFeed({ watchlist });
+        if (!cancelled) {
+          setFeed(data.feed || []);
+          setError("");
+        }
+      } catch (loadError) {
+        logError("daily feed load failed", loadError);
+        if (!cancelled) {
+          setError("We couldn't load today's feed right now.");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchlist.join(",")]);
+
   return (
     <div className="screen-page">
       <section className="screen-hero">
         <div>
-          <p className="eyebrow">Market Pulse</p>
-          <h1>Daily news and narrative shifts</h1>
+          <p className="eyebrow">Daily Feed</p>
+          <h1>What's moving markets, ranked for you</h1>
           <p className="subtext">
-            Stay close to the stories moving markets, without the noise.
+            Real events, scored for importance and confidence, personalized to your portfolio, watchlist, and profile.
           </p>
         </div>
       </section>
 
-      <div className="screen-grid">
-        <SectionCard title="Top Stories" subtitle="Mock market briefing" className="screen-card">
+      <SectionCard title="Today's feed" subtitle={feed.length ? `${feed.length} items` : undefined} className="screen-card">
+        {isLoading ? (
+          <LoadingSpinner label="Loading today's feed" />
+        ) : error ? (
+          <p className="company-description negative">{error}</p>
+        ) : feed.length ? (
           <div className="news-list">
-            {newsItems.map((item) => (
-              <article key={item.title} className="news-item">
-                <div className="news-item__meta">{item.time}</div>
-                <h4>{item.title}</h4>
-                <p>{item.summary}</p>
-              </article>
+            {feed.map((item) => (
+              <FeedItemCard key={item.id || item.headline} item={item} />
             ))}
           </div>
-        </SectionCard>
-
-        <SectionCard title="What matters now" subtitle="Current theme" className="screen-card">
-          <ul className="stack-list">
-            <li>Rates remain sticky but not restrictive</li>
-            <li>AI capex cycle supports infrastructure winners</li>
-            <li>Consumer resilience keeps quality growth attractive</li>
-          </ul>
-        </SectionCard>
-      </div>
+        ) : (
+          <p className="company-description subtle">No feed items right now — check back soon.</p>
+        )}
+      </SectionCard>
     </div>
   );
 }
