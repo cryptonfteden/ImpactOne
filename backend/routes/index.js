@@ -7,6 +7,7 @@ const { getComparison } = require("../controllers/comparisonController");
 const { getPortfolio } = require("../controllers/portfolioController");
 const { getQuoteController } = require("../controllers/quoteController");
 const { analyzeCommittee, getCommitteeTrackRecordController } = require("../controllers/committeeController");
+const { getHomeSummary } = require("../controllers/homeSummaryController");
 const {
 	getCot,
 	getPolymarket,
@@ -46,6 +47,7 @@ router.use("/intelligence", intelligenceRoutes);
 router.use("/v2/portfolio", portfolioEngineRoutes);
 router.use("/v2/recommendations", autonomousRecommendationRoutes);
 router.use("/v2/investor-profile", investorProfileRoutes);
+router.get("/v2/home-summary", getHomeSummary);
 router.use("/chat", chatRoutes);
 
 module.exports = router;
