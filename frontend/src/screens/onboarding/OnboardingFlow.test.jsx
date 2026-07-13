@@ -1,8 +1,32 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import OnboardingFlow from "./OnboardingFlow";
+import { investorProfileApi } from "../../services/api";
+
+vi.mock("../../services/api", () => ({
+  investorProfileApi: {
+    get: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    getInvestmentProfile: vi.fn(),
+  },
+}));
+
+const INVESTMENT_PROFILE_FIXTURE = {
+  suggestedAllocation: { stocks: 80, bonds: 14, cash: 6 },
+  diversificationExplanation: "Spread across stocks, bonds, and cash.",
+  expectedVolatility: { lowPct: 10, highPct: 18, label: "Moderate swings" },
+  suggestedAnnualReturnPct: 7.2,
+  educationalExplanation: "Compounding rewards patience.",
+  assumptionsDisclosure: "All figures above are illustrations based on configurable assumptions, not promises.",
+};
 
 describe("OnboardingFlow", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    investorProfileApi.getInvestmentProfile.mockResolvedValue(INVESTMENT_PROFILE_FIXTURE);
+  });
+
   it("requires a valid age before advancing past step 1", () => {
     render(<OnboardingFlow onComplete={vi.fn()} />);
 
@@ -55,8 +79,9 @@ describe("OnboardingFlow", () => {
   it("completes the flow and submits all collected answers, showing a submitting state", async () => {
     let resolveComplete;
     const onComplete = vi.fn(() => new Promise((resolve) => { resolveComplete = resolve; }));
+    const onFinish = vi.fn();
 
-    render(<OnboardingFlow onComplete={onComplete} />);
+    render(<OnboardingFlow onComplete={onComplete} onFinish={onFinish} />);
 
     fireEvent.change(screen.getByPlaceholderText("Age"), { target: { value: "17" } });
     fireEvent.click(screen.getByText("Continue"));
@@ -77,6 +102,10 @@ describe("OnboardingFlow", () => {
     await waitFor(() => expect(screen.getByText("Building your profile...")).toBeInTheDocument());
     expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ age: 17, investmentHorizon: "LONG_TERM" }));
 
-    resolveComplete();
+    resolveComplete({ id: "p1", age: 17, country: null, monthlyInvestmentAmount: null });
+
+    await waitFor(() => expect(screen.getByText("Here's what we built for you")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Get started"));
+    expect(onFinish).toHaveBeenCalled();
   });
 });

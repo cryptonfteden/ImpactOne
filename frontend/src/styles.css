@@ -2417,6 +2417,145 @@ body {
   }
 }
 
+/* Sprint 20, Part 2 — compound-interest simulator and future timeline. */
+.simulator {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.simulator__controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.simulator__control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-1);
+  font-size: 0.85rem;
+}
+
+.simulator__control input[type="range"] {
+  width: 100%;
+  min-height: 24px;
+  accent-color: var(--accent);
+}
+
+.simulator__control strong {
+  color: var(--text-0);
+  font-size: 1rem;
+}
+
+.simulator__result {
+  text-align: center;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+}
+
+.simulator__result-label {
+  color: var(--text-2);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.simulator__result-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-0);
+}
+
+.simulator__disclaimer {
+  text-align: center;
+}
+
+.timeline-chart__svg {
+  width: 100%;
+  height: 180px;
+}
+
+.timeline-chart__area {
+  fill: var(--accent-soft);
+}
+
+.timeline-chart__balance-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.4;
+}
+
+.timeline-chart__contributed-line {
+  fill: none;
+  stroke: var(--text-2);
+  stroke-width: 1.6;
+  stroke-dasharray: 4 3;
+}
+
+.timeline-chart__legend {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  font-size: 0.8rem;
+}
+
+.timeline-chart__legend-item {
+  position: relative;
+  padding-left: 16px;
+  color: var(--text-2);
+}
+
+.timeline-chart__legend-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.timeline-chart__legend-item--balance::before {
+  background: var(--accent);
+}
+
+.timeline-chart__legend-item--contributed::before {
+  background: var(--text-2);
+}
+
+/* Sprint 20 — allocation bar (Suggested portfolio). */
+.allocation-bar {
+  display: flex;
+  width: 100%;
+  height: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.allocation-bar__segment--stocks {
+  background: var(--accent);
+}
+
+.allocation-bar__segment--bonds {
+  background: var(--success);
+}
+
+.allocation-bar__segment--cash {
+  background: var(--text-2);
+}
+
+.allocation-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  color: var(--text-1);
+}
+
 @media (max-width: 820px) {
   .header-portfolio-glance {
     display: none;

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { getCurrencyForCountry } from "../../utils/currency";
+import InvestorProfileScreen from "../InvestorProfileScreen";
 
 const COUNTRY_OPTIONS = [
   { value: "US", label: "United States" },
@@ -66,7 +67,7 @@ function ChipGroup({ options, onSelect, selectedValue }) {
  * age is required; every other step can be skipped. Designed to complete
  * in well under 60 seconds.
  */
-export default function OnboardingFlow({ onComplete }) {
+export default function OnboardingFlow({ onComplete, onFinish }) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
   const [ageInput, setAgeInput] = useState("");
@@ -75,6 +76,7 @@ export default function OnboardingFlow({ onComplete }) {
   const [showCustomAmount, setShowCustomAmount] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [createdProfile, setCreatedProfile] = useState(null);
 
   const currencySymbol = useMemo(() => getCurrencyForCountry(answers.country), [answers.country]);
 
@@ -119,7 +121,8 @@ export default function OnboardingFlow({ onComplete }) {
     setIsSubmitting(true);
     setSubmitError("");
     try {
-      await onComplete(finalAnswers);
+      const profile = await onComplete(finalAnswers);
+      setCreatedProfile(profile);
     } catch (error) {
       setSubmitError(error?.message || "Something went wrong creating your profile. Please try again.");
       setIsSubmitting(false);
@@ -213,6 +216,16 @@ export default function OnboardingFlow({ onComplete }) {
   ];
 
   const current = steps[step];
+
+  if (createdProfile) {
+    return (
+      <div className="onboarding-shell">
+        <div className="onboarding-card" style={{ maxWidth: 640 }}>
+          <InvestorProfileScreen profile={createdProfile} onGetStarted={onFinish} />
+        </div>
+      </div>
+    );
+  }
 
   if (isSubmitting) {
     return (
