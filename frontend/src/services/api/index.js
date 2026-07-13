@@ -7,3 +7,4 @@ export { committeeApi } from "./committeeApi";
 export { portfolioEngineApi } from "./portfolioEngineApi";
 export { chatApi } from "./chatApi";
 export { recommendationsApi } from "./recommendationsApi";
+export { investorProfileApi } from "./investorProfileApi";

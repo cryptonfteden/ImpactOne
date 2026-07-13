@@ -24,4 +24,11 @@ export const apiClient = {
       body: JSON.stringify(body),
     });
   },
+  patch(path, body) {
+    return request(path, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  },
 };
