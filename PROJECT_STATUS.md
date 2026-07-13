@@ -1113,6 +1113,28 @@ Not in scope for Sprint 21B:
 - Any automated population of World Memory records — no scheduler or job promotes `CanonicalEvent`s into `WorldMemoryRecord`s yet; the repository is ready to be called, but nothing calls it automatically.
 - `CalibrationBucket`, `AttributionSnapshot`, `EvidenceOutcomeLink`, `DriftAlert`, `RecalibrationProposal` — the remaining 5 tables from Sprint 19's design, not needed to satisfy this sprint's nine named questions and left for the grading-engine sprint that actually needs them.
 
+## 29. Sprint 23A - Continuous Intelligence Platform Foundation
+
+Scope note: most of this sprint's named mission items (Provider Framework, Scheduler, Provider Health, Canonical Event ingestion, automatic retries) were already built in Sprint 21A and re-verified present/passing before any new work began. The genuinely new scope was Provider Metrics, Provider Diagnostics, an explicit Provider Metadata endpoint, and the platform's first frontend surface for any of it: a developer-only Intelligence Console.
+
+Sprint 23A outcomes:
+- **Provider Metrics** (`providerMetricsService.js`, `GET /api/v2/providers/:providerId/metrics`) — distinct from Health's point-in-time status, this aggregates a provider's *entire* run history (`providerRunLogRepository.getAllRunsForProvider`, new): total runs, items fetched/persisted/deduped, dedup rate, error rate, average duration, last success timestamp. Read-only aggregation over the existing `ProviderRunLog` table — no schema change.
+- **Provider Diagnostics** (`providerDiagnosticsService.js`, `GET /api/v2/providers/:providerId/diagnostics`) — live contract-conformance re-check (reuses `baseProviderContract.validateProviderShape`, the same function the registry runs at boot), current rate-limiter budget (`rateLimiter.getState()`, new — read-only, never consumes budget, reads the exact same limiter instance `providerIngestionService` runs against via a new exported `getLimiterFor`), and the most recent run's error detail, if any.
+- **Provider Metadata** (`GET /api/v2/providers/:providerId/metadata`) — the static registry entry (label/sourceType/category/defaultThemes/rateLimit), the cheapest of the three additions since it's a pure read of already-existing registry data with no new service.
+- **Intelligence Console** (`frontend/src/screens/IntelligenceConsoleScreen.jsx`) — the provider framework's first frontend surface: a table of all 15 providers with health/success-rate, an expandable detail panel per provider (metrics + diagnostics + metadata), and a "Run now" button. Read-only aside from that one manual trigger — no destructive controls, no recommendation/portfolio/outcome data anywhere on the screen. Gated behind `VITE_DEV_CONSOLE=true`, the exact same feature-flag precedent as `PortfolioScreen.jsx`'s `VITE_PORTFOLIO_ENGINE` — invisible in any normal build, no new auth system added.
+- **Constraint verification, not just assertion** — `grep -rl "autonomousRecommendationEngine\|canonicalVerdict\|portfolioEngineService\|worldMemoryRepository" backend/services/provider*.js backend/services/providers/ backend/controllers/providerController.js` was run after implementation; its one match (`providerIngestionService.js:65-66`) is the pre-existing doc comment stating the guarantee, not an import — zero real coupling to recommendation logic, portfolio logic, or the Outcome Engine, all three of which this sprint's rules forbid touching.
+- **Every provider answers all three new endpoints identically** — none of the three services special-case any of the 15 providers; each reads the shared registry/run-log data generically, so conformance is structural, not per-provider code.
+
+Sprint 23A verification:
+- `npm run test` — 223+ backend tests plus the new metrics/diagnostics/metadata/rate-limiter suites, 88 frontend tests (was 84; +4 for the Console), all passing, run before every commit.
+- Dedicated tests: `rateLimiter.getState()` is read-only and reflects real usage from the same limiter instance ingestion consumes; metrics aggregation correctness across multiple runs (known totals, dedup rate, error rate); diagnostics catches a deliberately malformed provider (fetch removed) and surfaces a real error message/timestamp; route integration tests for all three new endpoints against both a real-data provider and a zero-state stub; frontend tests proving the Console renders all providers, expands to fetch metrics/diagnostics/metadata exactly once each, triggers and reports a manual run, and never renders a buy/execute/place-order affordance anywhere.
+- Manual + browser verification: confirmed with `VITE_DEV_CONSOLE=true` the Console appears in the sidebar and renders/expands/runs correctly against the live backend; confirmed with the flag unset (normal `npm run dev`) no trace of it appears in nav or is reachable.
+
+Not in scope for Sprint 23A:
+- Any change to `autonomousRecommendationEngine.js`, `canonicalVerdict.js`, `portfolioEngineService.js`, or any `Outcome`/World Memory file — verified by grep, not just stated.
+- Live integrations for the 14 stub providers — unchanged from Sprint 21A, still an open, named future opportunity.
+- Any authentication/authorization system to gate the Console beyond a build-time flag — genuinely out of scope; the flag is a developer-workflow convenience, not an access-control mechanism, and must not be mistaken for one if this console is ever deployed somewhere the flag could be set by an untrusted party.
+
 ## Quick Handoff For New Developers
 1. Install dependencies at root (`npm install`) and frontend if needed (`npm --prefix frontend install`).
 2. Configure keys in env files (`FINNHUB_API_KEY`, `OPENAI_API_KEY`, `VITE_API_BASE_URL`).

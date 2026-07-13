@@ -83,6 +83,9 @@
 - `GET /api/v2/themes/:themeKey`
 - `GET /api/v2/providers`
 - `GET /api/v2/providers/:providerId/health`
+- `GET /api/v2/providers/:providerId/metrics`
+- `GET /api/v2/providers/:providerId/diagnostics`
+- `GET /api/v2/providers/:providerId/metadata`
 - `POST /api/v2/providers/:providerId/run`
 
 ### MVP-required but currently missing
@@ -2645,13 +2648,25 @@ Unchanged route/response shape from its original documentation — see the exist
 
 ### 3.51 `GET /api/v2/providers`, `GET /api/v2/providers/:providerId/health`, `POST /api/v2/providers/:providerId/run`
 
-**Sprint 21A — Global Intelligence Platform.** Ops visibility into the provider ingestion framework; no product-facing UI consumes these. Not the same thing as §9's market-data providers (Finnhub/NewsAPI/OpenAI/Polygon/Alpha Vantage, called synchronously within request handling) — these are the 15 background ingestion sources in `backend/services/providers/`.
+**Sprint 21A — Global Intelligence Platform.** Ops visibility into the provider ingestion framework. As of Sprint 23A, the developer-only Intelligence Console consumes these (see §3.52) — still no product-facing (end-user) UI does. Not the same thing as §9's market-data providers (Finnhub/NewsAPI/OpenAI/Polygon/Alpha Vantage, called synchronously within request handling) — these are the 15 background ingestion sources in `backend/services/providers/`.
 
 - `GET /api/v2/providers` → `{ providers: [{ providerId, label, sourceType, lastRunAt, lastStatus, successRate }, ...] }` — all 15 registered providers, including ones never run yet (`lastRunAt: null, lastStatus: null, successRate: null` — an honest empty state, not omitted).
 - `GET /api/v2/providers/:providerId/health` → the same shape plus `recentRuns: ProviderRunLog[]` (last 10). `404 { error: "Unknown provider: ..." }` for an unregistered `providerId`.
 - `POST /api/v2/providers/:providerId/run` → triggers `providerIngestionService.runProviderIngestion(providerId)` synchronously and returns its result: `{ providerId, status ("SUCCESS"|"FAILED"|"PARTIAL"), itemsFetched, itemsPersisted, itemsDeduped, errorMessage, durationMs }`. `404` for an unregistered `providerId`. A rate-limited or upstream-failing provider returns `status: "FAILED"` in a normal `200` response body, not an HTTP error — the run itself is the resource being reported on.
 
 This layer performs ingestion only — no recommendation, verdict, or theme-intelligence write path is reachable from it.
+
+---
+
+### 3.52 `GET /api/v2/providers/:providerId/metrics`, `GET /api/v2/providers/:providerId/diagnostics`, `GET /api/v2/providers/:providerId/metadata`
+
+**Sprint 23A — Continuous Intelligence Platform Foundation.** Three additions distinct from §3.51's Health (point-in-time status): Metrics answers "how has this provider performed over its whole history," Diagnostics answers "is something wrong with it right now, in detail," and Metadata answers "what is this provider, statically."
+
+- `GET /api/v2/providers/:providerId/metrics` → `{ providerId, totalRuns, totalItemsFetched, totalItemsPersisted, totalItemsDeduped, dedupRate, errorRate, avgDurationMs, lastSuccessAt }`. Aggregated over the provider's *entire* `ProviderRunLog` history (not just the last 10, unlike `/health`). `dedupRate`/`errorRate`/`avgDurationMs`/`lastSuccessAt` are `null` (never `0` or a fabricated default) before any run exists — an honest empty state. `404` for an unregistered `providerId`.
+- `GET /api/v2/providers/:providerId/diagnostics` → `{ providerId, contractValid, contractIssues, rateLimiter: { maxPerMinute, currentCount, windowResetInMs }, lastError: { message, occurredAt } | null }`. `contractValid`/`contractIssues` are a live re-check via the same `validateProviderShape` the registry runs at boot — not cached. `rateLimiter` reads the exact limiter instance `providerIngestionService` runs ingestion against (a shared, per-provider, module-level limiter, not a fresh simulation), so `currentCount` reflects real, current budget usage. `404` for an unregistered `providerId`.
+- `GET /api/v2/providers/:providerId/metadata` → `{ providerId, label, sourceType, category, defaultThemes, rateLimit }` — the static registry entry, unchanged since provider registration. `404` for an unregistered `providerId`.
+
+All three, like §3.51's endpoints, perform reads only — no recommendation, verdict, portfolio, or Outcome-Engine write or read path is reachable from any of them.
 
 ---
 

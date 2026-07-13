@@ -85,6 +85,7 @@ The `features/` directory acts as a thin adapter layer between `MainLayout` and 
 - `NewsFeature` -> Daily Feed screen (renamed from Market News in Sprint 20)
 - `ThemesFeature` -> Theme Dashboard screen (Sprint 20)
 - `MyProfileFeature` -> investor profile screen (Sprint 20)
+- `IntelligenceConsoleFeature` -> developer-only provider ops console (Sprint 23A), only registered in `screenMap` when `VITE_DEV_CONSOLE=true`
 - `AlertsFeature` -> alerts screen
 - `SettingsFeature` -> settings screen
 - `GlobalIntelligenceFeature` is lazy-loaded for the heavier intelligence experience
@@ -681,6 +682,8 @@ Distinct from §9's market-data providers (Finnhub, NewsAPI, OpenAI, Polygon, Al
 Only the wire-news provider has a real `fetchImpl` today (delegates to the existing `autonomousMarketService` news pipeline); the other 14 honestly return `[]` — no live integration yet, and no fabricated placeholder data. `runProviderIngestion(providerId)` is deliberately a discrete, stateless, idempotent unit of work — the explicit swap point for a future per-provider queue, which does not exist yet (no queue library has been added).
 
 This layer performs ingestion only. Nothing in `backend/services/providers/` or `providerIngestionService.js` calls `autonomousRecommendationEngine`, `canonicalVerdict`, or any theme/recommendation write path.
+
+**Sprint 23A** extended ops visibility with three more read endpoints alongside Health: `providerMetricsService.js` (full-history aggregation — totals, dedup rate, error rate, avg duration — distinct from Health's last-10-runs status), `providerDiagnosticsService.js` (live contract re-check via the registry's own `validateProviderShape`, current rate-limiter budget via a new `rateLimiter.getState()`, and the most recent error), and a metadata route (the static registry entry). `rateLimiter.getState()` is read-only and reads the exact limiter instance `providerIngestionService` runs against (via a new exported `getLimiterFor`), never a fresh simulation. Sprint 23A also added the framework's first frontend surface — a developer-only **Intelligence Console** (`frontend/src/screens/IntelligenceConsoleScreen.jsx`) consuming all four ops endpoints plus the manual run trigger, gated behind `VITE_DEV_CONSOLE=true` (same feature-flag precedent as §7's `VITE_PORTFOLIO_ENGINE`) — absent from `screenMap`/`navItems` and therefore unreachable in any normal build. Constraint compliance (no coupling to `autonomousRecommendationEngine`, `canonicalVerdict`, `portfolioEngineService`, or `worldMemoryRepository`) was verified by grep after implementation, not merely asserted — see `PROJECT_STATUS.md` §29.
 
 ---
 
