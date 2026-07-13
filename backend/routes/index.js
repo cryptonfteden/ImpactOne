@@ -20,6 +20,7 @@ const intelligenceRoutes = require("./intelligenceRoutes");
 const portfolioEngineRoutes = require("./portfolioEngineRoutes");
 const chatRoutes = require("./chatRoutes");
 const autonomousRecommendationRoutes = require("./autonomousRecommendationRoutes");
+const investorProfileRoutes = require("./investorProfileRoutes");
 
 const router = express.Router();
 
@@ -44,6 +45,7 @@ router.get("/alt-data/summary", getSummary);
 router.use("/intelligence", intelligenceRoutes);
 router.use("/v2/portfolio", portfolioEngineRoutes);
 router.use("/v2/recommendations", autonomousRecommendationRoutes);
+router.use("/v2/investor-profile", investorProfileRoutes);
 router.use("/chat", chatRoutes);
 
 module.exports = router;
