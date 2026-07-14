@@ -135,7 +135,7 @@ describe("RecommendationCard", () => {
     render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
     await waitFor(() => expect(screen.getByText("What changed")).toBeInTheDocument());
     expect(screen.getByText(/Reduce \(SUPERSEDED\)/)).toBeInTheDocument();
-    expect(screen.getByText(/action changed from Buy to Reduce/)).toBeInTheDocument();
+    expect(screen.getByText(/Why it changed: Action: Buy → Reduce/)).toBeInTheDocument();
   });
 
   it("filters out repeated-tick history entries with no real change, keeping only the baseline and genuine changes", async () => {
@@ -181,9 +181,9 @@ describe("RecommendationCard", () => {
 
     render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
     await waitFor(() => expect(screen.getByText("What changed")).toBeInTheDocument());
-    expect(screen.getByText(/confidence rose from 68 to 82/)).toBeInTheDocument();
-    expect(screen.getByText(/New evidence: Hyperscaler capex raised/)).toBeInTheDocument();
-    expect(screen.getByText(/Thesis: Strong AI capex tailwind driving conviction\./)).toBeInTheDocument();
+    expect(screen.getByText(/What confidence changed: 68 → 82 \(rose\)/)).toBeInTheDocument();
+    expect(screen.getByText(/What evidence changed: Hyperscaler capex raised/)).toBeInTheDocument();
+    expect(screen.getByText(/What thesis changed: Strong AI capex tailwind driving conviction\./)).toBeInTheDocument();
   });
 
   it("shows a labeled 'Why now' section explaining timing, not just a bare thesis", () => {

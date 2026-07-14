@@ -42,44 +42,45 @@ function formatTimestamp(value) {
 //
 // Sprint 27 Priority 2 — widened from action/status-only to a genuine
 // timeline: what changed, why (the new evidence/reasoning behind it), and
-// which belief moved (confidence delta). Every fact below comes from
-// fields the list endpoint already returns on each Recommendation row
-// (action, status, confidenceScore, evidence, reasoning) — no fabricated
-// "thesis changed" label unless the reasoning text itself actually differs.
+// which belief moved (confidence delta).
+//
+// Sprint 28 Priority 4 — returns a structured object instead of one
+// run-on sentence, so the UI can label each dimension explicitly ("Why it
+// changed" / "What evidence changed" / "What thesis changed" / "What
+// confidence changed") rather than making the user parse a paragraph.
+// Every field still comes only from data the list endpoint already
+// returns on each Recommendation row — no fabricated field is ever
+// populated when the underlying data didn't actually change.
 function describeChange(current, previous) {
   if (!previous) return null;
-  const changes = [];
 
-  if (current.action !== previous.action) {
-    changes.push(`action changed from ${ACTION_LABEL[previous.action] || previous.action} to ${ACTION_LABEL[current.action] || current.action}`);
-  }
-  if (current.status !== previous.status) {
-    changes.push(`status changed from ${previous.status} to ${current.status}`);
-  }
+  const actionChanged = current.action !== previous.action;
+  const statusChanged = current.status !== previous.status;
 
   const currentConfidence = Number(current.confidenceScore);
   const previousConfidence = Number(previous.confidenceScore);
-  if (Number.isFinite(currentConfidence) && Number.isFinite(previousConfidence) && currentConfidence !== previousConfidence) {
-    const delta = currentConfidence - previousConfidence;
-    changes.push(`confidence ${delta > 0 ? "rose" : "fell"} from ${previousConfidence} to ${currentConfidence}`);
-  }
+  const confidenceChanged = Number.isFinite(currentConfidence) && Number.isFinite(previousConfidence) && currentConfidence !== previousConfidence;
 
-  if (!changes.length) return null;
+  if (!actionChanged && !statusChanged && !confidenceChanged) return null;
 
   const newHeadlines = new Set((current.evidence?.matchedEvents || []).map((event) => event.headline).filter(Boolean));
   const previousHeadlines = new Set((previous.evidence?.matchedEvents || []).map((event) => event.headline).filter(Boolean));
   const newEvidence = [...newHeadlines].filter((headline) => !previousHeadlines.has(headline));
-
   const thesisChanged = Boolean(current.reasoning && previous.reasoning && current.reasoning !== previous.reasoning);
 
-  let sentence = changes.join("; ") + ".";
-  if (newEvidence.length) {
-    sentence += ` New evidence: ${newEvidence.slice(0, 2).join("; ")}.`;
-  }
-  if (thesisChanged) {
-    sentence += ` Thesis: ${current.reasoning}`;
-  }
-  return sentence;
+  const whatChanged = [];
+  if (actionChanged) whatChanged.push(`Action: ${ACTION_LABEL[previous.action] || previous.action} → ${ACTION_LABEL[current.action] || current.action}`);
+  if (statusChanged) whatChanged.push(`Status: ${previous.status} → ${current.status}`);
+
+  return {
+    whatChanged: whatChanged.join("; "),
+    confidenceChange: confidenceChanged
+      ? { direction: currentConfidence > previousConfidence ? "rose" : "fell", from: previousConfidence, to: currentConfidence }
+      : null,
+    newEvidence: newEvidence.slice(0, 2),
+    thesisChanged,
+    newThesis: thesisChanged ? current.reasoning : null,
+  };
 }
 
 /**
@@ -267,11 +268,28 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
             <div className="explanation-section">
               <p className="explanation-section__title">What changed</p>
               {timelineEntries.map(({ item, change, isBaseline }) => (
-                <p key={item.id} className="company-description subtle">
-                  {formatTimestamp(item.createdAt)} — {ACTION_LABEL[item.action] || item.action} ({item.status})
-                  {isBaseline ? " — first tracked version." : ""}
-                  {change ? ` — ${change}` : ""}
-                </p>
+                <div key={item.id} className="evidence-line">
+                  <p className="company-description subtle">
+                    {formatTimestamp(item.createdAt)} — {ACTION_LABEL[item.action] || item.action} ({item.status})
+                    {isBaseline ? " — first tracked version." : ""}
+                  </p>
+                  {change ? (
+                    <>
+                      {change.whatChanged ? <p className="company-description subtle">Why it changed: {change.whatChanged}</p> : null}
+                      {change.confidenceChange ? (
+                        <p className="company-description subtle">
+                          What confidence changed: {change.confidenceChange.from} → {change.confidenceChange.to} ({change.confidenceChange.direction})
+                        </p>
+                      ) : null}
+                      {change.newEvidence.length ? (
+                        <p className="company-description subtle">What evidence changed: {change.newEvidence.join("; ")}</p>
+                      ) : null}
+                      {change.thesisChanged ? (
+                        <p className="company-description subtle">What thesis changed: {change.newThesis}</p>
+                      ) : null}
+                    </>
+                  ) : null}
+                </div>
               ))}
             </div>
           ) : null}
