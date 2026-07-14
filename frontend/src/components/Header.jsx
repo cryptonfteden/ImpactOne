@@ -156,7 +156,8 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
             type="button"
             className="header-icon-button header-avatar"
             onClick={() => setIsAccountMenuOpen((value) => !value)}
-            aria-label="Account menu"
+            aria-label="Account menu — Guest workspace"
+            title="Guest workspace"
           >
             G
           </Button>
