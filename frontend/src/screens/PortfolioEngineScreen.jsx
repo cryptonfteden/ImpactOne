@@ -188,7 +188,7 @@ export default function PortfolioEngineScreen() {
                     <td>{position.sector}</td>
                     <td>{position.assetType}</td>
                   </tr>
-                )) : <tr><td colSpan="7">No open positions yet.</td></tr>}
+                )) : <tr><td colSpan="7">No open positions — you haven't placed a buy order yet.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -208,7 +208,7 @@ export default function PortfolioEngineScreen() {
           <div className="widget-list">
             {allocationBySector.length ? allocationBySector.map((item) => (
               <div key={item.name} className="widget-list-item"><strong>{item.name}</strong><span>{item.pct}%</span></div>
-            )) : <p className="company-description subtle">No sector allocation yet.</p>}
+            )) : <p className="company-description subtle">No sector allocation — allocation is computed from open positions, and you have none yet.</p>}
           </div>
         </SectionCard>
 
@@ -216,7 +216,7 @@ export default function PortfolioEngineScreen() {
           <div className="widget-list">
             {allocationByAssetType.length ? allocationByAssetType.map((item) => (
               <div key={item.name} className="widget-list-item"><strong>{item.name}</strong><span>{item.pct}%</span></div>
-            )) : <p className="company-description subtle">No asset allocation yet.</p>}
+            )) : <p className="company-description subtle">No asset-type allocation — allocation is computed from open positions, and you have none yet.</p>}
           </div>
         </SectionCard>
       </div>
@@ -245,7 +245,7 @@ export default function PortfolioEngineScreen() {
                   <td className={Number(snapshot.unrealizedPnl || 0) >= 0 ? "positive" : "negative"}>${Number(snapshot.unrealizedPnl || 0).toFixed(2)}</td>
                   <td>{Number(snapshot.totalReturnPct || 0).toFixed(2)}%</td>
                 </tr>
-              )) : <tr><td colSpan="6">No snapshots captured yet.</td></tr>}
+              )) : <tr><td colSpan="6">No snapshots — performance history is only captured on demand today, and none has been taken yet.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -274,7 +274,7 @@ export default function PortfolioEngineScreen() {
                   <td>${Number(trade.price || 0).toFixed(2)}</td>
                   <td className={Number(trade.realizedPnl || 0) >= 0 ? "positive" : "negative"}>{trade.realizedPnl === null ? "—" : `$${Number(trade.realizedPnl).toFixed(2)}`}</td>
                 </tr>
-              )) : <tr><td colSpan="6">No trades yet.</td></tr>}
+              )) : <tr><td colSpan="6">No trades — no order has been placed and filled yet.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -301,7 +301,7 @@ export default function PortfolioEngineScreen() {
                   <td>${Number(entry.balanceAfter || 0).toFixed(2)}</td>
                   <td>{entry.description}</td>
                 </tr>
-              )) : <tr><td colSpan="5">No transactions yet.</td></tr>}
+              )) : <tr><td colSpan="5">No transactions — the cash ledger only grows from real trades and deposits, and there haven't been any yet.</td></tr>}
             </tbody>
           </table>
         </div>

@@ -48,7 +48,7 @@ function Sidebar({ activeView, onNavigate, favorites = [], onSelectFavorite }) {
             ))}
           </div>
         ) : (
-          <p className="sidebar-empty">No favorites yet.</p>
+          <p className="sidebar-empty">Empty because you haven't added a ticker to your watchlist yet.</p>
         )}
       </div>
     </aside>

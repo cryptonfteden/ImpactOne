@@ -125,7 +125,7 @@ function LegacyPortfolioScreen() {
                     <td>{position.sector}</td>
                     <td>{position.assetType}</td>
                   </tr>
-                )) : <tr><td colSpan="7">No open positions yet.</td></tr>}
+                )) : <tr><td colSpan="7">No open positions — no simulated trade has cleared the 75-confidence threshold yet.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -153,7 +153,7 @@ function LegacyPortfolioScreen() {
                 <strong>{item.name}</strong>
                 <span>{item.pct}%</span>
               </div>
-            )) : <p className="company-description subtle">No sector allocation yet.</p>}
+            )) : <p className="company-description subtle">No sector allocation — allocation is computed from open positions, and you have none yet.</p>}
           </div>
         </SectionCard>
 
@@ -164,7 +164,7 @@ function LegacyPortfolioScreen() {
                 <strong>{item.name}</strong>
                 <span>{item.pct}%</span>
               </div>
-            )) : <p className="company-description subtle">No asset allocation yet.</p>}
+            )) : <p className="company-description subtle">No asset-type allocation — allocation is computed from open positions, and you have none yet.</p>}
           </div>
         </SectionCard>
       </div>
@@ -200,7 +200,7 @@ function LegacyPortfolioScreen() {
                   <td>{trade.status}</td>
                   <td className={Number(trade.currentPnL || 0) >= 0 ? "positive" : "negative"}>${Number(trade.currentPnL || 0).toFixed(2)}</td>
                 </tr>
-              )) : <tr><td colSpan="10">No trades logged yet.</td></tr>}
+              )) : <tr><td colSpan="10">No trades logged — no simulated trade has cleared the 75-confidence threshold yet.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -225,7 +225,7 @@ function LegacyPortfolioScreen() {
               <strong>{trade.ticker} {trade.action}</strong>
               <span>{trade.timeHorizon || "N/A"}</span>
             </div>
-          )) : <p className="company-description subtle">No open agent trades yet.</p>}
+          )) : <p className="company-description subtle">No open agent trades — no simulated trade has cleared the 75-confidence threshold today.</p>}
         </div>
       </SectionCard>
     </div>
