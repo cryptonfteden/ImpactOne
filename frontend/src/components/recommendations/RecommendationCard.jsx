@@ -125,6 +125,19 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
 
   const uncertainty = decisionTrace?.confidenceCalculation?.uncertainty;
 
+  // Sprint 27 Priority 2 — the engine re-runs on a fixed cadence even when
+  // nothing about a recommendation actually changed, so raw history is
+  // mostly identical re-runs. A timeline should show evolution, not every
+  // tick: keep only the oldest entry (as a "first tracked version" baseline)
+  // and entries where describeChange found a real difference from the one
+  // before it, then show the most recent ones so the freshest changes are
+  // visible without scrolling an unbounded list.
+  const sortedHistory = history.slice().sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  const timelineEntries = sortedHistory
+    .map((item, index) => ({ item, change: describeChange(item, sortedHistory[index - 1]), isBaseline: index === 0 }))
+    .filter(({ change, isBaseline }) => change || isBaseline)
+    .slice(-8);
+
   return (
     <article className="opportunity-item">
       <div className="opportunity-item__top">
@@ -250,21 +263,16 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
             </div>
           ) : null}
 
-          {history.length ? (
+          {timelineEntries.length ? (
             <div className="explanation-section">
               <p className="explanation-section__title">What changed</p>
-              {history
-                .slice()
-                .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-                .map((item, index, sorted) => {
-                  const change = describeChange(item, sorted[index - 1]);
-                  return (
-                    <p key={item.id} className="company-description subtle">
-                      {formatTimestamp(item.createdAt)} — {ACTION_LABEL[item.action] || item.action} ({item.status})
-                      {change ? ` — ${change}` : ""}
-                    </p>
-                  );
-                })}
+              {timelineEntries.map(({ item, change, isBaseline }) => (
+                <p key={item.id} className="company-description subtle">
+                  {formatTimestamp(item.createdAt)} — {ACTION_LABEL[item.action] || item.action} ({item.status})
+                  {isBaseline ? " — first tracked version." : ""}
+                  {change ? ` — ${change}` : ""}
+                </p>
+              ))}
             </div>
           ) : null}
 

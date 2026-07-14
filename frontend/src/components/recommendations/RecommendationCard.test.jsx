@@ -138,6 +138,21 @@ describe("RecommendationCard", () => {
     expect(screen.getByText(/action changed from Buy to Reduce/)).toBeInTheDocument();
   });
 
+  it("filters out repeated-tick history entries with no real change, keeping only the baseline and genuine changes", async () => {
+    recommendationsApi.list.mockResolvedValue({
+      recommendations: [
+        { id: "rec-3", symbol: "NVDA", action: "BUY", status: "SUPERSEDED", confidenceScore: 80, createdAt: "2026-07-14T02:00:00.000Z" },
+        { id: "rec-2", symbol: "NVDA", action: "BUY", status: "SUPERSEDED", confidenceScore: 80, createdAt: "2026-07-14T01:00:00.000Z" },
+        { id: "rec-0", symbol: "NVDA", action: "BUY", status: "SUPERSEDED", confidenceScore: 80, createdAt: "2026-07-07T00:00:00.000Z" },
+      ],
+    });
+
+    render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText("What changed")).toBeInTheDocument());
+    expect(screen.getByText(/first tracked version/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Buy \(SUPERSEDED\)/)).toHaveLength(1);
+  });
+
   it("timeline entries also surface confidence deltas and new evidence, not just action/status", async () => {
     recommendationsApi.list.mockResolvedValue({
       recommendations: [
