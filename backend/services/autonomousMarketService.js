@@ -515,7 +515,14 @@ async function buildWatchlistRanks({ watchlist, feed, altSignalsBySymbol, quotes
       eventExposure: scores.eventExposure,
       overallAiScore,
       primaryDriver: primaryEvent?.headline || "No dominant event",
-      explanation: primaryEvent?.whyItMatters || `${symbol} is being scored on macro, event, and positioning exposure.`,
+      // Sprint 25 — when no matched event exists, the fallback must still
+      // be genuinely derived from this symbol's own real, already-computed
+      // scores (never the same boilerplate sentence for every symbol with
+      // no news). Honest about the absence of a driving event, specific
+      // about what the score is actually built from.
+      explanation:
+        primaryEvent?.whyItMatters ||
+        `${symbol}: no single dominant news event — score of ${overallAiScore}/100 reflects momentum ${scores.momentum}/100, opportunity ${scores.opportunityScore}/100, risk ${scores.riskScore}/100.`,
       // Live Finnhub quote data already fetched above for scoring — surfaced
       // here (rather than discarded) so downstream consumers (e.g. the
       // autonomous recommendation engine) can cite a real price, not just

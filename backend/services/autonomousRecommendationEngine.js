@@ -396,7 +396,15 @@ function buildEvidenceReferences({ matchedEvents, symbol }) {
 function buildReasoning({ symbol, action, rankingItem, portfolioAction, heldPosition, sectorWeightPct, concentrationTriggered }) {
   const parts = [];
 
-  parts.push(rankingItem.explanation || `${symbol} is being scored on macro, event, and positioning exposure.`);
+  // Sprint 25 — rankingItem.explanation is now itself always derived from
+  // real per-symbol scores upstream (autonomousMarketService.js), never
+  // generic boilerplate; this defensive fallback, for the rare case that
+  // field is somehow missing, still derives from this call's own real
+  // scores rather than repeating an identical sentence across symbols.
+  parts.push(
+    rankingItem.explanation ||
+      `${symbol}: AI score ${rankingItem.overallAiScore ?? "n/a"}/100 (opportunity ${rankingItem.opportunityScore ?? "n/a"}, risk ${rankingItem.riskScore ?? "n/a"}).`
+  );
 
   if (Number.isFinite(rankingItem.currentPrice)) {
     const changePct = Number.isFinite(rankingItem.dayChangePercent) ? rankingItem.dayChangePercent : 0;

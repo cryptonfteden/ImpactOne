@@ -52,6 +52,25 @@ test("getRepresentativeEvents carries the article's publishedAt timestamp (Sprin
   assert.equal(synthetic.publishedAt, null, "synthetic entries carry no publishedAt either");
 });
 
+test("Sprint 25 — watchlistRankings' fallback explanation (no matched event) is genuinely derived per symbol, not identical boilerplate", async () => {
+  const original = newsService.getNews;
+  newsService.getNews = async () => [];
+
+  try {
+    const overview = await autonomousMarketService.getAutonomousOverview({ watchlist: ["ZZZQ1", "ZZZQ2"] });
+    const rankings = overview.watchlistRankings.filter((item) => ["ZZZQ1", "ZZZQ2"].includes(item.symbol));
+    assert.equal(rankings.length, 2);
+
+    for (const item of rankings) {
+      assert.doesNotMatch(item.explanation, /is being scored on macro, event, and positioning exposure\.$/, "must not fall back to the old generic boilerplate sentence");
+      assert.match(item.explanation, new RegExp(`^${item.symbol}:`), "fallback explanation must be scoped to this specific symbol");
+      assert.match(item.explanation, /score of \d+\/100/, "fallback must cite this symbol's own real computed score, not a fixed sentence");
+    }
+  } finally {
+    newsService.getNews = original;
+  }
+});
+
 test("getAutonomousOverview threads publishedAt through into the processed feed", async () => {
   const original = newsService.getNews;
   const publishedAt = "2026-07-11T10:00:00.000Z";
