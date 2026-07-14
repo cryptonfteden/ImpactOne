@@ -11,6 +11,9 @@ export const recommendationsApi = {
   getById(id) {
     return apiClient.get(`/v2/recommendations/${id}`);
   },
+  getDecisionTrace(id) {
+    return apiClient.get(`/v2/recommendations/${id}/decision-trace`);
+  },
   run(watchlist = []) {
     return apiClient.post("/v2/recommendations/run", { watchlist });
   },

@@ -1,6 +1,9 @@
+import { useEffect, useState } from "react";
 import { Button } from "../ui";
 import ScenarioComparison from "./ScenarioComparison";
 import QualityScoreBreakdown from "./QualityScoreBreakdown";
+import { recommendationsApi } from "../../services/api";
+import { logError } from "../../utils/errorHandling";
 
 const ACTION_PILL_CLASS = {
   BUY: "pill opportunity",
@@ -48,6 +51,34 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
   const qualityScore = Number.isFinite(Number(recommendation.qualityScore)) ? Number(recommendation.qualityScore) : null;
   const affectedPositions = explanation.affectedPositions || [];
 
+  const [decisionTrace, setDecisionTrace] = useState(null);
+  const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    if (!isExpanded) return;
+    let cancelled = false;
+
+    Promise.resolve()
+      .then(() => recommendationsApi.getDecisionTrace(recommendation.id))
+      .then((trace) => {
+        if (!cancelled && trace) setDecisionTrace(trace);
+      })
+      .catch((error) => logError("decision trace load failed", error));
+
+    Promise.resolve()
+      .then(() => recommendationsApi.list({ symbol: recommendation.symbol }))
+      .then((data) => {
+        if (!cancelled) setHistory(((data && data.recommendations) || []).filter((item) => item.id !== recommendation.id));
+      })
+      .catch((error) => logError("recommendation history load failed", error));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isExpanded, recommendation.id, recommendation.symbol]);
+
+  const uncertainty = decisionTrace?.confidenceCalculation?.uncertainty;
+
   return (
     <article className="opportunity-item">
       <div className="opportunity-item__top">
@@ -62,7 +93,10 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
         {qualityScore !== null ? <span className={qualityPillClass(qualityScore)}>Quality {qualityScore}/100</span> : null}
       </div>
 
-      <p className="company-description subtle">Confidence {Number(recommendation.confidenceScore)}/100 · Risk {recommendation.riskLabel}</p>
+      <p className="company-description subtle">
+        Confidence {Number(recommendation.confidenceScore)}/100
+        {Number.isFinite(uncertainty) ? ` · Uncertainty ${uncertainty}/100` : ""} · Risk {recommendation.riskLabel}
+      </p>
       <p className="company-description subtle">
         Upside {recommendation.expectedUpside} · Downside {recommendation.expectedDownside}
       </p>
@@ -157,6 +191,17 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
               {(explanation.committeeDebate.expertVotes || []).map((vote) => (
                 <p key={vote.agent} className="company-description subtle">
                   {vote.agent}: {vote.vote} ({vote.confidence}/100)
+                </p>
+              ))}
+            </div>
+          ) : null}
+
+          {history.length ? (
+            <div className="explanation-section">
+              <p className="explanation-section__title">History for {recommendation.symbol}</p>
+              {history.map((item) => (
+                <p key={item.id} className="company-description subtle">
+                  {formatTimestamp(item.createdAt)} — {ACTION_LABEL[item.action] || item.action} ({item.status})
                 </p>
               ))}
             </div>

@@ -1,6 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 import RecommendationCard from "./RecommendationCard";
+import { recommendationsApi } from "../../services/api";
+
+vi.mock("../../services/api", () => ({
+  recommendationsApi: { getDecisionTrace: vi.fn(), list: vi.fn() },
+}));
 
 const RECOMMENDATION_FIXTURE = {
   id: "rec-1",
@@ -33,6 +38,12 @@ const RECOMMENDATION_FIXTURE = {
   ],
   evidence: { symbolSource: "portfolio", matchedEvents: [] },
 };
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  recommendationsApi.getDecisionTrace.mockResolvedValue({ confidenceCalculation: { uncertainty: 35 } });
+  recommendationsApi.list.mockResolvedValue({ recommendations: [] });
+});
 
 describe("RecommendationCard", () => {
   it("always shows symbol, action, provenance badge, quality badge, and thesis, collapsed by default", () => {
@@ -98,5 +109,30 @@ describe("RecommendationCard", () => {
   it("renders no committee debate section when none is present on the recommendation", () => {
     render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
     expect(screen.queryByText("Committee debate")).not.toBeInTheDocument();
+  });
+
+  it("fetches and shows uncertainty from the DecisionTrace only when expanded", async () => {
+    render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
+    await waitFor(() => expect(recommendationsApi.getDecisionTrace).toHaveBeenCalledWith("rec-1"));
+    await waitFor(() => expect(screen.getByText(/Uncertainty 35\/100/)).toBeInTheDocument());
+  });
+
+  it("does not fetch decision trace or history when collapsed", () => {
+    render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded={false} onToggleExpand={vi.fn()} />);
+    expect(recommendationsApi.getDecisionTrace).not.toHaveBeenCalled();
+    expect(recommendationsApi.list).not.toHaveBeenCalled();
+  });
+
+  it("shows prior superseded recommendations for the same symbol as history, excluding the current one", async () => {
+    recommendationsApi.list.mockResolvedValue({
+      recommendations: [
+        { id: "rec-1", symbol: "NVDA", action: "BUY", status: "ACTIVE", createdAt: "2026-07-14T00:00:00.000Z" },
+        { id: "rec-0", symbol: "NVDA", action: "REDUCE", status: "SUPERSEDED", createdAt: "2026-07-01T00:00:00.000Z" },
+      ],
+    });
+
+    render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText("History for NVDA")).toBeInTheDocument());
+    expect(screen.getByText(/Reduce \(SUPERSEDED\)/)).toBeInTheDocument();
   });
 });

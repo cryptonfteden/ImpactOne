@@ -8,6 +8,7 @@ vi.mock("../services/api", () => ({
     list: vi.fn(),
     status: vi.fn(),
     run: vi.fn(),
+    getDecisionTrace: vi.fn(),
   },
 }));
 
