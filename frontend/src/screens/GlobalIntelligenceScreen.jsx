@@ -157,8 +157,8 @@ export default function GlobalIntelligenceScreen() {
 
         <SectionCard title="Capital Flows" subtitle="Current transitions" className="screen-card">
           <div className="widget-list">
-            {(globalMap?.capitalFlows || []).map((item) => (
-              <div key={`${item.from}-${item.to}`} className="widget-list-item">
+            {(globalMap?.capitalFlows || []).map((item, index) => (
+              <div key={`${item.from}-${item.to}-${index}`} className="widget-list-item">
                 <strong>{item.from} → {item.to}</strong>
                 <span>{item.rationale}</span>
               </div>
@@ -170,8 +170,8 @@ export default function GlobalIntelligenceScreen() {
       <div className="analysis-grid">
         <SectionCard title="Alpha Discovery" subtitle="Highest conviction opportunities" className="screen-card">
           <div className="widget-list">
-            {(alphaDiscovery?.top10InvestmentIdeas || []).slice(0, 10).map((idea) => (
-              <div key={`${idea.symbol}-${idea.primaryDriver}`} className="widget-list-item">
+            {(alphaDiscovery?.top10InvestmentIdeas || []).slice(0, 10).map((idea, index) => (
+              <div key={`${idea.symbol}-${idea.primaryDriver}-${index}`} className="widget-list-item">
                 <strong>{idea.symbol}</strong>
                 <span>{idea.portfolioAction?.action || "Wait"} | {idea.convictionScore}</span>
               </div>
