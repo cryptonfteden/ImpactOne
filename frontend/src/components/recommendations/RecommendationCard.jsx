@@ -39,15 +39,47 @@ function formatTimestamp(value) {
 // Sprint 25 — "what changed" derived from real, already-fetched history
 // entries (never invented): compares each entry to the one before it and
 // states only the concrete difference, or nothing when there isn't one.
+//
+// Sprint 27 Priority 2 — widened from action/status-only to a genuine
+// timeline: what changed, why (the new evidence/reasoning behind it), and
+// which belief moved (confidence delta). Every fact below comes from
+// fields the list endpoint already returns on each Recommendation row
+// (action, status, confidenceScore, evidence, reasoning) — no fabricated
+// "thesis changed" label unless the reasoning text itself actually differs.
 function describeChange(current, previous) {
   if (!previous) return null;
+  const changes = [];
+
   if (current.action !== previous.action) {
-    return `Action changed from ${ACTION_LABEL[previous.action] || previous.action} to ${ACTION_LABEL[current.action] || current.action}.`;
+    changes.push(`action changed from ${ACTION_LABEL[previous.action] || previous.action} to ${ACTION_LABEL[current.action] || current.action}`);
   }
   if (current.status !== previous.status) {
-    return `Status changed from ${previous.status} to ${current.status}.`;
+    changes.push(`status changed from ${previous.status} to ${current.status}`);
   }
-  return null;
+
+  const currentConfidence = Number(current.confidenceScore);
+  const previousConfidence = Number(previous.confidenceScore);
+  if (Number.isFinite(currentConfidence) && Number.isFinite(previousConfidence) && currentConfidence !== previousConfidence) {
+    const delta = currentConfidence - previousConfidence;
+    changes.push(`confidence ${delta > 0 ? "rose" : "fell"} from ${previousConfidence} to ${currentConfidence}`);
+  }
+
+  if (!changes.length) return null;
+
+  const newHeadlines = new Set((current.evidence?.matchedEvents || []).map((event) => event.headline).filter(Boolean));
+  const previousHeadlines = new Set((previous.evidence?.matchedEvents || []).map((event) => event.headline).filter(Boolean));
+  const newEvidence = [...newHeadlines].filter((headline) => !previousHeadlines.has(headline));
+
+  const thesisChanged = Boolean(current.reasoning && previous.reasoning && current.reasoning !== previous.reasoning);
+
+  let sentence = changes.join("; ") + ".";
+  if (newEvidence.length) {
+    sentence += ` New evidence: ${newEvidence.slice(0, 2).join("; ")}.`;
+  }
+  if (thesisChanged) {
+    sentence += ` Thesis: ${current.reasoning}`;
+  }
+  return sentence;
 }
 
 /**

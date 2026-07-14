@@ -135,7 +135,40 @@ describe("RecommendationCard", () => {
     render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
     await waitFor(() => expect(screen.getByText("What changed")).toBeInTheDocument());
     expect(screen.getByText(/Reduce \(SUPERSEDED\)/)).toBeInTheDocument();
-    expect(screen.getByText(/Action changed from Buy to Reduce/)).toBeInTheDocument();
+    expect(screen.getByText(/action changed from Buy to Reduce/)).toBeInTheDocument();
+  });
+
+  it("timeline entries also surface confidence deltas and new evidence, not just action/status", async () => {
+    recommendationsApi.list.mockResolvedValue({
+      recommendations: [
+        {
+          id: "rec-2",
+          symbol: "NVDA",
+          action: "BUY",
+          status: "ACTIVE",
+          confidenceScore: 82,
+          reasoning: "Strong AI capex tailwind driving conviction.",
+          evidence: { matchedEvents: [{ headline: "NVDA guides above consensus" }, { headline: "Hyperscaler capex raised" }] },
+          createdAt: "2026-07-14T00:00:00.000Z",
+        },
+        {
+          id: "rec-0",
+          symbol: "NVDA",
+          action: "BUY",
+          status: "SUPERSEDED",
+          confidenceScore: 68,
+          reasoning: "Early signs of AI capex acceleration.",
+          evidence: { matchedEvents: [{ headline: "NVDA guides above consensus" }] },
+          createdAt: "2026-07-07T00:00:00.000Z",
+        },
+      ],
+    });
+
+    render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText("What changed")).toBeInTheDocument());
+    expect(screen.getByText(/confidence rose from 68 to 82/)).toBeInTheDocument();
+    expect(screen.getByText(/New evidence: Hyperscaler capex raised/)).toBeInTheDocument();
+    expect(screen.getByText(/Thesis: Strong AI capex tailwind driving conviction\./)).toBeInTheDocument();
   });
 
   it("shows a labeled 'Why now' section explaining timing, not just a bare thesis", () => {
