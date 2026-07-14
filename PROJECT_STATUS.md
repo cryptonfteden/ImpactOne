@@ -1143,6 +1143,14 @@ Sprint 24 verification: 248 backend / 92 frontend tests passing, run before each
 
 Not in scope for Sprint 24 (named explicitly, not silently skipped): a full Portfolio "AI conversation" rewrite beyond the new narrative card; a systematic performance/empty-state audit of screens this sprint's data changes didn't touch (Watchlist, AI Analysis, Global Intelligence, Alerts, Settings); automated `PerformanceSnapshot` capture (still on-demand only, a pre-existing gap).
 
+## 31. Sprint 25 - Increase Trust
+
+Scope note: a trust-hardening audit sprint, no new features/providers/architecture — full report in `SPRINT_25_REPORT.md`. An audit pass first, evidence-based, before any fix. Found and fixed: two places (`autonomousMarketService.js`, `autonomousRecommendationEngine.js`) that fell back to the identical boilerplate explanation for every symbol with no matched event — now genuinely derived per symbol from real scores; Recommendations gained labeled "Why now" and "What changed" sections (the latter with a real computed diff, not a bare list); every generic empty state ("No favorites yet.", "No trades yet.", etc.) now states the real reason it's empty; a new dependency-free `ConfirmButton` now gates both Portfolio screens' "Reset" — previously the only destructive actions in the app and the only ones with zero confirmation.
+
+Sprint 25 verification: 249 backend / 96 frontend tests passing, run before each of 4 commits; live browser verification with zero console errors confirming honest empty-state text, the "Why now" section, and that reset requires a real second click before firing.
+
+Not in scope for Sprint 25 (named explicitly): nav consolidation between Recommendations/Daily Feed or Global Intelligence/AI Analysis/Themes — flagged as a real candidate by the audit but not executed without stronger side-by-side product evidence, since guessing would itself be a trust violation.
+
 ## Quick Handoff For New Developers
 1. Install dependencies at root (`npm install`) and frontend if needed (`npm --prefix frontend install`).
 2. Configure keys in env files (`FINNHUB_API_KEY`, `OPENAI_API_KEY`, `VITE_API_BASE_URL`).
