@@ -81,11 +81,28 @@ export default function HomeScreen({ onNavigate }) {
     shouldIDoAnythingToday,
   } = summary;
 
+  // Sprint 27 Priority 4 — "understand the market in under 60 seconds":
+  // an at-a-glance strip built entirely from fields the six cards below
+  // already fetched (no new backend call, no new computation), so a user
+  // can read the gist in one line before deciding which card to open.
+  const glancePills = [
+    { label: "Action needed", value: shouldIDoAnythingToday.hasAction ? `Yes — ${shouldIDoAnythingToday.symbol}` : "No", tone: shouldIDoAnythingToday.hasAction ? "opportunity" : "" },
+    { label: "Portfolio", value: whatChangedForMyPortfolio?.changes?.length ? `${whatChangedForMyPortfolio.changes.length} change(s)` : "Unchanged", tone: whatChangedForMyPortfolio?.changes?.length ? "monitor" : "" },
+    { label: "Beliefs", value: whatChangedInBeliefs.length ? `${whatChangedInBeliefs.length} updated` : "Unchanged", tone: whatChangedInBeliefs.length ? "monitor" : "" },
+  ];
+
   return (
     <div className="screen-page home-screen">
       <section className="screen-hero">
         <p className="eyebrow">Today</p>
         <h1>Your daily summary</h1>
+        <div className="opportunity-item__actions">
+          {glancePills.map((pill) => (
+            <span key={pill.label} className={pill.tone ? `pill ${pill.tone}` : "pill"}>
+              {pill.label}: {pill.value}
+            </span>
+          ))}
+        </div>
       </section>
 
       <SectionCard title="What happened?" icon="◉" className="screen-card home-card">

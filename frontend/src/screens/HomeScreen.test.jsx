@@ -72,4 +72,22 @@ describe("HomeScreen", () => {
     expect(screen.getByText(/AI capex remains elevated/)).toBeInTheDocument();
     expect(screen.getAllByText("BUY")).toHaveLength(1);
   });
+
+  it("Sprint 27 — shows an at-a-glance strip summarizing action/portfolio/belief state without any new data fetch", async () => {
+    homeApi.getSummary.mockResolvedValue(SUMMARY_WITH_ACTION);
+    render(<HomeScreen onNavigate={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText(/Action needed: Yes — NVDA/)).toBeInTheDocument());
+    expect(screen.getByText(/Portfolio: 1 change\(s\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Beliefs: 1 updated/)).toBeInTheDocument();
+    expect(homeApi.getSummary).toHaveBeenCalledTimes(1);
+  });
+
+  it("Sprint 27 — glance strip reads 'No'/'Unchanged' honestly when nothing changed", async () => {
+    homeApi.getSummary.mockResolvedValue(SUMMARY_NO_ACTION);
+    render(<HomeScreen onNavigate={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText(/Action needed: No/)).toBeInTheDocument());
+    expect(screen.getAllByText(/Unchanged/)).toHaveLength(2);
+  });
 });
