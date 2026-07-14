@@ -153,7 +153,8 @@ test("Sprint 28 — classifyTimelineSection buckets every event into one of the 
   assert.equal(homeSummaryService.classifyTimelineSection({ timeBucket: "since-open" }), "openingBell");
   assert.equal(homeSummaryService.classifyTimelineSection({ timeBucket: "last-hour", timeHorizon: "2-4 weeks" }), "thisWeek");
   assert.equal(homeSummaryService.classifyTimelineSection({ timeBucket: "last-hour", timeHorizon: "6-12 months" }), "longTerm");
-  assert.equal(homeSummaryService.classifyTimelineSection({ timeBucket: "last-hour", timeHorizon: "1-3 months" }), "today");
+  assert.equal(homeSummaryService.classifyTimelineSection({ timeBucket: "last-hour", timeHorizon: "1-3 months" }), "longTerm");
+  assert.equal(homeSummaryService.classifyTimelineSection({ timeBucket: "last-hour", timeHorizon: null }), "today");
 });
 
 test("Sprint 28 — buildIntelligenceTimeline places every feed item into exactly one section, none dropped", () => {
@@ -162,7 +163,7 @@ test("Sprint 28 — buildIntelligenceTimeline places every feed item into exactl
     { headline: "B", timeBucket: "since-open" },
     { headline: "C", timeBucket: "last-hour", timeHorizon: "2-4 weeks" },
     { headline: "D", timeBucket: "last-hour", timeHorizon: "12 month" },
-    { headline: "E", timeBucket: "last-hour", timeHorizon: "1-3 months" },
+    { headline: "E", timeBucket: "last-hour", timeHorizon: null },
   ];
   const timeline = homeSummaryService.buildIntelligenceTimeline(feed);
   const totalPlaced = Object.values(timeline).reduce((sum, section) => sum + section.length, 0);
@@ -227,7 +228,7 @@ test("Sprint 28 — buildHomeSummary's Morning Brief merges topRecommendations, 
       assert.ok(Array.isArray(summary.topRecommendations));
       assert.equal(summary.portfolioSnapshot.totalValue, 105000);
       assert.equal(summary.portfolioSnapshot.positionCount, 1);
-      assert.ok(summary.intelligenceTimeline.today.length >= 1);
+      assert.ok(summary.intelligenceTimeline.longTerm.length >= 1);
       assert.ok(Array.isArray(summary.todayForYou));
       assert.ok("biggestOpportunity" in summary.portfolioMorningSummary);
     }

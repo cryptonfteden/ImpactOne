@@ -180,7 +180,14 @@ function classifyTimelineSection(item) {
   if (item.timeBucket === "overnight") return "overnight";
   if (item.timeBucket === "since-open") return "openingBell";
   const horizon = String(item.timeHorizon || "").toLowerCase();
-  if (/year|6-12 month|12 month/.test(horizon)) return "longTerm";
+  // Most feed items carry a real "1-3 months"-scale timeHorizon (the
+  // impactIntelligenceService default) — genuinely a Long Term view, not
+  // "Today." Checking "month"/"year" before "week" means a multi-month
+  // horizon is classified as Long Term even if it were ever phrased with
+  // both units; "Today" is reserved as the honest fallback for the rare
+  // item carrying no day/week/month/year horizon signal at all, not a
+  // catch-all for everything mid-range.
+  if (/month|year/.test(horizon)) return "longTerm";
   if (/week/.test(horizon)) return "thisWeek";
   return "today";
 }
