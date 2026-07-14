@@ -123,16 +123,24 @@ describe("RecommendationCard", () => {
     expect(recommendationsApi.list).not.toHaveBeenCalled();
   });
 
-  it("shows prior superseded recommendations for the same symbol as history, excluding the current one", async () => {
+  it("shows a labeled 'What changed' section with a real computed diff between history entries", async () => {
     recommendationsApi.list.mockResolvedValue({
       recommendations: [
         { id: "rec-1", symbol: "NVDA", action: "BUY", status: "ACTIVE", createdAt: "2026-07-14T00:00:00.000Z" },
-        { id: "rec-0", symbol: "NVDA", action: "REDUCE", status: "SUPERSEDED", createdAt: "2026-07-01T00:00:00.000Z" },
+        { id: "rec-0", symbol: "NVDA", action: "REDUCE", status: "SUPERSEDED", createdAt: "2026-07-07T00:00:00.000Z" },
+        { id: "rec--1", symbol: "NVDA", action: "BUY", status: "SUPERSEDED", createdAt: "2026-07-01T00:00:00.000Z" },
       ],
     });
 
     render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
-    await waitFor(() => expect(screen.getByText("History for NVDA")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("What changed")).toBeInTheDocument());
     expect(screen.getByText(/Reduce \(SUPERSEDED\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Action changed from Buy to Reduce/)).toBeInTheDocument();
+  });
+
+  it("shows a labeled 'Why now' section explaining timing, not just a bare thesis", () => {
+    render(<RecommendationCard recommendation={{ ...RECOMMENDATION_FIXTURE, createdAt: "2026-07-14T00:00:00.000Z" }} isExpanded onToggleExpand={vi.fn()} />);
+    expect(screen.getByText("Why now")).toBeInTheDocument();
+    expect(screen.getByText(/timed to the stated 1-3 months/)).toBeInTheDocument();
   });
 });

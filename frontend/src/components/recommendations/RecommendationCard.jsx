@@ -36,6 +36,20 @@ function formatTimestamp(value) {
   return Number.isNaN(date.getTime()) ? null : date.toLocaleString();
 }
 
+// Sprint 25 — "what changed" derived from real, already-fetched history
+// entries (never invented): compares each entry to the one before it and
+// states only the concrete difference, or nothing when there isn't one.
+function describeChange(current, previous) {
+  if (!previous) return null;
+  if (current.action !== previous.action) {
+    return `Action changed from ${ACTION_LABEL[previous.action] || previous.action} to ${ACTION_LABEL[current.action] || current.action}.`;
+  }
+  if (current.status !== previous.status) {
+    return `Status changed from ${previous.status} to ${current.status}.`;
+  }
+  return null;
+}
+
 /**
  * Sprint 16 Phase D — a recommendation the user can understand
  * immediately (symbol, action, provenance, quality, thesis), then
@@ -107,6 +121,14 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
       {isExpanded ? (
         <>
           <p className="company-description subtle">{recommendation.reasoning}</p>
+
+          <div className="explanation-section">
+            <p className="explanation-section__title">Why now</p>
+            <p className="company-description subtle">
+              Generated {formatTimestamp(recommendation.createdAt) || "recently"}, timed to the stated {recommendation.timeHorizon || explanation.timeHorizon || "horizon"} —
+              not a standing view, a specific call at this moment based on the evidence above.
+            </p>
+          </div>
 
           {affectedPositions.length ? (
             <div className="explanation-section">
@@ -198,12 +220,19 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
 
           {history.length ? (
             <div className="explanation-section">
-              <p className="explanation-section__title">History for {recommendation.symbol}</p>
-              {history.map((item) => (
-                <p key={item.id} className="company-description subtle">
-                  {formatTimestamp(item.createdAt)} — {ACTION_LABEL[item.action] || item.action} ({item.status})
-                </p>
-              ))}
+              <p className="explanation-section__title">What changed</p>
+              {history
+                .slice()
+                .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+                .map((item, index, sorted) => {
+                  const change = describeChange(item, sorted[index - 1]);
+                  return (
+                    <p key={item.id} className="company-description subtle">
+                      {formatTimestamp(item.createdAt)} — {ACTION_LABEL[item.action] || item.action} ({item.status})
+                      {change ? ` — ${change}` : ""}
+                    </p>
+                  );
+                })}
             </div>
           ) : null}
 
