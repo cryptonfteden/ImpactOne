@@ -5,6 +5,7 @@ import useWatchlist from "../hooks/useWatchlist";
 import useVirtualPortfolio from "../hooks/useVirtualPortfolio";
 import { intelligenceApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
+import { startVisibilityAwarePolling } from "../utils/pollWhileVisible";
 import PortfolioEngineScreen from "./PortfolioEngineScreen";
 
 const DEFAULT_SCENARIOS = ["Oil spike", "Fed rate hike", "BTC ETF approval", "Israel conflict"];
@@ -28,7 +29,6 @@ function LegacyPortfolioScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    let intervalId;
 
     async function loadOverview() {
       try {
@@ -51,10 +51,10 @@ function LegacyPortfolioScreen() {
     }
 
     loadOverview();
-    intervalId = setInterval(loadOverview, 60000);
+    const stopPolling = startVisibilityAwarePolling(loadOverview, 60000);
     return () => {
       cancelled = true;
-      clearInterval(intervalId);
+      stopPolling();
     };
   }, [watchlist]);
 

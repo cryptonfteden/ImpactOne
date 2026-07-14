@@ -3,6 +3,7 @@ import { Button, Input } from "./ui";
 import usePortfolioEngine from "../hooks/usePortfolioEngine";
 import { intelligenceApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
+import { startVisibilityAwarePolling } from "../utils/pollWhileVisible";
 
 const CORE_SYMBOLS = [
   "AAPL",
@@ -34,7 +35,6 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
 
   useEffect(() => {
     let cancelled = false;
-    let intervalId;
 
     async function loadAlertCount() {
       try {
@@ -48,10 +48,10 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
     }
 
     loadAlertCount();
-    intervalId = setInterval(loadAlertCount, 60000);
+    const stopPolling = startVisibilityAwarePolling(loadAlertCount, 60000);
     return () => {
       cancelled = true;
-      clearInterval(intervalId);
+      stopPolling();
     };
   }, [watchlist]);
 

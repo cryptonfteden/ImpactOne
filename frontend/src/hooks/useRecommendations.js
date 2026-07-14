@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { recommendationsApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
+import { startVisibilityAwarePolling } from "../utils/pollWhileVisible";
 
 const REFRESH_INTERVAL_MS = 60000;
 
@@ -32,7 +33,7 @@ export default function useRecommendations({ autoRefresh = true } = {}) {
 
   useEffect(() => {
     let cancelled = false;
-    let intervalId;
+    let stopPolling;
 
     async function initialLoad() {
       if (!cancelled) {
@@ -42,13 +43,13 @@ export default function useRecommendations({ autoRefresh = true } = {}) {
 
     initialLoad();
     if (autoRefresh) {
-      intervalId = setInterval(refresh, REFRESH_INTERVAL_MS);
+      stopPolling = startVisibilityAwarePolling(refresh, REFRESH_INTERVAL_MS);
     }
 
     return () => {
       cancelled = true;
-      if (intervalId) {
-        clearInterval(intervalId);
+      if (stopPolling) {
+        stopPolling();
       }
     };
   }, [refresh, autoRefresh]);

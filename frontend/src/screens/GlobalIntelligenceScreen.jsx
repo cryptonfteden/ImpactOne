@@ -3,6 +3,7 @@ import SectionCard from "../components/SectionCard";
 import useWatchlist from "../hooks/useWatchlist";
 import { intelligenceApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
+import { startVisibilityAwarePolling } from "../utils/pollWhileVisible";
 
 const DEFAULT_SCENARIOS = ["Oil spike", "Fed rate hike", "BTC ETF approval", "Israel conflict"];
 
@@ -13,7 +14,6 @@ export default function GlobalIntelligenceScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    let intervalId;
 
     async function loadOverview() {
       try {
@@ -36,11 +36,11 @@ export default function GlobalIntelligenceScreen() {
     }
 
     loadOverview();
-    intervalId = setInterval(loadOverview, 60000);
+    const stopPolling = startVisibilityAwarePolling(loadOverview, 60000);
 
     return () => {
       cancelled = true;
-      clearInterval(intervalId);
+      stopPolling();
     };
   }, [watchlist]);
 
