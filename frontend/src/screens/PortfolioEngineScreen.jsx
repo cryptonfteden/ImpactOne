@@ -35,7 +35,7 @@ function computeTradeStats(trades) {
  * placement against this engine is a later sprint.
  */
 export default function PortfolioEngineScreen() {
-  const { summary, trades, transactions, performance, isLoading, error, actionError, placeOrder, reset, refresh } = usePortfolioEngine();
+  const { summary, trades, transactions, performance, performanceDelta, isLoading, error, actionError, placeOrder, reset, refresh } = usePortfolioEngine();
   const [orderSymbol, setOrderSymbol] = useState("");
   const [orderSide, setOrderSide] = useState("BUY");
   const [orderQuantity, setOrderQuantity] = useState("");
@@ -88,6 +88,24 @@ export default function PortfolioEngineScreen() {
 
       {error ? <ErrorState message={error} /> : null}
       {actionError ? <p className="company-description subtle negative">{actionError}</p> : null}
+
+      {/* Sprint 24 — Portfolio Intelligence: today vs. yesterday, in plain
+          language, only when there's something meaningful to say. Reuses
+          portfolioEngineService.getPerformanceDelta directly — no second
+          comparison computed in the frontend. */}
+      <SectionCard title="Portfolio Intelligence" subtitle="Today vs. yesterday" className="screen-card">
+        <p className="company-description">{performanceDelta?.summary || "Loading today's comparison…"}</p>
+        {performanceDelta?.changes?.length ? (
+          <ul className="stack-list">
+            {performanceDelta.changes.map((change) => (
+              <li key={change.dimension} className="company-description subtle">
+                {change.label}: ${Number(change.beforeValue).toLocaleString()} → ${Number(change.afterValue).toLocaleString()}
+                {change.changePct !== null ? ` (${change.changePct >= 0 ? "+" : ""}${change.changePct}%)` : ""}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </SectionCard>
 
       <div className="portfolio-grid">
         <SectionCard title="Cash Balance" subtitle="Available capital" className="screen-card">

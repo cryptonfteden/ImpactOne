@@ -9,23 +9,26 @@ export default function usePortfolioEngine({ autoRefresh = true } = {}) {
   const [trades, setTrades] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [performance, setPerformance] = useState([]);
+  const [performanceDelta, setPerformanceDelta] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
 
   const refresh = useCallback(async () => {
     try {
-      const [summaryData, tradesData, transactionsData, performanceData] = await Promise.all([
+      const [summaryData, tradesData, transactionsData, performanceData, deltaData] = await Promise.all([
         portfolioEngineApi.getSummary(),
         portfolioEngineApi.getTrades(),
         portfolioEngineApi.getTransactions(),
         portfolioEngineApi.getPerformance(),
+        portfolioEngineApi.getPerformanceDelta(),
       ]);
 
       setSummary(summaryData);
       setTrades(tradesData.trades || []);
       setTransactions(transactionsData.transactions || []);
       setPerformance(performanceData.timeline || []);
+      setPerformanceDelta(deltaData);
       setError("");
     } catch (fetchError) {
       logError("Portfolio engine refresh failed", fetchError);
@@ -88,6 +91,7 @@ export default function usePortfolioEngine({ autoRefresh = true } = {}) {
     trades,
     transactions,
     performance,
+    performanceDelta,
     isLoading,
     error,
     actionError,

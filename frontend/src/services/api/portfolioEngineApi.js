@@ -20,6 +20,9 @@ export const portfolioEngineApi = {
   getPerformance(limit) {
     return apiClient.get(withLimit("/v2/portfolio/performance", limit));
   },
+  getPerformanceDelta() {
+    return apiClient.get("/v2/portfolio/performance/delta");
+  },
   captureSnapshot() {
     return apiClient.post("/v2/portfolio/performance/snapshot", {});
   },
