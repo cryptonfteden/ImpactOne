@@ -1135,6 +1135,14 @@ Not in scope for Sprint 23A:
 - Live integrations for the 14 stub providers — unchanged from Sprint 21A, still an open, named future opportunity.
 - Any authentication/authorization system to gate the Console beyond a build-time flag — genuinely out of scope; the flag is a developer-workflow convenience, not an access-control mechanism, and must not be mistaken for one if this console is ever deployed somewhere the flag could be set by an untrusted party.
 
+## 30. Sprint 24 - First Daily User
+
+Scope note: a product-value sprint, not an architecture sprint — full report in `SPRINT_24_REPORT.md`. Home extended from four to six questions; Daily Feed and Recommendations now show real data (`invalidationSignals`, `DecisionTrace.uncertainty`) that was already computed on the backend but never rendered; Portfolio gained a real today-vs-yesterday narrative; `WorldMemoryThesisRevision` got its first writer, closing a gap named since Sprint 21B.
+
+Sprint 24 verification: 248 backend / 92 frontend tests passing, run before each of 7 commits; live browser verification with zero console errors across Home (6 cards, correct honest-empty states), Recommendations (real Uncertainty on expand), Daily Feed, and Portfolio.
+
+Not in scope for Sprint 24 (named explicitly, not silently skipped): a full Portfolio "AI conversation" rewrite beyond the new narrative card; a systematic performance/empty-state audit of screens this sprint's data changes didn't touch (Watchlist, AI Analysis, Global Intelligence, Alerts, Settings); automated `PerformanceSnapshot` capture (still on-demand only, a pre-existing gap).
+
 ## Quick Handoff For New Developers
 1. Install dependencies at root (`npm install`) and frontend if needed (`npm --prefix frontend install`).
 2. Configure keys in env files (`FINNHUB_API_KEY`, `OPENAI_API_KEY`, `VITE_API_BASE_URL`).
