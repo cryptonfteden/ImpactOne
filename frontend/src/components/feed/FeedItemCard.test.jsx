@@ -15,10 +15,12 @@ const ITEM_FIXTURE = {
   sourceName: "Reuters",
   sourceUrl: "https://news.example.com/nvda",
   publishedAt: "2026-07-01T12:00:00.000Z",
+  eventType: "ai",
   explainability: {
     reasoning: "Partnership expands compute supply meaningfully.",
     evidence: ["Contract disclosed in filing.", "Analyst estimates raised."],
     counterarguments: ["Deal terms not fully disclosed."],
+    invalidationSignals: ["Partnership terminated or scaled back."],
   },
 };
 
@@ -35,6 +37,7 @@ describe("FeedItemCard", () => {
     expect(screen.getByText(/Horizon: 3-6 months/)).toBeInTheDocument();
     expect(screen.getByText(/Positive for AI infrastructure exposure/)).toBeInTheDocument();
     expect(screen.getByText(/Reuters/)).toBeInTheDocument();
+    expect(screen.getByText("AI")).toBeInTheDocument();
   });
 
   it("shows the event's real explainability block as the reasoning trace, not a fabricated one", () => {
@@ -43,6 +46,12 @@ describe("FeedItemCard", () => {
     expect(screen.getByText("Why this analysis")).toBeInTheDocument();
     expect(screen.getByText(ITEM_FIXTURE.explainability.reasoning)).toBeInTheDocument();
     expect(screen.getByText(/Deal terms not fully disclosed/)).toBeInTheDocument();
+    expect(screen.getByText(/Partnership terminated or scaled back/)).toBeInTheDocument();
+  });
+
+  it("never shows a theme tag for an eventType outside the 7 tracked themes", () => {
+    render(<FeedItemCard item={{ ...ITEM_FIXTURE, eventType: "macro" }} />);
+    expect(screen.queryByText("AI")).not.toBeInTheDocument();
   });
 
   it("gracefully renders with a minimal item (no source, no explainability)", () => {

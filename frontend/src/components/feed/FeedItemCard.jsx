@@ -10,6 +10,20 @@ const IMPACT_PILL_CLASS = {
   neutral: "pill monitor",
 };
 
+// Sprint 24 — the same 7 theme keys the Theme Dashboard tracks
+// (themeIntelligenceService.THEME_DEFINITIONS); a feed item's eventType is
+// only shown as a theme tag when it's genuinely one of these, never a
+// fabricated theme link for an unrelated event type.
+const THEME_LABELS = {
+  ai: "AI",
+  quantum: "Quantum",
+  defense: "Defense",
+  energy: "Energy",
+  space: "Space",
+  cybersecurity: "Cyber",
+  healthcare: "Healthcare",
+};
+
 /**
  * Sprint 20, Part 4 — one Daily Feed item, showing every required field:
  * headline, AI summary, importance, confidence, affected sectors/companies,
@@ -22,12 +36,14 @@ const IMPACT_PILL_CLASS = {
  */
 export default function FeedItemCard({ item }) {
   const explainability = item.explainability || {};
+  const themeLabel = THEME_LABELS[item.eventType];
 
   return (
     <article className="news-item news-item--premium feed-item-card">
       <div className="opportunity-item__top">
         <h4>{item.headline}</h4>
         {item.impactType ? <span className={IMPACT_PILL_CLASS[item.impactType] || "pill"}>{item.impactType}</span> : null}
+        {themeLabel ? <span className="pill monitor">{themeLabel}</span> : null}
       </div>
 
       <p className="company-description">{item.whyItMatters}</p>
@@ -69,7 +85,10 @@ export default function FeedItemCard({ item }) {
             </ul>
           ) : null}
           {explainability.counterarguments?.length ? (
-            <p className="company-description subtle">Counterarguments: {explainability.counterarguments.join("; ")}</p>
+            <p className="company-description subtle">Counter-evidence: {explainability.counterarguments.join("; ")}</p>
+          ) : null}
+          {explainability.invalidationSignals?.length ? (
+            <p className="company-description subtle">Would prove this wrong: {explainability.invalidationSignals.join("; ")}</p>
           ) : null}
         </details>
       ) : null}
