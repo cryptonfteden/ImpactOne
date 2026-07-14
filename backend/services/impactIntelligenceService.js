@@ -6,6 +6,65 @@ const { propagateByTheme } = require("./propagationEngineService");
 const { analyzePortfolio } = require("./portfolioIntelligenceService");
 const { getUnifiedFusion } = require("./alternativeFusionService");
 
+// Sprint 26 — Trust Breaker fix: the prior adjustAffected only
+// differentiated 4 event categories; every other event silently fell
+// through to the same generic 4-stock/4-sector template. This uses the
+// same 19 category keywords autonomousMarketService.CORE_EVENT_TYPES
+// defines (duplicated here, not imported, to avoid a circular require —
+// autonomousMarketService.js already requires this file), so the
+// sector/company list genuinely reflects what kind of event this is for
+// every category, not just four of them.
+const CATEGORY_KEYWORDS = {
+  macro: ["macro", "inflation", "jobs", "growth"],
+  geopolitics: ["war", "conflict", "geopolit", "border", "sanction", "israel"],
+  centralBanks: ["fed", "ecb", "boj", "rate", "central bank"],
+  earnings: ["earnings", "guidance", "beat", "miss"],
+  ma: ["acquire", "merger", "m&a", "deal"],
+  regulation: ["regulation", "doj", "antitrust", "policy", "sec filing", "sec probe"],
+  supplyChain: ["supply", "shipment", "factory", "logistics"],
+  semiconductors: ["chip", "semiconductor", "foundry", "gpu"],
+  energy: ["oil", "gas", "energy", "opec"],
+  crypto: ["bitcoin", "btc", "crypto", "etf"],
+  defense: ["defense", "missile", "military"],
+  ai: ["ai", "nvidia", "model", "compute"],
+  healthcare: ["drug", "healthcare", "fda", "biotech"],
+  consumer: ["consumer", "retail", "spending", "discretionary"],
+  financials: ["bank", "credit", "financial", "lending"],
+  space: ["space", "launch", "satellite", "orbital"],
+  nuclear: ["nuclear", "uranium", "reactor"],
+  cybersecurity: ["cyber", "security", "breach", "software security"],
+  quantum: ["quantum", "qubit", "quantum computing"],
+};
+
+function classifyForAssets(text) {
+  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (keywords.some((keyword) => text.includes(keyword))) return category;
+  }
+  return "macro";
+}
+
+const EVENT_TYPE_ASSETS = {
+  macro: { stocks: ["SPY", "IWM", "AAPL", "JPM"], sectors: ["Broad Market", "Financials", "Consumer"] },
+  geopolitics: { stocks: ["LMT", "NOC", "XOM", "GLD"], sectors: ["Defense", "Energy", "Transport", "Insurance"] },
+  centralBanks: { stocks: ["JPM", "AAPL", "NVDA", "TLT"], sectors: ["Financials", "Rate-Sensitive Growth", "Bonds"] },
+  earnings: { stocks: ["AAPL", "NVDA", "MSFT", "AMZN"], sectors: ["Technology", "Consumer Discretionary"] },
+  ma: { stocks: ["GS", "MS", "AAPL", "MSFT"], sectors: ["Investment Banking", "Technology"] },
+  regulation: { stocks: ["META", "GOOGL", "AAPL", "AMZN"], sectors: ["Big Tech", "Compliance-Sensitive"] },
+  supplyChain: { stocks: ["AAPL", "TSM", "NVDA", "FDX"], sectors: ["Hardware", "Logistics", "Semiconductors"] },
+  semiconductors: { stocks: ["NVDA", "AMD", "TSM", "ASML"], sectors: ["Semiconductors", "Hardware"] },
+  energy: { stocks: ["XOM", "CVX", "DAL", "LUV"], sectors: ["Energy", "Airlines", "Shipping", "Consumer"] },
+  crypto: { stocks: ["COIN", "MSTR", "RIOT", "NVDA"], sectors: ["Crypto", "Semiconductors", "Exchanges"] },
+  defense: { stocks: ["LMT", "RTX", "NOC", "GD"], sectors: ["Defense", "Aerospace"] },
+  ai: { stocks: ["NVDA", "MSFT", "GOOGL", "META"], sectors: ["AI Infrastructure", "Semiconductors", "Cloud"] },
+  healthcare: { stocks: ["UNH", "JNJ", "PFE", "LLY"], sectors: ["Healthcare", "Biotech", "Pharma"] },
+  consumer: { stocks: ["AMZN", "WMT", "TGT", "COST"], sectors: ["Consumer Discretionary", "Retail"] },
+  financials: { stocks: ["JPM", "GS", "MS", "BAC"], sectors: ["Financials", "Banking", "Credit"] },
+  space: { stocks: ["LMT", "RTX", "BA"], sectors: ["Aerospace", "Space", "Defense"] },
+  nuclear: { stocks: ["CCJ", "LEU", "NEE"], sectors: ["Nuclear", "Utilities", "Uranium"] },
+  cybersecurity: { stocks: ["CRWD", "PANW", "FTNT", "ZS"], sectors: ["Cybersecurity", "Enterprise Software"] },
+  quantum: { stocks: ["IBM", "GOOGL", "IONQ", "RGTI"], sectors: ["Quantum Computing", "Technology"] },
+};
+
 const assetTemplates = {
   stocks: ["AAPL", "NVDA", "TSLA", "MSFT"],
   etfs: ["SPY", "QQQ", "XLE", "SMH"],
@@ -51,6 +110,16 @@ function buildWhy({ event, affected, history, propagation }) {
 function adjustAffected(event = "") {
   const text = String(event || "").toLowerCase();
   const output = JSON.parse(JSON.stringify(assetTemplates));
+
+  // Broad category override first (covers all 19 categories); the four
+  // sharper, more specific keyword overrides below take precedence over it
+  // when they also match, since they're more precisely differentiated.
+  const category = classifyForAssets(text);
+  const categoryAssets = EVENT_TYPE_ASSETS[category];
+  if (categoryAssets) {
+    output.stocks = categoryAssets.stocks;
+    output.sectors = categoryAssets.sectors;
+  }
 
   if (text.includes("oil")) {
     output.stocks = ["XOM", "CVX", "DAL", "LUV"];

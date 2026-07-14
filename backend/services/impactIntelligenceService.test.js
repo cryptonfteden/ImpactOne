@@ -14,6 +14,17 @@ test("Sprint 26 — explainability.why is genuinely derived per event, not ident
   assert.match(oil.explainability.why, /Oil price spike/, "why must reference the actual event");
 });
 
+test("Sprint 26 — affected sectors/stocks are differentiated across event categories beyond the original 4", async () => {
+  const ai = await impactIntelligenceService.analyzeIntelligence({ event: "AI model compute breakthrough", symbol: "NVDA" });
+  const cyber = await impactIntelligenceService.analyzeIntelligence({ event: "Major cyber security breach disclosed", symbol: "CRWD" });
+  const healthcare = await impactIntelligenceService.analyzeIntelligence({ event: "New drug healthcare approval", symbol: "LLY" });
+
+  assert.notDeepEqual(ai.affected.sectors, cyber.affected.sectors, "AI and cybersecurity events must not share the same generic sector list");
+  assert.notDeepEqual(cyber.affected.sectors, healthcare.affected.sectors);
+  assert.deepEqual(ai.affected.sectors, ["AI Infrastructure", "Semiconductors", "Cloud"]);
+  assert.deepEqual(cyber.affected.sectors, ["Cybersecurity", "Enterprise Software"]);
+});
+
 test("explainability.why cites this event's own affected sectors, not a generic placeholder", async () => {
   const result = await impactIntelligenceService.analyzeIntelligence({ event: "Oil supply disruption", symbol: "XOM" });
   assert.match(result.explainability.why, /Energy|Airlines|Shipping|Consumer/, "oil events should reference oil-differentiated sectors in the why text");
