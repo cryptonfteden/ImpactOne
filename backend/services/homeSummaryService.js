@@ -17,6 +17,8 @@ const autonomousRecommendationRepository = require("./autonomousRecommendationRe
 const canonicalVerdict = require("./canonicalVerdict");
 const dailyBriefService = require("./dailyBriefService");
 const worldMemoryRepository = require("./worldMemoryRepository");
+const investorProfileRepository = require("./investorProfileRepository");
+const feedPersonalizationService = require("./feedPersonalizationService");
 const { THEME_DEFINITIONS } = require("./themeIntelligenceService");
 
 const BELIEF_CHANGE_LOOKBACK_MS = 48 * 60 * 60 * 1000;
@@ -131,6 +133,132 @@ async function buildWhatChangedInBeliefs() {
   }));
 }
 
+/**
+ * Sprint 28 Priority 1/5 — merges Recommendations + DecisionTrace-derived
+ * fields (via the same canonicalVerdict view used by "should I do
+ * anything today") into the Morning Brief, instead of Home only ever
+ * looking up a single symbol's recommendation. Reused, not reinvented:
+ * autonomousRecommendationRepository.listActive is the same repository
+ * function the Recommendations screen itself calls.
+ */
+async function buildTopRecommendations({ limit = 3 } = {}) {
+  const active = await autonomousRecommendationRepository.listActive({ limit: 50 });
+  const withVerdicts = active.map((recommendation) => {
+    const verdict = canonicalVerdict.buildCanonicalVerdictView({ recommendation });
+    return {
+      symbol: recommendation.symbol,
+      action: verdict.action,
+      qualityScore: verdict.qualityScore,
+      confidenceScore: Number(recommendation.confidenceScore),
+      riskScore: Number(recommendation.riskScore),
+      riskLabel: recommendation.riskLabel,
+      reasoning: recommendation.reasoning,
+    };
+  });
+  return withVerdicts.sort((a, b) => (b.qualityScore || 0) - (a.qualityScore || 0)).slice(0, limit);
+}
+
+function buildPortfolioSnapshot(portfolioSummary) {
+  return {
+    totalValue: portfolioSummary.totalValue,
+    cashBalance: portfolioSummary.cashBalance,
+    positionCount: (portfolioSummary.positions || []).length,
+  };
+}
+
+// Sprint 28 Priority 3 — Intelligence Timeline. autonomousMarketService
+// already tags each feed item with a real timeBucket ("overnight" for
+// geopolitics, "since-open" for earnings, "last-hour" as the default) and
+// a real timeHorizon string ("2-4 weeks", "1-3 months", etc). Neither
+// alone covers all five requested sections, so this combines them: the
+// two explicit timeBucket values map straight to Overnight/Opening Bell;
+// the remaining default-bucket items are split by their own timeHorizon
+// text into This Week / Long Term / Today (the honest fallback when no
+// horizon signal points elsewhere). No new scoring, no fabricated
+// classification — every event lands based on data it already carries.
+function classifyTimelineSection(item) {
+  if (item.timeBucket === "overnight") return "overnight";
+  if (item.timeBucket === "since-open") return "openingBell";
+  const horizon = String(item.timeHorizon || "").toLowerCase();
+  if (/year|6-12 month|12 month/.test(horizon)) return "longTerm";
+  if (/week/.test(horizon)) return "thisWeek";
+  return "today";
+}
+
+function buildIntelligenceTimeline(feed) {
+  const sections = { overnight: [], openingBell: [], today: [], thisWeek: [], longTerm: [] };
+  for (const item of feed || []) {
+    const section = classifyTimelineSection(item);
+    sections[section].push({
+      headline: item.headline,
+      whyItMatters: item.whyItMatters,
+      importanceScore: item.importanceScore,
+      timeHorizon: item.timeHorizon,
+    });
+  }
+  return sections;
+}
+
+// Sprint 28 Priority 2 — "Today For You." Facts stay global (the feed
+// itself is untouched); only ordering and the stated reason are personal.
+// Reuses feedPersonalizationService.rankFeedForInvestor (Sprint 20) rather
+// than writing a second ranking function — the same profile-weight inputs
+// (risk tolerance, investment horizon, age, goal) that already rank Daily
+// Feed now also drive Home's agenda. Each item's reason names the actual
+// signal that moved it, never a generic "personalized for you" filler.
+function describePriorityReason(item, investorProfile, heldSymbols, watchlistSymbols) {
+  const touched = touchedSymbols(item);
+  if (touched.some((symbol) => heldSymbols.includes(symbol))) {
+    return "You hold a position this directly affects.";
+  }
+  if (touched.some((symbol) => watchlistSymbols.includes(symbol))) {
+    return "This is on your watchlist.";
+  }
+  if (investorProfile) {
+    if (investorProfile.riskTolerance === "HIGH" && item.impactType === "opportunity") return "Matches your high risk tolerance — flagged as an opportunity.";
+    if (investorProfile.riskTolerance === "LOW" && item.impactType === "risk") return "Matches your low risk tolerance — flagged as a risk to watch.";
+    if (investorProfile.investmentHorizon === "SHORT_TERM" && /day|week/.test(String(item.timeHorizon || "").toLowerCase())) return "Fits your short-term investment horizon.";
+    if (investorProfile.investmentHorizon === "LONG_TERM" && /year|6-12 month|12 month/.test(String(item.timeHorizon || "").toLowerCase())) return "Fits your long-term investment horizon.";
+  }
+  return "Ranked highest by overall market importance today.";
+}
+
+async function buildTodayForYou({ feed, heldSymbols, watchlistSymbols }) {
+  const investorProfile = await investorProfileRepository.findDefaultInvestorProfile().catch(() => null);
+  const ranked = feedPersonalizationService.rankFeedForInvestor(feed || [], { investorProfile });
+  return ranked.slice(0, 5).map((item) => ({
+    headline: item.headline,
+    whyItMatters: item.whyItMatters,
+    priorityReason: describePriorityReason(item, investorProfile, heldSymbols, watchlistSymbols),
+  }));
+}
+
+// Sprint 28 Priority 5 — Portfolio Morning Summary. Every field is a real
+// read of already-computed data (top recommendations' own action/
+// qualityScore/riskScore, or the feed's own actionability), never a new
+// risk/opportunity model. "No unnecessary alerts": mattersToday only
+// counts recommendations the canonical verdict actually flags as
+// actionable and feed items already tagged high actionability — nothing
+// is escalated just to fill the section.
+function buildPortfolioMorningSummary({ topRecommendations, feed, heldSymbols }) {
+  const opportunities = topRecommendations.filter((rec) => rec.action === "BUY").sort((a, b) => (b.qualityScore || 0) - (a.qualityScore || 0));
+  const risks = topRecommendations.filter((rec) => rec.action === "EXIT" || rec.action === "REDUCE").sort((a, b) => (b.riskScore || 0) - (a.riskScore || 0));
+
+  const highActionabilityToday = (feed || []).filter((item) => item.actionability === "high" && touchedSymbols(item).some((symbol) => heldSymbols.includes(symbol)));
+  const monitorOnly = (feed || []).filter((item) => item.actionability === "monitor");
+
+  const fallbackRisk = (feed || [])
+    .filter((item) => item.impactType === "risk" && touchedSymbols(item).some((symbol) => heldSymbols.includes(symbol)))
+    .sort((a, b) => (b.importanceScore || 0) - (a.importanceScore || 0))[0];
+
+  return {
+    mattersToday: [...topRecommendations.filter((rec) => rec.action !== "REDUCE" || rec.riskScore >= 60), ...highActionabilityToday.map((item) => ({ symbol: item.relatedTickers?.[0] || null, headline: item.headline }))].slice(0, 3),
+    canWaitCount: monitorOnly.length,
+    biggestOpportunity: opportunities[0] || null,
+    biggestRisk: risks[0] || (fallbackRisk ? { symbol: fallbackRisk.relatedTickers?.[0] || null, headline: fallbackRisk.headline, reasoning: fallbackRisk.whyItMatters } : null),
+  };
+}
+
 async function buildHomeSummary({ watchlist = [] } = {}) {
   const normalizedWatchlist = normalizeSymbolList(watchlist);
   const portfolioSummary = await portfolioEngineService.getPortfolioSummary();
@@ -155,11 +283,19 @@ async function buildHomeSummary({ watchlist = [] } = {}) {
   // Sprint 24 — the three additional questions run independently of the
   // original four and of each other; a failure in one (e.g. the daily
   // brief's live provider calls) must never take down the whole screen.
-  const [whatChangedSinceYesterday, whatChangedForMyPortfolio, whatChangedInBeliefs] = await Promise.all([
+  // Sprint 28 — topRecommendations/todayForYou run alongside them under the
+  // same independent-failure rule.
+  const [whatChangedSinceYesterday, whatChangedForMyPortfolio, whatChangedInBeliefs, topRecommendations, todayForYou] = await Promise.all([
     buildWhatChangedSinceYesterday(universe),
     buildWhatChangedForMyPortfolio(),
     buildWhatChangedInBeliefs(),
+    buildTopRecommendations().catch(() => []),
+    buildTodayForYou({ feed: overview.feed, heldSymbols, watchlistSymbols: normalizedWatchlist }).catch(() => []),
   ]);
+
+  const portfolioSnapshot = buildPortfolioSnapshot(portfolioSummary);
+  const intelligenceTimeline = buildIntelligenceTimeline(overview.feed);
+  const portfolioMorningSummary = buildPortfolioMorningSummary({ topRecommendations, feed: overview.feed, heldSymbols });
 
   return {
     whatHappened: {
@@ -173,10 +309,23 @@ async function buildHomeSummary({ watchlist = [] } = {}) {
     whatChangedForMyPortfolio,
     whatChangedInBeliefs,
     shouldIDoAnythingToday,
+    // Sprint 28 — the unified Morning Brief: Recommendations, Portfolio,
+    // and a time-bucketed view of the same Daily Feed/World Memory data
+    // above, merged into this one response rather than duplicated across
+    // separate screen-specific calls.
+    topRecommendations,
+    portfolioSnapshot,
+    intelligenceTimeline,
+    todayForYou,
+    portfolioMorningSummary,
     generatedAt: new Date().toISOString(),
   };
 }
 
 module.exports = {
   buildHomeSummary,
+  classifyTimelineSection,
+  buildIntelligenceTimeline,
+  buildPortfolioMorningSummary,
+  describePriorityReason,
 };

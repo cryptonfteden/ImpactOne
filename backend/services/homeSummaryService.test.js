@@ -8,6 +8,7 @@ const autonomousMarketService = require("./autonomousMarketService");
 const portfolioEngineService = require("./portfolioEngineService");
 const autonomousRecommendationRepository = require("./autonomousRecommendationRepository");
 const worldMemoryRepository = require("./worldMemoryRepository");
+const investorProfileRepository = require("./investorProfileRepository");
 const homeSummaryService = require("./homeSummaryService");
 
 function recommendationData(overrides = {}) {
@@ -145,4 +146,93 @@ test("never fabricates a second verdict — the action always comes from canonic
       assert.equal(summary.shouldIDoAnythingToday.action, "EXIT");
     }
   );
+});
+
+test("Sprint 28 — classifyTimelineSection buckets every event into one of the five sections using real timeBucket/timeHorizon fields", () => {
+  assert.equal(homeSummaryService.classifyTimelineSection({ timeBucket: "overnight" }), "overnight");
+  assert.equal(homeSummaryService.classifyTimelineSection({ timeBucket: "since-open" }), "openingBell");
+  assert.equal(homeSummaryService.classifyTimelineSection({ timeBucket: "last-hour", timeHorizon: "2-4 weeks" }), "thisWeek");
+  assert.equal(homeSummaryService.classifyTimelineSection({ timeBucket: "last-hour", timeHorizon: "6-12 months" }), "longTerm");
+  assert.equal(homeSummaryService.classifyTimelineSection({ timeBucket: "last-hour", timeHorizon: "1-3 months" }), "today");
+});
+
+test("Sprint 28 — buildIntelligenceTimeline places every feed item into exactly one section, none dropped", () => {
+  const feed = [
+    { headline: "A", timeBucket: "overnight" },
+    { headline: "B", timeBucket: "since-open" },
+    { headline: "C", timeBucket: "last-hour", timeHorizon: "2-4 weeks" },
+    { headline: "D", timeBucket: "last-hour", timeHorizon: "12 month" },
+    { headline: "E", timeBucket: "last-hour", timeHorizon: "1-3 months" },
+  ];
+  const timeline = homeSummaryService.buildIntelligenceTimeline(feed);
+  const totalPlaced = Object.values(timeline).reduce((sum, section) => sum + section.length, 0);
+  assert.equal(totalPlaced, feed.length);
+  assert.equal(timeline.overnight[0].headline, "A");
+  assert.equal(timeline.openingBell[0].headline, "B");
+  assert.equal(timeline.thisWeek[0].headline, "C");
+  assert.equal(timeline.longTerm[0].headline, "D");
+  assert.equal(timeline.today[0].headline, "E");
+});
+
+test("Sprint 28 — describePriorityReason names the real signal that ranked an item, not a generic label", () => {
+  const heldReason = homeSummaryService.describePriorityReason({ relatedTickers: ["NVDA"], affectedAssets: [] }, null, ["NVDA"], []);
+  assert.match(heldReason, /you hold a position/i);
+
+  const watchlistReason = homeSummaryService.describePriorityReason({ relatedTickers: ["TSLA"], affectedAssets: [] }, null, [], ["TSLA"]);
+  assert.match(watchlistReason, /watchlist/i);
+
+  const riskProfileReason = homeSummaryService.describePriorityReason(
+    { relatedTickers: [], affectedAssets: [], impactType: "opportunity" },
+    { riskTolerance: "HIGH" },
+    [],
+    []
+  );
+  assert.match(riskProfileReason, /risk tolerance/i);
+
+  const fallbackReason = homeSummaryService.describePriorityReason({ relatedTickers: [], affectedAssets: [] }, null, [], []);
+  assert.match(fallbackReason, /overall market importance/i);
+});
+
+test("Sprint 28 — buildPortfolioMorningSummary surfaces the highest-quality BUY as the opportunity and highest-risk EXIT/REDUCE as the risk, no fabricated alerts", () => {
+  const topRecommendations = [
+    { symbol: "NVDA", action: "BUY", qualityScore: 90, riskScore: 20 },
+    { symbol: "TSLA", action: "BUY", qualityScore: 60, riskScore: 40 },
+    { symbol: "META", action: "EXIT", qualityScore: 50, riskScore: 85 },
+  ];
+  const result = homeSummaryService.buildPortfolioMorningSummary({ topRecommendations, feed: [], heldSymbols: [] });
+  assert.equal(result.biggestOpportunity.symbol, "NVDA");
+  assert.equal(result.biggestRisk.symbol, "META");
+  assert.equal(result.canWaitCount, 0);
+});
+
+test("Sprint 28 — buildPortfolioMorningSummary is honest about no opportunity/risk when nothing qualifies", () => {
+  const result = homeSummaryService.buildPortfolioMorningSummary({ topRecommendations: [], feed: [], heldSymbols: [] });
+  assert.equal(result.biggestOpportunity, null);
+  assert.equal(result.biggestRisk, null);
+});
+
+test("Sprint 28 — buildHomeSummary's Morning Brief merges topRecommendations, portfolioSnapshot, intelligenceTimeline, todayForYou, and portfolioMorningSummary into one response", async () => {
+  const originalListActive = autonomousRecommendationRepository.listActive;
+  const originalFindProfile = investorProfileRepository.findDefaultInvestorProfile;
+  autonomousRecommendationRepository.listActive = async () => [];
+  investorProfileRepository.findDefaultInvestorProfile = async () => null;
+
+  await withMocks(
+    {
+      feed: [{ headline: "Macro update", whyItMatters: "General context.", relatedTickers: [], affectedAssets: [], timeBucket: "last-hour", timeHorizon: "1-3 months" }],
+      portfolioSummary: buildPortfolioSummary({ positions: [{ symbol: "AAPL", marketValue: 5000 }], totalValue: 105000 }),
+    },
+    async () => {
+      const summary = await homeSummaryService.buildHomeSummary({});
+      assert.ok(Array.isArray(summary.topRecommendations));
+      assert.equal(summary.portfolioSnapshot.totalValue, 105000);
+      assert.equal(summary.portfolioSnapshot.positionCount, 1);
+      assert.ok(summary.intelligenceTimeline.today.length >= 1);
+      assert.ok(Array.isArray(summary.todayForYou));
+      assert.ok("biggestOpportunity" in summary.portfolioMorningSummary);
+    }
+  ).finally(() => {
+    autonomousRecommendationRepository.listActive = originalListActive;
+    investorProfileRepository.findDefaultInvestorProfile = originalFindProfile;
+  });
 });
