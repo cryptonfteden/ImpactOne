@@ -15,6 +15,9 @@ const SUMMARY_WITH_ACTION = {
   whatHappened: { headline: "NVDA supply deal", sourceName: "Reuters", sourceUrl: "https://example.com/a" },
   whyShouldICare: "Expands NVDA's capacity.",
   howDoesItAffectMe: "Directly affects NVDA — 20% of your portfolio.",
+  whatChangedSinceYesterday: ["Top driver shifted from Fed policy to earnings season."],
+  whatChangedForMyPortfolio: { hasComparison: true, summary: "Portfolio value up 1.2% since the last snapshot.", changes: [{ dimension: "totalValue", label: "Total portfolio value", beforeValue: 100000, afterValue: 101200, changePct: 1.2 }] },
+  whatChangedInBeliefs: [{ themeKey: "ai", themeLabel: "AI", changedAt: "2026-07-13T00:00:00.000Z", newThesis: "AI capex remains elevated." }],
   shouldIDoAnythingToday: { hasAction: true, action: "BUY", symbol: "NVDA", reasoning: "Strong tailwind.", recommendationId: "rec-1", qualityScore: 82 },
 };
 
@@ -22,6 +25,9 @@ const SUMMARY_NO_ACTION = {
   whatHappened: { headline: "Generic market headline", sourceName: null, sourceUrl: null },
   whyShouldICare: "General context.",
   howDoesItAffectMe: "This doesn't directly affect your current holdings or watchlist.",
+  whatChangedSinceYesterday: [],
+  whatChangedForMyPortfolio: { hasComparison: false, summary: "No prior-day snapshot yet — this is the first day being tracked.", changes: [] },
+  whatChangedInBeliefs: [],
   shouldIDoAnythingToday: { hasAction: false, action: null, symbol: null, reasoning: null, recommendationId: null, qualityScore: null },
 };
 
@@ -30,33 +36,40 @@ beforeEach(() => {
 });
 
 describe("HomeScreen", () => {
-  it("renders exactly the four required questions and nothing else", async () => {
+  it("renders exactly the six required questions and nothing else", async () => {
     homeApi.getSummary.mockResolvedValue(SUMMARY_NO_ACTION);
     render(<HomeScreen onNavigate={vi.fn()} />);
 
     await waitFor(() => expect(screen.getByText("What happened?")).toBeInTheDocument());
     expect(screen.getByText("Why should I care?")).toBeInTheDocument();
-    expect(screen.getByText("How does it affect me?")).toBeInTheDocument();
-    expect(screen.getByText("Should I do anything today?")).toBeInTheDocument();
+    expect(screen.getByText("What changed since yesterday?")).toBeInTheDocument();
+    expect(screen.getByText("What changed for my portfolio?")).toBeInTheDocument();
+    expect(screen.getByText("What changed in the platform's beliefs?")).toBeInTheDocument();
+    expect(screen.getByText("What should I pay attention to today?")).toBeInTheDocument();
 
-    // Nothing else: exactly four .home-card sections should exist.
+    // Nothing else: exactly six .home-card sections should exist.
     const cards = document.querySelectorAll(".home-card");
-    expect(cards).toHaveLength(4);
+    expect(cards).toHaveLength(6);
   });
 
-  it("shows a calm 'no action needed' message when there is nothing to do", async () => {
+  it("shows honest empty states for every 'what changed' card when nothing changed", async () => {
     homeApi.getSummary.mockResolvedValue(SUMMARY_NO_ACTION);
     render(<HomeScreen onNavigate={vi.fn()} />);
 
     await waitFor(() => expect(screen.getByText(/No action needed today/)).toBeInTheDocument());
+    expect(screen.getByText(/No material change vs\. yesterday/)).toBeInTheDocument();
+    expect(screen.getByText(/No theme thesis has changed recently/)).toBeInTheDocument();
+    expect(screen.getByText(/No prior-day snapshot yet/)).toBeInTheDocument();
   });
 
-  it("shows the real canonical action pill when one exists, with no second/duplicate verdict", async () => {
+  it("shows real change data when it exists — belief change, portfolio delta, and yesterday diff", async () => {
     homeApi.getSummary.mockResolvedValue(SUMMARY_WITH_ACTION);
     render(<HomeScreen onNavigate={vi.fn()} />);
 
     await waitFor(() => expect(screen.getByText("BUY")).toBeInTheDocument());
-    expect(screen.getByText("NVDA")).toBeInTheDocument();
+    expect(screen.getByText(/Top driver shifted from Fed policy/)).toBeInTheDocument();
+    expect(screen.getByText(/Portfolio value up 1.2%/)).toBeInTheDocument();
+    expect(screen.getByText(/AI capex remains elevated/)).toBeInTheDocument();
     expect(screen.getAllByText("BUY")).toHaveLength(1);
   });
 });

@@ -12,11 +12,14 @@ const ACTION_PILL_CLASS = {
 };
 
 /**
- * Sprint 20, Part 3 — the redesigned Home screen. Answers exactly four
- * questions and nothing else: What happened? Why should I care? How does
- * it affect me? Should I do anything today? No fifth section is ever
- * added here — the existing, richer Dashboard remains reachable from the
- * sidebar for anyone who wants more.
+ * Sprint 20, Part 3 — the Home screen. Originally answered four questions;
+ * Sprint 24 extended it to six, each still answerable within seconds: What
+ * happened? Why should I care? What changed since yesterday? What changed
+ * for my portfolio? What changed in the platform's beliefs? What should I
+ * pay attention to today? Still nothing beyond these six — the existing,
+ * richer Dashboard remains reachable from the sidebar for anyone who wants
+ * more. Every "what changed" card is honest about absence: no fabricated
+ * change is ever shown when the underlying data source has nothing to say.
  */
 export default function HomeScreen({ onNavigate }) {
   const { watchlist } = useWatchlist();
@@ -68,7 +71,15 @@ export default function HomeScreen({ onNavigate }) {
     );
   }
 
-  const { whatHappened, whyShouldICare, howDoesItAffectMe, shouldIDoAnythingToday } = summary;
+  const {
+    whatHappened,
+    whyShouldICare,
+    howDoesItAffectMe,
+    whatChangedSinceYesterday = [],
+    whatChangedForMyPortfolio,
+    whatChangedInBeliefs = [],
+    shouldIDoAnythingToday,
+  } = summary;
 
   return (
     <div className="screen-page home-screen">
@@ -88,13 +99,52 @@ export default function HomeScreen({ onNavigate }) {
 
       <SectionCard title="Why should I care?" icon="◍" className="screen-card home-card">
         <p className="company-description">{whyShouldICare}</p>
+        <p className="company-description subtle">{howDoesItAffectMe}</p>
       </SectionCard>
 
-      <SectionCard title="How does it affect me?" icon="◈" className="screen-card home-card">
-        <p className="company-description">{howDoesItAffectMe}</p>
+      <SectionCard title="What changed since yesterday?" icon="↻" className="screen-card home-card">
+        {whatChangedSinceYesterday.length ? (
+          <ul className="stack-list">
+            {whatChangedSinceYesterday.map((line, index) => (
+              <li key={index} className="company-description subtle">
+                {line}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="company-description subtle">No material change vs. yesterday.</p>
+        )}
       </SectionCard>
 
-      <SectionCard title="Should I do anything today?" icon="▲" className="screen-card home-card">
+      <SectionCard title="What changed for my portfolio?" icon="◐" className="screen-card home-card">
+        <p className="company-description">{whatChangedForMyPortfolio?.summary}</p>
+        {whatChangedForMyPortfolio?.changes?.length ? (
+          <ul className="stack-list">
+            {whatChangedForMyPortfolio.changes.map((change) => (
+              <li key={change.dimension} className="company-description subtle">
+                {change.label}: {change.beforeValue} → {change.afterValue}
+                {change.changePct !== null ? ` (${change.changePct >= 0 ? "+" : ""}${change.changePct}%)` : ""}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </SectionCard>
+
+      <SectionCard title="What changed in the platform's beliefs?" icon="◑" className="screen-card home-card">
+        {whatChangedInBeliefs.length ? (
+          <ul className="stack-list">
+            {whatChangedInBeliefs.map((belief) => (
+              <li key={belief.themeKey} className="company-description subtle">
+                <strong>{belief.themeLabel}</strong> thesis updated: {belief.newThesis}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="company-description subtle">No theme thesis has changed recently.</p>
+        )}
+      </SectionCard>
+
+      <SectionCard title="What should I pay attention to today?" icon="▲" className="screen-card home-card">
         {shouldIDoAnythingToday.hasAction ? (
           <>
             <div className="opportunity-item__top">
