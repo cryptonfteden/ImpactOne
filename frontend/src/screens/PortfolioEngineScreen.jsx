@@ -1,6 +1,6 @@
 import { useState } from "react";
 import SectionCard from "../components/SectionCard";
-import { Button, ErrorState, Input } from "../components/ui";
+import { Button, ConfirmButton, ErrorState, Input } from "../components/ui";
 import usePortfolioEngine from "../hooks/usePortfolioEngine";
 
 function average(values) {
@@ -83,7 +83,7 @@ export default function PortfolioEngineScreen() {
             Server-owned portfolio backed by Postgres — positions, orders, and P/L survive a restart. Orders are placed manually here; automated execution from AI signals is a later sprint.
           </p>
         </div>
-        <Button type="button" className="ghost-button" onClick={reset}>Reset virtual portfolio</Button>
+        <ConfirmButton label="Reset virtual portfolio" onConfirm={reset} />
       </section>
 
       {error ? <ErrorState message={error} /> : null}

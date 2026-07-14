@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
-import { Button } from "../components/ui";
+import { ConfirmButton } from "../components/ui";
 import useWatchlist from "../hooks/useWatchlist";
 import useVirtualPortfolio from "../hooks/useVirtualPortfolio";
 import { intelligenceApi } from "../services/api";
@@ -72,7 +72,7 @@ function LegacyPortfolioScreen() {
             Virtual portfolio - simulated trades only. No broker connectivity. No live order execution.
           </p>
         </div>
-        <Button type="button" className="ghost-button" onClick={reset}>Reset virtual portfolio</Button>
+        <ConfirmButton label="Reset virtual portfolio" onConfirm={reset} />
       </section>
 
       {error ? <p className="company-description subtle">{error}</p> : null}
