@@ -25,6 +25,29 @@ function inferTimeHorizon(event = "") {
   return "1-6 months";
 }
 
+// Sprint 26 — replaces the prior boilerplate ("The event 'X' affects
+// cross-asset pricing through macro regime, positioning, and liquidity
+// channels.") that was identical for every event with only the event name
+// substituted. Genuinely derived from this call's own real, already-
+// computed inputs (affected sectors, the strongest historical analog, the
+// theme this event propagates through) — never the same sentence twice for
+// two different events, and honest when a given input is missing.
+function buildWhy({ event, affected, history, propagation }) {
+  const sectors = (affected?.sectors || []).slice(0, 2).join(" and ");
+  const topAnalog = history?.[0];
+  const parts = [`"${event}" is being weighed against ${sectors || "broad market"} exposure`];
+
+  if (topAnalog?.event) {
+    parts.push(`most comparable to "${topAnalog.event}" (${topAnalog.similarity ?? "n/a"}% historical similarity)`);
+  }
+  const topPropagation = propagation?.[0];
+  if (topPropagation) {
+    parts.push(`propagating from ${topPropagation.from} to ${topPropagation.to} (${topPropagation.effect})`);
+  }
+
+  return `${parts.join("; ")}.`;
+}
+
 function adjustAffected(event = "") {
   const text = String(event || "").toLowerCase();
   const output = JSON.parse(JSON.stringify(assetTemplates));
@@ -85,7 +108,7 @@ async function analyzeIntelligence({ event = "Fed rate hike", symbol = "AAPL" } 
     scenario,
     sectorPropagation: propagation,
     explainability: {
-      why: `The event '${event}' affects cross-asset pricing through macro regime, positioning, and liquidity channels.`,
+      why: buildWhy({ event, affected, history, propagation }),
       supportingEvidence: fusion.evidence,
       dataSourcesUsed: Object.entries(fusion.sourcesUsed).filter(([, value]) => value).map(([key]) => key),
       confidence: confidenceScore,

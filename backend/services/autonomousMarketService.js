@@ -604,10 +604,19 @@ async function processEvent({ event, sourceUrl = null, sourceName = null, publis
     ...(analysis.affected?.crypto || []),
     ...(analysis.affected?.commodities || []),
   ]).slice(0, 12);
-  const relatedTickers = affectedAssets.filter((asset) => watchlist.includes(asset)).length
-    ? affectedAssets.filter((asset) => watchlist.includes(asset))
-    : (analysis.affected?.stocks || []).slice(0, 4);
-  const hasPortfolioExposure = relatedTickers.length > 0 || (portfolioExposure?.portfolioExposure || []).some((holding) => affectedAssets.includes(holding.symbol));
+  // Sprint 26 — Trust Breaker fix: relatedTickers must never fall back to
+  // the generic asset-template list (analysis.affected.stocks), because
+  // that list is the same handful of symbols for most events regardless of
+  // the user's actual holdings/watchlist. Falling back to it here made
+  // hasPortfolioExposure true — and "Portfolio overlap detected" render —
+  // for users with zero real exposure. Only genuine watchlist/portfolio
+  // matches count; an honest empty array when there are none.
+  const watchlistMatchedTickers = affectedAssets.filter((asset) => watchlist.includes(asset));
+  const portfolioMatchedTickers = (portfolioExposure?.portfolioExposure || [])
+    .filter((holding) => affectedAssets.includes(holding.symbol))
+    .map((holding) => holding.symbol);
+  const relatedTickers = unique([...watchlistMatchedTickers, ...portfolioMatchedTickers]);
+  const hasPortfolioExposure = relatedTickers.length > 0;
   const impactType = importanceScore >= 75 ? "opportunity" : importanceScore <= 48 ? "risk" : (eventType === "geopolitics" || eventType === "centralBanks" ? "risk" : "neutral");
   const actionability = buildActionability(importanceScore, urgency, hasPortfolioExposure);
   const riskLevel = buildRiskLevel(eventType, importanceScore);
@@ -642,7 +651,7 @@ async function processEvent({ event, sourceUrl = null, sourceName = null, publis
     bestHistoricalOutcome: historical.bestHistoricalOutcome,
     worstHistoricalOutcome: historical.worstHistoricalOutcome,
     marketImpactPrediction: analysis.scenario?.expectedMarketReaction || "Mixed market impact expected.",
-    portfolioImpactPrediction: hasPortfolioExposure ? `Portfolio overlap detected in ${relatedTickers.join(", ") || "watchlist assets"}.` : "No direct portfolio overlap detected.",
+    portfolioImpactPrediction: hasPortfolioExposure ? `Portfolio overlap detected in ${relatedTickers.join(", ")}.` : "No direct portfolio overlap detected.",
     actionability,
     riskLevel,
     timeBucket: eventType === "earnings" ? "since-open" : eventType === "geopolitics" ? "overnight" : "last-hour",

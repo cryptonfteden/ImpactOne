@@ -71,6 +71,30 @@ test("Sprint 25 — watchlistRankings' fallback explanation (no matched event) i
   }
 });
 
+test("Sprint 26 — Trust Breaker fix: portfolioImpactPrediction never claims overlap for a watchlist with no real match", async () => {
+  const original = newsService.getNews;
+  newsService.getNews = async () => [];
+
+  try {
+    // ZZZQ1 never appears in any generic asset-template fallback list
+    // (AAPL/NVDA/TSLA/MSFT/BTC/ETH/etc.), so any feed item claiming
+    // portfolio overlap here would prove the old bug (falling back to the
+    // generic template list) is still present.
+    const overview = await autonomousMarketService.getAutonomousOverview({ watchlist: ["ZZZQ1"] });
+    assert.ok(overview.feed.length > 0, "expected at least one feed item to check");
+
+    for (const item of overview.feed) {
+      // ZZZQ1 is watched but never appears in this event's affected assets
+      // (it's not a real symbol any template branch would produce), so
+      // relatedTickers must be empty and the claim must be honest.
+      assert.deepEqual(item.relatedTickers, [], `${item.headline}: relatedTickers must be empty when nothing genuinely matches`);
+      assert.equal(item.portfolioImpactPrediction, "No direct portfolio overlap detected.");
+    }
+  } finally {
+    newsService.getNews = original;
+  }
+});
+
 test("getAutonomousOverview threads publishedAt through into the processed feed", async () => {
   const original = newsService.getNews;
   const publishedAt = "2026-07-11T10:00:00.000Z";
