@@ -111,27 +111,72 @@ function mapReliability(confidence, sources = []) {
   return "developing";
 }
 
+// Sprint 27 Priority 3 — every one of the 19 CORE_EVENT_TYPES gets its own
+// counterargument, mirroring Sprint 26's fix to adjustAffected (same
+// problem: most event types fell through to one generic 2-line bucket,
+// producing identical "counter-evidence" text across unrelated events).
+const COUNTERARGUMENT_BY_TYPE = {
+  centralBanks: "Policy communication may calm markets if the move is already priced in.",
+  macro: "A single data print may not confirm a genuine regime shift.",
+  geopolitics: "Diplomatic de-escalation could reverse the initial risk repricing.",
+  ma: "Regulatory review could delay or block the deal before it closes.",
+  regulation: "Legal challenges or lobbying could soften the final rule.",
+  supplyChain: "Alternate routing or inventory buffers could blunt the disruption.",
+  semiconductors: "Capacity additions elsewhere could offset the near-term shortage.",
+  energy: "Strategic reserve releases could cap the price move.",
+  crypto: "Regulatory pushback could reverse flow-driven momentum.",
+  defense: "Budget appropriations could lag the initial headline reaction.",
+  ai: "Compute or power constraints could slow the pace investors are pricing in.",
+  healthcare: "Trial or regulatory setbacks remain common at this stage.",
+  consumer: "Discretionary spending is sensitive to a single soft data print reversing.",
+  financials: "Credit conditions could tighten faster than the headline implies.",
+  space: "Launch delays are common and could push the timeline out.",
+  nuclear: "Permitting timelines are long and could delay realized impact.",
+  cybersecurity: "Remediation could limit the scope investors are currently pricing.",
+  quantum: "Commercial timelines in this sector remain early and uncertain.",
+};
+
 function buildCounterarguments(type, event) {
   const base = [
     "Positioning may already reflect the headline, limiting follow-through.",
     "Cross-asset transmission could remain localized instead of broadening.",
   ];
 
-  if (type === "centralBanks") {
-    base.unshift("Policy communication may calm markets if the move is already priced in.");
-  }
   if (type === "earnings") {
     base.unshift(`Management commentary could offset the first reaction to ${event}.`);
+  } else if (COUNTERARGUMENT_BY_TYPE[type]) {
+    base.unshift(COUNTERARGUMENT_BY_TYPE[type]);
   }
 
   return base.slice(0, 3);
 }
 
+// Sprint 27 Priority 3 — same fix applied to invalidation signals: every
+// event type gets its own pair instead of 15 of 19 types sharing one
+// generic fallback.
+const INVALIDATION_BY_TYPE = {
+  energy: ["Commodity prices retrace sharply.", "Inflation pass-through fails to broaden."],
+  crypto: ["ETF flow momentum fades.", "Macro liquidity tightens more than expected."],
+  centralBanks: ["Forward guidance softens the policy signal.", "Growth data reaccelerates against the initial narrative."],
+  macro: ["Revisions reverse the initial data print.", "Other coincident indicators fail to confirm the trend."],
+  geopolitics: ["A negotiated settlement materializes faster than expected.", "Market risk pricing normalizes without follow-through escalation."],
+  ma: ["Regulators block or materially delay the deal.", "Financing terms deteriorate before close."],
+  regulation: ["The proposed rule is watered down before finalization.", "Legal challenges stay the rule's enforcement."],
+  supplyChain: ["Alternate suppliers absorb the disruption within weeks.", "Inventory buffers prevent a measurable output hit."],
+  semiconductors: ["Yields recover faster than guided.", "Demand softens enough to offset the supply constraint."],
+  defense: ["Budget appropriations stall in committee.", "Program timelines slip beyond the priced-in horizon."],
+  ai: ["Compute buildout guidance is walked back next quarter.", "Enterprise adoption data disappoints against expectations."],
+  healthcare: ["Trial data misses its primary endpoint.", "Regulatory review extends materially beyond guidance."],
+  consumer: ["Spending data reverses within the next reporting cycle.", "Margin pressure offsets the top-line signal."],
+  financials: ["Credit quality metrics deteriorate faster than priced.", "Net interest margin guidance disappoints."],
+  space: ["The launch or contract milestone slips.", "Payload or customer demand fails to materialize as guided."],
+  nuclear: ["Permitting or siting approval stalls.", "Capital costs run materially above guidance."],
+  cybersecurity: ["The vulnerability is patched before meaningful exploitation.", "Disclosed impact proves smaller than initial reports suggested."],
+  quantum: ["A commercial milestone slips well beyond guidance.", "A competing approach demonstrates a faster path to the same result."],
+};
+
 function buildInvalidation(type) {
-  if (type === "energy") return ["Commodity prices retrace sharply.", "Inflation pass-through fails to broaden."];
-  if (type === "crypto") return ["ETF flow momentum fades.", "Macro liquidity tightens more than expected."];
-  if (type === "centralBanks") return ["Forward guidance softens the policy signal.", "Growth data reaccelerates against the initial narrative."];
-  return ["Supporting data fails to confirm the first-order move.", "Sector leadership rotates away from affected assets."];
+  return INVALIDATION_BY_TYPE[type] || ["Supporting data fails to confirm the first-order move.", "Sector leadership rotates away from affected assets."];
 }
 
 function buildRegions(analysis, type) {

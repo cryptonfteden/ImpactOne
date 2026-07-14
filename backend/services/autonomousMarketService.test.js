@@ -124,6 +124,20 @@ test("Sprint 16 Phase D exports sourceQualityScore, recencyScore, buildInvalidat
   assert.equal(autonomousMarketService.classifyEventType("Fed rate hike"), "centralBanks");
 });
 
+test("Sprint 27 — buildInvalidation gives distinct event types their own signals, not one shared generic fallback", () => {
+  const types = ["defense", "ai", "healthcare", "consumer", "financials", "space", "nuclear", "cybersecurity", "quantum", "geopolitics", "ma", "regulation", "supplyChain", "semiconductors", "macro"];
+  const results = types.map((type) => autonomousMarketService.buildInvalidation(type).join("|"));
+  const uniqueResults = new Set(results);
+  assert.equal(uniqueResults.size, types.length, "every event type should have its own invalidation signals, not a shared fallback");
+});
+
+test("Sprint 27 — buildCounterarguments gives distinct event types their own leading counterargument", () => {
+  const types = ["defense", "ai", "healthcare", "consumer", "financials", "space", "nuclear", "cybersecurity", "quantum"];
+  const firstLines = types.map((type) => autonomousMarketService.buildCounterarguments(type, "Event headline")[0]);
+  const uniqueFirstLines = new Set(firstLines);
+  assert.equal(uniqueFirstLines.size, types.length, "every event type should lead with its own counterargument");
+});
+
 test("getRepresentativeEvents backfills with the synthetic catalog when liveNews is empty", () => {
   const result = autonomousMarketService.getRepresentativeEvents({
     scenarios: ["Oil spike"],

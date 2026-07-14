@@ -6,6 +6,13 @@ import useWatchlist from "../hooks/useWatchlist";
 import FeedItemCard from "../components/feed/FeedItemCard";
 import { logError } from "../utils/errorHandling";
 
+// Sprint 27 Priority 3 — the backend can return up to 28 events (the full
+// pool other consumers like Global Intelligence and Alpha Discovery need),
+// already ranked by real importance/personalization server-side. Daily
+// Feed's own job is "surface only the most important intelligence," so it
+// shows only the top-ranked slice rather than the full unranked dump.
+const MAX_DAILY_FEED_ITEMS = 12;
+
 /**
  * Sprint 20, Part 4/5 — the Daily Feed. Replaces the previous fully-mock
  * "Market News" screen with the real, live event feed
@@ -25,7 +32,7 @@ export default function MarketNewsScreen() {
       try {
         const data = await intelligenceApi.liveFeed({ watchlist });
         if (!cancelled) {
-          setFeed(data.feed || []);
+          setFeed((data.feed || []).slice(0, MAX_DAILY_FEED_ITEMS));
           setError("");
         }
       } catch (loadError) {
