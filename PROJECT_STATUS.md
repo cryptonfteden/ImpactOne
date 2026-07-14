@@ -1151,6 +1151,14 @@ Sprint 25 verification: 249 backend / 96 frontend tests passing, run before each
 
 Not in scope for Sprint 25 (named explicitly): nav consolidation between Recommendations/Daily Feed or Global Intelligence/AI Analysis/Themes — flagged as a real candidate by the audit but not executed without stronger side-by-side product evidence, since guessing would itself be a trust violation.
 
+## 32. Sprint 26 - Beta Readiness
+
+Scope note: last sprint before the first closed beta — full report in `SPRINT_26_REPORT.md`. Cross-checked `EXECUTIVE_TRUST_REPORT.md`/`TRUST_AUDIT_LOG.md`/`PRODUCT_REVIEW_LOG.md` (independent reviewer docs, Trust Score 2/10) against current code before fixing anything. Killed: the false "Portfolio overlap detected" claim (relatedTickers fell back to generic template stocks, making hasPortfolioExposure true for users with zero real exposure); `impactIntelligenceService.js`'s identical boilerplate "why" sentence (a code path Sprint 25's earlier fix hadn't reached); generic sector/company lists for 15 of 19 event categories; an unexplained Guest account icon; two real React duplicate-key console warnings on Global Intelligence first flagged (unfixed) in Sprint 20's closeout audit.
+
+Sprint 26 verification: 253 backend / 96 frontend tests passing, run before each of 5 commits; live browser verification across 5 screens confirming reachability (the reviewers' Critical "unreachable main content" claim did not reproduce) and zero console errors after the key fix.
+
+Beta readiness score: 6.5/10 (up from the reviewers' 2/10). Recommendation: conditional GO for a small closed beta, not full beta, with the confidence-score's narrow real-world variance (`alternativeFusionService.js`) disclosed as a known limitation — a real, unresolved issue touching the platform's central credibility number, correctly scoped as architecture-level work rather than attempted under this sprint's remaining time pressure.
+
 ## Quick Handoff For New Developers
 1. Install dependencies at root (`npm install`) and frontend if needed (`npm --prefix frontend install`).
 2. Configure keys in env files (`FINNHUB_API_KEY`, `OPENAI_API_KEY`, `VITE_API_BASE_URL`).
