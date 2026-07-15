@@ -19,6 +19,7 @@ const dailyBriefService = require("./dailyBriefService");
 const worldMemoryRepository = require("./worldMemoryRepository");
 const investorProfileRepository = require("./investorProfileRepository");
 const feedPersonalizationService = require("./feedPersonalizationService");
+const personalIntelligenceService = require("./personalIntelligenceService");
 const { THEME_DEFINITIONS } = require("./themeIntelligenceService");
 
 const BELIEF_CHANGE_LOOKBACK_MS = 48 * 60 * 60 * 1000;
@@ -141,7 +142,14 @@ async function buildWhatChangedInBeliefs() {
  * autonomousRecommendationRepository.listActive is the same repository
  * function the Recommendations screen itself calls.
  */
-async function buildTopRecommendations({ limit = 3 } = {}) {
+// Sprint 30 Priority 2 — widened from "top `limit` by qualityScore" to
+// "top `limit` by qualityScore, then re-ranked by real user relevance."
+// Facts (qualityScore, action, confidenceScore, ...) are computed exactly
+// as before and never altered; personalIntelligenceService only ever
+// reorders. A wider candidate pool (10, not 3) is ranked by quality first
+// so personalization chooses among genuinely strong recommendations, not
+// a fabricated field.
+async function buildTopRecommendations({ limit = 3, candidatePoolSize = 10 } = {}) {
   const active = await autonomousRecommendationRepository.listActive({ limit: 50 });
   const withVerdicts = active.map((recommendation) => {
     const verdict = canonicalVerdict.buildCanonicalVerdictView({ recommendation });
@@ -153,9 +161,15 @@ async function buildTopRecommendations({ limit = 3 } = {}) {
       riskScore: Number(recommendation.riskScore),
       riskLabel: recommendation.riskLabel,
       reasoning: recommendation.reasoning,
+      timeHorizon: recommendation.timeHorizon,
+      portfolioContext: recommendation.portfolioContext,
     };
   });
-  return withVerdicts.sort((a, b) => (b.qualityScore || 0) - (a.qualityScore || 0)).slice(0, limit);
+  const candidatePool = withVerdicts.sort((a, b) => (b.qualityScore || 0) - (a.qualityScore || 0)).slice(0, candidatePoolSize);
+
+  const investorProfile = await investorProfileRepository.findDefaultInvestorProfile().catch(() => null);
+  const ranked = await personalIntelligenceService.rankByUserRelevance(candidatePool, { investorProfile });
+  return ranked.slice(0, limit);
 }
 
 function buildPortfolioSnapshot(portfolioSummary) {
@@ -266,6 +280,39 @@ function buildPortfolioMorningSummary({ topRecommendations, feed, heldSymbols })
   };
 }
 
+// Sprint 30 — Personal Intelligence Layer, Priority 4 (Morning Personal
+// Brief). "One concise personalized summary, maximum 60 seconds to
+// consume." Every line here is a condensation of a field this same
+// function already computed above — no new fetch, no new fact — so this
+// is purely a presentation step, and it runs last, after
+// topRecommendations has already been through Priority 2's personal
+// ranking. Capped at 5 short lines; any input that's honestly empty is
+// skipped rather than padded with a filler line.
+function buildMorningPersonalBrief({ whatHappened, whatChangedForMyPortfolio, topRecommendations, portfolioMorningSummary, shouldIDoAnythingToday }) {
+  const lines = [];
+
+  if (whatHappened?.headline) {
+    lines.push(`Market: ${whatHappened.headline}`);
+  }
+  if (whatChangedForMyPortfolio?.summary) {
+    lines.push(`Portfolio: ${whatChangedForMyPortfolio.summary}`);
+  }
+  if (topRecommendations?.length) {
+    const top = topRecommendations[0];
+    lines.push(`Top for you: ${top.symbol} — ${top.action} (quality ${top.qualityScore}/100)`);
+  }
+  if (portfolioMorningSummary?.biggestOpportunity) {
+    lines.push(`Opportunity: ${portfolioMorningSummary.biggestOpportunity.symbol} (quality ${portfolioMorningSummary.biggestOpportunity.qualityScore}/100)`);
+  }
+  if (shouldIDoAnythingToday?.hasAction) {
+    lines.push(`Action needed: ${shouldIDoAnythingToday.symbol} — ${shouldIDoAnythingToday.action}`);
+  } else if (lines.length < 5) {
+    lines.push("No action needed today.");
+  }
+
+  return lines.slice(0, 5);
+}
+
 async function buildHomeSummary({ watchlist = [] } = {}) {
   const normalizedWatchlist = normalizeSymbolList(watchlist);
   const portfolioSummary = await portfolioEngineService.getPortfolioSummary();
@@ -304,12 +351,15 @@ async function buildHomeSummary({ watchlist = [] } = {}) {
   const intelligenceTimeline = buildIntelligenceTimeline(overview.feed);
   const portfolioMorningSummary = buildPortfolioMorningSummary({ topRecommendations, feed: overview.feed, heldSymbols });
 
+  const whatHappened = {
+    headline: event?.headline || "No major market-moving events detected right now.",
+    sourceName: event?.sourceName || null,
+    sourceUrl: event?.sourceUrl || null,
+  };
+  const personalBrief = buildMorningPersonalBrief({ whatHappened, whatChangedForMyPortfolio, topRecommendations, portfolioMorningSummary, shouldIDoAnythingToday });
+
   return {
-    whatHappened: {
-      headline: event?.headline || "No major market-moving events detected right now.",
-      sourceName: event?.sourceName || null,
-      sourceUrl: event?.sourceUrl || null,
-    },
+    whatHappened,
     whyShouldICare: event?.whyItMatters || "Markets are calm — nothing urgent stands out today.",
     howDoesItAffectMe,
     whatChangedSinceYesterday,
@@ -325,6 +375,9 @@ async function buildHomeSummary({ watchlist = [] } = {}) {
     intelligenceTimeline,
     todayForYou,
     portfolioMorningSummary,
+    // Sprint 30 — a condensed, personally-ranked, <=5-line brief built
+    // entirely from the fields above.
+    personalBrief,
     generatedAt: new Date().toISOString(),
   };
 }
@@ -334,5 +387,6 @@ module.exports = {
   classifyTimelineSection,
   buildIntelligenceTimeline,
   buildPortfolioMorningSummary,
+  buildMorningPersonalBrief,
   describePriorityReason,
 };
