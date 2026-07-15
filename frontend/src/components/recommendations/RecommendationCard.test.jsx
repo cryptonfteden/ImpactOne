@@ -1,10 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import RecommendationCard from "./RecommendationCard";
 import { recommendationsApi } from "../../services/api";
 
 vi.mock("../../services/api", () => ({
-  recommendationsApi: { getDecisionTrace: vi.fn(), list: vi.fn() },
+  recommendationsApi: { getDecisionTrace: vi.fn(), list: vi.fn(), getFeedback: vi.fn(), submitFeedback: vi.fn() },
 }));
 
 const RECOMMENDATION_FIXTURE = {
@@ -43,6 +43,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   recommendationsApi.getDecisionTrace.mockResolvedValue({ confidenceCalculation: { uncertainty: 35 } });
   recommendationsApi.list.mockResolvedValue({ recommendations: [] });
+  recommendationsApi.getFeedback.mockResolvedValue({ feedback: [] });
+  recommendationsApi.submitFeedback.mockResolvedValue({ id: "fb-1", feedbackType: "USEFUL" });
 });
 
 describe("RecommendationCard", () => {
@@ -190,5 +192,24 @@ describe("RecommendationCard", () => {
     render(<RecommendationCard recommendation={{ ...RECOMMENDATION_FIXTURE, createdAt: "2026-07-14T00:00:00.000Z" }} isExpanded onToggleExpand={vi.fn()} />);
     expect(screen.getByText("Why now")).toBeInTheDocument();
     expect(screen.getByText(/timed to the stated 1-3 months/)).toBeInTheDocument();
+  });
+
+  it("Sprint 29 — shows all six feedback options and submits the real feedbackType on click", async () => {
+    render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText("Was this useful?")).toBeInTheDocument());
+    for (const label of ["Useful", "Not useful", "Too early", "Too late", "Already knew", "Don't understand"]) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
+
+    fireEvent.click(screen.getByText("Too early"));
+    await waitFor(() => expect(recommendationsApi.submitFeedback).toHaveBeenCalledWith("rec-1", "TOO_EARLY"));
+  });
+
+  it("Sprint 29 — shows previously recorded feedback without requiring a new submission", async () => {
+    recommendationsApi.getFeedback.mockResolvedValue({ feedback: [{ id: "fb-1", feedbackType: "USEFUL", createdAt: "2026-07-14T00:00:00.000Z" }] });
+    render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText(/Feedback recorded: Useful/)).toBeInTheDocument());
   });
 });

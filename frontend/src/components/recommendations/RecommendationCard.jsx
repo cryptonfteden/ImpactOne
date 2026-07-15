@@ -23,6 +23,20 @@ const SYMBOL_SOURCE_LABEL = {
   "market-scan": "Market scan",
 };
 
+// Sprint 29 Priority 2 — User Feedback Capture. Exactly the six reactions
+// named in the sprint mission, no more. Pure capture: submitting never
+// changes anything else on this card or refetches the recommendation —
+// feedback is evidence for future calibration, not an input to today's
+// display.
+const FEEDBACK_OPTIONS = [
+  { value: "USEFUL", label: "Useful" },
+  { value: "NOT_USEFUL", label: "Not useful" },
+  { value: "TOO_EARLY", label: "Too early" },
+  { value: "TOO_LATE", label: "Too late" },
+  { value: "ALREADY_KNEW", label: "Already knew" },
+  { value: "DONT_UNDERSTAND", label: "Don't understand" },
+];
+
 function qualityPillClass(score) {
   if (!Number.isFinite(score)) return "pill";
   if (score >= 75) return "pill opportunity";
@@ -100,6 +114,8 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
 
   const [decisionTrace, setDecisionTrace] = useState(null);
   const [history, setHistory] = useState([]);
+  const [latestFeedback, setLatestFeedback] = useState(null);
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
   useEffect(() => {
     if (!isExpanded) return;
@@ -119,10 +135,29 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
       })
       .catch((error) => logError("recommendation history load failed", error));
 
+    Promise.resolve()
+      .then(() => recommendationsApi.getFeedback(recommendation.id))
+      .then((data) => {
+        if (!cancelled) setLatestFeedback((data?.feedback || [])[0] || null);
+      })
+      .catch((error) => logError("recommendation feedback load failed", error));
+
     return () => {
       cancelled = true;
     };
   }, [isExpanded, recommendation.id, recommendation.symbol]);
+
+  async function handleFeedback(feedbackType) {
+    setIsSubmittingFeedback(true);
+    try {
+      const feedback = await recommendationsApi.submitFeedback(recommendation.id, feedbackType);
+      setLatestFeedback(feedback);
+    } catch (error) {
+      logError("recommendation feedback submit failed", error);
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  }
 
   const uncertainty = decisionTrace?.confidenceCalculation?.uncertainty;
 
@@ -313,6 +348,28 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
               ))}
             </div>
           ) : null}
+
+          <div className="explanation-section">
+            <p className="explanation-section__title">Was this useful?</p>
+            <div className="opportunity-item__actions">
+              {FEEDBACK_OPTIONS.map((option) => (
+                <Button
+                  key={option.value}
+                  type="button"
+                  className={latestFeedback?.feedbackType === option.value ? "pill opportunity" : "ghost-button"}
+                  disabled={isSubmittingFeedback}
+                  onClick={() => handleFeedback(option.value)}
+                >
+                  {option.label}
+                </Button>
+              ))}
+            </div>
+            {latestFeedback ? (
+              <p className="company-description subtle">
+                Feedback recorded: {FEEDBACK_OPTIONS.find((option) => option.value === latestFeedback.feedbackType)?.label || latestFeedback.feedbackType}
+              </p>
+            ) : null}
+          </div>
         </>
       ) : null}
 

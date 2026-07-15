@@ -94,6 +94,21 @@ async function getDecisionTraceByRecommendationId(recommendationId) {
   return prisma.decisionTrace.findUnique({ where: { recommendationId } });
 }
 
+// Sprint 29 — Feedback Intelligence Layer, Priority 2. Create-only, like
+// DecisionTrace above: no update/delete method exists here, so there is
+// no code path that can alter or remove a user's past feedback. A user
+// changing their mind creates a new row rather than editing the old one,
+// preserving the full evidence trail.
+async function createFeedback({ recommendationId, feedbackType }) {
+  const prisma = getPrismaClient();
+  return prisma.recommendationFeedback.create({ data: { recommendationId, feedbackType } });
+}
+
+async function listFeedbackForRecommendation(recommendationId) {
+  const prisma = getPrismaClient();
+  return prisma.recommendationFeedback.findMany({ where: { recommendationId }, orderBy: { createdAt: "desc" } });
+}
+
 module.exports = {
   createRecommendation,
   listActive,
@@ -106,4 +121,6 @@ module.exports = {
   getLatestRunLog,
   createDecisionTrace,
   getDecisionTraceByRecommendationId,
+  createFeedback,
+  listFeedbackForRecommendation,
 };

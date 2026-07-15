@@ -155,3 +155,33 @@ test("the repository exposes no update method for decision traces (immutable by 
   const hasTraceUpdateMethod = exportedNames.some((name) => /decisiontrace/i.test(name) && /update/i.test(name));
   assert.equal(hasTraceUpdateMethod, false, "no updateDecisionTrace-style export should ever exist");
 });
+
+test("Sprint 29 — expireStaleRecommendations transitions ACTIVE recommendations past their expiresAt to EXPIRED, never a delete", async () => {
+  const past = await autonomousRecommendationRepository.createRecommendation(baseData({ expiresAt: new Date(Date.now() - 1000) }));
+  const future = await autonomousRecommendationRepository.createRecommendation(baseData({ symbol: "AAPL", expiresAt: new Date(Date.now() + 1000 * 60 * 60) }));
+  const noExpiry = await autonomousRecommendationRepository.createRecommendation(baseData({ symbol: "TSLA" }));
+
+  await autonomousRecommendationRepository.expireStaleRecommendations();
+
+  assert.equal((await autonomousRecommendationRepository.getById(past.id)).status, "EXPIRED");
+  assert.equal((await autonomousRecommendationRepository.getById(future.id)).status, "ACTIVE");
+  assert.equal((await autonomousRecommendationRepository.getById(noExpiry.id)).status, "ACTIVE");
+});
+
+test("Sprint 29 — createFeedback and listFeedbackForRecommendation round-trip real feedback, oldest-last", async () => {
+  const recommendation = await autonomousRecommendationRepository.createRecommendation(baseData());
+
+  await autonomousRecommendationRepository.createFeedback({ recommendationId: recommendation.id, feedbackType: "USEFUL" });
+  await autonomousRecommendationRepository.createFeedback({ recommendationId: recommendation.id, feedbackType: "TOO_EARLY" });
+
+  const feedback = await autonomousRecommendationRepository.listFeedbackForRecommendation(recommendation.id);
+  assert.equal(feedback.length, 2);
+  assert.equal(feedback[0].feedbackType, "TOO_EARLY", "most recent feedback should come first");
+  assert.equal(feedback[1].feedbackType, "USEFUL");
+});
+
+test("Sprint 29 — a changed mind creates a new feedback row rather than editing the old one (no update method exists)", () => {
+  const exportedNames = Object.keys(autonomousRecommendationRepository);
+  const hasFeedbackUpdateMethod = exportedNames.some((name) => /feedback/i.test(name) && /update/i.test(name));
+  assert.equal(hasFeedbackUpdateMethod, false, "no updateFeedback-style export should ever exist");
+});

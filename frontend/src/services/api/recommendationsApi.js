@@ -20,4 +20,10 @@ export const recommendationsApi = {
   status() {
     return apiClient.get("/v2/recommendations/status");
   },
+  submitFeedback(id, feedbackType) {
+    return apiClient.post(`/v2/recommendations/${id}/feedback`, { feedbackType });
+  },
+  getFeedback(id) {
+    return apiClient.get(`/v2/recommendations/${id}/feedback`);
+  },
 };

@@ -197,10 +197,39 @@ model Recommendation {
   qualityComponents Json
 
   decisionTrace DecisionTrace?
+  feedback      RecommendationFeedback[]
 
   @@index([symbol, status])
   @@index([createdAt])
   @@map("recommendations")
+}
+
+// Sprint 29 — Feedback Intelligence Layer, Priority 2. Captures a user's
+// reaction to a recommendation as raw evidence for future calibration.
+// Deliberately create-only (no update/delete anywhere in the repository):
+// a changed mind is a new feedback row, not an edited one, so the
+// evidence trail itself is never rewritten. This table is read by no
+// scoring path this sprint — feedback must never influence today's
+// recommendation, only ever future calibration work, per the sprint
+// mission's explicit rule.
+model RecommendationFeedback {
+  id               String                     @id @default(uuid())
+  recommendationId String
+  recommendation   Recommendation             @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  feedbackType     RecommendationFeedbackType
+  createdAt        DateTime                   @default(now())
+
+  @@index([recommendationId])
+  @@map("recommendation_feedback")
+}
+
+enum RecommendationFeedbackType {
+  USEFUL
+  NOT_USEFUL
+  TOO_EARLY
+  TOO_LATE
+  ALREADY_KNEW
+  DONT_UNDERSTAND
 }
 
 // Sprint 16 Phase D — one immutable row per recommendation, capturing the
