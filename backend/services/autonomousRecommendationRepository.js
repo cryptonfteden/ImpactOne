@@ -109,6 +109,18 @@ async function listFeedbackForRecommendation(recommendationId) {
   return prisma.recommendationFeedback.findMany({ where: { recommendationId }, orderBy: { createdAt: "desc" } });
 }
 
+// Sprint 30 — Learning Loop (Priority 3) reads across every recommendation's
+// feedback, not just one at a time; includes the parent recommendation's
+// symbol so aggregation can group by it without a second round-trip.
+async function listAllFeedback({ limit = 500 } = {}) {
+  const prisma = getPrismaClient();
+  return prisma.recommendationFeedback.findMany({
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: { recommendation: { select: { symbol: true } } },
+  });
+}
+
 module.exports = {
   createRecommendation,
   listActive,
@@ -123,4 +135,5 @@ module.exports = {
   getDecisionTraceByRecommendationId,
   createFeedback,
   listFeedbackForRecommendation,
+  listAllFeedback,
 };

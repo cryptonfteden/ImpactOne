@@ -5,7 +5,7 @@ import { providerApi, qualityDashboardApi } from "../services/api";
 
 vi.mock("../services/api", () => ({
   providerApi: { list: vi.fn(), getMetrics: vi.fn(), getDiagnostics: vi.fn(), getMetadata: vi.fn(), run: vi.fn() },
-  qualityDashboardApi: { get: vi.fn() },
+  qualityDashboardApi: { get: vi.fn(), getLearningSignals: vi.fn() },
 }));
 
 const PROVIDERS_FIXTURE = {
@@ -28,9 +28,16 @@ const QUALITY_DASHBOARD_FIXTURE = {
   sampleSizes: { totalPredictions: 10, totalOutcomes: 8, gradedOutcomes: 6, decisionTraces: 10 },
 };
 
+const LEARNING_SIGNALS_FIXTURE = {
+  feedbackSignals: { totalFeedback: 3, byType: { USEFUL: 2, NOT_USEFUL: 1 }, mostUsefulSymbols: ["NVDA"], leastUsefulSymbols: ["AAPL"] },
+  outcomeSignals: { hitRate: 67, confidenceCalibration: 72, outcomeCompletion: 80 },
+  themeSignals: { strengthenedThemes: ["ai"], weakenedThemes: [], disappearedThemes: [] },
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   qualityDashboardApi.get.mockResolvedValue(QUALITY_DASHBOARD_FIXTURE);
+  qualityDashboardApi.getLearningSignals.mockResolvedValue(LEARNING_SIGNALS_FIXTURE);
 });
 
 describe("IntelligenceConsoleScreen", () => {
@@ -102,5 +109,16 @@ describe("IntelligenceConsoleScreen", () => {
     render(<IntelligenceConsoleScreen />);
 
     await waitFor(() => expect(screen.getAllByText("Not enough data yet").length).toBe(5));
+  });
+
+  it("Sprint 30 — shows real Learning Loop signals (feedback totals, most/least useful symbols, theme strengthened/weakened/disappeared)", async () => {
+    providerApi.list.mockResolvedValue(PROVIDERS_FIXTURE);
+    render(<IntelligenceConsoleScreen />);
+
+    await waitFor(() => expect(screen.getByText("3 total feedback entries")).toBeInTheDocument());
+    expect(screen.getByText(/Most useful: NVDA/)).toBeInTheDocument();
+    expect(screen.getByText(/Least useful: AAPL/)).toBeInTheDocument();
+    expect(screen.getByText(/Strengthened: ai/)).toBeInTheDocument();
+    expect(screen.getByText(/Weakened: None/)).toBeInTheDocument();
   });
 });

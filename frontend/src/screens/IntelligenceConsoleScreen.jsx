@@ -67,6 +67,70 @@ function QualityDashboard() {
   );
 }
 
+// Sprint 30 Priority 3 — Learning Loop. Read-only visibility into what
+// the platform has learned from real feedback/outcome/theme data — this
+// component never writes anything and is never consulted by the
+// recommendation engine or the ranking engine (see
+// learningLoopService.js's own file-level comment and its test asserting
+// that non-dependency directly).
+function LearningLoopPanel() {
+  const [signals, setSignals] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    qualityDashboardApi
+      .getLearningSignals()
+      .then((data) => {
+        if (!cancelled) {
+          setSignals(data);
+          setError("");
+        }
+      })
+      .catch((loadError) => {
+        logError("learning signals load failed", loadError);
+        if (!cancelled) setError("Couldn't load learning signals right now.");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (isLoading) return <LoadingSpinner label="Loading learning signals" />;
+  if (error) return <p className="company-description negative">{error}</p>;
+  if (!signals) return null;
+
+  return (
+    <div className="opportunity-grid">
+      <SectionCard title="Feedback signals" className="screen-card" icon="◑">
+        <p className="company-description">{signals.feedbackSignals.totalFeedback} total feedback entries</p>
+        {Object.entries(signals.feedbackSignals.byType).length ? (
+          <p className="company-description subtle">
+            {Object.entries(signals.feedbackSignals.byType).map(([type, count]) => `${type}: ${count}`).join(" · ")}
+          </p>
+        ) : (
+          <p className="company-description subtle">No feedback recorded yet.</p>
+        )}
+        {signals.feedbackSignals.mostUsefulSymbols.length ? (
+          <p className="company-description subtle positive">Most useful: {signals.feedbackSignals.mostUsefulSymbols.join(", ")}</p>
+        ) : null}
+        {signals.feedbackSignals.leastUsefulSymbols.length ? (
+          <p className="company-description subtle negative">Least useful: {signals.feedbackSignals.leastUsefulSymbols.join(", ")}</p>
+        ) : null}
+      </SectionCard>
+      <SectionCard title="Theme signals" className="screen-card" icon="◑">
+        <p className="company-description subtle">Strengthened: {signals.themeSignals.strengthenedThemes.join(", ") || "None"}</p>
+        <p className="company-description subtle">Weakened: {signals.themeSignals.weakenedThemes.join(", ") || "None"}</p>
+        <p className="company-description subtle">Disappeared: {signals.themeSignals.disappearedThemes.join(", ") || "None"}</p>
+      </SectionCard>
+    </div>
+  );
+}
+
 /**
  * Sprint 23A — developer-only Intelligence Console. Read-only ops
  * visibility into the provider framework (health/metrics/diagnostics/
@@ -207,6 +271,11 @@ export default function IntelligenceConsoleScreen() {
       <section>
         <p className="eyebrow">Recommendation quality (internal)</p>
         <QualityDashboard />
+      </section>
+
+      <section>
+        <p className="eyebrow">Learning loop (internal)</p>
+        <LearningLoopPanel />
       </section>
 
       {isLoading ? (
