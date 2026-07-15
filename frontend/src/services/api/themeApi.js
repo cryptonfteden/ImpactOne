@@ -10,4 +10,7 @@ export const themeApi = {
   getEvolution(themeKey) {
     return apiClient.get(`/v2/themes/${encodeURIComponent(themeKey)}/evolution`);
   },
+  recordView(themeKey) {
+    return apiClient.post(`/v2/themes/${encodeURIComponent(themeKey)}/view`);
+  },
 };

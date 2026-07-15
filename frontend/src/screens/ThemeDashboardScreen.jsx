@@ -151,6 +151,10 @@ export default function ThemeDashboardScreen() {
       return;
     }
     setExpandedKey(themeKey);
+    // Sprint 30 Priority 1 — User Memory. Fire-and-forget, only on a real
+    // expand (never on collapse or on re-opening an already-fetched theme
+    // more than the actual click count).
+    themeApi.recordView(themeKey).catch((viewError) => logError("theme view record failed", viewError));
     if (!detailByKey[themeKey]) {
       setDetailLoading(themeKey);
       try {

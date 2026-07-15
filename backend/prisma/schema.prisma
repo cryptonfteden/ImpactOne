@@ -335,6 +335,34 @@ model InvestorProfile {
   @@map("investor_profiles")
 }
 
+// Sprint 30 — Personal Intelligence Layer, Priority 1 (User Memory).
+// Append-only by repository design (no update/delete method anywhere in
+// userMemoryRepository.js): every interaction is a new row, so the user's
+// full reading/interaction history accumulates rather than being
+// overwritten. Deliberately one generic event table rather than five
+// narrow ones — sector interest, reading behavior, and recommendation
+// interactions are all derived by querying this same stream, not stored
+// redundantly. Feedback history is NOT duplicated here: it already has
+// its own append-only table (RecommendationFeedback, Sprint 29) which
+// this file's queries read directly rather than re-storing.
+model UserMemoryEvent {
+  id        String              @id @default(uuid())
+  eventType UserMemoryEventType
+  subject   String // a symbol (for RECOMMENDATION_VIEWED) or a themeKey (for THEME_VIEWED)
+  sector    String? // known only for RECOMMENDATION_VIEWED, when the recommendation's evidence carries one
+  detail    Json?
+  createdAt DateTime            @default(now())
+
+  @@index([eventType, subject])
+  @@index([createdAt])
+  @@map("user_memory_events")
+}
+
+enum UserMemoryEventType {
+  RECOMMENDATION_VIEWED
+  THEME_VIEWED
+}
+
 enum ProviderRunStatus {
   SUCCESS
   FAILED

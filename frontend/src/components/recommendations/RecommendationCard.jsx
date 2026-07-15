@@ -121,6 +121,11 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
     if (!isExpanded) return;
     let cancelled = false;
 
+    // Sprint 30 Priority 1 — User Memory. Fire-and-forget: a real reading-
+    // behavior signal (the user actually opened this recommendation's
+    // detail), never blocking or altering anything else on this card.
+    recommendationsApi.recordView(recommendation.id).catch((error) => logError("recommendation view record failed", error));
+
     Promise.resolve()
       .then(() => recommendationsApi.getDecisionTrace(recommendation.id))
       .then((trace) => {

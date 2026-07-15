@@ -4,7 +4,7 @@ import ThemeDashboardScreen from "./ThemeDashboardScreen";
 import { themeApi } from "../services/api";
 
 vi.mock("../services/api", () => ({
-  themeApi: { list: vi.fn(), get: vi.fn(), getEvolution: vi.fn() },
+  themeApi: { list: vi.fn(), get: vi.fn(), getEvolution: vi.fn(), recordView: vi.fn() },
 }));
 
 const THEMES_FIXTURE = { themes: [{ themeKey: "ai", label: "AI" }, { themeKey: "defense", label: "Defense" }] };
@@ -38,6 +38,7 @@ const AI_EVOLUTION_FIXTURE = {
 beforeEach(() => {
   vi.clearAllMocks();
   themeApi.getEvolution.mockResolvedValue(AI_EVOLUTION_FIXTURE);
+  themeApi.recordView.mockResolvedValue({ id: "evt-1" });
 });
 
 describe("ThemeDashboardScreen", () => {
@@ -113,5 +114,22 @@ describe("ThemeDashboardScreen", () => {
     fireEvent.click(screen.getAllByText("Show details")[0]);
 
     await waitFor(() => expect(screen.getByText(/Not enough history yet/)).toBeInTheDocument());
+  });
+
+  it("Sprint 30 — records a real theme view event on expand, never on collapse", async () => {
+    themeApi.list.mockResolvedValue(THEMES_FIXTURE);
+    themeApi.get.mockResolvedValue(AI_DETAIL_FIXTURE);
+    render(<ThemeDashboardScreen />);
+
+    await waitFor(() => expect(screen.getByText("AI")).toBeInTheDocument());
+    expect(themeApi.recordView).not.toHaveBeenCalled();
+
+    const toggle = screen.getAllByText("Show details")[0];
+    fireEvent.click(toggle);
+    await waitFor(() => expect(themeApi.recordView).toHaveBeenCalledWith("ai"));
+    expect(themeApi.recordView).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByText("Hide details"));
+    expect(themeApi.recordView).toHaveBeenCalledTimes(1);
   });
 });

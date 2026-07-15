@@ -1,4 +1,5 @@
 const themeIntelligenceService = require("../services/themeIntelligenceService");
+const userMemoryRepository = require("../services/userMemoryRepository");
 
 function handleKnownError(error, res, next) {
   if (error.statusCode) {
@@ -33,4 +34,17 @@ async function getThemeEvolution(req, res, next) {
   }
 }
 
-module.exports = { listThemes, getTheme, getThemeEvolution };
+// Sprint 30 — Personal Intelligence Layer, Priority 1 (User Memory).
+async function recordThemeView(req, res, next) {
+  try {
+    if (!themeIntelligenceService.THEME_DEFINITIONS[req.params.themeKey]) {
+      return res.status(404).json({ error: `Unknown theme: ${req.params.themeKey}` });
+    }
+    const event = await userMemoryRepository.appendEvent({ eventType: "THEME_VIEWED", subject: req.params.themeKey });
+    res.status(201).json(event);
+  } catch (error) {
+    handleKnownError(error, res, next);
+  }
+}
+
+module.exports = { listThemes, getTheme, getThemeEvolution, recordThemeView };

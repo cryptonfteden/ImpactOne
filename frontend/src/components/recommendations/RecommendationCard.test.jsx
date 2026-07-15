@@ -4,7 +4,7 @@ import RecommendationCard from "./RecommendationCard";
 import { recommendationsApi } from "../../services/api";
 
 vi.mock("../../services/api", () => ({
-  recommendationsApi: { getDecisionTrace: vi.fn(), list: vi.fn(), getFeedback: vi.fn(), submitFeedback: vi.fn() },
+  recommendationsApi: { getDecisionTrace: vi.fn(), list: vi.fn(), getFeedback: vi.fn(), submitFeedback: vi.fn(), recordView: vi.fn() },
 }));
 
 const RECOMMENDATION_FIXTURE = {
@@ -45,6 +45,7 @@ beforeEach(() => {
   recommendationsApi.list.mockResolvedValue({ recommendations: [] });
   recommendationsApi.getFeedback.mockResolvedValue({ feedback: [] });
   recommendationsApi.submitFeedback.mockResolvedValue({ id: "fb-1", feedbackType: "USEFUL" });
+  recommendationsApi.recordView.mockResolvedValue({ id: "evt-1" });
 });
 
 describe("RecommendationCard", () => {
@@ -211,5 +212,13 @@ describe("RecommendationCard", () => {
     render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
 
     await waitFor(() => expect(screen.getByText(/Feedback recorded: Useful/)).toBeInTheDocument());
+  });
+
+  it("Sprint 30 — records a real view event when the card is expanded, never when it stays collapsed", async () => {
+    const { rerender } = render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded={false} onToggleExpand={vi.fn()} />);
+    expect(recommendationsApi.recordView).not.toHaveBeenCalled();
+
+    rerender(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
+    await waitFor(() => expect(recommendationsApi.recordView).toHaveBeenCalledWith("rec-1"));
   });
 });

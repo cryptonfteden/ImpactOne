@@ -1,6 +1,7 @@
 const autonomousRecommendationRepository = require("../services/autonomousRecommendationRepository");
 const autonomousRecommendationEngine = require("../services/autonomousRecommendationEngine");
 const schedulerService = require("../services/schedulerService");
+const userMemoryRepository = require("../services/userMemoryRepository");
 
 function handleKnownError(error, res, next) {
   if (error.statusCode) {
@@ -119,6 +120,31 @@ async function listRecommendationFeedback(req, res, next) {
   }
 }
 
+// Sprint 30 — Personal Intelligence Layer, Priority 1 (User Memory).
+// Called once when a user actually expands a recommendation's detail —
+// a real reading-behavior signal, not a fabricated "interest" score. The
+// sector is read from the recommendation's own already-persisted
+// portfolioContext (only present for held positions); honestly null for
+// market-scan recommendations rather than guessing a sector.
+async function recordRecommendationView(req, res, next) {
+  try {
+    const recommendation = await autonomousRecommendationRepository.getById(req.params.id);
+    if (!recommendation) {
+      return res.status(404).json({ error: "Recommendation not found." });
+    }
+
+    const event = await userMemoryRepository.appendEvent({
+      eventType: "RECOMMENDATION_VIEWED",
+      subject: recommendation.symbol,
+      sector: recommendation.portfolioContext?.sector || null,
+      detail: { recommendationId: recommendation.id },
+    });
+    res.status(201).json(event);
+  } catch (error) {
+    handleKnownError(error, res, next);
+  }
+}
+
 module.exports = {
   listRecommendations,
   getRecommendation,
@@ -127,4 +153,5 @@ module.exports = {
   getRecommendationDecisionTrace,
   submitRecommendationFeedback,
   listRecommendationFeedback,
+  recordRecommendationView,
 };

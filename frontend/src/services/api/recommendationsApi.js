@@ -26,4 +26,7 @@ export const recommendationsApi = {
   getFeedback(id) {
     return apiClient.get(`/v2/recommendations/${id}/feedback`);
   },
+  recordView(id) {
+    return apiClient.post(`/v2/recommendations/${id}/view`);
+  },
 };

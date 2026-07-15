@@ -31,6 +31,9 @@ async function truncateAll() {
   await prisma.worldMemoryStateChange.deleteMany();
   await prisma.worldMemoryCausalLink.deleteMany();
   await prisma.worldMemoryRecord.deleteMany();
+
+  // Sprint 30 — User Memory (standalone, no FK relation to clean up first).
+  await prisma.userMemoryEvent.deleteMany();
 }
 
 module.exports = { truncateAll };

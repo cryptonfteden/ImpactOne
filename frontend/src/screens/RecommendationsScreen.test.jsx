@@ -9,6 +9,9 @@ vi.mock("../services/api", () => ({
     status: vi.fn(),
     run: vi.fn(),
     getDecisionTrace: vi.fn(),
+    getFeedback: vi.fn(),
+    submitFeedback: vi.fn(),
+    recordView: vi.fn(),
   },
 }));
 
@@ -59,6 +62,8 @@ const STATUS_FIXTURE = { enabled: true, intervalMinutes: 30, latestRunLog: { sta
 describe("RecommendationsScreen", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    recommendationsApi.getFeedback.mockResolvedValue({ feedback: [] });
+    recommendationsApi.recordView.mockResolvedValue({ id: "evt-1" });
   });
 
   it("renders recommendations with action, confidence, and expected upside/downside", async () => {
