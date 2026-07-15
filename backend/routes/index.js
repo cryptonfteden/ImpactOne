@@ -24,6 +24,7 @@ const autonomousRecommendationRoutes = require("./autonomousRecommendationRoutes
 const investorProfileRoutes = require("./investorProfileRoutes");
 const themeRoutes = require("./themeRoutes");
 const providerRoutes = require("./providerRoutes");
+const qualityDashboardRoutes = require("./qualityDashboardRoutes");
 
 const router = express.Router();
 
@@ -52,6 +53,11 @@ router.use("/v2/investor-profile", investorProfileRoutes);
 router.get("/v2/home-summary", getHomeSummary);
 router.use("/v2/themes", themeRoutes);
 router.use("/v2/providers", providerRoutes);
+// Sprint 29 — internal only, developer-mode dashboard. Not linked from any
+// public navigation; the frontend only reaches it from the VITE_DEV_
+// CONSOLE-gated IntelligenceConsoleScreen (see providerRoutes' own gating
+// precedent).
+router.use("/v2/quality-dashboard", qualityDashboardRoutes);
 router.use("/chat", chatRoutes);
 
 module.exports = router;

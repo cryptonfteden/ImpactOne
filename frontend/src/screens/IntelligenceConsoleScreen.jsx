@@ -1,8 +1,71 @@
 import { useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
 import { Button, LoadingSpinner } from "../components/ui";
-import { providerApi } from "../services/api";
+import { providerApi, qualityDashboardApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
+
+// Sprint 29 Priority 4 — Recommendation Quality Dashboard. Internal only:
+// this component is never reachable outside VITE_DEV_CONSOLE (same gating
+// as the rest of this screen, see the file-level comment below). Every
+// metric here is honestly null when there's no qualifying data yet,
+// rather than a misleading 0 or "N/A" that reads as a real measurement.
+function QualityDashboard() {
+  const [dashboard, setDashboard] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    qualityDashboardApi
+      .get()
+      .then((data) => {
+        if (!cancelled) {
+          setDashboard(data);
+          setError("");
+        }
+      })
+      .catch((loadError) => {
+        logError("quality dashboard load failed", loadError);
+        if (!cancelled) setError("Couldn't load the quality dashboard right now.");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (isLoading) return <LoadingSpinner label="Loading quality dashboard" />;
+  if (error) return <p className="company-description negative">{error}</p>;
+  if (!dashboard) return null;
+
+  const metric = (value, suffix = "") => (Number.isFinite(value) ? `${value}${suffix}` : "Not enough data yet");
+
+  return (
+    <div className="opportunity-grid">
+      <SectionCard title="Hit rate" className="screen-card" icon="◎">
+        <p className="company-description">{metric(dashboard.hitRate, "%")}</p>
+        <p className="company-description subtle">{dashboard.sampleSizes.gradedOutcomes} graded outcomes</p>
+      </SectionCard>
+      <SectionCard title="Confidence calibration" className="screen-card" icon="◎">
+        <p className="company-description">{metric(dashboard.confidenceCalibration, "%")}</p>
+        <p className="company-description subtle">How well predicted confidence tracked real correctness</p>
+      </SectionCard>
+      <SectionCard title="Average holding period" className="screen-card" icon="◎">
+        <p className="company-description">{metric(dashboard.avgHoldingPeriodHours, "h")}</p>
+      </SectionCard>
+      <SectionCard title="Average uncertainty" className="screen-card" icon="◎">
+        <p className="company-description">{metric(dashboard.avgUncertainty, "/100")}</p>
+        <p className="company-description subtle">{dashboard.sampleSizes.decisionTraces} decision traces</p>
+      </SectionCard>
+      <SectionCard title="Outcome completion" className="screen-card" icon="◎">
+        <p className="company-description">{metric(dashboard.outcomeCompletion, "%")}</p>
+        <p className="company-description subtle">{dashboard.sampleSizes.totalOutcomes} of {dashboard.sampleSizes.totalPredictions} predictions graded</p>
+      </SectionCard>
+    </div>
+  );
+}
 
 /**
  * Sprint 23A — developer-only Intelligence Console. Read-only ops
@@ -139,6 +202,11 @@ export default function IntelligenceConsoleScreen() {
           <h1>Provider framework ops visibility</h1>
           <p className="subtext">Developer tooling — health, metrics, diagnostics, and manual runs. Read-only aside from "Run now."</p>
         </div>
+      </section>
+
+      <section>
+        <p className="eyebrow">Recommendation quality (internal)</p>
+        <QualityDashboard />
       </section>
 
       {isLoading ? (

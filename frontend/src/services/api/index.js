@@ -11,3 +11,4 @@ export { investorProfileApi } from "./investorProfileApi";
 export { homeApi } from "./homeApi";
 export { themeApi } from "./themeApi";
 export { providerApi } from "./providerApi";
+export { qualityDashboardApi } from "./qualityDashboardApi";
