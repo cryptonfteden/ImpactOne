@@ -4,7 +4,7 @@ import ThemeDashboardScreen from "./ThemeDashboardScreen";
 import { themeApi } from "../services/api";
 
 vi.mock("../services/api", () => ({
-  themeApi: { list: vi.fn(), get: vi.fn() },
+  themeApi: { list: vi.fn(), get: vi.fn(), getEvolution: vi.fn() },
 }));
 
 const THEMES_FIXTURE = { themes: [{ themeKey: "ai", label: "AI" }, { themeKey: "defense", label: "Defense" }] };
@@ -21,8 +21,23 @@ const AI_DETAIL_FIXTURE = {
   confidenceTrend: [{ date: "2026-07-10", confidenceScore: 70 }, { date: "2026-07-11", confidenceScore: 75 }],
 };
 
+const AI_EVOLUTION_FIXTURE = {
+  themeKey: "ai",
+  label: "AI",
+  whatsNew: ["AI capex surge"],
+  strengthened: true,
+  weakened: false,
+  disappeared: false,
+  confidenceDelta: 5,
+  currentConfidence: 75,
+  previousConfidence: 70,
+  hasComparison: true,
+  why: "AI shows strong recent signal.",
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
+  themeApi.getEvolution.mockResolvedValue(AI_EVOLUTION_FIXTURE);
 });
 
 describe("ThemeDashboardScreen", () => {
@@ -72,5 +87,31 @@ describe("ThemeDashboardScreen", () => {
     await waitFor(() => expect(screen.getByText("AI shows strong recent signal.")).toBeInTheDocument());
 
     expect(screen.queryByRole("button", { name: /buy|place order|execute/i })).not.toBeInTheDocument();
+  });
+
+  it("Sprint 29 — shows theme evolution (what's new, strengthened/weakened, why) when expanded", async () => {
+    themeApi.list.mockResolvedValue(THEMES_FIXTURE);
+    themeApi.get.mockResolvedValue(AI_DETAIL_FIXTURE);
+    render(<ThemeDashboardScreen />);
+
+    await waitFor(() => expect(screen.getByText("AI")).toBeInTheDocument());
+    fireEvent.click(screen.getAllByText("Show details")[0]);
+
+    await waitFor(() => expect(screen.getByText("Theme evolution")).toBeInTheDocument());
+    expect(screen.getByText(/What's new: AI capex surge/)).toBeInTheDocument();
+    expect(screen.getByText(/Strengthened: confidence 70 → 75 \(\+5\)/)).toBeInTheDocument();
+    expect(themeApi.getEvolution).toHaveBeenCalledWith("ai");
+  });
+
+  it("Sprint 29 — honestly shows 'not enough history yet' when the theme has fewer than two snapshots", async () => {
+    themeApi.list.mockResolvedValue(THEMES_FIXTURE);
+    themeApi.get.mockResolvedValue(AI_DETAIL_FIXTURE);
+    themeApi.getEvolution.mockResolvedValue({ ...AI_EVOLUTION_FIXTURE, hasComparison: false, confidenceDelta: null, strengthened: false, weakened: false });
+    render(<ThemeDashboardScreen />);
+
+    await waitFor(() => expect(screen.getByText("AI")).toBeInTheDocument());
+    fireEvent.click(screen.getAllByText("Show details")[0]);
+
+    await waitFor(() => expect(screen.getByText(/Not enough history yet/)).toBeInTheDocument());
   });
 });

@@ -4,9 +4,15 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { truncateAll } = require("../test/dbHelpers");
+const { getPrismaClient } = require("../db/prismaClient");
 const autonomousMarketService = require("./autonomousMarketService");
 const themeIntelligenceService = require("./themeIntelligenceService");
 const worldMemoryRepository = require("./worldMemoryRepository");
+
+async function seedSnapshot({ themeKey, date, confidenceScore, maturityLabel }) {
+  const prisma = getPrismaClient();
+  return prisma.themeConfidenceSnapshot.create({ data: { themeKey, date, confidenceScore, maturityLabel } });
+}
 
 const REQUIRED_THEMES = ["ai", "quantum", "defense", "energy", "space", "cybersecurity", "healthcare"];
 
@@ -124,4 +130,52 @@ test("captureTodaySnapshotForAllThemes appends a new revision when the thesis te
   const revision = await worldMemoryRepository.getLatestThesisRevision("ai");
   assert.equal(revision.revisionNumber, 2, "a genuinely different thesis text must append revision 2");
   assert.match(revision.previousThesis, /AI news/);
+});
+
+test("Sprint 29 — computeThemeEvolution is honest about no comparison yet with zero persisted snapshots", async () => {
+  await withMockedFeed([{ headline: "AI news", whyItMatters: "x", eventType: "ai", confidence: 65 }], async () => {
+    const evolution = await themeIntelligenceService.computeThemeEvolution("ai");
+    assert.equal(evolution.hasComparison, false);
+    assert.equal(evolution.confidenceDelta, null);
+    assert.equal(evolution.strengthened, false);
+    assert.equal(evolution.weakened, false);
+  });
+});
+
+test("Sprint 29 — computeThemeEvolution compares live confidence against the most recently persisted snapshot, never a contradictory delta", async () => {
+  await withMockedFeed(
+    [
+      { headline: "AI capex surge", whyItMatters: "x", eventType: "ai", confidence: 90 },
+      { headline: "AI compute deal", whyItMatters: "x", eventType: "ai", confidence: 85 },
+      { headline: "AI chip shortage", whyItMatters: "x", eventType: "ai", confidence: 80 },
+    ],
+    async () => {
+      await seedSnapshot({ themeKey: "ai", date: "2026-07-14", confidenceScore: 50, maturityLabel: "Emerging" });
+
+      const evolution = await themeIntelligenceService.computeThemeEvolution("ai");
+      assert.equal(evolution.hasComparison, true);
+      assert.equal(evolution.strengthened, true);
+      assert.equal(evolution.weakened, false);
+      // (90+85+80)/3 = 85 live vs the 50 snapshot — the delta must match
+      // exactly the same two numbers shown as previous/current.
+      assert.equal(evolution.currentConfidence, 85);
+      assert.equal(evolution.previousConfidence, 50);
+      assert.equal(evolution.confidenceDelta, 35);
+      assert.ok(evolution.whatsNew.length > 0, "whatsNew should surface real current evidence headlines");
+      assert.match(evolution.why, /AI capex surge/);
+    }
+  );
+});
+
+test("Sprint 29 — computeThemeEvolution reports weakened when live confidence fell vs the last snapshot, and disappeared when maturity regressed to Early", async () => {
+  await withMockedFeed([], async () => {
+    await seedSnapshot({ themeKey: "quantum", date: "2026-07-14", confidenceScore: 70, maturityLabel: "Growth" });
+
+    const evolution = await themeIntelligenceService.computeThemeEvolution("quantum");
+    assert.equal(evolution.currentConfidence, 50, "no matching events today should honestly default to the neutral 50 confidence");
+    assert.equal(evolution.previousConfidence, 70);
+    assert.equal(evolution.weakened, true);
+    assert.equal(evolution.strengthened, false);
+    assert.equal(evolution.disappeared, true, "a theme that regressed from Growth to Early with no current evidence should be flagged as disappeared");
+  });
 });

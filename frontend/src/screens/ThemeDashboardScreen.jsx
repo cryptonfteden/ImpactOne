@@ -29,13 +29,48 @@ function ConfidenceTrendSparkline({ points }) {
   );
 }
 
-function ThemeDetail({ theme }) {
+// Sprint 29 Priority 3 — Theme Evolution. Renders what's new/strengthened/
+// weakened/disappeared/why using only fields computeThemeEvolution already
+// returns; honestly shows "not enough history yet" rather than a fabricated
+// trend when hasComparison is false.
+function ThemeEvolution({ evolution }) {
+  if (!evolution) return null;
+
+  return (
+    <div className="explanation-section">
+      <p className="explanation-section__title">Theme evolution</p>
+      {evolution.whatsNew.length ? (
+        <p className="company-description subtle">What's new: {evolution.whatsNew.join("; ")}</p>
+      ) : (
+        <p className="company-description subtle">What's new: nothing new detected today.</p>
+      )}
+      {evolution.hasComparison ? (
+        <>
+          <p className="company-description subtle">
+            {evolution.strengthened ? "Strengthened" : evolution.weakened ? "Weakened" : "Unchanged"}: confidence {evolution.previousConfidence} → {evolution.currentConfidence}
+            {Number.isFinite(evolution.confidenceDelta) ? ` (${evolution.confidenceDelta >= 0 ? "+" : ""}${evolution.confidenceDelta})` : ""}
+          </p>
+          {evolution.disappeared ? (
+            <p className="company-description subtle negative">Disappeared: this theme had active evidence previously and shows none today.</p>
+          ) : null}
+        </>
+      ) : (
+        <p className="company-description subtle">Not enough history yet to show strengthened/weakened/disappeared — check back after another day of tracking.</p>
+      )}
+      <p className="company-description subtle">Why: {evolution.why}</p>
+    </div>
+  );
+}
+
+function ThemeDetail({ theme, evolution }) {
   return (
     <div className="explanation-section">
       <p className="company-description subtle">
         Maturity: {theme.maturity} · Confidence {theme.confidenceScore}/100
       </p>
       <p className="company-description">{theme.thesis}</p>
+
+      <ThemeEvolution evolution={evolution} />
 
       {theme.supportingEvidence?.length ? (
         <div className="explanation-section">
@@ -81,6 +116,7 @@ export default function ThemeDashboardScreen() {
   const [error, setError] = useState("");
   const [expandedKey, setExpandedKey] = useState(null);
   const [detailByKey, setDetailByKey] = useState({});
+  const [evolutionByKey, setEvolutionByKey] = useState({});
   const [detailLoading, setDetailLoading] = useState(null);
 
   useEffect(() => {
@@ -118,8 +154,15 @@ export default function ThemeDashboardScreen() {
     if (!detailByKey[themeKey]) {
       setDetailLoading(themeKey);
       try {
-        const detail = await themeApi.get(themeKey);
+        const [detail, evolution] = await Promise.all([
+          themeApi.get(themeKey),
+          themeApi.getEvolution(themeKey).catch((evolutionError) => {
+            logError("theme evolution load failed", evolutionError);
+            return null;
+          }),
+        ]);
         setDetailByKey((current) => ({ ...current, [themeKey]: detail }));
+        setEvolutionByKey((current) => ({ ...current, [themeKey]: evolution }));
       } catch (loadError) {
         logError("theme detail load failed", loadError);
       } finally {
@@ -153,7 +196,7 @@ export default function ThemeDashboardScreen() {
                 detailLoading === theme.themeKey ? (
                   <LoadingSpinner label={`Loading ${theme.label}`} />
                 ) : detailByKey[theme.themeKey] ? (
-                  <ThemeDetail theme={detailByKey[theme.themeKey]} />
+                  <ThemeDetail theme={detailByKey[theme.themeKey]} evolution={evolutionByKey[theme.themeKey]} />
                 ) : null
               ) : null}
             </SectionCard>

@@ -98,6 +98,54 @@ async function getThemeIntelligence(themeKey) {
   };
 }
 
+/**
+ * Sprint 29 — Feedback Intelligence Layer, Priority 3 (Theme Evolution).
+ * Every field below is read from data this service already computes or
+ * already persists — no new snapshot table, no new scoring:
+ *   - "What's new": the theme's own current supportingEvidence headlines
+ *     (real, already-matched feed events).
+ *   - "What strengthened/weakened": the delta between the theme's live,
+ *     freshly-computed confidenceScore (right now) and the most recently
+ *     *persisted* ThemeConfidenceSnapshot (the last time this theme was
+ *     captured — Sprint 20's existing daily job). Comparing live-vs-last-
+ *     snapshot rather than snapshot-vs-snapshot means this stays accurate
+ *     even before today's own snapshot has been captured yet, and the
+ *     displayed previous/current values are always the same two numbers
+ *     the delta was computed from — no risk of a delta that contradicts
+ *     the numbers shown next to it.
+ *   - "What disappeared": a real regression signal — the last persisted
+ *     snapshot held a higher maturity tier (evidence existed) and the
+ *     live view is back to "Early" (zero matching events) today.
+ *   - "Why": the theme's own current deterministic thesis text — already
+ *     the same "why" WorldMemoryThesisRevision stores when it changes.
+ * Honestly returns nulls/false when there isn't yet any persisted
+ * snapshot to compare against, never a fabricated trend from no data.
+ */
+async function computeThemeEvolution(themeKey) {
+  const intelligence = await getThemeIntelligence(themeKey);
+  const trend = intelligence.confidenceTrend; // oldest -> newest
+  const lastSnapshot = trend[trend.length - 1] || null;
+
+  const confidenceDelta = lastSnapshot ? intelligence.confidenceScore - lastSnapshot.confidenceScore : null;
+  const strengthened = Number.isFinite(confidenceDelta) && confidenceDelta > 0;
+  const weakened = Number.isFinite(confidenceDelta) && confidenceDelta < 0;
+  const disappeared = Boolean(lastSnapshot) && lastSnapshot.maturityLabel !== "Early" && intelligence.maturity === "Early";
+
+  return {
+    themeKey,
+    label: intelligence.label,
+    whatsNew: intelligence.supportingEvidence.slice(0, 3).map((event) => event.headline),
+    strengthened,
+    weakened,
+    disappeared,
+    confidenceDelta,
+    currentConfidence: intelligence.confidenceScore,
+    previousConfidence: lastSnapshot ? lastSnapshot.confidenceScore : null,
+    hasComparison: Boolean(lastSnapshot),
+    why: intelligence.thesis,
+  };
+}
+
 function listThemes() {
   return Object.entries(THEME_DEFINITIONS).map(([themeKey, definition]) => ({ themeKey, label: definition.label }));
 }
@@ -147,4 +195,5 @@ module.exports = {
   listThemes,
   getThemeIntelligence,
   captureTodaySnapshotForAllThemes,
+  computeThemeEvolution,
 };

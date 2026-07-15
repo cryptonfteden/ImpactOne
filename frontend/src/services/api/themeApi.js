@@ -7,4 +7,7 @@ export const themeApi = {
   get(themeKey) {
     return apiClient.get(`/v2/themes/${encodeURIComponent(themeKey)}`);
   },
+  getEvolution(themeKey) {
+    return apiClient.get(`/v2/themes/${encodeURIComponent(themeKey)}/evolution`);
+  },
 };

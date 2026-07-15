@@ -24,4 +24,13 @@ async function getTheme(req, res, next) {
   }
 }
 
-module.exports = { listThemes, getTheme };
+async function getThemeEvolution(req, res, next) {
+  try {
+    const evolution = await themeIntelligenceService.computeThemeEvolution(req.params.themeKey);
+    res.json(evolution);
+  } catch (error) {
+    handleKnownError(error, res, next);
+  }
+}
+
+module.exports = { listThemes, getTheme, getThemeEvolution };
