@@ -9,6 +9,7 @@ const portfolioEngineService = require("./portfolioEngineService");
 const autonomousRecommendationRepository = require("./autonomousRecommendationRepository");
 const autonomousRecommendationEngine = require("./autonomousRecommendationEngine");
 const investmentCommitteeService = require("./investmentCommitteeService");
+const { getPrismaClient } = require("../db/prismaClient");
 
 // Sprint 18A — a realistic committeeDebate fixture, standing in for a real
 // analyzeInvestmentCommittee call (which fans out to several external
@@ -495,6 +496,65 @@ test("runOnce writes exactly one AutonomousRunLog row per run with symbol/recomm
       const runLog = await autonomousRecommendationRepository.getLatestRunLog();
       assert.equal(runLog.symbolsEvaluated, 3);
       assert.equal(runLog.recommendationsGenerated, 1);
+    }
+  );
+});
+
+test("Sprint 29 — runOnce writes a real WorldMemoryPrediction for every new recommendation, linked to it and its DecisionTrace", async () => {
+  await withMocks(
+    {
+      rankings: [
+        { symbol: "NVDA", opportunityScore: 90, riskScore: 30, overallAiScore: 88, primaryDriver: "AI capex surge", explanation: "Strong AI capex tailwind." },
+        neutralRanking("AAPL"),
+        neutralRanking("TSLA"),
+      ],
+      portfolioSummary: buildPortfolioSummary({}),
+    },
+    async () => {
+      await autonomousRecommendationEngine.runOnce();
+
+      const active = await autonomousRecommendationRepository.listActive();
+      const nvda = active.find((item) => item.symbol === "NVDA");
+      const trace = await autonomousRecommendationRepository.getDecisionTraceByRecommendationId(nvda.id);
+
+      const prisma = getPrismaClient();
+      const prediction = await prisma.worldMemoryPrediction.findFirst({ where: { recommendationId: nvda.id } });
+      assert.ok(prediction, "expected a WorldMemoryPrediction for the new recommendation");
+      assert.equal(prediction.predictedAction, "BUY");
+      assert.equal(prediction.decisionTraceId, trace.id);
+
+      const record = await prisma.worldMemoryRecord.findUnique({ where: { id: prediction.worldMemoryRecordId } });
+      assert.ok(record, "the prediction's WorldMemoryRecord must exist");
+      assert.deepEqual(record.symbols, ["NVDA"]);
+    }
+  );
+});
+
+test("Sprint 29 — runOnce sets a real expiresAt on new recommendations and expires stale ones past it", async () => {
+  await withMocks(
+    {
+      rankings: [
+        { symbol: "NVDA", opportunityScore: 90, riskScore: 30, overallAiScore: 88, primaryDriver: "AI capex surge", explanation: "Strong AI capex tailwind." },
+        neutralRanking("AAPL"),
+        neutralRanking("TSLA"),
+      ],
+      portfolioSummary: buildPortfolioSummary({}),
+    },
+    async () => {
+      await autonomousRecommendationEngine.runOnce();
+      const active = await autonomousRecommendationRepository.listActive();
+      const nvda = active.find((item) => item.symbol === "NVDA");
+      assert.ok(nvda.expiresAt, "expected a real expiresAt to be set at creation");
+      assert.ok(new Date(nvda.expiresAt) > new Date(), "expiresAt should be in the future for a fresh recommendation");
+
+      // Force it into the past, then confirm the next run's expiry pass
+      // transitions it to EXPIRED without deleting the row.
+      const prisma = getPrismaClient();
+      await prisma.recommendation.update({ where: { id: nvda.id }, data: { expiresAt: new Date(Date.now() - 1000) } });
+
+      await autonomousRecommendationRepository.expireStaleRecommendations();
+      const reloaded = await autonomousRecommendationRepository.getById(nvda.id);
+      assert.equal(reloaded.status, "EXPIRED");
     }
   );
 });

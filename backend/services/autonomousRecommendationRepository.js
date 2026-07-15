@@ -57,6 +57,20 @@ async function supersedeActiveForSymbol(symbol, newRecommendationId) {
   });
 }
 
+// Sprint 29 Priority 1 — the EXPIRED transition, previously schema-only
+// (expiresAt existed on the model with no writer anywhere). A stale
+// recommendation nobody acted on and that wasn't superseded by a fresher
+// one for the same symbol should stop reading as "still active" forever.
+// updateMany rather than a per-row loop, matching supersedeActiveForSymbol
+// above; a status change, never a delete — history is preserved.
+async function expireStaleRecommendations() {
+  const prisma = getPrismaClient();
+  return prisma.recommendation.updateMany({
+    where: { status: "ACTIVE", expiresAt: { lt: new Date() } },
+    data: { status: "EXPIRED" },
+  });
+}
+
 async function createRunLog(data) {
   const prisma = getPrismaClient();
   return prisma.autonomousRunLog.create({ data });
@@ -87,6 +101,7 @@ module.exports = {
   getById,
   getActiveForSymbol,
   supersedeActiveForSymbol,
+  expireStaleRecommendations,
   createRunLog,
   getLatestRunLog,
   createDecisionTrace,

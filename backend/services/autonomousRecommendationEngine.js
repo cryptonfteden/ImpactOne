@@ -17,6 +17,9 @@ const investmentCommitteeService = require("./investmentCommitteeService");
 const eventEnvelope = require("./eventEnvelope");
 const scoringVocabulary = require("./scoringVocabulary");
 const canonicalVerdict = require("./canonicalVerdict");
+// Sprint 29 — Feedback Intelligence Layer, Priority 1 (Outcome Pipeline).
+const worldMemoryRepository = require("./worldMemoryRepository");
+const outcomeGradingService = require("./outcomeGradingService");
 
 // Above this sector weight (%), a held position's concentration risk can
 // independently trigger a REDUCE recommendation even when the underlying
@@ -533,6 +536,12 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
       symbolSource,
     },
     portfolioContext,
+    // Sprint 29 Priority 1 — expiresAt existed on the schema with no
+    // writer; a flat 30-day default means a recommendation nobody acted
+    // on and that wasn't naturally superseded by a fresher one eventually
+    // transitions to EXPIRED (see expireStaleRecommendations) instead of
+    // reading as "still active" indefinitely.
+    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
   });
 
   await autonomousRecommendationRepository.supersedeActiveForSymbol(symbol, created.id);
@@ -543,7 +552,7 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
   // additive DecisionTrace columns capture the committee debate, the
   // canonical event-envelope evidence references, and version metadata.
   // Immutability is unchanged — this is still the only write, at creation.
-  await autonomousRecommendationRepository.createDecisionTrace({
+  const decisionTrace = await autonomousRecommendationRepository.createDecisionTrace({
     recommendationId: created.id,
     inputEvidence: buildDecisionTraceInput({ rankingItem, matchedEvents, heldPosition, sectorWeightPct, positionWeightPct, macroRegime }),
     rankingResult: { convictionScore, portfolioAction, symbolSource, action, concentrationTriggered },
@@ -573,6 +582,36 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
       contractVersion: canonicalVerdict.CANONICAL_VERDICT_CONTRACT_VERSION,
     },
   });
+
+  // Sprint 29 Priority 1 — every recommendation now writes a real
+  // WorldMemoryPrediction (previously an orphaned table with no
+  // production writer). The grading job (outcomeGradingService.js) later
+  // reads the entry price from this same recommendation's own
+  // evidence.currentPrice — already persisted above — rather than storing
+  // it a second time here. Wrapped in try/catch: World Memory bookkeeping
+  // must never block a recommendation from being created, matching this
+  // file's existing resilience pattern (buildCommitteeDebate above
+  // degrades to null on failure, not a thrown error).
+  try {
+    const worldMemoryRecord = await worldMemoryRepository.createRecord({
+      canonicalEventId: null,
+      occurredAt: new Date(),
+      primaryThemeKey: null,
+      symbols: [symbol],
+      sectors: heldPosition?.sector ? [heldPosition.sector] : [],
+      headline: `Recommendation: ${action} ${symbol}`,
+    });
+    await worldMemoryRepository.createPrediction({
+      worldMemoryRecordId: worldMemoryRecord.id,
+      recommendationId: created.id,
+      decisionTraceId: decisionTrace.id,
+      predictedAction: action,
+      predictedConfidence: Math.round(convictionScore),
+    });
+  } catch (error) {
+    // World Memory is evidence for future calibration, not a dependency
+    // of today's recommendation — an outage here is silently absorbed.
+  }
 
   return created;
 }
@@ -624,6 +663,23 @@ async function runOnce({ watchlist = [] } = {}) {
     }
   } catch (runError) {
     errors.push({ symbol: null, message: runError.message });
+  }
+
+  // Sprint 29 Priority 1 — the rest of the Outcome Pipeline runs on the
+  // same existing schedule as recommendation generation itself (no new
+  // scheduler): expire anything nobody acted on past its window, then
+  // grade any prediction whose window has elapsed. Both are best-effort
+  // and never block the run or fail runOnce — a lifecycle-bookkeeping
+  // failure must not look like a recommendation-generation failure.
+  try {
+    await autonomousRecommendationRepository.expireStaleRecommendations();
+  } catch (expiryError) {
+    // stays ACTIVE, retried next run
+  }
+  try {
+    await outcomeGradingService.gradePendingOutcomes();
+  } catch (gradingError) {
+    // stays pending, retried next run
   }
 
   const runLog = await autonomousRecommendationRepository.createRunLog({

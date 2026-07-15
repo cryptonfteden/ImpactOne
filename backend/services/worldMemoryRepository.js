@@ -179,6 +179,30 @@ async function getRecordWithHistory(worldMemoryRecordId) {
   return { record, causalLinks, stateChanges, predictions, sectorImpacts, lessons };
 }
 
+/**
+ * Sprint 29 — Feedback Intelligence Layer, Priority 1. Finds predictions
+ * old enough to grade that don't already have a graded Outcome for the
+ * given timeWindow. Two queries rather than a single join (Prisma has no
+ * anti-join), acceptable at this table's real volume; filters in JS.
+ */
+async function listPredictionsPendingOutcome({ olderThan, timeWindow = "D1" } = {}) {
+  const prisma = getPrismaClient();
+  const predictions = await prisma.worldMemoryPrediction.findMany({
+    where: { recommendationId: { not: null }, predictedAt: { lte: olderThan } },
+  });
+  if (!predictions.length) {
+    return [];
+  }
+
+  const recommendationIds = predictions.map((prediction) => prediction.recommendationId);
+  const gradedOutcomes = await prisma.outcome.findMany({
+    where: { recommendationId: { in: recommendationIds }, timeWindow },
+    select: { recommendationId: true },
+  });
+  const gradedSet = new Set(gradedOutcomes.map((outcome) => outcome.recommendationId));
+  return predictions.filter((prediction) => !gradedSet.has(prediction.recommendationId));
+}
+
 module.exports = {
   createRecord,
   appendCausalLink,
@@ -186,6 +210,7 @@ module.exports = {
   createPrediction,
   createOutcome,
   listOutcomesForRecord,
+  listPredictionsPendingOutcome,
   appendThesisRevision,
   getLatestThesisRevision,
   listRecentThesisRevisions,
