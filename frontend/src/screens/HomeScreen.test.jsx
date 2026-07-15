@@ -34,6 +34,7 @@ const SUMMARY_WITH_ACTION = {
     biggestOpportunity: { symbol: "NVDA", action: "BUY", qualityScore: 82 },
     biggestRisk: { symbol: "META", action: "EXIT", riskLabel: "High" },
   },
+  personalBrief: ["Market: NVDA supply deal", "Portfolio: Portfolio value up 1.2% since the last snapshot.", "Top for you: NVDA — BUY (quality 82/100)", "Action needed: NVDA — BUY"],
 };
 
 const SUMMARY_NO_ACTION = {
@@ -48,6 +49,7 @@ const SUMMARY_NO_ACTION = {
   intelligenceTimeline: { overnight: [], openingBell: [], today: [], thisWeek: [], longTerm: [] },
   todayForYou: [],
   portfolioMorningSummary: { mattersToday: [], canWaitCount: 0, biggestOpportunity: null, biggestRisk: null },
+  personalBrief: ["Market: Generic market headline", "No action needed today."],
 };
 
 beforeEach(() => {
@@ -79,7 +81,7 @@ describe("HomeScreen", () => {
     homeApi.getSummary.mockResolvedValue(SUMMARY_NO_ACTION);
     render(<HomeScreen onNavigate={vi.fn()} />);
 
-    await waitFor(() => expect(screen.getByText(/No action needed today/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText(/No action needed today/).length).toBeGreaterThan(0));
     expect(screen.getByText(/No material change vs\. yesterday/)).toBeInTheDocument();
     expect(screen.getByText(/No theme thesis has changed recently/)).toBeInTheDocument();
     expect(screen.getByText(/No prior-day snapshot yet/)).toBeInTheDocument();
@@ -94,7 +96,7 @@ describe("HomeScreen", () => {
 
     await waitFor(() => expect(screen.getAllByText("BUY").length).toBeGreaterThan(0));
     expect(screen.getByText(/Top driver shifted from Fed policy/)).toBeInTheDocument();
-    expect(screen.getByText(/Portfolio value up 1.2%/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Portfolio value up 1.2%/).length).toBeGreaterThan(0);
     expect(screen.getByText(/AI capex remains elevated/)).toBeInTheDocument();
   });
 
@@ -151,5 +153,24 @@ describe("HomeScreen", () => {
 
     fireEvent.click(screen.getByText("Overnight (1)"));
     expect(screen.getByText("Overnight macro print")).toBeInTheDocument();
+  });
+
+  it("Sprint 30 — shows the Morning Personal Brief at the top of Home, capped at a handful of lines", async () => {
+    homeApi.getSummary.mockResolvedValue(SUMMARY_WITH_ACTION);
+    render(<HomeScreen onNavigate={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByLabelText("Morning personal brief")).toBeInTheDocument());
+    const brief = screen.getByLabelText("Morning personal brief");
+    expect(brief.querySelectorAll("li").length).toBe(4);
+    expect(screen.getByText("Market: NVDA supply deal")).toBeInTheDocument();
+    expect(screen.getByText("Top for you: NVDA — BUY (quality 82/100)")).toBeInTheDocument();
+  });
+
+  it("Sprint 30 — Morning Personal Brief renders nothing when the backend sends no lines, never a fabricated placeholder", async () => {
+    homeApi.getSummary.mockResolvedValue({ ...SUMMARY_NO_ACTION, personalBrief: [] });
+    render(<HomeScreen onNavigate={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText("Your morning brief")).toBeInTheDocument());
+    expect(screen.queryByLabelText("Morning personal brief")).not.toBeInTheDocument();
   });
 });

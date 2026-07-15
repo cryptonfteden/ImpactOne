@@ -237,3 +237,49 @@ test("Sprint 28 — buildHomeSummary's Morning Brief merges topRecommendations, 
     investorProfileRepository.findDefaultInvestorProfile = originalFindProfile;
   });
 });
+
+test("Sprint 30 — buildMorningPersonalBrief condenses real fields into at most 5 lines, skipping honestly-empty inputs rather than padding", () => {
+  const brief = homeSummaryService.buildMorningPersonalBrief({
+    whatHappened: { headline: "Fed rate hike" },
+    whatChangedForMyPortfolio: { summary: "Portfolio value up 1.2%." },
+    topRecommendations: [{ symbol: "NVDA", action: "BUY", qualityScore: 82 }],
+    portfolioMorningSummary: { biggestOpportunity: { symbol: "NVDA", qualityScore: 82 } },
+    shouldIDoAnythingToday: { hasAction: true, symbol: "NVDA", action: "BUY" },
+  });
+  assert.ok(brief.length <= 5);
+  assert.match(brief[0], /Market: Fed rate hike/);
+  assert.ok(brief.some((line) => line.includes("Portfolio value up 1.2%")));
+  assert.ok(brief.some((line) => /Top for you: NVDA/.test(line)));
+  assert.ok(brief.some((line) => /Action needed: NVDA/.test(line)));
+});
+
+test("Sprint 30 — buildMorningPersonalBrief honestly says no action needed rather than fabricating one", () => {
+  const brief = homeSummaryService.buildMorningPersonalBrief({
+    whatHappened: { headline: "Quiet session" },
+    whatChangedForMyPortfolio: null,
+    topRecommendations: [],
+    portfolioMorningSummary: null,
+    shouldIDoAnythingToday: { hasAction: false },
+  });
+  assert.ok(brief.some((line) => line === "No action needed today."));
+});
+
+test("Sprint 30 — buildHomeSummary's personalBrief is derived from the same topRecommendations already ranked by personal relevance", async () => {
+  const originalListActive = autonomousRecommendationRepository.listActive;
+  const originalFindProfile = investorProfileRepository.findDefaultInvestorProfile;
+  autonomousRecommendationRepository.listActive = async () => [];
+  investorProfileRepository.findDefaultInvestorProfile = async () => null;
+
+  await withMocks(
+    { feed: [], portfolioSummary: buildPortfolioSummary({}) },
+    async () => {
+      const summary = await homeSummaryService.buildHomeSummary({});
+      assert.ok(Array.isArray(summary.personalBrief));
+      assert.ok(summary.personalBrief.length <= 5);
+      assert.ok(summary.personalBrief.length >= 1);
+    }
+  ).finally(() => {
+    autonomousRecommendationRepository.listActive = originalListActive;
+    investorProfileRepository.findDefaultInvestorProfile = originalFindProfile;
+  });
+});

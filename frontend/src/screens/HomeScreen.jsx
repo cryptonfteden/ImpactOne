@@ -101,6 +101,7 @@ export default function HomeScreen({ onNavigate }) {
     intelligenceTimeline = {},
     todayForYou = [],
     portfolioMorningSummary,
+    personalBrief = [],
   } = summary;
 
   const glancePills = [
@@ -116,6 +117,13 @@ export default function HomeScreen({ onNavigate }) {
       <section className="screen-hero">
         <p className="eyebrow">Today</p>
         <h1>Your morning brief</h1>
+        {personalBrief.length ? (
+          <ul className="stack-list" aria-label="Morning personal brief">
+            {personalBrief.map((line, index) => (
+              <li key={index} className="company-description">{line}</li>
+            ))}
+          </ul>
+        ) : null}
         <div className="opportunity-item__actions">
           {glancePills.map((pill) => (
             <span key={pill.label} className={pill.tone ? `pill ${pill.tone}` : "pill"}>
