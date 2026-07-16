@@ -257,4 +257,59 @@ describe("RecommendationCard", () => {
     expect(screen.getByText(/No lesson yet/)).toBeInTheDocument();
     expect(screen.getByText(/More observations required/)).toBeInTheDocument();
   });
+
+  it("Sprint 32 Priority 4 — teaches when uncertainty is high, using the real decision trace value", async () => {
+    recommendationsApi.getDecisionTrace.mockResolvedValue({ confidenceCalculation: { uncertainty: 72 } });
+    render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText("Understanding this recommendation")).toBeInTheDocument());
+    expect(screen.getByText(/Uncertainty is high \(72\/100\)/)).toBeInTheDocument();
+  });
+
+  it("Sprint 32 Priority 4 — explains when confidence is low, using the real recommendation confidence value", async () => {
+    const lowConfidence = { ...RECOMMENDATION_FIXTURE, confidenceScore: 42 };
+    render(<RecommendationCard recommendation={lowConfidence} isExpanded onToggleExpand={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText("Understanding this recommendation")).toBeInTheDocument());
+    expect(screen.getByText(/Confidence is low \(42\/100\)/)).toBeInTheDocument();
+  });
+
+  it("Sprint 32 Priority 4 — shows no educational notes when uncertainty is low and confidence is high (nothing to teach)", async () => {
+    recommendationsApi.getDecisionTrace.mockResolvedValue({ confidenceCalculation: { uncertainty: 20 } });
+    render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText("Why now")).toBeInTheDocument());
+    expect(screen.queryByText("Understanding this recommendation")).not.toBeInTheDocument();
+  });
+
+  it("Sprint 32 Priority 4 — educates when the thesis genuinely changed in the most recent real timeline entry", async () => {
+    recommendationsApi.list.mockResolvedValue({
+      recommendations: [
+        {
+          id: "rec-2",
+          symbol: "NVDA",
+          action: "BUY",
+          status: "ACTIVE",
+          confidenceScore: 88,
+          reasoning: "New reasoning after a real thesis shift.",
+          evidence: { matchedEvents: [] },
+          createdAt: "2026-07-14T00:00:00.000Z",
+        },
+        {
+          id: "rec-0",
+          symbol: "NVDA",
+          action: "BUY",
+          status: "SUPERSEDED",
+          confidenceScore: 88,
+          reasoning: "Original reasoning.",
+          evidence: { matchedEvents: [] },
+          createdAt: "2026-07-07T00:00:00.000Z",
+        },
+      ],
+    });
+
+    render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText("Understanding this recommendation")).toBeInTheDocument());
+    expect(screen.getByText(/The thesis behind this recommendation just changed/)).toBeInTheDocument();
+  });
 });

@@ -37,6 +37,45 @@ const FEEDBACK_OPTIONS = [
   { value: "DONT_UNDERSTAND", label: "Don't understand" },
 ];
 
+// Sprint 32 Priority 4 — Educational Layer. "Whenever uncertainty is
+// high, teach. Whenever confidence is low, explain. Whenever a thesis
+// changes, educate." Thresholds match this card's own existing bands
+// (qualityPillClass below already treats <50 as the "risk" tier) rather
+// than inventing new ones. Every note here explains a real, already-
+// displayed number — it never appears without the condition it explains
+// actually being true, and it never claims a note applies when its input
+// data isn't available (e.g. no uncertainty note without a real
+// decisionTrace uncertainty value).
+const HIGH_UNCERTAINTY_THRESHOLD = 60;
+const LOW_CONFIDENCE_THRESHOLD = 50;
+
+function buildEducationalNotes({ uncertainty, confidenceScore, thesisChanged }) {
+  const notes = [];
+
+  if (Number.isFinite(uncertainty) && uncertainty >= HIGH_UNCERTAINTY_THRESHOLD) {
+    notes.push({
+      key: "uncertainty",
+      text: `Uncertainty is high (${uncertainty}/100): the evidence behind this recommendation is limited or disagrees with itself. Treat the suggested position size and timing as provisional — this is a real signal to size down or wait for more evidence, not a reason to ignore the recommendation.`,
+    });
+  }
+
+  if (Number.isFinite(confidenceScore) && confidenceScore < LOW_CONFIDENCE_THRESHOLD) {
+    notes.push({
+      key: "confidence",
+      text: `Confidence is low (${confidenceScore}/100): the signals behind this recommendation don't strongly agree in one direction. A low-confidence recommendation is still real, but it means the case is weaker — worth weighing more caution or a smaller position than a high-confidence one.`,
+    });
+  }
+
+  if (thesisChanged) {
+    notes.push({
+      key: "thesis",
+      text: "The thesis behind this recommendation just changed: new evidence shifted our reasoning since the last version. A changed thesis isn't automatically better or worse — it means the picture genuinely moved, which is exactly what the timeline below shows.",
+    });
+  }
+
+  return notes;
+}
+
 function qualityPillClass(score) {
   if (!Number.isFinite(score)) return "pill";
   if (score >= 75) return "pill opportunity";
@@ -203,6 +242,16 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
     .filter(({ change, isBaseline }) => change || isBaseline)
     .slice(-8);
 
+  // Sprint 32 Priority 4 — "whenever a thesis changes, educate" means the
+  // most recent real change, not any change ever in this symbol's whole
+  // history — an old thesis shift from months ago isn't news right now.
+  const mostRecentThesisChanged = Boolean(timelineEntries[timelineEntries.length - 1]?.change?.thesisChanged);
+  const educationalNotes = buildEducationalNotes({
+    uncertainty,
+    confidenceScore: Number(recommendation.confidenceScore),
+    thesisChanged: mostRecentThesisChanged,
+  });
+
   return (
     <article className="opportunity-item">
       <div className="opportunity-item__top">
@@ -231,6 +280,15 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
       {isExpanded ? (
         <>
           <p className="company-description subtle">{recommendation.reasoning}</p>
+
+          {educationalNotes.length ? (
+            <div className="explanation-section">
+              <p className="explanation-section__title">Understanding this recommendation</p>
+              {educationalNotes.map((note) => (
+                <p key={note.key} className="company-description subtle">{note.text}</p>
+              ))}
+            </div>
+          ) : null}
 
           <div className="explanation-section">
             <p className="explanation-section__title">Why now</p>
