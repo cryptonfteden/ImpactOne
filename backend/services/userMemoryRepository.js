@@ -56,6 +56,31 @@ async function getSectorInterestSummary({ candidateSectors = [] } = {}) {
   return { favoriteSectors, ignoredSectors };
 }
 
+/**
+ * Sprint 32 — Investor Memory (Priority 1). Same pattern as
+ * getSectorInterestSummary: "favorite themes" is derived purely from real
+ * THEME_VIEWED events, ranked by how often, never a fabricated
+ * preference.
+ */
+async function getThemeInterestSummary() {
+  const prisma = getPrismaClient();
+  const events = await prisma.userMemoryEvent.findMany({
+    where: { eventType: "THEME_VIEWED" },
+    select: { subject: true },
+  });
+
+  const viewCounts = new Map();
+  for (const event of events) {
+    viewCounts.set(event.subject, (viewCounts.get(event.subject) || 0) + 1);
+  }
+
+  const favoriteThemes = Array.from(viewCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([themeKey, viewCount]) => ({ themeKey, viewCount }));
+
+  return { favoriteThemes };
+}
+
 async function getRecommendationViewCounts() {
   const prisma = getPrismaClient();
   const events = await prisma.userMemoryEvent.findMany({
@@ -74,5 +99,6 @@ module.exports = {
   appendEvent,
   listEvents,
   getSectorInterestSummary,
+  getThemeInterestSummary,
   getRecommendationViewCounts,
 };

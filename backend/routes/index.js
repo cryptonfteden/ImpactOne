@@ -28,6 +28,7 @@ const qualityDashboardRoutes = require("./qualityDashboardRoutes");
 const outcomeIntelligenceRoutes = require("./outcomeIntelligenceRoutes");
 const calibrationReportRoutes = require("./calibrationReportRoutes");
 const personalProgressRoutes = require("./personalProgressRoutes");
+const investorMemoryRoutes = require("./investorMemoryRoutes");
 
 const router = express.Router();
 
@@ -66,6 +67,7 @@ router.use("/v2/quality-dashboard", qualityDashboardRoutes);
 router.use("/v2/lessons", outcomeIntelligenceRoutes);
 router.use("/v2/calibration-reports", calibrationReportRoutes);
 router.use("/v2/personal-progress", personalProgressRoutes);
+router.use("/v2/investor-memory", investorMemoryRoutes);
 router.use("/chat", chatRoutes);
 
 module.exports = router;
