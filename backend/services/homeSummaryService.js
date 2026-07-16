@@ -290,6 +290,7 @@ function buildPortfolioMorningSummary({ topRecommendations, feed, heldSymbols })
 // skipped rather than padded with a filler line.
 function buildMorningPersonalBrief({ whatHappened, whatChangedForMyPortfolio, topRecommendations, portfolioMorningSummary, shouldIDoAnythingToday }) {
   const lines = [];
+  const mentionedSymbols = new Set();
 
   if (whatHappened?.headline) {
     lines.push(`Market: ${whatHappened.headline}`);
@@ -297,16 +298,28 @@ function buildMorningPersonalBrief({ whatHappened, whatChangedForMyPortfolio, to
   if (whatChangedForMyPortfolio?.summary) {
     lines.push(`Portfolio: ${whatChangedForMyPortfolio.summary}`);
   }
-  if (topRecommendations?.length) {
-    const top = topRecommendations[0];
+
+  const top = topRecommendations?.[0] || null;
+  if (top) {
     lines.push(`Top for you: ${top.symbol} — ${top.action} (quality ${top.qualityScore}/100)`);
+    mentionedSymbols.add(top.symbol);
   }
-  if (portfolioMorningSummary?.biggestOpportunity) {
-    lines.push(`Opportunity: ${portfolioMorningSummary.biggestOpportunity.symbol} (quality ${portfolioMorningSummary.biggestOpportunity.qualityScore}/100)`);
+
+  // Sprint 31 Priority 3 — "every sentence must justify its existence."
+  // Opportunity/action-needed only add a line when they name a DIFFERENT
+  // symbol than "Top for you" already covered — otherwise they're the
+  // exact same fact restated, which the brief used to show up to three
+  // times (Top for you / Opportunity / Action needed all naming the same
+  // symbol and action).
+  const opportunity = portfolioMorningSummary?.biggestOpportunity;
+  if (opportunity && !mentionedSymbols.has(opportunity.symbol)) {
+    lines.push(`Opportunity: ${opportunity.symbol} (quality ${opportunity.qualityScore}/100)`);
+    mentionedSymbols.add(opportunity.symbol);
   }
-  if (shouldIDoAnythingToday?.hasAction) {
+
+  if (shouldIDoAnythingToday?.hasAction && !mentionedSymbols.has(shouldIDoAnythingToday.symbol)) {
     lines.push(`Action needed: ${shouldIDoAnythingToday.symbol} — ${shouldIDoAnythingToday.action}`);
-  } else if (lines.length < 5) {
+  } else if (!shouldIDoAnythingToday?.hasAction && lines.length < 5) {
     lines.push("No action needed today.");
   }
 

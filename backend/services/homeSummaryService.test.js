@@ -243,14 +243,28 @@ test("Sprint 30 — buildMorningPersonalBrief condenses real fields into at most
     whatHappened: { headline: "Fed rate hike" },
     whatChangedForMyPortfolio: { summary: "Portfolio value up 1.2%." },
     topRecommendations: [{ symbol: "NVDA", action: "BUY", qualityScore: 82 }],
-    portfolioMorningSummary: { biggestOpportunity: { symbol: "NVDA", qualityScore: 82 } },
-    shouldIDoAnythingToday: { hasAction: true, symbol: "NVDA", action: "BUY" },
+    portfolioMorningSummary: { biggestOpportunity: { symbol: "MSFT", qualityScore: 75 } },
+    shouldIDoAnythingToday: { hasAction: true, symbol: "TSLA", action: "EXIT" },
   });
   assert.ok(brief.length <= 5);
   assert.match(brief[0], /Market: Fed rate hike/);
   assert.ok(brief.some((line) => line.includes("Portfolio value up 1.2%")));
   assert.ok(brief.some((line) => /Top for you: NVDA/.test(line)));
-  assert.ok(brief.some((line) => /Action needed: NVDA/.test(line)));
+  assert.ok(brief.some((line) => /Opportunity: MSFT/.test(line)));
+  assert.ok(brief.some((line) => /Action needed: TSLA/.test(line)));
+});
+
+test("Sprint 31 Priority 3 — buildMorningPersonalBrief never repeats the same symbol's fact twice across Top for you / Opportunity / Action needed", () => {
+  const brief = homeSummaryService.buildMorningPersonalBrief({
+    whatHappened: { headline: "Fed rate hike" },
+    whatChangedForMyPortfolio: { summary: "Portfolio value up 1.2%." },
+    topRecommendations: [{ symbol: "NVDA", action: "BUY", qualityScore: 82 }],
+    portfolioMorningSummary: { biggestOpportunity: { symbol: "NVDA", qualityScore: 82 } },
+    shouldIDoAnythingToday: { hasAction: true, symbol: "NVDA", action: "BUY" },
+  });
+  const nvdaMentions = brief.filter((line) => line.includes("NVDA"));
+  assert.equal(nvdaMentions.length, 1, "NVDA should appear exactly once even though it's the top recommendation, the biggest opportunity, and the action-needed symbol");
+  assert.match(nvdaMentions[0], /Top for you: NVDA/);
 });
 
 test("Sprint 30 — buildMorningPersonalBrief honestly says no action needed rather than fabricating one", () => {
