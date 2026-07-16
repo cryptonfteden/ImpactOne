@@ -25,6 +25,9 @@ const investorProfileRoutes = require("./investorProfileRoutes");
 const themeRoutes = require("./themeRoutes");
 const providerRoutes = require("./providerRoutes");
 const qualityDashboardRoutes = require("./qualityDashboardRoutes");
+const outcomeIntelligenceRoutes = require("./outcomeIntelligenceRoutes");
+const calibrationReportRoutes = require("./calibrationReportRoutes");
+const personalProgressRoutes = require("./personalProgressRoutes");
 
 const router = express.Router();
 
@@ -58,6 +61,11 @@ router.use("/v2/providers", providerRoutes);
 // CONSOLE-gated IntelligenceConsoleScreen (see providerRoutes' own gating
 // precedent).
 router.use("/v2/quality-dashboard", qualityDashboardRoutes);
+// Sprint 31 — Outcome Intelligence, Priority 4. Public (not dev-console-
+// gated): lessons learned are meant for the real Recommendations screen.
+router.use("/v2/lessons", outcomeIntelligenceRoutes);
+router.use("/v2/calibration-reports", calibrationReportRoutes);
+router.use("/v2/personal-progress", personalProgressRoutes);
 router.use("/chat", chatRoutes);
 
 module.exports = router;

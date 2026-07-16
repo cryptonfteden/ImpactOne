@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
 import { Button, EmptyState, ErrorState, Skeleton } from "../components/ui";
 import useRecommendations from "../hooks/useRecommendations";
 import useWatchlist from "../hooks/useWatchlist";
 import RecommendationCard from "../components/recommendations/RecommendationCard";
+import { outcomeIntelligenceApi, calibrationReportApi } from "../services/api";
+import { logError } from "../utils/errorHandling";
 
 function recommendationKey(recommendation) {
   return recommendation.id;
@@ -23,6 +25,37 @@ export default function RecommendationsScreen() {
   const { recommendations, status, isLoading, isRunning, error, actionError, runNow } = useRecommendations();
   const { watchlist } = useWatchlist();
   const [expandedId, setExpandedId] = useState(null);
+  const [lessons, setLessons] = useState([]);
+  const [calibration, setCalibration] = useState(null);
+
+  // Sprint 31 Priority 4 — Outcome Intelligence. Fetched once; this list
+  // only grows as real outcomes get graded, so there's no need to poll.
+  useEffect(() => {
+    let cancelled = false;
+    outcomeIntelligenceApi
+      .listLessons(10)
+      .then((data) => {
+        if (!cancelled) setLessons(data.lessons || []);
+      })
+      .catch((loadError) => logError("lessons load failed", loadError));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Sprint 31 Priority 1 — Calibration Reports.
+  useEffect(() => {
+    let cancelled = false;
+    calibrationReportApi
+      .get()
+      .then((data) => {
+        if (!cancelled) setCalibration(data);
+      })
+      .catch((loadError) => logError("calibration report load failed", loadError));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (isLoading && !recommendations.length) {
     return (
@@ -82,6 +115,39 @@ export default function RecommendationsScreen() {
           </div>
         ) : (
           <EmptyState message="No active recommendations. Run the engine or wait for the next scheduled pass." />
+        )}
+      </SectionCard>
+
+      <SectionCard title="Calibration" subtitle="Expected confidence vs. real outcomes, by recommendation family" className="screen-card">
+        {calibration?.families?.length ? (
+          <div className="widget-list">
+            {calibration.families.map((family) => (
+              <div key={family.family} className="widget-list-item">
+                <strong>{family.family}</strong>
+                {family.isStatisticallyMeaningful ? (
+                  <span>
+                    Expected {family.expectedConfidence}/100 · Actual {family.actualOutcomeHitRate}% · Trend: {family.calibrationTrend} · n={family.sampleSize}
+                  </span>
+                ) : (
+                  <span className="company-description subtle">{family.insufficientDataMessage}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState message="No graded outcomes yet — calibration reports appear here once recommendations have been graded." />
+        )}
+      </SectionCard>
+
+      <SectionCard title="Lessons Learned" subtitle="From completed recommendations — never rewritten, only added to" className="screen-card">
+        {lessons.length ? (
+          <ul className="stack-list">
+            {lessons.map((lesson) => (
+              <li key={lesson.id} className="company-description subtle">{lesson.lessonText}</li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState message="No completed outcomes yet — lessons appear here once recommendations have been graded." />
         )}
       </SectionCard>
     </div>

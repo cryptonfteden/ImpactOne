@@ -12,3 +12,6 @@ export { homeApi } from "./homeApi";
 export { themeApi } from "./themeApi";
 export { providerApi } from "./providerApi";
 export { qualityDashboardApi } from "./qualityDashboardApi";
+export { outcomeIntelligenceApi } from "./outcomeIntelligenceApi";
+export { calibrationReportApi } from "./calibrationReportApi";
+export { personalProgressApi } from "./personalProgressApi";

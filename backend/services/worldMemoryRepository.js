@@ -203,6 +203,35 @@ async function listPredictionsPendingOutcome({ olderThan, timeWindow = "D1" } = 
   return predictions.filter((prediction) => !gradedSet.has(prediction.recommendationId));
 }
 
+/**
+ * Sprint 31 — Outcome Intelligence (Priority 4). Finds graded outcomes
+ * (any real grade, including UNGRADEABLE — even "we couldn't grade this"
+ * is itself a lesson worth recording) that don't already have a lesson,
+ * so the generator never writes a duplicate for the same outcome. Two
+ * queries rather than a join, same pattern as
+ * listPredictionsPendingOutcome above.
+ */
+async function listOutcomesWithoutLesson({ limit = 100 } = {}) {
+  const prisma = getPrismaClient();
+  const outcomes = await prisma.outcome.findMany({ orderBy: { gradedAt: "desc" }, take: limit });
+  if (!outcomes.length) {
+    return [];
+  }
+
+  const outcomeIds = outcomes.map((outcome) => outcome.id);
+  const existingLessons = await prisma.worldMemoryLesson.findMany({
+    where: { outcomeId: { in: outcomeIds } },
+    select: { outcomeId: true },
+  });
+  const lessonedSet = new Set(existingLessons.map((lesson) => lesson.outcomeId));
+  return outcomes.filter((outcome) => !lessonedSet.has(outcome.id));
+}
+
+async function listRecentLessons({ limit = 20 } = {}) {
+  const prisma = getPrismaClient();
+  return prisma.worldMemoryLesson.findMany({ orderBy: { generatedAt: "desc" }, take: limit });
+}
+
 module.exports = {
   createRecord,
   appendCausalLink,
@@ -216,5 +245,7 @@ module.exports = {
   listRecentThesisRevisions,
   appendSectorImpact,
   appendLesson,
+  listOutcomesWithoutLesson,
+  listRecentLessons,
   getRecordWithHistory,
 };

@@ -20,6 +20,8 @@ const canonicalVerdict = require("./canonicalVerdict");
 // Sprint 29 — Feedback Intelligence Layer, Priority 1 (Outcome Pipeline).
 const worldMemoryRepository = require("./worldMemoryRepository");
 const outcomeGradingService = require("./outcomeGradingService");
+// Sprint 31 — Outcome Intelligence, Priority 4.
+const outcomeIntelligenceService = require("./outcomeIntelligenceService");
 
 // Above this sector weight (%), a held position's concentration risk can
 // independently trigger a REDUCE recommendation even when the underlying
@@ -680,6 +682,14 @@ async function runOnce({ watchlist = [] } = {}) {
     await outcomeGradingService.gradePendingOutcomes();
   } catch (gradingError) {
     // stays pending, retried next run
+  }
+  // Sprint 31 Priority 4 — lessons are generated right after grading, on
+  // the same existing schedule, so every newly-graded outcome gets one
+  // shortly after it's graded rather than waiting for a separate job.
+  try {
+    await outcomeIntelligenceService.generateLessonsFromOutcomes();
+  } catch (lessonError) {
+    // stays without a lesson, retried next run
   }
 
   const runLog = await autonomousRecommendationRepository.createRunLog({

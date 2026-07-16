@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import RecommendationsScreen from "./RecommendationsScreen";
-import { recommendationsApi } from "../services/api";
+import { recommendationsApi, outcomeIntelligenceApi, calibrationReportApi } from "../services/api";
 
 vi.mock("../services/api", () => ({
   recommendationsApi: {
@@ -13,6 +13,8 @@ vi.mock("../services/api", () => ({
     submitFeedback: vi.fn(),
     recordView: vi.fn(),
   },
+  outcomeIntelligenceApi: { listLessons: vi.fn() },
+  calibrationReportApi: { get: vi.fn() },
 }));
 
 vi.mock("../hooks/useWatchlist", () => ({
@@ -64,6 +66,8 @@ describe("RecommendationsScreen", () => {
     vi.clearAllMocks();
     recommendationsApi.getFeedback.mockResolvedValue({ feedback: [] });
     recommendationsApi.recordView.mockResolvedValue({ id: "evt-1" });
+    outcomeIntelligenceApi.listLessons.mockResolvedValue({ lessons: [] });
+    calibrationReportApi.get.mockResolvedValue({ families: [] });
   });
 
   it("renders recommendations with action, confidence, and expected upside/downside", async () => {
@@ -140,5 +144,48 @@ describe("RecommendationsScreen", () => {
     await waitFor(() => expect(recommendationsApi.run).toHaveBeenCalledTimes(1));
     expect(recommendationsApi.run).toHaveBeenCalledWith(["PLTR"]);
     expect(recommendationsApi.list).toHaveBeenCalledTimes(2);
+  });
+
+  it("Sprint 31 — shows real Lessons Learned from completed outcomes, with an honest empty state when none exist yet", async () => {
+    recommendationsApi.list.mockResolvedValue({ recommendations: [] });
+    recommendationsApi.status.mockResolvedValue(STATUS_FIXTURE);
+    outcomeIntelligenceApi.listLessons.mockResolvedValue({
+      lessons: [{ id: "lesson-1", lessonText: "NVDA (BUY, predicted confidence 82/100): price moved +8.30% over the D1 window, confirming the predicted direction." }],
+    });
+
+    render(<RecommendationsScreen />);
+    await waitFor(() => expect(screen.getByText("Lessons Learned")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/price moved \+8\.30%/)).toBeInTheDocument());
+  });
+
+  it("Sprint 31 — Lessons Learned shows an honest empty state with zero graded outcomes", async () => {
+    recommendationsApi.list.mockResolvedValue({ recommendations: [] });
+    recommendationsApi.status.mockResolvedValue(STATUS_FIXTURE);
+
+    render(<RecommendationsScreen />);
+    await waitFor(() => expect(screen.getByText(/No completed outcomes yet/)).toBeInTheDocument());
+  });
+
+  it("Sprint 31 — shows a real calibration report per family once statistically meaningful", async () => {
+    recommendationsApi.list.mockResolvedValue({ recommendations: [] });
+    recommendationsApi.status.mockResolvedValue(STATUS_FIXTURE);
+    calibrationReportApi.get.mockResolvedValue({
+      families: [{ family: "BUY", sampleSize: 8, isStatisticallyMeaningful: true, insufficientDataMessage: null, expectedConfidence: 78, actualOutcomeHitRate: 62, calibrationTrend: "stable", earlierHitRate: 60, recentHitRate: 65 }],
+    });
+
+    render(<RecommendationsScreen />);
+    await waitFor(() => expect(screen.getByText("Calibration")).toBeInTheDocument());
+    expect(screen.getByText(/Expected 78\/100 · Actual 62% · Trend: stable · n=8/)).toBeInTheDocument();
+  });
+
+  it("Sprint 31 — calibration report honestly states more observations are required below the statistical threshold", async () => {
+    recommendationsApi.list.mockResolvedValue({ recommendations: [] });
+    recommendationsApi.status.mockResolvedValue(STATUS_FIXTURE);
+    calibrationReportApi.get.mockResolvedValue({
+      families: [{ family: "BUY", sampleSize: 2, isStatisticallyMeaningful: false, insufficientDataMessage: "More observations required (2 so far, need at least 5).", expectedConfidence: null, actualOutcomeHitRate: null, calibrationTrend: "insufficient data for trend", earlierHitRate: null, recentHitRate: null }],
+    });
+
+    render(<RecommendationsScreen />);
+    await waitFor(() => expect(screen.getByText(/More observations required \(2 so far, need at least 5\)/)).toBeInTheDocument());
   });
 });
