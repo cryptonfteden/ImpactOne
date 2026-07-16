@@ -3,6 +3,9 @@ import { createRoot } from "react-dom/client";
 import "./styles.css";
 import AppRoot from "./AppRoot";
 import AppProviders from "./context/AppProviders";
+import { registerServiceWorker } from "./registerServiceWorker";
+
+registerServiceWorker();
 
 const container = document.getElementById("root");
 
