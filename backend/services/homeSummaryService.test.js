@@ -297,3 +297,77 @@ test("Sprint 30 — buildHomeSummary's personalBrief is derived from the same to
     investorProfileRepository.findDefaultInvestorProfile = originalFindProfile;
   });
 });
+
+test("Sprint 32 Priority 2 — computeAdaptiveCardOrder always keeps morningBrief first and includes all six real cards, never inventing or dropping one", () => {
+  const order = homeSummaryService.computeAdaptiveCardOrder({
+    whatChangedSinceYesterday: [],
+    todayForYou: [],
+    portfolioMorningSummary: null,
+    whatChangedInBeliefs: [],
+    shouldIDoAnythingToday: { hasAction: false },
+    topRecommendations: [],
+    intelligenceTimeline: { overnight: [], openingBell: [], today: [], thisWeek: [], longTerm: [] },
+    readingDepth: { hasEnoughData: false },
+  });
+  assert.equal(order[0], "morningBrief");
+  assert.deepEqual(order.slice().sort(), ["beliefs", "intelligenceTimeline", "morningBrief", "portfolio", "recommendations", "todayForYou"].sort());
+});
+
+test("Sprint 32 Priority 2 — computeAdaptiveCardOrder ranks Recommendations higher when real action is needed", () => {
+  const withAction = homeSummaryService.computeAdaptiveCardOrder({
+    whatChangedInBeliefs: [],
+    todayForYou: [],
+    portfolioMorningSummary: null,
+    shouldIDoAnythingToday: { hasAction: true, symbol: "NVDA", action: "BUY" },
+    topRecommendations: [{ symbol: "NVDA" }],
+    intelligenceTimeline: { overnight: [], openingBell: [], today: [], thisWeek: [], longTerm: [] },
+    readingDepth: { hasEnoughData: false },
+  });
+  const withoutAction = homeSummaryService.computeAdaptiveCardOrder({
+    whatChangedInBeliefs: [],
+    todayForYou: [],
+    portfolioMorningSummary: null,
+    shouldIDoAnythingToday: { hasAction: false },
+    topRecommendations: [],
+    intelligenceTimeline: { overnight: [], openingBell: [], today: [], thisWeek: [], longTerm: [] },
+    readingDepth: { hasEnoughData: false },
+  });
+  assert.ok(withAction.indexOf("recommendations") < withoutAction.indexOf("recommendations"), "a real action-needed recommendation should rank the Recommendations card higher");
+});
+
+test("Sprint 32 Priority 2 — computeAdaptiveCardOrder ranks Intelligence Timeline higher for a real 'deep reader' investor", () => {
+  // beliefs scores 4*3=12 here, which sits between a skimmer's
+  // intelligenceTimeline score (4) and a deep reader's (18) — so the
+  // fixture must give beliefs real content for the two scenarios to
+  // actually produce a different order, not just a different raw score.
+  const base = {
+    whatChangedInBeliefs: [{ themeKey: "ai" }, { themeKey: "defense" }, { themeKey: "energy" }],
+    todayForYou: [],
+    portfolioMorningSummary: null,
+    shouldIDoAnythingToday: { hasAction: false },
+    topRecommendations: [],
+    intelligenceTimeline: { overnight: [], openingBell: [], today: [], thisWeek: [], longTerm: [] },
+  };
+  const deepReader = homeSummaryService.computeAdaptiveCardOrder({ ...base, readingDepth: { hasEnoughData: true, label: "deep reader" } });
+  const skimmer = homeSummaryService.computeAdaptiveCardOrder({ ...base, readingDepth: { hasEnoughData: true, label: "skimmer" } });
+  assert.ok(deepReader.indexOf("intelligenceTimeline") < skimmer.indexOf("intelligenceTimeline"), "a deep reader should see the Intelligence Timeline ranked higher than a skimmer would");
+});
+
+test("Sprint 32 Priority 2 — buildHomeSummary includes a real cardOrder reflecting all six cards", async () => {
+  const originalListActive2 = autonomousRecommendationRepository.listActive;
+  const originalFindProfile2 = investorProfileRepository.findDefaultInvestorProfile;
+  autonomousRecommendationRepository.listActive = async () => [];
+  investorProfileRepository.findDefaultInvestorProfile = async () => null;
+
+  await withMocks(
+    { feed: [], portfolioSummary: buildPortfolioSummary({}) },
+    async () => {
+      const summary = await homeSummaryService.buildHomeSummary({});
+      assert.equal(summary.cardOrder.length, 6);
+      assert.equal(summary.cardOrder[0], "morningBrief");
+    }
+  ).finally(() => {
+    autonomousRecommendationRepository.listActive = originalListActive2;
+    investorProfileRepository.findDefaultInvestorProfile = originalFindProfile2;
+  });
+});

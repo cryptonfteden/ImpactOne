@@ -19,6 +19,11 @@ const TIMELINE_SECTIONS = [
   { key: "longTerm", label: "Long Term" },
 ];
 
+// Sprint 32 Priority 2 — fallback order if the backend ever omits
+// cardOrder (e.g. an older cached response) — identical to the fixed
+// order this screen always used before Adaptive Home existed.
+const DEFAULT_CARD_ORDER = ["morningBrief", "todayForYou", "portfolio", "beliefs", "recommendations", "intelligenceTimeline"];
+
 /**
  * Sprint 20, Part 3 — the Home screen, originally six standalone "what
  * changed" cards.
@@ -26,17 +31,14 @@ const TIMELINE_SECTIONS = [
  * Sprint 28 — "Morning Intelligence": Home becomes the single unified
  * Morning Brief. Rather than adding new cards on top of the old six (which
  * would fight this sprint's own "reduce scrolling, reduce repeated cards"
- * goal), overlapping cards were merged: What happened + Why should I care
- * + What changed since yesterday collapse into one Morning Brief card;
- * What changed for my portfolio merges with the new Portfolio Morning
- * Summary (biggest opportunity/risk, what matters today vs. can wait);
- * What should I pay attention to today merges with the new ranked
- * topRecommendations list. Two genuinely new sections are added: Today
- * For You (personalized agenda — facts stay global, priority is personal)
- * and the Intelligence Timeline (Overnight/Opening Bell/Today/This
- * Week/Long Term). Net result: still 6 cards, unchanged from Sprint 27,
- * despite three brand-new sections — merging kept card count flat while
- * roughly doubling the real information Home surfaces.
+ * goal), overlapping cards were merged. Net result: still 6 cards.
+ *
+ * Sprint 32 — "Adaptive Home": the six cards' *content* never changes
+ * (every fact is exactly what Sprint 28-31 already built), but the
+ * *order* they render in is now personal — computeAdaptiveCardOrder
+ * (backend) scores each card by real signals (is there an action needed,
+ * how many beliefs changed, is this investor a "deep reader") and this
+ * screen simply renders whatever order the backend returns.
  */
 export default function HomeScreen({ onNavigate }) {
   const { watchlist } = useWatchlist();
@@ -102,6 +104,7 @@ export default function HomeScreen({ onNavigate }) {
     todayForYou = [],
     portfolioMorningSummary,
     personalBrief = [],
+    cardOrder = DEFAULT_CARD_ORDER,
   } = summary;
 
   const glancePills = [
@@ -112,28 +115,9 @@ export default function HomeScreen({ onNavigate }) {
 
   const activeSectionItems = intelligenceTimeline[activeTimelineSection] || [];
 
-  return (
-    <div className="screen-page home-screen">
-      <section className="screen-hero">
-        <p className="eyebrow">Today</p>
-        <h1>Your morning brief</h1>
-        {personalBrief.length ? (
-          <ul className="stack-list" aria-label="Morning personal brief">
-            {personalBrief.map((line, index) => (
-              <li key={index} className="company-description">{line}</li>
-            ))}
-          </ul>
-        ) : null}
-        <div className="opportunity-item__actions">
-          {glancePills.map((pill) => (
-            <span key={pill.label} className={pill.tone ? `pill ${pill.tone}` : "pill"}>
-              {pill.label}: {pill.value}
-            </span>
-          ))}
-        </div>
-      </section>
-
-      <SectionCard title="Morning Brief" icon="◉" className="screen-card home-card">
+  const cardsByKey = {
+    morningBrief: (
+      <SectionCard key="morningBrief" title="Morning Brief" icon="◉" className="screen-card home-card">
         <p className="company-description">{whatHappened.headline}</p>
         {whatHappened.sourceUrl ? (
           <a href={whatHappened.sourceUrl} target="_blank" rel="noopener noreferrer" className="matched-event__source">
@@ -152,8 +136,9 @@ export default function HomeScreen({ onNavigate }) {
           <p className="company-description subtle">No material change vs. yesterday.</p>
         )}
       </SectionCard>
-
-      <SectionCard title="Today For You" icon="★" subtitle="Prioritized for your profile, portfolio, and watchlist" className="screen-card home-card">
+    ),
+    todayForYou: (
+      <SectionCard key="todayForYou" title="Today For You" icon="★" subtitle="Prioritized for your profile, portfolio, and watchlist" className="screen-card home-card">
         {todayForYou.length ? (
           <ul className="stack-list">
             {todayForYou.map((item, index) => (
@@ -166,8 +151,9 @@ export default function HomeScreen({ onNavigate }) {
           <p className="company-description subtle">Nothing prioritized for you right now.</p>
         )}
       </SectionCard>
-
-      <SectionCard title="Portfolio" icon="◐" className="screen-card home-card">
+    ),
+    portfolio: (
+      <SectionCard key="portfolio" title="Portfolio" icon="◐" className="screen-card home-card">
         <p className="company-description">{whatChangedForMyPortfolio?.summary}</p>
         {whatChangedForMyPortfolio?.changes?.length ? (
           <ul className="stack-list">
@@ -198,8 +184,9 @@ export default function HomeScreen({ onNavigate }) {
           <p className="company-description subtle">No standout risk today.</p>
         )}
       </SectionCard>
-
-      <SectionCard title="What changed in the platform's beliefs?" icon="◑" className="screen-card home-card">
+    ),
+    beliefs: (
+      <SectionCard key="beliefs" title="What changed in the platform's beliefs?" icon="◑" className="screen-card home-card">
         {whatChangedInBeliefs.length ? (
           <ul className="stack-list">
             {whatChangedInBeliefs.map((belief) => (
@@ -212,8 +199,9 @@ export default function HomeScreen({ onNavigate }) {
           <p className="company-description subtle">No theme thesis has changed recently.</p>
         )}
       </SectionCard>
-
-      <SectionCard title="Recommendations" icon="▲" className="screen-card home-card">
+    ),
+    recommendations: (
+      <SectionCard key="recommendations" title="Recommendations" icon="▲" className="screen-card home-card">
         {shouldIDoAnythingToday.hasAction ? (
           <>
             <div className="opportunity-item__top">
@@ -238,8 +226,9 @@ export default function HomeScreen({ onNavigate }) {
           </ul>
         ) : null}
       </SectionCard>
-
-      <SectionCard title="Intelligence Timeline" icon="⏱" className="screen-card home-card">
+    ),
+    intelligenceTimeline: (
+      <SectionCard key="intelligenceTimeline" title="Intelligence Timeline" icon="⏱" className="screen-card home-card">
         <div className="opportunity-item__actions">
           {TIMELINE_SECTIONS.map((section) => (
             <button
@@ -262,6 +251,31 @@ export default function HomeScreen({ onNavigate }) {
           <p className="company-description subtle">Nothing in this window right now.</p>
         )}
       </SectionCard>
+    ),
+  };
+
+  return (
+    <div className="screen-page home-screen">
+      <section className="screen-hero">
+        <p className="eyebrow">Today</p>
+        <h1>Your morning brief</h1>
+        {personalBrief.length ? (
+          <ul className="stack-list" aria-label="Morning personal brief">
+            {personalBrief.map((line, index) => (
+              <li key={index} className="company-description">{line}</li>
+            ))}
+          </ul>
+        ) : null}
+        <div className="opportunity-item__actions">
+          {glancePills.map((pill) => (
+            <span key={pill.label} className={pill.tone ? `pill ${pill.tone}` : "pill"}>
+              {pill.label}: {pill.value}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      {cardOrder.map((key) => cardsByKey[key]).filter(Boolean)}
     </div>
   );
 }

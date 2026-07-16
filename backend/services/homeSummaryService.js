@@ -20,6 +20,7 @@ const worldMemoryRepository = require("./worldMemoryRepository");
 const investorProfileRepository = require("./investorProfileRepository");
 const feedPersonalizationService = require("./feedPersonalizationService");
 const personalIntelligenceService = require("./personalIntelligenceService");
+const investorMemoryService = require("./investorMemoryService");
 const { THEME_DEFINITIONS } = require("./themeIntelligenceService");
 
 const BELIEF_CHANGE_LOOKBACK_MS = 48 * 60 * 60 * 1000;
@@ -326,6 +327,34 @@ function buildMorningPersonalBrief({ whatHappened, whatChangedForMyPortfolio, to
   return lines.slice(0, 5);
 }
 
+// Sprint 32 — Adaptive Home (Priority 2). "Facts remain identical.
+// Ordering, density, presentation, and emphasis become personal." This
+// never changes what any card shows — only the order the six cards
+// render in, computed from the same real data already assembled for
+// this response plus real reading-depth data from investorMemoryService
+// (Sprint 32 Priority 1). A card with real content the user is likely to
+// act on or has shown interest in ranks higher; an empty/quiet card
+// ranks lower. Deterministic and re-computed fresh every load — never
+// stored, so it can never go stale or drift from the real facts it's
+// ordering.
+const HOME_CARD_KEYS = ["morningBrief", "todayForYou", "portfolio", "beliefs", "recommendations", "intelligenceTimeline"];
+
+function computeAdaptiveCardOrder({ whatChangedSinceYesterday, todayForYou, portfolioMorningSummary, whatChangedInBeliefs, shouldIDoAnythingToday, topRecommendations, intelligenceTimeline, readingDepth }) {
+  const timelineItemCount = Object.values(intelligenceTimeline || {}).reduce((sum, section) => sum + section.length, 0);
+  const isDeepReader = readingDepth?.hasEnoughData && readingDepth.label === "deep reader";
+
+  const scores = {
+    morningBrief: 1000, // always first — the hero, never reordered relative to the rest
+    todayForYou: (todayForYou?.length || 0) * 2,
+    portfolio: (portfolioMorningSummary?.biggestOpportunity ? 15 : 0) + (portfolioMorningSummary?.biggestRisk ? 15 : 0) + (portfolioMorningSummary?.mattersToday?.length || 0) * 3,
+    beliefs: (whatChangedInBeliefs?.length || 0) * 4,
+    recommendations: (shouldIDoAnythingToday?.hasAction ? 20 : 0) + (topRecommendations?.length || 0) * 3,
+    intelligenceTimeline: isDeepReader ? 18 : 4 + Math.min(timelineItemCount, 5),
+  };
+
+  return HOME_CARD_KEYS.slice().sort((a, b) => scores[b] - scores[a]);
+}
+
 async function buildHomeSummary({ watchlist = [] } = {}) {
   const normalizedWatchlist = normalizeSymbolList(watchlist);
   const portfolioSummary = await portfolioEngineService.getPortfolioSummary();
@@ -352,12 +381,13 @@ async function buildHomeSummary({ watchlist = [] } = {}) {
   // brief's live provider calls) must never take down the whole screen.
   // Sprint 28 — topRecommendations/todayForYou run alongside them under the
   // same independent-failure rule.
-  const [whatChangedSinceYesterday, whatChangedForMyPortfolio, whatChangedInBeliefs, topRecommendations, todayForYou] = await Promise.all([
+  const [whatChangedSinceYesterday, whatChangedForMyPortfolio, whatChangedInBeliefs, topRecommendations, todayForYou, readingDepth] = await Promise.all([
     buildWhatChangedSinceYesterday(universe),
     buildWhatChangedForMyPortfolio(),
     buildWhatChangedInBeliefs(),
     buildTopRecommendations().catch(() => []),
     buildTodayForYou({ feed: overview.feed, heldSymbols, watchlistSymbols: normalizedWatchlist }).catch(() => []),
+    investorMemoryService.computeReadingDepth().catch(() => ({ hasEnoughData: false })),
   ]);
 
   const portfolioSnapshot = buildPortfolioSnapshot(portfolioSummary);
@@ -370,6 +400,7 @@ async function buildHomeSummary({ watchlist = [] } = {}) {
     sourceUrl: event?.sourceUrl || null,
   };
   const personalBrief = buildMorningPersonalBrief({ whatHappened, whatChangedForMyPortfolio, topRecommendations, portfolioMorningSummary, shouldIDoAnythingToday });
+  const cardOrder = computeAdaptiveCardOrder({ whatChangedSinceYesterday, todayForYou, portfolioMorningSummary, whatChangedInBeliefs, shouldIDoAnythingToday, topRecommendations, intelligenceTimeline, readingDepth });
 
   return {
     whatHappened,
@@ -391,6 +422,9 @@ async function buildHomeSummary({ watchlist = [] } = {}) {
     // Sprint 30 — a condensed, personally-ranked, <=5-line brief built
     // entirely from the fields above.
     personalBrief,
+    // Sprint 32 Priority 2 — Adaptive Home. Same six cards, same content;
+    // only the render order is personal.
+    cardOrder,
     generatedAt: new Date().toISOString(),
   };
 }
@@ -399,6 +433,7 @@ module.exports = {
   buildHomeSummary,
   classifyTimelineSection,
   buildIntelligenceTimeline,
+  computeAdaptiveCardOrder,
   buildPortfolioMorningSummary,
   buildMorningPersonalBrief,
   describePriorityReason,

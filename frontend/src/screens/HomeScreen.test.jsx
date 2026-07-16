@@ -173,4 +173,20 @@ describe("HomeScreen", () => {
     await waitFor(() => expect(screen.getByText("Your morning brief")).toBeInTheDocument());
     expect(screen.queryByLabelText("Morning personal brief")).not.toBeInTheDocument();
   });
+
+  it("Sprint 32 Priority 2 — renders the six cards in the real adaptive cardOrder the backend returns, not a fixed order", async () => {
+    homeApi.getSummary.mockResolvedValue({
+      ...SUMMARY_WITH_ACTION,
+      cardOrder: ["morningBrief", "recommendations", "intelligenceTimeline", "portfolio", "beliefs", "todayForYou"],
+    });
+    render(<HomeScreen onNavigate={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText("Morning Brief")).toBeInTheDocument());
+    const headings = screen.getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent);
+    const cardTitles = ["Morning Brief", "Recommendations", "Intelligence Timeline", "Portfolio", "What changed in the platform's beliefs?", "Today For You"];
+    const positions = cardTitles.map((title) => headings.findIndex((heading) => heading.includes(title)));
+    for (let i = 1; i < positions.length; i += 1) {
+      expect(positions[i]).toBeGreaterThan(positions[i - 1]);
+    }
+  });
 });
