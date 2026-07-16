@@ -241,6 +241,27 @@ describe("RecommendationCard", () => {
     expect(screen.getByText(/Expected 80\/100 · Actual 65%/)).toBeInTheDocument();
   });
 
+  it("Sprint 32 Priority 5 — Decision Review never re-renders the timeline a second time (already shown in 'What changed' above)", async () => {
+    recommendationsApi.list.mockResolvedValue({
+      recommendations: [
+        { id: "rec-0", symbol: "NVDA", action: "REDUCE", status: "SUPERSEDED", confidenceScore: 88, createdAt: "2026-07-07T00:00:00.000Z" },
+      ],
+    });
+    recommendationsApi.getDecisionReview.mockResolvedValue({
+      timeline: [{ id: "rec-1", createdAt: "2026-07-14T00:00:00.000Z", action: "BUY", status: "ACTIVE", confidenceScore: 88, isCurrent: true }],
+      outcome: { gradeLabel: "CORRECT", windowReturnPct: 8.3, timeWindow: "D1", directionCorrect: true },
+      lesson: { lessonText: "NVDA confirmed the bullish thesis." },
+      calibration: { isStatisticallyMeaningful: true, expectedConfidence: 80, actualOutcomeHitRate: 65, calibrationTrend: "stable", sampleSize: 6 },
+    });
+
+    render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText("What changed")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Show full decision review"));
+    await waitFor(() => expect(screen.getByText("Outcome")).toBeInTheDocument());
+    expect(screen.queryByText("Timeline")).not.toBeInTheDocument();
+  });
+
   it("Sprint 32 — Decision Review shows honest 'not graded yet' / 'no lesson yet' rather than fabricating them", async () => {
     recommendationsApi.getDecisionReview.mockResolvedValue({
       timeline: [{ id: "rec-1", createdAt: "2026-07-14T00:00:00.000Z", action: "BUY", status: "ACTIVE", confidenceScore: 88, isCurrent: true }],

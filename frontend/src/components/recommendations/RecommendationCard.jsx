@@ -467,16 +467,13 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
                 <p className="company-description subtle">Loading decision review…</p>
               ) : decisionReview ? (
                 <div className="explanation-section">
-                  <p className="explanation-section__title">Timeline</p>
-                  <ul className="stack-list">
-                    {decisionReview.timeline.map((entry) => (
-                      <li key={entry.id} className="company-description subtle">
-                        {formatTimestamp(entry.createdAt)} — {ACTION_LABEL[entry.action] || entry.action} ({entry.status}), confidence {entry.confidenceScore}
-                        {entry.isCurrent ? " — this recommendation" : ""}
-                      </li>
-                    ))}
-                  </ul>
-
+                  {/* Sprint 32 Priority 5 — audit found the decision review's
+                      own timeline list duplicated the "What changed" section
+                      already rendered above on this same card (both read
+                      from the same real history). Rather than showing the
+                      same entries twice, this section only adds what "What
+                      changed" doesn't already cover: outcome, lesson, and
+                      calibration. */}
                   <p className="explanation-section__title">Outcome</p>
                   {decisionReview.outcome ? (
                     <p className="company-description subtle">
