@@ -1,5 +1,6 @@
 import { Suspense, lazy, useCallback, useState } from "react";
 import Sidebar from "./Sidebar";
+import BottomNav from "./BottomNav";
 import Header from "../components/Header";
 import ScreenErrorBoundary from "../components/ScreenErrorBoundary";
 import useWatchlist from "../hooks/useWatchlist";
@@ -89,6 +90,7 @@ export default function MainLayout() {
           return <ActiveScreen onNavigate={setActiveView} />;
         })()}
       </div>
+      <BottomNav activeView={activeView} onNavigate={setActiveView} />
     </div>
   );
 }

@@ -991,6 +991,11 @@ button {
   padding: 12px;
   border-radius: 12px;
   background: rgba(2, 6, 23, 0.48);
+  /* Grid items default to min-width: auto, which pins them to their
+     content's intrinsic width even when the track is narrower — the
+     cause of a real ~6px horizontal overflow on narrow (390px) mobile
+     viewports where the flex-wrap actions row otherwise couldn't shrink. */
+  min-width: 0;
 }
 
 .opportunity-item__top {
@@ -2024,6 +2029,12 @@ body {
   gap: 8px;
   margin-top: 10px;
   flex-wrap: wrap;
+  /* As a flex child (e.g. inside .screen-hero's space-between row), this
+     defaults to min-width: auto and refuses to shrink below its
+     unwrapped content width, overflowing the viewport on narrow mobile
+     screens even with flex-wrap set. min-width: 0 lets it actually wrap. */
+  min-width: 0;
+  max-width: 100%;
 }
 
 .matched-events {
@@ -2613,4 +2624,92 @@ body {
   .header-portfolio-glance {
     display: none;
   }
+}
+
+/* Sprint 33 Priority 1 — Mobile Information Architecture.
+   Bottom nav is the primary mobile destination-switcher (5 items); the
+   sidebar remains desktop's richer, always-visible nav. Hidden/shown by
+   viewport width rather than by JS, so there is no layout flash. */
+.bottom-nav {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .sidebar {
+    display: none;
+  }
+
+  .main-panel {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .screen-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px;
+  }
+
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    background: linear-gradient(180deg, rgba(8, 13, 20, 0.98), rgba(6, 10, 17, 0.99));
+    border-top: 1px solid rgba(157, 174, 202, 0.2);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .bottom-nav__item {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 48px;
+    padding: 6px 2px;
+    background: transparent;
+    border: none;
+    color: var(--text-2);
+    font-size: 0.7rem;
+  }
+
+  .bottom-nav__item.active {
+    color: var(--accent);
+  }
+
+  .bottom-nav__icon {
+    font-size: 1.15rem;
+    line-height: 1;
+  }
+
+  .bottom-nav__label {
+    line-height: 1;
+  }
+}
+
+/* Sprint 33 Priority 1 — Profile "More" links (secondary destinations
+   moved off the mobile primary nav, kept fully reachable here). */
+.more-links-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 480px) {
+  .more-links-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.more-links-grid__item {
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--glass-border);
+  color: var(--text-0);
+  text-align: left;
 }

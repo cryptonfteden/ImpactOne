@@ -64,13 +64,35 @@ function PersonalProgress() {
   );
 }
 
+// Sprint 33 Priority 1 — mobile information architecture. These 7 screens
+// no longer have their own top-level nav slot on mobile; they stay fully
+// reachable from here instead of being deleted. Desktop's Sidebar keeps
+// its own richer, always-visible list independently of this section.
+const MORE_DESTINATIONS = ["Themes", "AI Analysis", "Alerts", "Global Intelligence", "Watchlist", "Dashboard", "Settings"];
+
+function MoreLinks({ onNavigate }) {
+  const destinations = import.meta.env.VITE_DEV_CONSOLE === "true" ? [...MORE_DESTINATIONS, "Intelligence Console"] : MORE_DESTINATIONS;
+
+  return (
+    <SectionCard title="More" subtitle="Everything else, one tap away" icon="◫" className="screen-card">
+      <div className="more-links-grid">
+        {destinations.map((destination) => (
+          <Button key={destination} type="button" className="more-links-grid__item" onClick={() => onNavigate(destination)}>
+            {destination}
+          </Button>
+        ))}
+      </div>
+    </SectionCard>
+  );
+}
+
 /**
  * Sprint 20, Part 2 — the AI Investment Profile. Used two ways: as the
  * onboarding "reveal" (profile/investmentProfile injected as props,
  * onGetStarted provided) and as a persistent, revisitable "My Profile"
  * screen registered in screenMap (self-fetches both, no onGetStarted).
  */
-export default function InvestorProfileScreen({ profile: injectedProfile, investmentProfile: injectedInvestmentProfile, onGetStarted }) {
+export default function InvestorProfileScreen({ profile: injectedProfile, investmentProfile: injectedInvestmentProfile, onGetStarted, onNavigate }) {
   const [profile, setProfile] = useState(injectedProfile || null);
   const [investmentProfile, setInvestmentProfile] = useState(injectedInvestmentProfile || null);
   const [isLoading, setIsLoading] = useState(!injectedProfile);
@@ -172,6 +194,8 @@ export default function InvestorProfileScreen({ profile: injectedProfile, invest
       <SectionCard title="What this means" subtitle="Educational explanation" icon="◍" className="screen-card">
         <p className="company-description">{educationalExplanation}</p>
       </SectionCard>
+
+      {!onGetStarted && onNavigate ? <MoreLinks onNavigate={onNavigate} /> : null}
 
       {!onGetStarted ? <PersonalProgress /> : null}
 

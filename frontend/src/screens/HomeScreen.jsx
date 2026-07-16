@@ -257,21 +257,23 @@ export default function HomeScreen({ onNavigate }) {
   return (
     <div className="screen-page home-screen">
       <section className="screen-hero">
-        <p className="eyebrow">Today</p>
-        <h1>Your morning brief</h1>
-        {personalBrief.length ? (
-          <ul className="stack-list" aria-label="Morning personal brief">
-            {personalBrief.map((line, index) => (
-              <li key={index} className="company-description">{line}</li>
+        <div>
+          <p className="eyebrow">Today</p>
+          <h1>Your morning brief</h1>
+          {personalBrief.length ? (
+            <ul className="stack-list" aria-label="Morning personal brief">
+              {personalBrief.map((line, index) => (
+                <li key={index} className="company-description">{line}</li>
+              ))}
+            </ul>
+          ) : null}
+          <div className="opportunity-item__actions">
+            {glancePills.map((pill) => (
+              <span key={pill.label} className={pill.tone ? `pill ${pill.tone}` : "pill"}>
+                {pill.label}: {pill.value}
+              </span>
             ))}
-          </ul>
-        ) : null}
-        <div className="opportunity-item__actions">
-          {glancePills.map((pill) => (
-            <span key={pill.label} className={pill.tone ? `pill ${pill.tone}` : "pill"}>
-              {pill.label}: {pill.value}
-            </span>
-          ))}
+          </div>
         </div>
       </section>
 

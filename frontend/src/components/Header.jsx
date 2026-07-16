@@ -25,6 +25,7 @@ const CORE_SYMBOLS = [
 
 function Header({ watchlist = [], onQuickSearch, onNavigate }) {
   const [query, setQuery] = useState("");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
@@ -78,6 +79,7 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
     }
 
     setQuery(normalized);
+    setIsSearchFocused(false);
     onQuickSearch?.(normalized);
   }, [onQuickSearch]);
 
@@ -104,6 +106,8 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
             placeholder="Ask about a ticker, portfolio, or market event"
             value={query}
             onChange={(event) => setQuery(event.target.value.toUpperCase())}
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setTimeout(() => setIsSearchFocused(false), 150)}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 submitTicker(query);
@@ -112,7 +116,7 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
           />
           <Button type="button" className="search-submit" onClick={() => submitTicker(query)}>Go</Button>
         </label>
-        {suggestions.length ? (
+        {isSearchFocused && suggestions.length ? (
           <div className="header-autocomplete">
             {suggestions.map((symbol) => (
               <Button key={symbol} type="button" className="header-suggestion" onClick={() => submitTicker(symbol)}>
