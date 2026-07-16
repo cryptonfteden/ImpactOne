@@ -1,9 +1,68 @@
 import { useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
 import { Button, LoadingSpinner } from "../components/ui";
-import { investorProfileApi } from "../services/api";
+import { investorProfileApi, personalProgressApi } from "../services/api";
 import CompoundInterestSimulator from "../components/profile/CompoundInterestSimulator";
 import { logError } from "../utils/errorHandling";
+
+// Sprint 31 Priority 2 — Personal Progress. Educational only: a trend
+// label and the real two numbers it was derived from, never a score,
+// point total, streak, or badge.
+function PersonalProgress() {
+  const [progress, setProgress] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    personalProgressApi
+      .get()
+      .then((data) => {
+        if (!cancelled) setProgress(data);
+      })
+      .catch((loadError) => logError("personal progress load failed", loadError));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!progress) return null;
+
+  const { understanding, readingHabits, portfolioDiscipline } = progress;
+
+  return (
+    <SectionCard title="Your progress" subtitle="How your understanding, reading habits, and portfolio discipline have evolved" icon="◑" className="screen-card">
+      <div className="explanation-section">
+        <p className="explanation-section__title">Understanding</p>
+        {understanding.hasEnoughData ? (
+          <p className="company-description subtle">
+            "Don't understand" feedback went from {understanding.earlierDontUnderstandRatePct}% to {understanding.recentDontUnderstandRatePct}% of your feedback — trend: {understanding.trend}.
+          </p>
+        ) : (
+          <p className="company-description subtle">{understanding.message}</p>
+        )}
+      </div>
+      <div className="explanation-section">
+        <p className="explanation-section__title">Reading habits</p>
+        {readingHabits.hasEnoughData ? (
+          <p className="company-description subtle">
+            {readingHabits.earlierViewCount} views earlier vs. {readingHabits.recentViewCount} more recently — you're {readingHabits.trend}.
+          </p>
+        ) : (
+          <p className="company-description subtle">{readingHabits.message}</p>
+        )}
+      </div>
+      <div className="explanation-section">
+        <p className="explanation-section__title">Portfolio discipline</p>
+        {portfolioDiscipline.hasEnoughData ? (
+          <p className="company-description subtle">
+            Cash reserve went from {portfolioDiscipline.earlierCashRatioPct}% to {portfolioDiscipline.recentCashRatioPct}% of your portfolio — trend: {portfolioDiscipline.trend}.
+          </p>
+        ) : (
+          <p className="company-description subtle">{portfolioDiscipline.message}</p>
+        )}
+      </div>
+    </SectionCard>
+  );
+}
 
 /**
  * Sprint 20, Part 2 — the AI Investment Profile. Used two ways: as the
@@ -113,6 +172,8 @@ export default function InvestorProfileScreen({ profile: injectedProfile, invest
       <SectionCard title="What this means" subtitle="Educational explanation" icon="◍" className="screen-card">
         <p className="company-description">{educationalExplanation}</p>
       </SectionCard>
+
+      {!onGetStarted ? <PersonalProgress /> : null}
 
       {onGetStarted ? (
         <Button type="button" className="primary-action onboarding-continue-button" onClick={onGetStarted}>
