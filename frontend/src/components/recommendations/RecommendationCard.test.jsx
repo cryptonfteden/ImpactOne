@@ -4,7 +4,7 @@ import RecommendationCard from "./RecommendationCard";
 import { recommendationsApi } from "../../services/api";
 
 vi.mock("../../services/api", () => ({
-  recommendationsApi: { getDecisionTrace: vi.fn(), list: vi.fn(), getFeedback: vi.fn(), submitFeedback: vi.fn(), recordView: vi.fn() },
+  recommendationsApi: { getDecisionTrace: vi.fn(), list: vi.fn(), getFeedback: vi.fn(), submitFeedback: vi.fn(), recordView: vi.fn(), getDecisionReview: vi.fn() },
 }));
 
 const RECOMMENDATION_FIXTURE = {
@@ -220,5 +220,41 @@ describe("RecommendationCard", () => {
 
     rerender(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
     await waitFor(() => expect(recommendationsApi.recordView).toHaveBeenCalledWith("rec-1"));
+  });
+
+  it("Sprint 32 — Decision Review is never fetched until the user actually asks for it, then shows real timeline/outcome/lesson/calibration", async () => {
+    recommendationsApi.getDecisionReview.mockResolvedValue({
+      timeline: [{ id: "rec-1", createdAt: "2026-07-14T00:00:00.000Z", action: "BUY", status: "ACTIVE", confidenceScore: 88, isCurrent: true }],
+      outcome: { gradeLabel: "CORRECT", windowReturnPct: 8.3, timeWindow: "D1", directionCorrect: true },
+      lesson: { lessonText: "NVDA confirmed the bullish thesis." },
+      calibration: { isStatisticallyMeaningful: true, expectedConfidence: 80, actualOutcomeHitRate: 65, calibrationTrend: "stable", sampleSize: 6 },
+    });
+
+    render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText("Show full decision review")).toBeInTheDocument());
+    expect(recommendationsApi.getDecisionReview).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText("Show full decision review"));
+    await waitFor(() => expect(recommendationsApi.getDecisionReview).toHaveBeenCalledWith("rec-1"));
+    await waitFor(() => expect(screen.getByText(/\+8\.3% over D1/)).toBeInTheDocument());
+    expect(screen.getByText("NVDA confirmed the bullish thesis.")).toBeInTheDocument();
+    expect(screen.getByText(/Expected 80\/100 · Actual 65%/)).toBeInTheDocument();
+  });
+
+  it("Sprint 32 — Decision Review shows honest 'not graded yet' / 'no lesson yet' rather than fabricating them", async () => {
+    recommendationsApi.getDecisionReview.mockResolvedValue({
+      timeline: [{ id: "rec-1", createdAt: "2026-07-14T00:00:00.000Z", action: "BUY", status: "ACTIVE", confidenceScore: 88, isCurrent: true }],
+      outcome: null,
+      lesson: null,
+      calibration: { isStatisticallyMeaningful: false, insufficientDataMessage: "More observations required (2 so far, need at least 5)." },
+    });
+
+    render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText("Show full decision review")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Show full decision review"));
+
+    await waitFor(() => expect(screen.getByText(/Not graded yet/)).toBeInTheDocument());
+    expect(screen.getByText(/No lesson yet/)).toBeInTheDocument();
+    expect(screen.getByText(/More observations required/)).toBeInTheDocument();
   });
 });

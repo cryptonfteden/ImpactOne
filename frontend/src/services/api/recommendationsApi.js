@@ -29,4 +29,7 @@ export const recommendationsApi = {
   recordView(id) {
     return apiClient.post(`/v2/recommendations/${id}/view`);
   },
+  getDecisionReview(id) {
+    return apiClient.get(`/v2/recommendations/${id}/review`);
+  },
 };

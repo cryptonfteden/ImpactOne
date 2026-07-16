@@ -232,6 +232,23 @@ async function listRecentLessons({ limit = 20 } = {}) {
   return prisma.worldMemoryLesson.findMany({ orderBy: { generatedAt: "desc" }, take: limit });
 }
 
+/**
+ * Sprint 32 — Decision Review (Priority 3). A recommendation can only
+ * ever be graded once per (recommendationId, timeWindow, methodologyVersion)
+ * — findFirst by recommendationId is honest here since this sprint only
+ * grades the D1 window (Sprint 29), so at most one real Outcome exists
+ * per recommendation today.
+ */
+async function getOutcomeForRecommendation(recommendationId) {
+  const prisma = getPrismaClient();
+  return prisma.outcome.findFirst({ where: { recommendationId }, orderBy: { gradedAt: "desc" } });
+}
+
+async function getLessonForOutcome(outcomeId) {
+  const prisma = getPrismaClient();
+  return prisma.worldMemoryLesson.findFirst({ where: { outcomeId }, orderBy: { generatedAt: "desc" } });
+}
+
 module.exports = {
   createRecord,
   appendCausalLink,
@@ -247,5 +264,7 @@ module.exports = {
   appendLesson,
   listOutcomesWithoutLesson,
   listRecentLessons,
+  getOutcomeForRecommendation,
+  getLessonForOutcome,
   getRecordWithHistory,
 };

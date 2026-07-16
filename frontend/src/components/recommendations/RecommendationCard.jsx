@@ -116,6 +116,9 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
   const [history, setHistory] = useState([]);
   const [latestFeedback, setLatestFeedback] = useState(null);
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [decisionReview, setDecisionReview] = useState(null);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [isReviewLoading, setIsReviewLoading] = useState(false);
 
   useEffect(() => {
     if (!isExpanded) return;
@@ -161,6 +164,27 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
       logError("recommendation feedback submit failed", error);
     } finally {
       setIsSubmittingFeedback(false);
+    }
+  }
+
+  // Sprint 32 Priority 3 — Decision Review. Lazily fetched only when the
+  // user actually asks for it (a heavier aggregate call than anything
+  // else on this card), never pre-fetched on every expand.
+  async function handleToggleReview() {
+    if (isReviewOpen) {
+      setIsReviewOpen(false);
+      return;
+    }
+    setIsReviewOpen(true);
+    if (decisionReview) return;
+    setIsReviewLoading(true);
+    try {
+      const review = await recommendationsApi.getDecisionReview(recommendation.id);
+      setDecisionReview(review);
+    } catch (error) {
+      logError("decision review load failed", error);
+    } finally {
+      setIsReviewLoading(false);
     }
   }
 
@@ -373,6 +397,52 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
               <p className="company-description subtle">
                 Feedback recorded: {FEEDBACK_OPTIONS.find((option) => option.value === latestFeedback.feedbackType)?.label || latestFeedback.feedbackType}
               </p>
+            ) : null}
+          </div>
+
+          <div className="explanation-section">
+            <Button type="button" className="ghost-button" onClick={handleToggleReview}>
+              {isReviewOpen ? "Hide full decision review" : "Show full decision review"}
+            </Button>
+            {isReviewOpen ? (
+              isReviewLoading ? (
+                <p className="company-description subtle">Loading decision review…</p>
+              ) : decisionReview ? (
+                <div className="explanation-section">
+                  <p className="explanation-section__title">Timeline</p>
+                  <ul className="stack-list">
+                    {decisionReview.timeline.map((entry) => (
+                      <li key={entry.id} className="company-description subtle">
+                        {formatTimestamp(entry.createdAt)} — {ACTION_LABEL[entry.action] || entry.action} ({entry.status}), confidence {entry.confidenceScore}
+                        {entry.isCurrent ? " — this recommendation" : ""}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <p className="explanation-section__title">Outcome</p>
+                  {decisionReview.outcome ? (
+                    <p className="company-description subtle">
+                      {decisionReview.outcome.gradeLabel === "UNGRADEABLE"
+                        ? `Could not be graded — ${decisionReview.outcome.ungradeableReason || "no live quote was available."}`
+                        : `${decisionReview.outcome.windowReturnPct >= 0 ? "+" : ""}${decisionReview.outcome.windowReturnPct}% over ${decisionReview.outcome.timeWindow} — direction ${decisionReview.outcome.directionCorrect ? "correct" : "incorrect"}.`}
+                    </p>
+                  ) : (
+                    <p className="company-description subtle">Not graded yet — outcomes are graded after the recommendation's time window elapses.</p>
+                  )}
+
+                  <p className="explanation-section__title">Lesson</p>
+                  <p className="company-description subtle">{decisionReview.lesson ? decisionReview.lesson.lessonText : "No lesson yet — lessons are generated once an outcome is graded."}</p>
+
+                  <p className="explanation-section__title">Calibration for this action</p>
+                  {decisionReview.calibration?.isStatisticallyMeaningful ? (
+                    <p className="company-description subtle">
+                      Expected {decisionReview.calibration.expectedConfidence}/100 · Actual {decisionReview.calibration.actualOutcomeHitRate}% · Trend: {decisionReview.calibration.calibrationTrend} · n={decisionReview.calibration.sampleSize}
+                    </p>
+                  ) : (
+                    <p className="company-description subtle">{decisionReview.calibration?.insufficientDataMessage || "No calibration data yet for this action."}</p>
+                  )}
+                </div>
+              ) : null
             ) : null}
           </div>
         </>
