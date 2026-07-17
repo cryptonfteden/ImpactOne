@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useState } from "react";
 import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
 import Header from "../components/Header";
+import OfflineBanner from "../components/OfflineBanner";
 import ScreenErrorBoundary from "../components/ScreenErrorBoundary";
 import useWatchlist from "../hooks/useWatchlist";
 import {
@@ -69,6 +70,7 @@ export default function MainLayout() {
       <Sidebar activeView={activeView} onNavigate={setActiveView} favorites={watchlist} onSelectFavorite={handleSelectFavorite} />
       <div className="main-panel">
         <Header watchlist={watchlist} onQuickSearch={handleQuickSearch} onNavigate={setActiveView} />
+        <OfflineBanner />
         {(() => {
           const ActiveScreen = screenMap[activeView] || DashboardFeature;
           if (activeView === "AI Analysis") {

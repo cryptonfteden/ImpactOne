@@ -79,8 +79,12 @@ export default function HomeScreen({ onNavigate }) {
         }
       } catch (loadError) {
         logError("home summary load failed", loadError);
+        // Sprint 33 Priority 8 — a refresh failure with an existing
+        // summary already on screen must not wipe it: keep showing the
+        // last real data (labeled with its real age via freshnessLabel)
+        // rather than replacing a working screen with a bare error.
         if (!cancelled) {
-          setError("We couldn't load today's summary right now.");
+          setError("We couldn't refresh — this may be an offline device, a backend outage, or a single provider timing out.");
         }
       } finally {
         if (!cancelled) {
@@ -103,10 +107,25 @@ export default function HomeScreen({ onNavigate }) {
     );
   }
 
-  if (error || !summary) {
+  if (error && !summary) {
+    // Sprint 33 Priority 8 — no prior data exists at all (first load, or
+    // an app reopened after clearing storage): explain what's
+    // unavailable, that nothing here is usable yet, and what to do next,
+    // rather than a bare one-line failure.
     return (
       <div className="screen-page home-screen">
-        <p className="company-description negative">{error || "Nothing to show yet."}</p>
+        <p className="company-description negative">{error}</p>
+        <p className="company-description subtle">
+          Nothing has loaded yet, so there's no cached summary to fall back to. Check your connection and reload.
+        </p>
+      </div>
+    );
+  }
+
+  if (!summary) {
+    return (
+      <div className="screen-page home-screen">
+        <p className="company-description subtle">Nothing to show yet.</p>
       </div>
     );
   }
@@ -284,6 +303,16 @@ export default function HomeScreen({ onNavigate }) {
 
   return (
     <div className="screen-page home-screen">
+      {error ? (
+        // Sprint 33 Priority 8 — a refresh failed but a previous summary
+        // is still on screen: say so honestly (what's unavailable — a
+        // live refresh; what remains usable — everything below, labeled
+        // with its real age; what to do next) instead of silently
+        // presenting stale data as current or wiping a working screen.
+        <p className="company-description subtle negative">
+          {error} Everything below is still real data from {freshnessLabel ? freshnessLabel.replace("Updated ", "") : "your last successful load"} — reload to try refreshing.
+        </p>
+      ) : null}
       <section className="screen-hero">
         <div>
           <p className="eyebrow">Today</p>
