@@ -10,6 +10,7 @@ const autonomousRecommendationRepository = require("./autonomousRecommendationRe
 const worldMemoryRepository = require("./worldMemoryRepository");
 const investorProfileRepository = require("./investorProfileRepository");
 const homeSummaryService = require("./homeSummaryService");
+const dailyBriefService = require("./dailyBriefService");
 
 function recommendationData(overrides = {}) {
   return {
@@ -115,7 +116,25 @@ test("whatChangedForMyPortfolio and whatChangedSinceYesterday are always present
     const summary = await homeSummaryService.buildHomeSummary({});
     assert.equal(summary.whatChangedForMyPortfolio.hasComparison, false);
     assert.ok(Array.isArray(summary.whatChangedSinceYesterday));
+    assert.equal(summary.whatChangedSinceYesterdayAvailable, true);
   });
+});
+
+test("Sprint 33 Priority 7 — whatChangedSinceYesterdayAvailable is honestly false when the underlying provider call fails, distinct from a real 'nothing changed' day", async () => {
+  const originalGetDailyBrief = dailyBriefService.getDailyBrief;
+  dailyBriefService.getDailyBrief = async () => {
+    throw new Error("provider unavailable");
+  };
+
+  try {
+    await withMocks({ feed: [], portfolioSummary: buildPortfolioSummary({}) }, async () => {
+      const summary = await homeSummaryService.buildHomeSummary({});
+      assert.deepEqual(summary.whatChangedSinceYesterday, []);
+      assert.equal(summary.whatChangedSinceYesterdayAvailable, false);
+    });
+  } finally {
+    dailyBriefService.getDailyBrief = originalGetDailyBrief;
+  }
 });
 
 test("whatChangedInBeliefs is an honest empty array when no thesis has changed", async () => {

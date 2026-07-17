@@ -95,13 +95,20 @@ async function buildShouldIDoAnythingToday({ relevantSymbol, heldSymbols }) {
  * competing one. Best-effort: the daily brief pipeline calls several live
  * providers, so a failure here degrades to an honest empty list, never a
  * broken Home screen.
+ *
+ * Sprint 33 Priority 7 — a returning user needs to tell "nothing
+ * meaningful changed" apart from "we couldn't check." Both used to
+ * collapse to the same empty array, so a live provider failure silently
+ * looked identical to a calm market day. isAvailable carries that
+ * distinction through to the UI without changing the array shape
+ * existing callers (computeAdaptiveCardOrder, tests) already depend on.
  */
 async function buildWhatChangedSinceYesterday(watchlist) {
   try {
     const brief = await dailyBriefService.getDailyBrief({ watchlist });
-    return brief.whatChangedSinceYesterday || [];
+    return { items: brief.whatChangedSinceYesterday || [], isAvailable: true };
   } catch (error) {
-    return [];
+    return { items: [], isAvailable: false };
   }
 }
 
@@ -381,7 +388,7 @@ async function buildHomeSummary({ watchlist = [] } = {}) {
   // brief's live provider calls) must never take down the whole screen.
   // Sprint 28 — topRecommendations/todayForYou run alongside them under the
   // same independent-failure rule.
-  const [whatChangedSinceYesterday, whatChangedForMyPortfolio, whatChangedInBeliefs, topRecommendations, todayForYou, readingDepth] = await Promise.all([
+  const [whatChangedSinceYesterdayResult, whatChangedForMyPortfolio, whatChangedInBeliefs, topRecommendations, todayForYou, readingDepth] = await Promise.all([
     buildWhatChangedSinceYesterday(universe),
     buildWhatChangedForMyPortfolio(),
     buildWhatChangedInBeliefs(),
@@ -389,6 +396,9 @@ async function buildHomeSummary({ watchlist = [] } = {}) {
     buildTodayForYou({ feed: overview.feed, heldSymbols, watchlistSymbols: normalizedWatchlist }).catch(() => []),
     investorMemoryService.computeReadingDepth().catch(() => ({ hasEnoughData: false })),
   ]);
+
+  const whatChangedSinceYesterday = whatChangedSinceYesterdayResult.items;
+  const whatChangedSinceYesterdayAvailable = whatChangedSinceYesterdayResult.isAvailable;
 
   const portfolioSnapshot = buildPortfolioSnapshot(portfolioSummary);
   const intelligenceTimeline = buildIntelligenceTimeline(overview.feed);
@@ -407,6 +417,7 @@ async function buildHomeSummary({ watchlist = [] } = {}) {
     whyShouldICare: event?.whyItMatters || "Markets are calm — nothing urgent stands out today.",
     howDoesItAffectMe,
     whatChangedSinceYesterday,
+    whatChangedSinceYesterdayAvailable,
     whatChangedForMyPortfolio,
     whatChangedInBeliefs,
     shouldIDoAnythingToday,

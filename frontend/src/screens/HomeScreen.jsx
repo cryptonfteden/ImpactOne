@@ -24,6 +24,26 @@ const TIMELINE_SECTIONS = [
 // order this screen always used before Adaptive Home existed.
 const DEFAULT_CARD_ORDER = ["morningBrief", "todayForYou", "portfolio", "beliefs", "recommendations", "intelligenceTimeline"];
 
+// Sprint 33 Priority 7 — returning users need real data freshness, not a
+// guess: generatedAt is the actual server timestamp for this response
+// (homeSummaryService sets it right before returning), so this is always
+// honest about how old what's on screen actually is.
+function formatFreshness(generatedAt) {
+  const generated = new Date(generatedAt);
+  if (Number.isNaN(generated.getTime())) return null;
+
+  const ageMs = Date.now() - generated.getTime();
+  const ageMinutes = Math.floor(ageMs / 60000);
+
+  if (ageMinutes < 1) return "Updated just now";
+  if (ageMinutes < 60) return `Updated ${ageMinutes} min ago`;
+
+  const ageHours = Math.floor(ageMinutes / 60);
+  if (ageHours < 24) return `Updated ${ageHours}h ago`;
+
+  return `Updated ${generated.toLocaleString()}`;
+}
+
 /**
  * Sprint 20, Part 3 — the Home screen, originally six standalone "what
  * changed" cards.
@@ -96,6 +116,7 @@ export default function HomeScreen({ onNavigate }) {
     whyShouldICare,
     howDoesItAffectMe,
     whatChangedSinceYesterday = [],
+    whatChangedSinceYesterdayAvailable = true,
     whatChangedForMyPortfolio,
     whatChangedInBeliefs = [],
     shouldIDoAnythingToday,
@@ -105,7 +126,10 @@ export default function HomeScreen({ onNavigate }) {
     portfolioMorningSummary,
     personalBrief = [],
     cardOrder = DEFAULT_CARD_ORDER,
+    generatedAt,
   } = summary;
+
+  const freshnessLabel = generatedAt ? formatFreshness(generatedAt) : null;
 
   const glancePills = [
     { label: "Action needed", value: shouldIDoAnythingToday.hasAction ? `Yes — ${shouldIDoAnythingToday.symbol}` : "No", tone: shouldIDoAnythingToday.hasAction ? "opportunity" : "" },
@@ -132,8 +156,12 @@ export default function HomeScreen({ onNavigate }) {
               <li key={index} className="company-description subtle">{line}</li>
             ))}
           </ul>
-        ) : (
+        ) : whatChangedSinceYesterdayAvailable ? (
           <p className="company-description subtle">No material change vs. yesterday.</p>
+        ) : (
+          <p className="company-description subtle negative">
+            We couldn't check what changed since yesterday right now — this isn't the same as nothing having changed. Try again shortly.
+          </p>
         )}
       </SectionCard>
     ),
@@ -260,6 +288,7 @@ export default function HomeScreen({ onNavigate }) {
         <div>
           <p className="eyebrow">Today</p>
           <h1>Your morning brief</h1>
+          {freshnessLabel ? <p className="company-description subtle">{freshnessLabel}</p> : null}
           {personalBrief.length ? (
             <ul className="stack-list" aria-label="Morning personal brief">
               {personalBrief.map((line, index) => (
