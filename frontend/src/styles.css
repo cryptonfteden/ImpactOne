@@ -312,6 +312,13 @@ button {
 
 .table-wrapper {
   overflow-x: auto;
+  /* Without this, a flex/grid ancestor's default min-width: auto pins it
+     to this wrapper's unscrolled content width (the full table), instead
+     of letting overflow-x: auto actually take effect — a wide table (7-10
+     columns) then blows out the whole page horizontally on mobile rather
+     than scrolling within its own box. */
+  min-width: 0;
+  max-width: 100%;
 }
 
 .watchlist-table {
@@ -375,6 +382,7 @@ button {
 
 .screen-page {
   flex: 1;
+  min-width: 0;
   padding: 24px 32px 32px;
   display: flex;
   flex-direction: column;
@@ -1504,6 +1512,11 @@ body {
   box-shadow: 0 16px 42px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  /* These are the actual flex items in .screen-page's column layout (and
+     grid items in .screen-grid/.portfolio-grid); min-width: 0 is what
+     lets them shrink to the viewport instead of growing to fit an inner
+     wide table, even though that table's own .table-wrapper scrolls. */
+  min-width: 0;
 }
 
 .hero-panel {
