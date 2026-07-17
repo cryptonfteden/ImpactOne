@@ -43,9 +43,13 @@ function LegacyPortfolioScreen() {
         }
       } catch (nextError) {
         logError("Portfolio overview load failed", nextError);
+        // Sprint 34 — this used to null out overview on every refresh
+        // failure (including the visibility-aware 60s poll), actively
+        // destroying already-loaded portfolio data instead of just
+        // failing to refresh it. Keep the last good overview and only
+        // surface the error.
         if (!cancelled) {
-          setOverview(null);
-          setError(nextError?.message || "Unable to load portfolio intelligence.");
+          setError(nextError?.message || "We couldn't refresh portfolio intelligence right now.");
         }
       }
     }
@@ -75,7 +79,11 @@ function LegacyPortfolioScreen() {
         <ConfirmButton label="Reset virtual portfolio" onConfirm={reset} />
       </section>
 
-      {error ? <p className="company-description subtle">{error}</p> : null}
+      {error ? (
+        <p className="company-description subtle negative">
+          {error}{overview ? " Showing the last portfolio data that loaded successfully." : ""}
+        </p>
+      ) : null}
 
       <div className="portfolio-grid">
         <SectionCard title="Cash Balance" subtitle="Available capital" className="screen-card">

@@ -37,8 +37,11 @@ export default function MarketNewsScreen() {
         }
       } catch (loadError) {
         logError("daily feed load failed", loadError);
+        // Sprint 34 — a refresh failure must not hide feed items already
+        // on screen; render logic below now shows the error alongside
+        // existing data instead of instead of it.
         if (!cancelled) {
-          setError("We couldn't load today's feed right now.");
+          setError("We couldn't refresh the feed right now.");
         }
       } finally {
         if (!cancelled) {
@@ -68,16 +71,26 @@ export default function MarketNewsScreen() {
       <SectionCard title="Today's feed" subtitle={feed.length ? `${feed.length} items` : undefined} className="screen-card">
         {isLoading ? (
           <LoadingSpinner label="Loading today's feed" />
-        ) : error ? (
-          <p className="company-description negative">{error}</p>
-        ) : feed.length ? (
-          <div className="news-list">
-            {feed.map((item) => (
-              <FeedItemCard key={item.id || item.headline} item={item} />
-            ))}
-          </div>
         ) : (
-          <p className="company-description subtle">No feed items right now — check back soon.</p>
+          <>
+            {error ? (
+              // Sprint 34 — a refresh failure with items already loaded
+              // must not hide them; this only replaces the whole card
+              // when there's genuinely nothing to fall back to (below).
+              <p className="company-description subtle negative">
+                {error}{feed.length ? " Showing the last items that loaded successfully." : ""}
+              </p>
+            ) : null}
+            {feed.length ? (
+              <div className="news-list">
+                {feed.map((item) => (
+                  <FeedItemCard key={item.id || item.headline} item={item} />
+                ))}
+              </div>
+            ) : !error ? (
+              <p className="company-description subtle">No feed items right now — check back soon.</p>
+            ) : null}
+          </>
         )}
       </SectionCard>
     </div>

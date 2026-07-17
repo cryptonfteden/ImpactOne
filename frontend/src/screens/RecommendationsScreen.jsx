@@ -83,7 +83,9 @@ export default function RecommendationsScreen() {
         </Button>
       </section>
 
-      {error ? <ErrorState message={error} /> : null}
+      {error ? (
+        <ErrorState message={recommendations.length ? `${error} Showing the last recommendations that loaded successfully.` : error} />
+      ) : null}
       {actionError ? <p className="company-description subtle negative">{actionError}</p> : null}
 
       <SectionCard title="Engine Status" subtitle="Read-only, never executes trades" className="screen-card">

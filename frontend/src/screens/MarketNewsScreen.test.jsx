@@ -43,6 +43,6 @@ describe("MarketNewsScreen (Daily Feed)", () => {
     intelligenceApi.liveFeed.mockRejectedValue(new Error("network error"));
     render(<MarketNewsScreen />);
 
-    await waitFor(() => expect(screen.getByText(/couldn't load today's feed/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/couldn't refresh the feed/)).toBeInTheDocument());
   });
 });
