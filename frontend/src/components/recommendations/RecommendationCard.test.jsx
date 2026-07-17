@@ -189,6 +189,38 @@ describe("RecommendationCard", () => {
     expect(screen.getByText(/What thesis changed: Strong AI capex tailwind driving conviction\./)).toBeInTheDocument();
   });
 
+  it("Sprint 34 — a live quote refresh alone (same underlying thesis) does not trigger a false 'What thesis changed' entry", async () => {
+    recommendationsApi.list.mockResolvedValue({
+      recommendations: [
+        {
+          id: "rec-2",
+          symbol: "NVDA",
+          action: "BUY",
+          status: "ACTIVE",
+          confidenceScore: 82,
+          reasoning: "AI conviction and risk/reward currently favor a new position (suggested size 4-6%). Currently trading at $135.20, +1.10% today.",
+          evidence: { matchedEvents: [] },
+          createdAt: "2026-07-14T00:00:00.000Z",
+        },
+        {
+          id: "rec-0",
+          symbol: "NVDA",
+          action: "BUY",
+          status: "SUPERSEDED",
+          confidenceScore: 68,
+          reasoning: "AI conviction and risk/reward currently favor a new position (suggested size 4-6%). Currently trading at $133.05, +0.42% today.",
+          evidence: { matchedEvents: [] },
+          createdAt: "2026-07-07T00:00:00.000Z",
+        },
+      ],
+    });
+
+    render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText("What changed")).toBeInTheDocument());
+    expect(screen.getByText(/What confidence changed: 68 → 82 \(rose\)/)).toBeInTheDocument();
+    expect(screen.queryByText(/What thesis changed/)).not.toBeInTheDocument();
+  });
+
   it("shows a labeled 'Why now' section explaining timing, not just a bare thesis", () => {
     render(<RecommendationCard recommendation={{ ...RECOMMENDATION_FIXTURE, createdAt: "2026-07-14T00:00:00.000Z" }} isExpanded onToggleExpand={vi.fn()} />);
     expect(screen.getByText("Why now")).toBeInTheDocument();

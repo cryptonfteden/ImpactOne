@@ -104,6 +104,20 @@ function formatTimestamp(value) {
 // Every field still comes only from data the list endpoint already
 // returns on each Recommendation row — no fabricated field is ever
 // populated when the underlying data didn't actually change.
+// Sprint 34 — buildReasoning (backend) appends a live "Currently trading
+// at $X, +Y% today." sentence to every recommendation's reasoning, which
+// changes on essentially every ~15-minute re-run regardless of whether
+// the actual analytical thesis moved at all. Comparing raw reasoning
+// strings for equality made "What thesis changed" fire almost every
+// single re-run — a noisy, duplicated-looking timeline reporting a
+// "thesis change" for what was really just a quote refresh. Stripping
+// that one recognizable, mechanically-generated clause before comparing
+// restores the real signal: only a genuine change in the rest of the
+// reasoning counts as a thesis change.
+function stripLiveQuoteClause(reasoning) {
+  return (reasoning || "").replace(/\s*Currently trading at \$[\d,.]+, [+-]?[\d.]+% today\.\s*/g, " ").trim();
+}
+
 function describeChange(current, previous) {
   if (!previous) return null;
 
@@ -119,7 +133,9 @@ function describeChange(current, previous) {
   const newHeadlines = new Set((current.evidence?.matchedEvents || []).map((event) => event.headline).filter(Boolean));
   const previousHeadlines = new Set((previous.evidence?.matchedEvents || []).map((event) => event.headline).filter(Boolean));
   const newEvidence = [...newHeadlines].filter((headline) => !previousHeadlines.has(headline));
-  const thesisChanged = Boolean(current.reasoning && previous.reasoning && current.reasoning !== previous.reasoning);
+  const thesisChanged = Boolean(
+    current.reasoning && previous.reasoning && stripLiveQuoteClause(current.reasoning) !== stripLiveQuoteClause(previous.reasoning)
+  );
 
   const whatChanged = [];
   if (actionChanged) whatChanged.push(`Action: ${ACTION_LABEL[previous.action] || previous.action} → ${ACTION_LABEL[current.action] || current.action}`);
