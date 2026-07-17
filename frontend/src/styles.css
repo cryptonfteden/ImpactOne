@@ -2608,6 +2608,9 @@ body {
   cursor: pointer;
   color: var(--accent);
   font-size: 0.85rem;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
 }
 
 /* Sprint 20 — allocation bar (Suggested portfolio). */

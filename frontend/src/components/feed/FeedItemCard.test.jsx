@@ -43,7 +43,7 @@ describe("FeedItemCard", () => {
   it("shows the event's real explainability block as the reasoning trace, not a fabricated one", () => {
     render(<FeedItemCard item={ITEM_FIXTURE} />);
 
-    expect(screen.getByText("Why this analysis")).toBeInTheDocument();
+    expect(screen.getByText("Evidence, reasoning & portfolio impact")).toBeInTheDocument();
     expect(screen.getByText(ITEM_FIXTURE.explainability.reasoning)).toBeInTheDocument();
     expect(screen.getByText(/Deal terms not fully disclosed/)).toBeInTheDocument();
     expect(screen.getByText(/Partnership terminated or scaled back/)).toBeInTheDocument();
@@ -57,6 +57,6 @@ describe("FeedItemCard", () => {
   it("gracefully renders with a minimal item (no source, no explainability)", () => {
     render(<FeedItemCard item={{ headline: "Minimal event", whyItMatters: "Some reason." }} />);
     expect(screen.getByText("Minimal event")).toBeInTheDocument();
-    expect(screen.queryByText("Why this analysis")).not.toBeInTheDocument();
+    expect(screen.queryByText("Evidence, reasoning & portfolio impact")).not.toBeInTheDocument();
   });
 });

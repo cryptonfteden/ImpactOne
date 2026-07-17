@@ -37,6 +37,17 @@ const THEME_LABELS = {
 export default function FeedItemCard({ item }) {
   const explainability = item.explainability || {};
   const themeLabel = THEME_LABELS[item.eventType];
+  // Sprint 33 Priority 5 — mobile Feed needs a concise collapsed state;
+  // sectors/companies/portfolio-impact/reasoning/evidence all move behind
+  // one progressive-disclosure toggle instead of always rendering, so a
+  // 12-item feed isn't a full-height wall on a narrow screen by default.
+  const hasExpandableDetail = Boolean(
+    item.affectedSectors?.length ||
+    item.affectedAssets?.length ||
+    item.portfolioImpactPrediction ||
+    explainability.reasoning ||
+    explainability.evidence?.length
+  );
 
   return (
     <article className="news-item news-item--premium feed-item-card">
@@ -54,16 +65,6 @@ export default function FeedItemCard({ item }) {
         {item.timeHorizon ? <span>Horizon: {item.timeHorizon}</span> : null}
       </div>
 
-      {item.affectedSectors?.length ? (
-        <p className="company-description subtle">Affected sectors: {item.affectedSectors.join(", ")}</p>
-      ) : null}
-      {item.affectedAssets?.length ? (
-        <p className="company-description subtle">Affected companies: {item.affectedAssets.join(", ")}</p>
-      ) : null}
-      {item.portfolioImpactPrediction ? (
-        <p className="company-description subtle">Potential portfolio impact: {item.portfolioImpactPrediction}</p>
-      ) : null}
-
       {item.sourceUrl ? (
         <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="matched-event__source">
           {item.sourceName || "Source"}
@@ -73,9 +74,18 @@ export default function FeedItemCard({ item }) {
         <p className="company-description subtle">{item.sourceName}</p>
       ) : null}
 
-      {explainability.reasoning || explainability.evidence?.length ? (
+      {hasExpandableDetail ? (
         <details className="feed-item-card__trace">
-          <summary>Why this analysis</summary>
+          <summary>Evidence, reasoning &amp; portfolio impact</summary>
+          {item.affectedSectors?.length ? (
+            <p className="company-description subtle">Affected sectors: {item.affectedSectors.join(", ")}</p>
+          ) : null}
+          {item.affectedAssets?.length ? (
+            <p className="company-description subtle">Affected companies: {item.affectedAssets.join(", ")}</p>
+          ) : null}
+          {item.portfolioImpactPrediction ? (
+            <p className="company-description subtle">Potential portfolio impact: {item.portfolioImpactPrediction}</p>
+          ) : null}
           {explainability.reasoning ? <p className="company-description subtle">{explainability.reasoning}</p> : null}
           {explainability.evidence?.length ? (
             <ul className="stack-list">
