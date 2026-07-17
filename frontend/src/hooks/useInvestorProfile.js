@@ -45,9 +45,23 @@ export default function useInvestorProfile() {
       setHasProfile(true);
       writeOnboardedFlag(true);
     } catch (error) {
-      setProfile(null);
-      setHasProfile(false);
-      writeOnboardedFlag(false);
+      // Sprint 34 — a 404 means the server genuinely has no profile (a
+      // real first-time account) and should route to onboarding. Any
+      // other failure (offline, timeout, 5xx — error.status is undefined
+      // for a network-level fetch failure) means we simply couldn't ask,
+      // which is not the same thing: a real returning user's profile
+      // still exists, we just couldn't confirm it right now. Wiping the
+      // onboarded flag in that case would wrongly bounce them back into
+      // onboarding every time their connection hiccups.
+      if (error?.status === 404) {
+        setProfile(null);
+        setHasProfile(false);
+        writeOnboardedFlag(false);
+      } else if (!readOnboardedFlag()) {
+        // No prior successful state to fall back to either — honestly
+        // unknown, not "no profile."
+        setHasProfile(null);
+      }
     } finally {
       setIsLoading(false);
     }

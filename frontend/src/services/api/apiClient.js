@@ -7,7 +7,13 @@ async function request(path, options = {}) {
   const data = await parseJsonResponse(response);
 
   if (!response.ok) {
-    throw new Error(data.error || `Request failed for ${path}`);
+    // Sprint 34 — callers need to tell "the server told us this genuinely
+    // doesn't exist" (404) apart from "the request failed" (offline,
+    // timeout, 5xx) — a fetch() network failure has no .status at all,
+    // which callers can also check for the same distinction.
+    const httpError = new Error(data.error || `Request failed for ${path}`);
+    httpError.status = response.status;
+    throw httpError;
   }
 
   return data;
