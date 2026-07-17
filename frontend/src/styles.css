@@ -2787,3 +2787,31 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* Sprint 34 — surfaces the previously-unused PWA update-available signal. */
+.update-banner {
+  position: sticky;
+  top: 0;
+  z-index: 46;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 16px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--bg-0);
+  background: var(--accent);
+}
+
+.update-banner__button {
+  min-height: 32px;
+  padding: 4px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(6, 9, 15, 0.3);
+  background: var(--bg-0);
+  color: var(--text-0);
+  font-weight: 600;
+  cursor: pointer;
+}
