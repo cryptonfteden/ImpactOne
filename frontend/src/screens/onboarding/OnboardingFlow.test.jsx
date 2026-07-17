@@ -76,6 +76,29 @@ describe("OnboardingFlow", () => {
     await waitFor(() => expect(screen.getByText("₪500")).toBeInTheDocument());
   });
 
+  it("Back returns to the previous step without losing the answer already given there", async () => {
+    render(<OnboardingFlow onComplete={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText("Age"), { target: { value: "30" } });
+    fireEvent.click(screen.getByText("Continue"));
+    await waitFor(() => expect(screen.getByText("Where are you investing from?")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("United States"));
+    await waitFor(() => expect(screen.getByText("How experienced are you as an investor?")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Back to previous question" }));
+    await waitFor(() => expect(screen.getByText("Where are you investing from?")).toBeInTheDocument());
+    expect(screen.getByText("United States").className).toContain("selected");
+
+    fireEvent.click(screen.getByRole("button", { name: "Back to previous question" }));
+    await waitFor(() => expect(screen.getByText("How old are you?")).toBeInTheDocument());
+    expect(screen.getByPlaceholderText("Age").value).toBe("30");
+  });
+
+  it("no Back button is shown on the first step", () => {
+    render(<OnboardingFlow onComplete={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Back to previous question" })).not.toBeInTheDocument();
+  });
+
   it("completes the flow and submits all collected answers, showing a submitting state", async () => {
     let resolveComplete;
     const onComplete = vi.fn(() => new Promise((resolve) => { resolveComplete = resolve; }));

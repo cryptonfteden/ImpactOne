@@ -82,6 +82,12 @@ export default function OnboardingFlow({ onComplete, onFinish }) {
 
   const advance = () => setStep((current) => Math.min(current + 1, TOTAL_STEPS - 1));
   const skip = () => advance();
+  // Sprint 33 Priority 4 — mobile onboarding requires back navigation
+  // without losing already-entered answers. `answers` (and ageInput/
+  // customAmount) already persist across the whole flow in this
+  // component's own state, so simply decrementing step is data-safe:
+  // nothing is cleared, and each step's inputs read back from that state.
+  const goBack = () => setStep((current) => Math.max(current - 1, 0));
 
   const selectAndAdvance = (key, value) => {
     setAnswers((current) => ({ ...current, [key]: value }));
@@ -245,6 +251,11 @@ export default function OnboardingFlow({ onComplete, onFinish }) {
             <span key={index} className={`onboarding-progress-dot${index === step ? " active" : ""}${index < step ? " complete" : ""}`} />
           ))}
         </div>
+        {step > 0 ? (
+          <button type="button" className="onboarding-back-button" onClick={goBack} aria-label="Back to previous question">
+            ← Back
+          </button>
+        ) : null}
         <h1 className="onboarding-title">{current.title}</h1>
         {current.content}
         {submitError ? <p className="onboarding-error">{submitError}</p> : null}
