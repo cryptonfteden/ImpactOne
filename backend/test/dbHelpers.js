@@ -34,6 +34,9 @@ async function truncateAll() {
 
   // Sprint 30 — User Memory (standalone, no FK relation to clean up first).
   await prisma.userMemoryEvent.deleteMany();
+
+  // Sprint 35 — Private Beta Telemetry (standalone, no FK relations).
+  await prisma.analyticsEvent.deleteMany();
 }
 
 module.exports = { truncateAll };

@@ -624,3 +624,20 @@ model WorldMemoryLesson {
   @@index([outcomeId])
   @@map("world_memory_lessons")
 }
+
+// Sprint 35 Priority 5 — Private Beta Telemetry. Genuinely anonymous: no
+// userId, no profileId, no IP, no device identifier — nothing here can be
+// tied back to a specific person. eventName is restricted to a fixed
+// allowlist (see analyticsService.js) and properties only ever holds
+// non-identifying shape metadata (e.g. a recommendation's symbol/action,
+// never anything from the investor profile).
+model AnalyticsEvent {
+  id         String   @id @default(uuid())
+  eventName  String
+  properties Json?
+  createdAt  DateTime @default(now())
+
+  @@index([eventName])
+  @@index([createdAt])
+  @@map("analytics_events")
+}

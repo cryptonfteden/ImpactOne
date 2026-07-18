@@ -29,6 +29,7 @@ const outcomeIntelligenceRoutes = require("./outcomeIntelligenceRoutes");
 const calibrationReportRoutes = require("./calibrationReportRoutes");
 const personalProgressRoutes = require("./personalProgressRoutes");
 const investorMemoryRoutes = require("./investorMemoryRoutes");
+const analyticsRoutes = require("./analyticsRoutes");
 
 const router = express.Router();
 
@@ -68,6 +69,11 @@ router.use("/v2/lessons", outcomeIntelligenceRoutes);
 router.use("/v2/calibration-reports", calibrationReportRoutes);
 router.use("/v2/personal-progress", personalProgressRoutes);
 router.use("/v2/investor-memory", investorMemoryRoutes);
+// Sprint 35 Priority 5 — Private Beta Telemetry. Genuinely anonymous
+// (see analyticsService.js); fire-and-forget from the frontend, so this
+// endpoint intentionally never returns an error status the caller would
+// need to handle.
+router.use("/v2/analytics", analyticsRoutes);
 router.use("/chat", chatRoutes);
 
 module.exports = router;
