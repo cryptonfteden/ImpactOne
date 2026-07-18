@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { investorProfileApi } from "../services/api";
+import { trackEvent } from "../utils/analytics";
 
 const ONBOARDED_KEY = "impactone-onboarded";
 const PROFILE_EVENT = "impactone:investor-profile-updated";
@@ -39,11 +40,20 @@ export default function useInvestorProfile() {
   const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(async () => {
+    // Sprint 35 Priority 5 — "returning_user" telemetry. Captured before
+    // the fetch so it reflects whether *this session started* already
+    // onboarded (a real returning user), not whether onboarding just
+    // completed moments ago in the same session (createProfile sets the
+    // flag directly and never calls refresh).
+    const wasAlreadyOnboarded = readOnboardedFlag();
     try {
       const found = await investorProfileApi.get();
       setProfile(found);
       setHasProfile(true);
       writeOnboardedFlag(true);
+      if (wasAlreadyOnboarded) {
+        trackEvent("returning_user");
+      }
     } catch (error) {
       // Sprint 34 — a 404 means the server genuinely has no profile (a
       // real first-time account) and should route to onboarding. Any

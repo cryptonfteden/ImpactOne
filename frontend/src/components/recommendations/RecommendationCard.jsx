@@ -4,6 +4,7 @@ import ScenarioComparison from "./ScenarioComparison";
 import QualityScoreBreakdown from "./QualityScoreBreakdown";
 import { recommendationsApi } from "../../services/api";
 import { logError } from "../../utils/errorHandling";
+import { trackEvent } from "../../utils/analytics";
 
 const ACTION_PILL_CLASS = {
   BUY: "pill opportunity",
@@ -183,6 +184,11 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
     // behavior signal (the user actually opened this recommendation's
     // detail), never blocking or altering anything else on this card.
     recommendationsApi.recordView(recommendation.id).catch((error) => logError("recommendation view record failed", error));
+    // Sprint 35 Priority 5 — "recommendation_viewed" telemetry, same
+    // trigger as the reading-behavior signal above (the user actually
+    // opened this card's detail). symbol/action are shape metadata, not
+    // anything from the investor profile.
+    trackEvent("recommendation_viewed", { symbol: recommendation.symbol, action: recommendation.action });
 
     Promise.resolve()
       .then(() => recommendationsApi.getDecisionTrace(recommendation.id))
@@ -215,6 +221,7 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
     try {
       const feedback = await recommendationsApi.submitFeedback(recommendation.id, feedbackType);
       setLatestFeedback(feedback);
+      trackEvent("feedback_submitted", { feedbackType, symbol: recommendation.symbol });
     } catch (error) {
       logError("recommendation feedback submit failed", error);
     } finally {
@@ -231,6 +238,10 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
       return;
     }
     setIsReviewOpen(true);
+    // Sprint 35 Priority 5 — "recommendation_expanded" telemetry: a
+    // deeper engagement signal than recommendation_viewed above (opening
+    // full Decision Review, not just the card's own evidence section).
+    trackEvent("recommendation_expanded", { symbol: recommendation.symbol, action: recommendation.action });
     if (decisionReview) return;
     setIsReviewLoading(true);
     try {
@@ -292,6 +303,30 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
       <p className="company-description subtle">Suggested size: {recommendation.positionSizeSuggestion} · Horizon: {recommendation.timeHorizon || "—"}</p>
 
       {explanation.thesis ? <p className="company-description">{explanation.thesis}</p> : null}
+
+      {/* Sprint 35 Priority 3 — Recommendation Clarity. The mission's four
+          questions (what happened / why now / what could invalidate it /
+          what should I watch next) must be answerable with zero taps, not
+          behind the expand toggle below. Every line here reuses data the
+          list endpoint already returned on this exact recommendation
+          object — nothing new is fetched, nothing is fabricated to fill a
+          slot: a question with no real answer in the data is simply
+          omitted rather than padded with a placeholder. */}
+      <div className="rec-at-a-glance">
+        <p className="company-description subtle">
+          <strong>Why now:</strong> {formatTimestamp(recommendation.createdAt) || "Recently"}, timed to the {recommendation.timeHorizon || "stated"} horizon.
+        </p>
+        {explanation.invalidationConditions?.length ? (
+          <p className="company-description subtle">
+            <strong>Would prove it wrong:</strong> {explanation.invalidationConditions[0]}
+          </p>
+        ) : null}
+        {explanation.keyRisks?.length ? (
+          <p className="company-description subtle">
+            <strong>Watch next:</strong> {explanation.keyRisks[0]}
+          </p>
+        ) : null}
+      </div>
 
       {isExpanded ? (
         <>

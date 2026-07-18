@@ -49,6 +49,25 @@ beforeEach(() => {
 });
 
 describe("RecommendationCard", () => {
+  it("Sprint 35 Priority 3 — 'why now', 'what could invalidate it', and 'watch next' are all visible collapsed, with zero taps", () => {
+    const fixture = {
+      ...RECOMMENDATION_FIXTURE,
+      createdAt: "2026-07-14T00:00:00.000Z",
+      explanation: {
+        ...RECOMMENDATION_FIXTURE.explanation,
+        invalidationConditions: ["Forward guidance softens the policy signal."],
+        keyRisks: ["Elevated inflation pressure."],
+      },
+    };
+    render(<RecommendationCard recommendation={fixture} isExpanded={false} onToggleExpand={vi.fn()} />);
+
+    expect(screen.getByText(/Why now:/)).toBeInTheDocument();
+    expect(screen.getByText(/Would prove it wrong:/)).toBeInTheDocument();
+    expect(screen.getByText(/Forward guidance softens the policy signal\./)).toBeInTheDocument();
+    expect(screen.getByText(/Watch next:/)).toBeInTheDocument();
+    expect(screen.getByText(/Elevated inflation pressure\./)).toBeInTheDocument();
+  });
+
   it("always shows symbol, action, provenance badge, quality badge, and thesis, collapsed by default", () => {
     render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded={false} onToggleExpand={vi.fn()} />);
 

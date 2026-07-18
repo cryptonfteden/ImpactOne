@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { getCurrencyForCountry } from "../../utils/currency";
 import InvestorProfileScreen from "../InvestorProfileScreen";
+import { trackEvent } from "../../utils/analytics";
 
 const COUNTRY_OPTIONS = [
   { value: "US", label: "United States" },
@@ -129,6 +130,7 @@ export default function OnboardingFlow({ onComplete, onFinish }) {
     try {
       const profile = await onComplete(finalAnswers);
       setCreatedProfile(profile);
+      trackEvent("onboarding_completed");
     } catch (error) {
       setSubmitError(error?.message || "Something went wrong creating your profile. Please try again.");
       setIsSubmitting(false);
