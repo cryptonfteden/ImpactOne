@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
 import { Button, EmptyState, ErrorState, Skeleton } from "../components/ui";
 import useRecommendations from "../hooks/useRecommendations";
@@ -25,6 +25,14 @@ export default function RecommendationsScreen() {
   const { recommendations, status, isLoading, isRunning, error, actionError, runNow } = useRecommendations();
   const { watchlist } = useWatchlist();
   const [expandedId, setExpandedId] = useState(null);
+  // Sprint 36 Priority 5 — a stable function reference (empty deps, pure
+  // functional setState) so RecommendationCard's memo() actually prevents
+  // re-rendering every sibling card when only one card's expanded state
+  // changes; an inline arrow recreated every render would have defeated
+  // memo entirely regardless of the prop's own value.
+  const toggleExpand = useCallback((id) => {
+    setExpandedId((current) => (current === id ? null : id));
+  }, []);
   const [lessons, setLessons] = useState([]);
   const [calibration, setCalibration] = useState(null);
 
@@ -110,7 +118,7 @@ export default function RecommendationsScreen() {
                   key={key}
                   recommendation={recommendation}
                   isExpanded={expandedId === key}
-                  onToggleExpand={() => setExpandedId(expandedId === key ? null : key)}
+                  onToggleExpand={toggleExpand}
                 />
               );
             })}

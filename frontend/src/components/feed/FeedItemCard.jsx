@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 function formatTimestamp(value) {
   if (!value) return null;
   const date = new Date(value);
@@ -34,7 +36,11 @@ const THEME_LABELS = {
  * DecisionTrace (those exist only for actual Recommendations, linked
  * separately from the Recommendations screen).
  */
-export default function FeedItemCard({ item }) {
+// Sprint 36 Priority 5 — Performance polish. Feed renders up to 12 of
+// these; memo() avoids re-rendering every card when the screen's own
+// state changes for unrelated reasons (this component takes no callback
+// props, so there's no stale-closure risk to worry about here).
+function FeedItemCard({ item }) {
   const explainability = item.explainability || {};
   const themeLabel = THEME_LABELS[item.eventType];
   // Sprint 33 Priority 5 — mobile Feed needs a concise collapsed state;
@@ -105,3 +111,5 @@ export default function FeedItemCard({ item }) {
     </article>
   );
 }
+
+export default memo(FeedItemCard);

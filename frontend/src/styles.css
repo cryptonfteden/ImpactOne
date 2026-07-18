@@ -2440,6 +2440,13 @@ body {
   color: var(--text-0);
 }
 
+.onboarding-skip-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
 .onboarding-skip-button {
   min-height: 44px;
   border: none;
@@ -2448,6 +2455,12 @@ body {
   cursor: pointer;
   align-self: center;
   text-decoration: underline;
+}
+
+.onboarding-skip-button--all {
+  font-size: 0.8rem;
+  color: var(--text-2);
+  opacity: 0.75;
 }
 
 .onboarding-error {
@@ -2826,6 +2839,15 @@ body {
   background: var(--bg-2);
   color: var(--text-0);
   font-size: 0.95rem;
+}
+
+/* Sprint 36 Priority 4 — Recommendation optimization: a scannable stat
+   row replacing 3 sentence-length paragraphs. */
+.rec-stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0;
 }
 
 /* Sprint 35 Priority 3 — Recommendation Clarity, the always-visible

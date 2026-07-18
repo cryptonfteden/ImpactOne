@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { Button } from "../ui";
 import ScenarioComparison from "./ScenarioComparison";
 import QualityScoreBreakdown from "./QualityScoreBreakdown";
@@ -161,7 +161,12 @@ function describeChange(current, previous) {
  * and timestamped, sourced citations. Advisory only — no place-order
  * control anywhere on this card.
  */
-export default function RecommendationCard({ recommendation, isExpanded, onToggleExpand }) {
+// Sprint 36 Priority 5 — Performance polish. Wrapped in memo(): without
+// it, expanding one card in a list of up to a dozen (RecommendationsScreen
+// lifts expandedId to the parent) re-rendered every sibling card too,
+// even though only one card's isExpanded prop actually changed value —
+// real unnecessary rendering, not a hypothetical one.
+function RecommendationCard({ recommendation, isExpanded, onToggleExpand }) {
   const matchedEvents = recommendation.evidence?.matchedEvents || [];
   const symbolSource = recommendation.evidence?.symbolSource;
   const explanation = recommendation.explanation || {};
@@ -222,6 +227,15 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
       const feedback = await recommendationsApi.submitFeedback(recommendation.id, feedbackType);
       setLatestFeedback(feedback);
       trackEvent("feedback_submitted", { feedbackType, symbol: recommendation.symbol });
+      // Sprint 36 Priority 1 — "recommendation_understood": any feedback
+      // type OTHER than the user explicitly saying "Don't understand"
+      // means they read the reasoning and formed a real judgment on it —
+      // an honest, stronger engagement signal than merely opening the
+      // card. Firing this for DONT_UNDERSTAND would claim the opposite
+      // of what actually happened.
+      if (feedbackType !== "DONT_UNDERSTAND") {
+        trackEvent("recommendation_understood", { symbol: recommendation.symbol });
+      }
     } catch (error) {
       logError("recommendation feedback submit failed", error);
     } finally {
@@ -293,14 +307,21 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
         {qualityScore !== null ? <span className={qualityPillClass(qualityScore)}>Quality {qualityScore}/100</span> : null}
       </div>
 
-      <p className="company-description subtle">
-        Confidence {Number(recommendation.confidenceScore)}/100
-        {Number.isFinite(uncertainty) ? ` · Uncertainty ${uncertainty}/100` : ""} · Risk {recommendation.riskLabel}
-      </p>
-      <p className="company-description subtle">
-        Upside {recommendation.expectedUpside} · Downside {recommendation.expectedDownside}
-      </p>
-      <p className="company-description subtle">Suggested size: {recommendation.positionSizeSuggestion} · Horizon: {recommendation.timeHorizon || "—"}</p>
+      {/* Sprint 36 Priority 4 — Recommendation optimization: reduce
+          reading. These 6 numbers used to be 3 separate sentences (~35
+          words to parse before reaching the thesis); a scannable pill
+          row carries the identical information in a fraction of the
+          reading time. Horizon isn't repeated here since the "Why now"
+          line below already states it — the same fact was previously
+          written twice on one collapsed card. */}
+      <div className="rec-stat-row">
+        <span className="pill">Confidence {Number(recommendation.confidenceScore)}/100</span>
+        {Number.isFinite(uncertainty) ? <span className="pill">Uncertainty {uncertainty}/100</span> : null}
+        <span className="pill">Risk {recommendation.riskLabel}</span>
+        <span className="pill opportunity">Upside {recommendation.expectedUpside}</span>
+        <span className="pill risk">Downside {recommendation.expectedDownside}</span>
+        <span className="pill">Size {recommendation.positionSizeSuggestion}</span>
+      </div>
 
       {explanation.thesis ? <p className="company-description">{explanation.thesis}</p> : null}
 
@@ -555,10 +576,12 @@ export default function RecommendationCard({ recommendation, isExpanded, onToggl
       ) : null}
 
       <div className="opportunity-item__actions">
-        <Button type="button" className="ghost-button" onClick={onToggleExpand}>
+        <Button type="button" className="ghost-button" onClick={() => onToggleExpand(recommendation.id)}>
           {isExpanded ? "Hide details" : "Show full evidence"}
         </Button>
       </div>
     </article>
   );
 }
+
+export default memo(RecommendationCard);
