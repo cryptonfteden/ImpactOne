@@ -99,7 +99,15 @@ export default function HomeScreen({ onNavigate }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchlist.join(",")]);
 
-  if (isLoading) {
+  // Sprint 34 — production polish. isLoading previously blanked the whole
+  // screen back to a spinner on every watchlist change, even though a
+  // perfectly good summary was already showing — a real "unnecessary
+  // loading state" that made the first (and most important) screen feel
+  // slower than it is. Only show the full-page spinner when there is
+  // truly nothing on screen yet; a refetch with existing data just keeps
+  // rendering it (the error banner further down already covers a failed
+  // refetch honestly).
+  if (isLoading && !summary) {
     return (
       <div className="screen-page home-screen">
         <LoadingSpinner label="Building today's summary" />
