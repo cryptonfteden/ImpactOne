@@ -636,8 +636,19 @@ model AnalyticsEvent {
   eventName  String
   properties Json?
   createdAt  DateTime @default(now())
+  // Sprint 36 — a random, client-generated correlation token (crypto
+  // randomUUID), generated once per browser and reused for the browser's
+  // whole lifetime — NOT a device fingerprint, account, or user
+  // identifier: it carries no PII, is just a coin-flip-random value, and
+  // cannot be resolved back to a person. Its only purpose is letting Time
+  // To Value measurement group one anonymous browser's milestone events
+  // together across visits (e.g. "how long between this browser's very
+  // first_open and its first returning_user event") without ever knowing
+  // who that browser belonged to.
+  sessionId  String?
 
   @@index([eventName])
   @@index([createdAt])
+  @@index([sessionId])
   @@map("analytics_events")
 }
