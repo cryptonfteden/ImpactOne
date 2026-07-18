@@ -2815,3 +2815,26 @@ body {
   font-weight: 600;
   cursor: pointer;
 }
+
+/* Sprint 35 — Internationalization Foundation, language switcher. */
+.language-select {
+  min-height: 44px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-2);
+  color: var(--text-0);
+  font-size: 0.95rem;
+}
+
+/* Sprint 35 Priority 3 — Recommendation Clarity, the always-visible
+   "at a glance" answers (why now / invalidation / watch next). */
+.rec-at-a-glance {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--glass-border);
+}

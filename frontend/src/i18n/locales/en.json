@@ -1,0 +1,114 @@
+{
+  "nav": {
+    "home": "Home",
+    "feed": "Feed",
+    "portfolio": "Portfolio",
+    "forYou": "For you",
+    "profile": "Profile",
+    "dashboard": "Dashboard",
+    "globalIntelligence": "Global Intelligence",
+    "aiAnalysis": "AI Analysis",
+    "watchlist": "Watchlist",
+    "recommendations": "Recommendations",
+    "dailyFeed": "Daily Feed",
+    "themes": "Themes",
+    "alerts": "Alerts",
+    "myProfile": "My Profile",
+    "settings": "Settings",
+    "more": "More",
+    "moreSubtitle": "Everything else, one tap away",
+    "primaryNavigation": "Primary navigation"
+  },
+  "header": {
+    "title": "ImpactOne Terminal",
+    "subtitle": "Live intelligence workspace",
+    "searchPlaceholder": "Ask about a ticker, portfolio, or market event",
+    "searchGo": "Go",
+    "marketOpen": "Market: Open",
+    "quickActions": "Quick actions",
+    "accountMenu": "Account menu — Guest workspace",
+    "openDashboard": "Open Dashboard",
+    "openPortfolio": "Open Portfolio",
+    "openAlerts": "Open Alerts",
+    "openAlertsLabel": "Open alerts",
+    "openAlertsUnread": "Open alerts ({count} unread)",
+    "guestWorkspace": "Guest workspace"
+  },
+  "common": {
+    "loading": "Loading...",
+    "retry": "Retry",
+    "reload": "Reload",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "back": "Back",
+    "skip": "Skip",
+    "continue": "Continue",
+    "getStarted": "Get started",
+    "showMore": "Show more",
+    "showLess": "Show less",
+    "updated": "Updated"
+  },
+  "offline": {
+    "bannerMessage": "You're offline. Already-loaded screens stay usable, but nothing here is live right now — reconnect to get current data."
+  },
+  "update": {
+    "bannerMessage": "A new version of ImpactOne is ready.",
+    "reloadButton": "Reload to update"
+  },
+  "home": {
+    "eyebrow": "Today",
+    "title": "Your morning brief",
+    "noChangeVsYesterday": "No material change vs. yesterday.",
+    "changeUnavailable": "We couldn't check what changed since yesterday right now — this isn't the same as nothing having changed. Try again shortly.",
+    "actionNeeded": "Action needed",
+    "actionYes": "Yes — {symbol}",
+    "actionNo": "No",
+    "portfolioLabel": "Portfolio",
+    "portfolioUnchanged": "Unchanged",
+    "portfolioChanges": "{count} change(s)",
+    "beliefsLabel": "Beliefs",
+    "beliefsUpdated": "{count} updated",
+    "refreshFailed": "We couldn't refresh — this may be an offline device, a backend outage, or a single provider timing out.",
+    "refreshFailedBanner": "{error} Everything below is still real data from {age} — reload to try refreshing.",
+    "nothingToShow": "Nothing to show yet.",
+    "noCachedFallback": "Nothing has loaded yet, so there's no cached summary to fall back to. Check your connection and reload.",
+    "morningBriefLabel": "Morning personal brief",
+    "sourceFallback": "Source",
+    "cards": {
+      "morningBrief": "Morning Brief",
+      "todayForYou": "Today For You",
+      "todayForYouSubtitle": "Prioritized for your profile, portfolio, and watchlist",
+      "portfolio": "Portfolio",
+      "beliefs": "What changed in the platform's beliefs?",
+      "recommendations": "Recommendations",
+      "intelligenceTimeline": "Intelligence Timeline"
+    },
+    "empty": {
+      "todayForYou": "Nothing prioritized for you right now.",
+      "beliefs": "No theme thesis has changed recently.",
+      "recommendations": "No action needed today — nothing in your portfolio requires attention.",
+      "timelineWindow": "Nothing in this window right now.",
+      "noOpportunity": "No standout opportunity today.",
+      "noRisk": "No standout risk today."
+    },
+    "viewFullReasoning": "View full reasoning",
+    "biggestOpportunity": "Biggest opportunity: {symbol} (quality {score}/100)",
+    "biggestRisk": "Biggest risk: {symbol} — {reason}",
+    "mattersToday": "Matters today: {count}",
+    "canWait": "Can wait: {count}",
+    "timeline": {
+      "overnight": "Overnight",
+      "openingBell": "Opening Bell",
+      "today": "Today",
+      "thisWeek": "This Week",
+      "longTerm": "Long Term"
+    }
+  },
+  "settings": {
+    "title": "Customize your ImpactOne workspace",
+    "language": "Language",
+    "languageDescription": "Choose your preferred display language."
+  }
+}

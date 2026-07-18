@@ -4,6 +4,7 @@ import usePortfolioEngine from "../hooks/usePortfolioEngine";
 import { intelligenceApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 import { startVisibilityAwarePolling } from "../utils/pollWhileVisible";
+import { useI18n } from "../i18n/I18nProvider";
 
 const CORE_SYMBOLS = [
   "AAPL",
@@ -24,6 +25,7 @@ const CORE_SYMBOLS = [
 ];
 
 function Header({ watchlist = [], onQuickSearch, onNavigate }) {
+  const { t, formatCurrency } = useI18n();
   const [query, setQuery] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
@@ -83,17 +85,19 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
     onQuickSearch?.(normalized);
   }, [onQuickSearch]);
 
+  const dailyPnl = Number(portfolioSummary?.dailyPnl || 0);
+
   return (
     <header className="header-bar">
       <div className="header-title-group">
-        <h2>ImpactOne Terminal</h2>
-        <p>Live intelligence workspace</p>
+        <h2>{t("header.title")}</h2>
+        <p>{t("header.subtitle")}</p>
       </div>
 
       <div className="header-portfolio-glance">
-        <span className="header-portfolio-glance__value">${Number(portfolioSummary?.totalValue || 0).toLocaleString()}</span>
-        <span className={Number(portfolioSummary?.dailyPnl || 0) >= 0 ? "positive" : "negative"}>
-          {Number(portfolioSummary?.dailyPnl || 0) >= 0 ? "+" : ""}${Number(portfolioSummary?.dailyPnl || 0).toFixed(2)}
+        <span className="header-portfolio-glance__value">{formatCurrency(portfolioSummary?.totalValue || 0)}</span>
+        <span className={dailyPnl >= 0 ? "positive" : "negative"}>
+          {dailyPnl >= 0 ? "+" : ""}{formatCurrency(dailyPnl)}
         </span>
       </div>
 
@@ -103,7 +107,7 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
           <Input
             id="company-search"
             type="text"
-            placeholder="Ask about a ticker, portfolio, or market event"
+            placeholder={t("header.searchPlaceholder")}
             value={query}
             onChange={(event) => setQuery(event.target.value.toUpperCase())}
             onFocus={() => setIsSearchFocused(true)}
@@ -114,7 +118,7 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
               }
             }}
           />
-          <Button type="button" className="search-submit" onClick={() => submitTicker(query)}>Go</Button>
+          <Button type="button" className="search-submit" onClick={() => submitTicker(query)}>{t("header.searchGo")}</Button>
         </label>
         {isSearchFocused && suggestions.length ? (
           <div className="header-autocomplete">
@@ -125,13 +129,13 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
             ))}
           </div>
         ) : null}
-        <div className="market-pill">Market: Open 🟢</div>
+        <div className="market-pill">{t("header.marketOpen")} 🟢</div>
 
         <Button
           type="button"
           className="header-icon-button"
           onClick={() => navigateTo("Alerts")}
-          aria-label={`Open alerts${alertCount ? ` (${alertCount} unread)` : ""}`}
+          aria-label={alertCount ? t("header.openAlertsUnread", { count: alertCount }) : t("header.openAlertsLabel")}
         >
           🔔
           {alertCount > 0 ? <span className="header-icon-button__badge">{alertCount}</span> : null}
@@ -142,15 +146,15 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
             type="button"
             className="header-icon-button"
             onClick={() => setIsQuickActionsOpen((value) => !value)}
-            aria-label="Quick actions"
+            aria-label={t("header.quickActions")}
           >
             ⚡
           </Button>
           {isQuickActionsOpen ? (
             <div className="header-menu__dropdown">
-              <Button type="button" className="header-menu__item" onClick={() => navigateTo("Dashboard")}>Open Dashboard</Button>
-              <Button type="button" className="header-menu__item" onClick={() => navigateTo("Portfolio")}>Open Portfolio</Button>
-              <Button type="button" className="header-menu__item" onClick={() => navigateTo("Alerts")}>Open Alerts</Button>
+              <Button type="button" className="header-menu__item" onClick={() => navigateTo("Dashboard")}>{t("header.openDashboard")}</Button>
+              <Button type="button" className="header-menu__item" onClick={() => navigateTo("Portfolio")}>{t("header.openPortfolio")}</Button>
+              <Button type="button" className="header-menu__item" onClick={() => navigateTo("Alerts")}>{t("header.openAlerts")}</Button>
             </div>
           ) : null}
         </div>
@@ -160,15 +164,15 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
             type="button"
             className="header-icon-button header-avatar"
             onClick={() => setIsAccountMenuOpen((value) => !value)}
-            aria-label="Account menu — Guest workspace"
-            title="Guest workspace"
+            aria-label={t("header.accountMenu")}
+            title={t("header.guestWorkspace")}
           >
             G
           </Button>
           {isAccountMenuOpen ? (
             <div className="header-menu__dropdown">
-              <div className="header-menu__label">Guest workspace</div>
-              <Button type="button" className="header-menu__item" onClick={() => navigateTo("Settings")}>Settings</Button>
+              <div className="header-menu__label">{t("header.guestWorkspace")}</div>
+              <Button type="button" className="header-menu__item" onClick={() => navigateTo("Settings")}>{t("nav.settings")}</Button>
             </div>
           ) : null}
         </div>
