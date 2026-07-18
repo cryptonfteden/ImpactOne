@@ -83,6 +83,16 @@ export default function OnboardingFlow({ onComplete, onFinish }) {
 
   const advance = () => setStep((current) => Math.min(current + 1, TOTAL_STEPS - 1));
   const skip = () => advance();
+  // Sprint 36 Priority 2 — reduce onboarding friction. Age and investment
+  // horizon are the only two required answers; the five steps between
+  // them are already individually skippable, but a user who wants to
+  // reach Home fast still had to tap "Skip" five separate times (five
+  // full screen transitions) to get there. This jumps straight to the
+  // final required step in one tap, without touching any already-
+  // answered value in `answers` — a user who answered some questions and
+  // then taps this keeps those real answers, only the ones they hadn't
+  // reached yet stay unset.
+  const skipToEnd = () => setStep(TOTAL_STEPS - 1);
   // Sprint 33 Priority 4 — mobile onboarding requires back navigation
   // without losing already-entered answers. `answers` (and ageInput/
   // customAmount) already persist across the whole flow in this
@@ -262,9 +272,16 @@ export default function OnboardingFlow({ onComplete, onFinish }) {
         {current.content}
         {submitError ? <p className="onboarding-error">{submitError}</p> : null}
         {current.skippable ? (
-          <button type="button" className="onboarding-skip-button" onClick={skip}>
-            Skip
-          </button>
+          <div className="onboarding-skip-row">
+            <button type="button" className="onboarding-skip-button" onClick={skip}>
+              Skip
+            </button>
+            {step < TOTAL_STEPS - 2 ? (
+              <button type="button" className="onboarding-skip-button onboarding-skip-button--all" onClick={skipToEnd}>
+                Skip remaining questions
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </div>
     </div>

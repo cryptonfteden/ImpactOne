@@ -64,6 +64,31 @@ describe("OnboardingFlow", () => {
     await waitFor(() => expect(screen.getByText("How experienced are you as an investor?")).toBeInTheDocument());
   });
 
+  it("Sprint 36 Priority 2 — 'Skip remaining questions' jumps straight to the final required step in one tap", async () => {
+    render(<OnboardingFlow onComplete={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText("Age"), { target: { value: "30" } });
+    fireEvent.click(screen.getByText("Continue"));
+    await waitFor(() => expect(screen.getByText("Where are you investing from?")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Skip remaining questions"));
+    await waitFor(() => expect(screen.getByText("What's your investment horizon?")).toBeInTheDocument());
+  });
+
+  it("Sprint 36 Priority 2 — 'Skip remaining questions' is not shown on the last skippable step (identical to Skip there)", async () => {
+    render(<OnboardingFlow onComplete={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText("Age"), { target: { value: "30" } });
+    fireEvent.click(screen.getByText("Continue"));
+    await waitFor(() => expect(screen.getByText("Where are you investing from?")).toBeInTheDocument());
+
+    for (let i = 0; i < 4; i++) {
+      fireEvent.click(screen.getByText("Skip"));
+      // eslint-disable-next-line no-await-in-loop
+      await waitFor(() => expect(screen.queryByText("Where are you investing from?")).not.toBeInTheDocument());
+    }
+    await waitFor(() => expect(screen.getByText("How would you describe your risk tolerance?")).toBeInTheDocument());
+    expect(screen.queryByText("Skip remaining questions")).not.toBeInTheDocument();
+  });
+
   it("the monthly-amount step shows currency-prefixed chips derived from the selected country", async () => {
     render(<OnboardingFlow onComplete={vi.fn()} />);
     fireEvent.change(screen.getByPlaceholderText("Age"), { target: { value: "30" } });
