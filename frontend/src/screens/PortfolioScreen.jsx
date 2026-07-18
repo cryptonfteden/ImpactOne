@@ -64,7 +64,6 @@ function LegacyPortfolioScreen() {
 
   const positions = portfolio?.positions || [];
   const trades = portfolio?.trades || [];
-  const openTrades = trades.filter((trade) => trade.status === "Open");
 
   return (
     <div className="screen-page">
@@ -224,17 +223,6 @@ function LegacyPortfolioScreen() {
           <li>Only simulate trades above 75 confidence.</li>
           <li>Require risk/reward above 1.5.</li>
         </ul>
-      </SectionCard>
-
-      <SectionCard title="Today&apos;s Agent Trades" subtitle="Open trade decisions" className="screen-card">
-        <div className="widget-list">
-          {openTrades.length ? openTrades.slice(-6).reverse().map((trade) => (
-            <div key={`${trade.id}-open`} className="widget-list-item">
-              <strong>{trade.ticker} {trade.action}</strong>
-              <span>{trade.timeHorizon || "N/A"}</span>
-            </div>
-          )) : <p className="company-description subtle">No open agent trades — no simulated trade has cleared the 75-confidence threshold today.</p>}
-        </div>
       </SectionCard>
     </div>
   );
