@@ -4,20 +4,14 @@ import { LoadingSpinner } from "../components/ui";
 import { homeApi } from "../services/api";
 import useWatchlist from "../hooks/useWatchlist";
 import { logError } from "../utils/errorHandling";
+import { useI18n } from "../i18n/I18nProvider";
+import { trackEvent } from "../utils/analytics";
 
 const ACTION_PILL_CLASS = {
   BUY: "pill opportunity",
   REDUCE: "pill monitor",
   EXIT: "pill risk",
 };
-
-const TIMELINE_SECTIONS = [
-  { key: "overnight", label: "Overnight" },
-  { key: "openingBell", label: "Opening Bell" },
-  { key: "today", label: "Today" },
-  { key: "thisWeek", label: "This Week" },
-  { key: "longTerm", label: "Long Term" },
-];
 
 // Sprint 32 Priority 2 — fallback order if the backend ever omits
 // cardOrder (e.g. an older cached response) — identical to the fixed
@@ -28,20 +22,21 @@ const DEFAULT_CARD_ORDER = ["morningBrief", "todayForYou", "portfolio", "beliefs
 // guess: generatedAt is the actual server timestamp for this response
 // (homeSummaryService sets it right before returning), so this is always
 // honest about how old what's on screen actually is.
-function formatFreshness(generatedAt) {
+//
+// Sprint 35 — locale-aware: uses the active locale's relative-time
+// formatting (Intl.RelativeTimeFormat via useI18n().formatRelativeTime)
+// instead of a hardcoded English "min ago"/"h ago" string.
+function formatFreshness(generatedAt, t, formatRelativeTime, formatDateTime) {
   const generated = new Date(generatedAt);
   if (Number.isNaN(generated.getTime())) return null;
 
   const ageMs = Date.now() - generated.getTime();
-  const ageMinutes = Math.floor(ageMs / 60000);
+  const ageHours = Math.abs(ageMs) / 3600000;
 
-  if (ageMinutes < 1) return "Updated just now";
-  if (ageMinutes < 60) return `Updated ${ageMinutes} min ago`;
-
-  const ageHours = Math.floor(ageMinutes / 60);
-  if (ageHours < 24) return `Updated ${ageHours}h ago`;
-
-  return `Updated ${generated.toLocaleString()}`;
+  if (ageHours < 24) {
+    return `${t("common.updated")} ${formatRelativeTime(generated)}`;
+  }
+  return `${t("common.updated")} ${formatDateTime(generated)}`;
 }
 
 /**
@@ -61,11 +56,20 @@ function formatFreshness(generatedAt) {
  * screen simply renders whatever order the backend returns.
  */
 export default function HomeScreen({ onNavigate }) {
+  const { t, formatRelativeTime, formatDateTime } = useI18n();
   const { watchlist } = useWatchlist();
   const [summary, setSummary] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTimelineSection, setActiveTimelineSection] = useState("today");
+
+  const TIMELINE_SECTIONS = [
+    { key: "overnight", label: t("home.timeline.overnight") },
+    { key: "openingBell", label: t("home.timeline.openingBell") },
+    { key: "today", label: t("home.timeline.today") },
+    { key: "thisWeek", label: t("home.timeline.thisWeek") },
+    { key: "longTerm", label: t("home.timeline.longTerm") },
+  ];
 
   useEffect(() => {
     let cancelled = false;
@@ -76,6 +80,11 @@ export default function HomeScreen({ onNavigate }) {
         if (!cancelled) {
           setSummary(data);
           setError("");
+          // Sprint 35 Priority 5 — "morning brief read" telemetry. Fires
+          // once per successful load of this screen, the same load every
+          // user already triggers just by opening Home — no extra
+          // interaction required to capture the signal.
+          trackEvent("morning_brief_read");
         }
       } catch (loadError) {
         logError("home summary load failed", loadError);
@@ -84,7 +93,7 @@ export default function HomeScreen({ onNavigate }) {
         // last real data (labeled with its real age via freshnessLabel)
         // rather than replacing a working screen with a bare error.
         if (!cancelled) {
-          setError("We couldn't refresh — this may be an offline device, a backend outage, or a single provider timing out.");
+          setError(t("home.refreshFailed"));
         }
       } finally {
         if (!cancelled) {
@@ -123,9 +132,7 @@ export default function HomeScreen({ onNavigate }) {
     return (
       <div className="screen-page home-screen">
         <p className="company-description negative">{error}</p>
-        <p className="company-description subtle">
-          Nothing has loaded yet, so there's no cached summary to fall back to. Check your connection and reload.
-        </p>
+        <p className="company-description subtle">{t("home.noCachedFallback")}</p>
       </div>
     );
   }
@@ -133,7 +140,7 @@ export default function HomeScreen({ onNavigate }) {
   if (!summary) {
     return (
       <div className="screen-page home-screen">
-        <p className="company-description subtle">Nothing to show yet.</p>
+        <p className="company-description subtle">{t("home.nothingToShow")}</p>
       </div>
     );
   }
@@ -156,23 +163,32 @@ export default function HomeScreen({ onNavigate }) {
     generatedAt,
   } = summary;
 
-  const freshnessLabel = generatedAt ? formatFreshness(generatedAt) : null;
+  const freshnessLabel = generatedAt ? formatFreshness(generatedAt, t, formatRelativeTime, formatDateTime) : null;
+
+  // Sprint 35 Priority 4 — Morning Brief polish. The hero's own
+  // personalBrief (always visible, no scrolling) already leads with
+  // "Market: {headline}" whenever it has real content — repeating the
+  // identical headline as the Morning Brief card's own first line, a
+  // few inches below, was pure duplicated information adding to
+  // cognitive load without adding a new fact. Only show it here when
+  // the hero brief didn't already say it (e.g. personalBrief is empty).
+  const heroAlreadyStatedHeadline = personalBrief.includes(`Market: ${whatHappened.headline}`);
 
   const glancePills = [
-    { label: "Action needed", value: shouldIDoAnythingToday.hasAction ? `Yes — ${shouldIDoAnythingToday.symbol}` : "No", tone: shouldIDoAnythingToday.hasAction ? "opportunity" : "" },
-    { label: "Portfolio", value: whatChangedForMyPortfolio?.changes?.length ? `${whatChangedForMyPortfolio.changes.length} change(s)` : "Unchanged", tone: whatChangedForMyPortfolio?.changes?.length ? "monitor" : "" },
-    { label: "Beliefs", value: whatChangedInBeliefs.length ? `${whatChangedInBeliefs.length} updated` : "Unchanged", tone: whatChangedInBeliefs.length ? "monitor" : "" },
+    { label: t("home.actionNeeded"), value: shouldIDoAnythingToday.hasAction ? t("home.actionYes", { symbol: shouldIDoAnythingToday.symbol }) : t("home.actionNo"), tone: shouldIDoAnythingToday.hasAction ? "opportunity" : "" },
+    { label: t("home.portfolioLabel"), value: whatChangedForMyPortfolio?.changes?.length ? t("home.portfolioChanges", { count: whatChangedForMyPortfolio.changes.length }) : t("home.portfolioUnchanged"), tone: whatChangedForMyPortfolio?.changes?.length ? "monitor" : "" },
+    { label: t("home.beliefsLabel"), value: whatChangedInBeliefs.length ? t("home.beliefsUpdated", { count: whatChangedInBeliefs.length }) : t("home.portfolioUnchanged"), tone: whatChangedInBeliefs.length ? "monitor" : "" },
   ];
 
   const activeSectionItems = intelligenceTimeline[activeTimelineSection] || [];
 
   const cardsByKey = {
     morningBrief: (
-      <SectionCard key="morningBrief" title="Morning Brief" icon="◉" className="screen-card home-card">
-        <p className="company-description">{whatHappened.headline}</p>
+      <SectionCard key="morningBrief" title={t("home.cards.morningBrief")} icon="◉" className="screen-card home-card">
+        {heroAlreadyStatedHeadline ? null : <p className="company-description">{whatHappened.headline}</p>}
         {whatHappened.sourceUrl ? (
           <a href={whatHappened.sourceUrl} target="_blank" rel="noopener noreferrer" className="matched-event__source">
-            {whatHappened.sourceName || "Source"}
+            {whatHappened.sourceName || t("home.sourceFallback")}
           </a>
         ) : null}
         <p className="company-description subtle">{whyShouldICare}</p>
@@ -184,16 +200,14 @@ export default function HomeScreen({ onNavigate }) {
             ))}
           </ul>
         ) : whatChangedSinceYesterdayAvailable ? (
-          <p className="company-description subtle">No material change vs. yesterday.</p>
+          <p className="company-description subtle">{t("home.noChangeVsYesterday")}</p>
         ) : (
-          <p className="company-description subtle negative">
-            We couldn't check what changed since yesterday right now — this isn't the same as nothing having changed. Try again shortly.
-          </p>
+          <p className="company-description subtle negative">{t("home.changeUnavailable")}</p>
         )}
       </SectionCard>
     ),
     todayForYou: (
-      <SectionCard key="todayForYou" title="Today For You" icon="★" subtitle="Prioritized for your profile, portfolio, and watchlist" className="screen-card home-card">
+      <SectionCard key="todayForYou" title={t("home.cards.todayForYou")} icon="★" subtitle={t("home.cards.todayForYouSubtitle")} className="screen-card home-card">
         {todayForYou.length ? (
           <ul className="stack-list">
             {todayForYou.map((item, index) => (
@@ -203,12 +217,12 @@ export default function HomeScreen({ onNavigate }) {
             ))}
           </ul>
         ) : (
-          <p className="company-description subtle">Nothing prioritized for you right now.</p>
+          <p className="company-description subtle">{t("home.empty.todayForYou")}</p>
         )}
       </SectionCard>
     ),
     portfolio: (
-      <SectionCard key="portfolio" title="Portfolio" icon="◐" className="screen-card home-card">
+      <SectionCard key="portfolio" title={t("home.cards.portfolio")} icon="◐" className="screen-card home-card">
         <p className="company-description">{whatChangedForMyPortfolio?.summary}</p>
         {whatChangedForMyPortfolio?.changes?.length ? (
           <ul className="stack-list">
@@ -221,27 +235,27 @@ export default function HomeScreen({ onNavigate }) {
           </ul>
         ) : null}
         <div className="opportunity-item__actions">
-          <span className="pill">Matters today: {portfolioMorningSummary?.mattersToday?.length || 0}</span>
-          <span className="pill">Can wait: {portfolioMorningSummary?.canWaitCount || 0}</span>
+          <span className="pill">{t("home.mattersToday", { count: portfolioMorningSummary?.mattersToday?.length || 0 })}</span>
+          <span className="pill">{t("home.canWait", { count: portfolioMorningSummary?.canWaitCount || 0 })}</span>
         </div>
         {portfolioMorningSummary?.biggestOpportunity ? (
           <p className="company-description subtle positive">
-            Biggest opportunity: {portfolioMorningSummary.biggestOpportunity.symbol} (quality {portfolioMorningSummary.biggestOpportunity.qualityScore}/100)
+            {t("home.biggestOpportunity", { symbol: portfolioMorningSummary.biggestOpportunity.symbol, score: portfolioMorningSummary.biggestOpportunity.qualityScore })}
           </p>
         ) : (
-          <p className="company-description subtle">No standout opportunity today.</p>
+          <p className="company-description subtle">{t("home.empty.noOpportunity")}</p>
         )}
         {portfolioMorningSummary?.biggestRisk ? (
           <p className="company-description subtle negative">
-            Biggest risk: {portfolioMorningSummary.biggestRisk.symbol || "—"} — {portfolioMorningSummary.biggestRisk.reasoning || portfolioMorningSummary.biggestRisk.riskLabel}
+            {t("home.biggestRisk", { symbol: portfolioMorningSummary.biggestRisk.symbol || "—", reason: portfolioMorningSummary.biggestRisk.reasoning || portfolioMorningSummary.biggestRisk.riskLabel })}
           </p>
         ) : (
-          <p className="company-description subtle">No standout risk today.</p>
+          <p className="company-description subtle">{t("home.empty.noRisk")}</p>
         )}
       </SectionCard>
     ),
     beliefs: (
-      <SectionCard key="beliefs" title="What changed in the platform's beliefs?" icon="◑" className="screen-card home-card">
+      <SectionCard key="beliefs" title={t("home.cards.beliefs")} icon="◑" className="screen-card home-card">
         {whatChangedInBeliefs.length ? (
           <ul className="stack-list">
             {whatChangedInBeliefs.map((belief) => (
@@ -251,12 +265,12 @@ export default function HomeScreen({ onNavigate }) {
             ))}
           </ul>
         ) : (
-          <p className="company-description subtle">No theme thesis has changed recently.</p>
+          <p className="company-description subtle">{t("home.empty.beliefs")}</p>
         )}
       </SectionCard>
     ),
     recommendations: (
-      <SectionCard key="recommendations" title="Recommendations" icon="▲" className="screen-card home-card">
+      <SectionCard key="recommendations" title={t("home.cards.recommendations")} icon="▲" className="screen-card home-card">
         {shouldIDoAnythingToday.hasAction ? (
           <>
             <div className="opportunity-item__top">
@@ -265,11 +279,11 @@ export default function HomeScreen({ onNavigate }) {
             </div>
             <p className="company-description">{shouldIDoAnythingToday.reasoning}</p>
             <button type="button" className="ghost-button" onClick={() => onNavigate?.("Recommendations")}>
-              View full reasoning
+              {t("home.viewFullReasoning")}
             </button>
           </>
         ) : (
-          <p className="company-description">No action needed today — nothing in your portfolio requires attention.</p>
+          <p className="company-description">{t("home.empty.recommendations")}</p>
         )}
         {topRecommendations.length ? (
           <ul className="stack-list">
@@ -283,7 +297,7 @@ export default function HomeScreen({ onNavigate }) {
       </SectionCard>
     ),
     intelligenceTimeline: (
-      <SectionCard key="intelligenceTimeline" title="Intelligence Timeline" icon="⏱" className="screen-card home-card">
+      <SectionCard key="intelligenceTimeline" title={t("home.cards.intelligenceTimeline")} icon="⏱" className="screen-card home-card">
         <div className="opportunity-item__actions">
           {TIMELINE_SECTIONS.map((section) => (
             <button
@@ -303,7 +317,7 @@ export default function HomeScreen({ onNavigate }) {
             ))}
           </ul>
         ) : (
-          <p className="company-description subtle">Nothing in this window right now.</p>
+          <p className="company-description subtle">{t("home.empty.timelineWindow")}</p>
         )}
       </SectionCard>
     ),
@@ -318,16 +332,16 @@ export default function HomeScreen({ onNavigate }) {
         // with its real age; what to do next) instead of silently
         // presenting stale data as current or wiping a working screen.
         <p className="company-description subtle negative">
-          {error} Everything below is still real data from {freshnessLabel ? freshnessLabel.replace("Updated ", "") : "your last successful load"} — reload to try refreshing.
+          {t("home.refreshFailedBanner", { error, age: freshnessLabel ? freshnessLabel.replace(`${t("common.updated")} `, "") : "your last successful load" })}
         </p>
       ) : null}
       <section className="screen-hero">
         <div>
-          <p className="eyebrow">Today</p>
-          <h1>Your morning brief</h1>
+          <p className="eyebrow">{t("home.eyebrow")}</p>
+          <h1>{t("home.title")}</h1>
           {freshnessLabel ? <p className="company-description subtle">{freshnessLabel}</p> : null}
           {personalBrief.length ? (
-            <ul className="stack-list" aria-label="Morning personal brief">
+            <ul className="stack-list" aria-label={t("home.morningBriefLabel")}>
               {personalBrief.map((line, index) => (
                 <li key={index} className="company-description">{line}</li>
               ))}

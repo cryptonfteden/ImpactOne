@@ -2,6 +2,15 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import HomeScreen from "./HomeScreen";
 import { homeApi } from "../services/api";
+import { I18nProvider } from "../i18n/I18nProvider";
+
+function renderHomeScreen(props) {
+  return render(
+    <I18nProvider>
+      <HomeScreen {...props} />
+    </I18nProvider>
+  );
+}
 
 vi.mock("../services/api", () => ({
   homeApi: { getSummary: vi.fn() },
@@ -59,7 +68,7 @@ beforeEach(() => {
 describe("HomeScreen", () => {
   it("renders the five merged Morning Brief cards and nothing else", async () => {
     homeApi.getSummary.mockResolvedValue(SUMMARY_NO_ACTION);
-    render(<HomeScreen onNavigate={vi.fn()} />);
+    renderHomeScreen({ onNavigate: vi.fn() });
 
     await waitFor(() => expect(screen.getByText("Morning Brief")).toBeInTheDocument());
     expect(screen.getByText("Today For You")).toBeInTheDocument();
@@ -79,7 +88,7 @@ describe("HomeScreen", () => {
 
   it("shows honest empty states across the merged cards when nothing changed", async () => {
     homeApi.getSummary.mockResolvedValue(SUMMARY_NO_ACTION);
-    render(<HomeScreen onNavigate={vi.fn()} />);
+    renderHomeScreen({ onNavigate: vi.fn() });
 
     await waitFor(() => expect(screen.getAllByText(/No action needed today/).length).toBeGreaterThan(0));
     expect(screen.getByText(/No material change vs\. yesterday/)).toBeInTheDocument();
@@ -92,7 +101,7 @@ describe("HomeScreen", () => {
 
   it("shows real change data when it exists — belief change, portfolio delta, and yesterday diff", async () => {
     homeApi.getSummary.mockResolvedValue(SUMMARY_WITH_ACTION);
-    render(<HomeScreen onNavigate={vi.fn()} />);
+    renderHomeScreen({ onNavigate: vi.fn() });
 
     await waitFor(() => expect(screen.getAllByText("BUY").length).toBeGreaterThan(0));
     expect(screen.getByText(/Top driver shifted from Fed policy/)).toBeInTheDocument();
@@ -102,7 +111,7 @@ describe("HomeScreen", () => {
 
   it("shows an at-a-glance strip summarizing action/portfolio/belief state without any new data fetch", async () => {
     homeApi.getSummary.mockResolvedValue(SUMMARY_WITH_ACTION);
-    render(<HomeScreen onNavigate={vi.fn()} />);
+    renderHomeScreen({ onNavigate: vi.fn() });
 
     await waitFor(() => expect(screen.getByText(/Action needed: Yes — NVDA/)).toBeInTheDocument());
     expect(screen.getByText(/Portfolio: 1 change\(s\)/)).toBeInTheDocument();
@@ -112,7 +121,7 @@ describe("HomeScreen", () => {
 
   it("glance strip reads 'No'/'Unchanged' honestly when nothing changed", async () => {
     homeApi.getSummary.mockResolvedValue(SUMMARY_NO_ACTION);
-    render(<HomeScreen onNavigate={vi.fn()} />);
+    renderHomeScreen({ onNavigate: vi.fn() });
 
     await waitFor(() => expect(screen.getByText(/Action needed: No/)).toBeInTheDocument());
     expect(screen.getAllByText(/Unchanged/)).toHaveLength(2);
@@ -120,14 +129,14 @@ describe("HomeScreen", () => {
 
   it("Sprint 28 — Today For You shows the real priority reason for each item, not a generic label", async () => {
     homeApi.getSummary.mockResolvedValue(SUMMARY_WITH_ACTION);
-    render(<HomeScreen onNavigate={vi.fn()} />);
+    renderHomeScreen({ onNavigate: vi.fn() });
 
     await waitFor(() => expect(screen.getByText(/You hold a position this directly affects/)).toBeInTheDocument());
   });
 
   it("Sprint 28 — Portfolio card shows the real biggest opportunity and biggest risk, and matters-today/can-wait counts", async () => {
     homeApi.getSummary.mockResolvedValue(SUMMARY_WITH_ACTION);
-    render(<HomeScreen onNavigate={vi.fn()} />);
+    renderHomeScreen({ onNavigate: vi.fn() });
 
     await waitFor(() => expect(screen.getByText(/Biggest opportunity: NVDA/)).toBeInTheDocument());
     expect(screen.getByText(/Biggest risk: META/)).toBeInTheDocument();
@@ -137,7 +146,7 @@ describe("HomeScreen", () => {
 
   it("Sprint 28 — Recommendations card lists topRecommendations beyond the single canonical verdict", async () => {
     homeApi.getSummary.mockResolvedValue(SUMMARY_WITH_ACTION);
-    render(<HomeScreen onNavigate={vi.fn()} />);
+    renderHomeScreen({ onNavigate: vi.fn() });
 
     await waitFor(() => expect(screen.getAllByText(/META/).length).toBeGreaterThan(0));
     expect(screen.getByText(/quality 50\/100/)).toBeInTheDocument();
@@ -145,7 +154,7 @@ describe("HomeScreen", () => {
 
   it("Sprint 28 — Intelligence Timeline defaults to Today and switches sections on click, with real per-section counts", async () => {
     homeApi.getSummary.mockResolvedValue(SUMMARY_WITH_ACTION);
-    render(<HomeScreen onNavigate={vi.fn()} />);
+    renderHomeScreen({ onNavigate: vi.fn() });
 
     await waitFor(() => expect(screen.getByText("Overnight (1)")).toBeInTheDocument());
     expect(screen.getByText("Today (1)")).toBeInTheDocument();
@@ -157,7 +166,7 @@ describe("HomeScreen", () => {
 
   it("Sprint 30 — shows the Morning Personal Brief at the top of Home, capped at a handful of lines", async () => {
     homeApi.getSummary.mockResolvedValue(SUMMARY_WITH_ACTION);
-    render(<HomeScreen onNavigate={vi.fn()} />);
+    renderHomeScreen({ onNavigate: vi.fn() });
 
     await waitFor(() => expect(screen.getByLabelText("Morning personal brief")).toBeInTheDocument());
     const brief = screen.getByLabelText("Morning personal brief");
@@ -166,9 +175,29 @@ describe("HomeScreen", () => {
     expect(screen.getByText("Top for you: NVDA — BUY (quality 82/100)")).toBeInTheDocument();
   });
 
+  it("Sprint 35 Priority 4 — the Morning Brief card doesn't repeat the headline the hero's personal brief already stated", async () => {
+    homeApi.getSummary.mockResolvedValue(SUMMARY_WITH_ACTION);
+    renderHomeScreen({ onNavigate: vi.fn() });
+
+    await waitFor(() => expect(screen.getByText("Market: NVDA supply deal")).toBeInTheDocument());
+    // "NVDA supply deal" alone (not prefixed with "Market: ") should only
+    // appear via Today For You / Intelligence Timeline's real per-item
+    // headlines, not a second time as the Morning Brief card's own
+    // duplicate headline paragraph.
+    const bareHeadlineMatches = screen.getAllByText("NVDA supply deal");
+    expect(bareHeadlineMatches.length).toBe(2); // todayForYou item + Intelligence Timeline "Today" item
+  });
+
+  it("Sprint 35 Priority 4 — the Morning Brief card DOES show the headline when the hero brief has no lines to cover it", async () => {
+    homeApi.getSummary.mockResolvedValue({ ...SUMMARY_NO_ACTION, personalBrief: [] });
+    renderHomeScreen({ onNavigate: vi.fn() });
+
+    await waitFor(() => expect(screen.getByText("Generic market headline")).toBeInTheDocument());
+  });
+
   it("Sprint 30 — Morning Personal Brief renders nothing when the backend sends no lines, never a fabricated placeholder", async () => {
     homeApi.getSummary.mockResolvedValue({ ...SUMMARY_NO_ACTION, personalBrief: [] });
-    render(<HomeScreen onNavigate={vi.fn()} />);
+    renderHomeScreen({ onNavigate: vi.fn() });
 
     await waitFor(() => expect(screen.getByText("Your morning brief")).toBeInTheDocument());
     expect(screen.queryByLabelText("Morning personal brief")).not.toBeInTheDocument();
@@ -179,7 +208,7 @@ describe("HomeScreen", () => {
       ...SUMMARY_WITH_ACTION,
       cardOrder: ["morningBrief", "recommendations", "intelligenceTimeline", "portfolio", "beliefs", "todayForYou"],
     });
-    render(<HomeScreen onNavigate={vi.fn()} />);
+    renderHomeScreen({ onNavigate: vi.fn() });
 
     await waitFor(() => expect(screen.getByText("Morning Brief")).toBeInTheDocument());
     const headings = screen.getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent);
