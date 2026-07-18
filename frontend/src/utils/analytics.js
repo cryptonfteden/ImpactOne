@@ -17,7 +17,30 @@ const ALLOWED_EVENTS = new Set([
   "feedback_submitted",
   "morning_brief_read",
   "returning_user",
+  "first_useful_information",
+  "recommendation_understood",
 ]);
+
+// Sprint 36 Priority 1 — Time To Value measurement. A random correlation
+// token (crypto.randomUUID), generated once per browser and reused for
+// its whole lifetime — not a device fingerprint or account identifier,
+// carries no PII, exists purely so ttvMetricsService can measure "how
+// long from this browser's first_open to its first X" across visits.
+const SESSION_ID_KEY = "impactone-session-id";
+
+function getSessionId() {
+  if (typeof window === "undefined") return null;
+  try {
+    let sessionId = window.localStorage.getItem(SESSION_ID_KEY);
+    if (!sessionId) {
+      sessionId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : null;
+      if (sessionId) window.localStorage.setItem(SESSION_ID_KEY, sessionId);
+    }
+    return sessionId;
+  } catch {
+    return null;
+  }
+}
 
 export function trackEvent(eventName, properties = {}) {
   if (!ALLOWED_EVENTS.has(eventName)) return;
@@ -26,7 +49,7 @@ export function trackEvent(eventName, properties = {}) {
   fetch(`${API_BASE}/v2/analytics/event`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ eventName, properties }),
+    body: JSON.stringify({ eventName, properties, sessionId: getSessionId() }),
     keepalive: true,
   }).catch(() => {
     // Telemetry failing silently is correct behavior — never surface a

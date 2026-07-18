@@ -85,6 +85,13 @@ export default function HomeScreen({ onNavigate }) {
           // user already triggers just by opening Home — no extra
           // interaction required to capture the signal.
           trackEvent("morning_brief_read");
+          // Sprint 36 Priority 1 — "first_useful_information": Home is
+          // the app's first screen, so the same successful load that
+          // proves the Morning Brief rendered is genuinely also the
+          // first moment this browser saw real, personalized content.
+          // Both fire from the same real event rather than inventing an
+          // artificial distinction between them.
+          trackEvent("first_useful_information");
         }
       } catch (loadError) {
         logError("home summary load failed", loadError);
