@@ -6,15 +6,16 @@ const request = require("supertest");
 
 const { truncateAll } = require("../test/dbHelpers");
 const app = require("../app");
+const providerRegistry = require("../services/providers/providerRegistry");
 
 test.beforeEach(async () => {
   await truncateAll();
 });
 
-test("GET /api/v2/providers lists all 15 registered providers with honest empty health", async () => {
+test("GET /api/v2/providers lists every registered provider with honest empty health", async () => {
   const response = await request(app).get("/api/v2/providers");
   assert.equal(response.status, 200);
-  assert.equal(response.body.providers.length, 15);
+  assert.equal(response.body.providers.length, providerRegistry.listProviders().length);
   const sec = response.body.providers.find((entry) => entry.providerId === "sec");
   assert.equal(sec.lastRunAt, null);
 });

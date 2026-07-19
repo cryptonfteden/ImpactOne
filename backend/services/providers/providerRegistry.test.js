@@ -22,9 +22,17 @@ const EXPECTED_PROVIDER_IDS = [
   "congress",
   "majorEarnings",
   "patentFeeds",
+  // Sprint 37 — Market Intelligence Source Layer.
+  "finviz",
+  "tipranks",
+  "zacks",
+  "spdr",
+  "cftcCot",
+  "coinglass",
+  "optionsFlow",
 ];
 
-test("listProviders registers all 15 named sources", () => {
+test("listProviders registers all 22 named sources", () => {
   const ids = providerRegistry.listProviders().map((provider) => provider.providerId);
   assert.deepEqual([...ids].sort(), [...EXPECTED_PROVIDER_IDS].sort());
 });

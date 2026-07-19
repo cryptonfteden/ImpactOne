@@ -15,6 +15,14 @@ const treasuryProvider = require("./definitions/treasuryProvider");
 const congressProvider = require("./definitions/congressProvider");
 const earningsProvider = require("./definitions/earningsProvider");
 const patentProvider = require("./definitions/patentProvider");
+// Sprint 37 — Market Intelligence Source Layer.
+const finvizProvider = require("./definitions/finvizProvider");
+const tipranksProvider = require("./definitions/tipranksProvider");
+const zacksProvider = require("./definitions/zacksProvider");
+const spdrProvider = require("./definitions/spdrProvider");
+const cftcCotProvider = require("./definitions/cftcCotProvider");
+const coinglassProvider = require("./definitions/coinglassProvider");
+const optionsFlowProvider = require("./definitions/optionsFlowProvider");
 
 const PROVIDERS = [
   reutersBloombergWireProvider,
@@ -32,6 +40,13 @@ const PROVIDERS = [
   congressProvider,
   earningsProvider,
   patentProvider,
+  finvizProvider,
+  tipranksProvider,
+  zacksProvider,
+  spdrProvider,
+  cftcCotProvider,
+  coinglassProvider,
+  optionsFlowProvider,
 ];
 
 // Startup-time self-check: every provider built by createProvider() already

@@ -37,6 +37,11 @@ async function truncateAll() {
 
   // Sprint 35 — Private Beta Telemetry (standalone, no FK relations).
   await prisma.analyticsEvent.deleteMany();
+
+  // Sprint 37 — Research Agent (results before principles, plain string
+  // reference column, same World Memory convention).
+  await prisma.principleBacktestResult.deleteMany();
+  await prisma.tradingPrinciple.deleteMany();
 }
 
 module.exports = { truncateAll };

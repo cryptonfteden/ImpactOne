@@ -6,6 +6,7 @@ const assert = require("node:assert/strict");
 const { truncateAll } = require("../test/dbHelpers");
 const providerIngestionService = require("./providerIngestionService");
 const providerHealthService = require("./providerHealthService");
+const providerRegistry = require("./providers/providerRegistry");
 
 test.beforeEach(async () => {
   await truncateAll();
@@ -13,7 +14,7 @@ test.beforeEach(async () => {
 
 test("getHealthSummary reports every registered provider, even ones with no run history yet", async () => {
   const summary = await providerHealthService.getHealthSummary();
-  assert.equal(summary.length, 15);
+  assert.equal(summary.length, providerRegistry.listProviders().length);
   const sec = summary.find((entry) => entry.providerId === "sec");
   assert.equal(sec.lastRunAt, null);
   assert.equal(sec.lastStatus, null);

@@ -30,6 +30,7 @@ const calibrationReportRoutes = require("./calibrationReportRoutes");
 const personalProgressRoutes = require("./personalProgressRoutes");
 const investorMemoryRoutes = require("./investorMemoryRoutes");
 const analyticsRoutes = require("./analyticsRoutes");
+const marketIntelligenceRoutes = require("./marketIntelligenceRoutes");
 
 const router = express.Router();
 
@@ -74,6 +75,10 @@ router.use("/v2/investor-memory", investorMemoryRoutes);
 // endpoint intentionally never returns an error status the caller would
 // need to handle.
 router.use("/v2/analytics", analyticsRoutes);
+// Sprint 37 — Market Intelligence Source Layer. Read-only aggregation/
+// normalization views (see each service's safety-critical header); the
+// canonical recommendation system remains the only verdict source.
+router.use("/v2/market-intelligence", marketIntelligenceRoutes);
 router.use("/chat", chatRoutes);
 
 module.exports = router;

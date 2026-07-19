@@ -652,3 +652,45 @@ model AnalyticsEvent {
   @@index([sessionId])
   @@map("analytics_events")
 }
+
+// Sprint 37 Priority 11 — Research and Trading Knowledge Agent Foundation.
+// Research-only: no field here is executable, no relation to Portfolio,
+// Order, or Trade exists, and nothing in this schema — or the service
+// layer built on it — places a trade or bypasses risk controls. `summary`
+// is required to be an attributable, paraphrased principle (a short
+// original summary crediting a source), never a large reproduced passage
+// from copyrighted material — enforced by researchAgentService.js's own
+// length/attribution validation, not by this schema alone.
+model TradingPrinciple {
+  id                     String   @id @default(uuid())
+  name                   String
+  summary                String   @db.Text
+  attributedSource       String
+  regimeRequirements     Json
+  entryConditions        Json
+  invalidationConditions Json
+  riskRules              Json
+  knownFailureModes      Json
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@map("trading_principles")
+}
+
+// Append-only test results — a principle is never "proven"; each row is
+// one honest, scoped test result (a real regime, a real sample size, a
+// real outcome), and researchAgentService.js requires at least one row
+// before a principle can be described as tested at all.
+model PrincipleBacktestResult {
+  id             String   @id @default(uuid())
+  principleId    String
+  regimeTested   String
+  sampleSize     Int
+  winRate        Decimal? @db.Decimal(5, 2)
+  averageReturn  Decimal? @db.Decimal(8, 4)
+  notes          String   @db.Text
+  testedAt       DateTime @default(now())
+
+  @@index([principleId])
+  @@map("principle_backtest_results")
+}

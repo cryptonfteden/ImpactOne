@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 
 const { truncateAll } = require("../test/dbHelpers");
 const providerScheduler = require("./providerScheduler");
+const providerRegistry = require("./providers/providerRegistry");
 
 test.beforeEach(async () => {
   await truncateAll();
@@ -27,6 +28,8 @@ test("start() and stop() toggle the running flag without requiring a real interv
 
 test("runNow() ingests every registered provider directly and records lastRunAt", async () => {
   const results = await providerScheduler.runNow();
-  assert.equal(results.length, 15);
+  // Derived from the real registry rather than hardcoded, so this never
+  // needs updating again as providers are added (Sprint 37 added 7).
+  assert.equal(results.length, providerRegistry.listProviders().length);
   assert.ok(providerScheduler.getStatus().lastRunAt);
 });
