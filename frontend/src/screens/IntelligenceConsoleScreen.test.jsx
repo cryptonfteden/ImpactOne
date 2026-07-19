@@ -1,11 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import IntelligenceConsoleScreen from "./IntelligenceConsoleScreen";
-import { providerApi, qualityDashboardApi } from "../services/api";
+import { providerApi, qualityDashboardApi, marketIntelligenceApi } from "../services/api";
 
 vi.mock("../services/api", () => ({
   providerApi: { list: vi.fn(), getMetrics: vi.fn(), getDiagnostics: vi.fn(), getMetadata: vi.fn(), run: vi.fn() },
   qualityDashboardApi: { get: vi.fn(), getLearningSignals: vi.fn() },
+  marketIntelligenceApi: { getProviderInventory: vi.fn(), getEvidenceMatrix: vi.fn(), getTechnical: vi.fn() },
 }));
 
 const PROVIDERS_FIXTURE = {
@@ -38,6 +39,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   qualityDashboardApi.get.mockResolvedValue(QUALITY_DASHBOARD_FIXTURE);
   qualityDashboardApi.getLearningSignals.mockResolvedValue(LEARNING_SIGNALS_FIXTURE);
+  marketIntelligenceApi.getProviderInventory.mockResolvedValue({ providers: [] });
 });
 
 describe("IntelligenceConsoleScreen", () => {
@@ -120,5 +122,34 @@ describe("IntelligenceConsoleScreen", () => {
     expect(screen.getByText(/Least useful: AAPL/)).toBeInTheDocument();
     expect(screen.getByText(/Strengthened: ai/)).toBeInTheDocument();
     expect(screen.getByText(/Weakened: None/)).toBeInTheDocument();
+  });
+
+  it("Sprint 37 — renders the generated provider inventory with a real status pill", async () => {
+    providerApi.list.mockResolvedValue(PROVIDERS_FIXTURE);
+    marketIntelligenceApi.getProviderInventory.mockResolvedValue({
+      providers: [{ providerId: "cftcCot", label: "CFTC Commitments of Traders", category: "FUTURES_COT", status: "LIVE", lastSuccessfulRetrieval: "2026-07-17T00:00:00.000Z", authenticationRequirement: "None (public, no-auth source)" }],
+    });
+    render(<IntelligenceConsoleScreen />);
+
+    await waitFor(() => expect(screen.getByText("CFTC Commitments of Traders")).toBeInTheDocument());
+    expect(screen.getByText("LIVE")).toBeInTheDocument();
+  });
+
+  it("Sprint 37 — loading the evidence matrix surfaces real cross-source disagreement, not a blended score", async () => {
+    providerApi.list.mockResolvedValue(PROVIDERS_FIXTURE);
+    marketIntelligenceApi.getEvidenceMatrix.mockResolvedValue({
+      symbol: "AAPL",
+      isVerdict: false,
+      categories: [
+        { category: "ANALYSTS", stance: "CONTRADICTORY", disagreement: true, confidence: 25, uncertainty: 75, sourceCount: 3, strongestCounterEvidence: "zacks rates this \"Hold\" while finviz rates it \"Strong Buy\"." },
+      ],
+    });
+    render(<IntelligenceConsoleScreen />);
+    await waitFor(() => expect(screen.getByText("Load evidence matrix")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Load evidence matrix"));
+
+    await waitFor(() => expect(screen.getByText(/DISAGREEMENT/)).toBeInTheDocument());
+    expect(screen.getByText(/zacks rates this/)).toBeInTheDocument();
   });
 });

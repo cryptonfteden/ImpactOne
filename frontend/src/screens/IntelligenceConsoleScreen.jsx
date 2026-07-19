@@ -1,8 +1,150 @@
 import { useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
 import { Button, LoadingSpinner } from "../components/ui";
-import { providerApi, qualityDashboardApi } from "../services/api";
+import { providerApi, qualityDashboardApi, marketIntelligenceApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
+
+// Sprint 37 Priority 12 — Internal Source Intelligence Console. Status
+// pills distinguish LIVE / DEGRADED / FIXTURE / DISABLED / UNCONFIGURED at
+// a glance — the mission's explicit requirement that these never blur
+// together into one ambiguous "active" label.
+const INVENTORY_STATUS_CLASS = {
+  LIVE: "pill opportunity",
+  DEGRADED: "pill monitor",
+  FIXTURE: "pill",
+  DISABLED: "pill risk",
+  UNCONFIGURED: "pill risk",
+};
+
+function MarketIntelligencePanel() {
+  const [inventory, setInventory] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [symbol, setSymbol] = useState("AAPL");
+  const [matrix, setMatrix] = useState(null);
+  const [matrixError, setMatrixError] = useState("");
+  const [isMatrixLoading, setIsMatrixLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    marketIntelligenceApi
+      .getProviderInventory()
+      .then((data) => {
+        if (!cancelled) {
+          setInventory(data.providers || []);
+          setError("");
+        }
+      })
+      .catch((loadError) => {
+        logError("market intelligence inventory load failed", loadError);
+        if (!cancelled) setError("Couldn't load the provider inventory right now.");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function loadMatrix() {
+    if (!symbol.trim()) return;
+    setIsMatrixLoading(true);
+    setMatrixError("");
+    try {
+      const data = await marketIntelligenceApi.getEvidenceMatrix(symbol.trim().toUpperCase());
+      setMatrix(data);
+    } catch (loadError) {
+      logError("evidence matrix load failed", loadError);
+      setMatrixError("Couldn't load the evidence matrix right now.");
+    } finally {
+      setIsMatrixLoading(false);
+    }
+  }
+
+  return (
+    <>
+      <SectionCard title="Provider inventory" subtitle="Generated from the live registry — never hand-duplicated" className="screen-card" icon="◫">
+        {isLoading ? (
+          <LoadingSpinner label="Loading provider inventory" />
+        ) : error ? (
+          <p className="company-description negative">{error}</p>
+        ) : (
+          <div className="table-wrapper">
+            <table className="watchlist-table">
+              <thead>
+                <tr>
+                  <th>Provider</th>
+                  <th>Category</th>
+                  <th>Status</th>
+                  <th>Last success</th>
+                  <th>Auth requirement</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inventory.map((row) => (
+                  <tr key={row.providerId}>
+                    <td>{row.label}</td>
+                    <td>{row.category}</td>
+                    <td><span className={INVENTORY_STATUS_CLASS[row.status] || "pill"}>{row.status}</span></td>
+                    <td>{row.lastSuccessfulRetrieval ? new Date(row.lastSuccessfulRetrieval).toLocaleString() : "Never"}</td>
+                    <td>{row.authenticationRequirement}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Cross-source evidence matrix" subtitle="Independent per category — never one blended score" className="screen-card" icon="◑">
+        <div className="opportunity-item__actions">
+          <input
+            className="onboarding-numeric-input"
+            style={{ maxWidth: 160 }}
+            value={symbol}
+            onChange={(event) => setSymbol(event.target.value)}
+            placeholder="Symbol (e.g. AAPL)"
+          />
+          <Button type="button" className="ghost-button" onClick={loadMatrix} disabled={isMatrixLoading}>
+            {isMatrixLoading ? "Loading…" : "Load evidence matrix"}
+          </Button>
+        </div>
+        {matrixError ? <p className="company-description negative">{matrixError}</p> : null}
+        {matrix ? (
+          <div className="table-wrapper">
+            <table className="watchlist-table">
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th>Stance</th>
+                  <th>Confidence</th>
+                  <th>Uncertainty</th>
+                  <th>Sources</th>
+                  <th>Strongest counter-evidence</th>
+                </tr>
+              </thead>
+              <tbody>
+                {matrix.categories.map((row) => (
+                  <tr key={row.category}>
+                    <td>{row.category}{row.isFixture ? " (fixture)" : ""}</td>
+                    <td className={row.stance === "CONTRADICTORY" ? "negative" : row.stance === "SUPPORTIVE" ? "positive" : ""}>
+                      {row.stance}{row.disagreement ? " — DISAGREEMENT" : ""}
+                    </td>
+                    <td>{row.confidence}</td>
+                    <td>{row.uncertainty}</td>
+                    <td>{row.sourceCount}</td>
+                    <td>{row.strongestCounterEvidence || row.reason || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </SectionCard>
+    </>
+  );
+}
 
 // Sprint 29 Priority 4 — Recommendation Quality Dashboard. Internal only:
 // this component is never reachable outside VITE_DEV_CONSOLE (same gating
@@ -266,6 +408,11 @@ export default function IntelligenceConsoleScreen() {
           <h1>Provider framework ops visibility</h1>
           <p className="subtext">Developer tooling — health, metrics, diagnostics, and manual runs. Read-only aside from "Run now."</p>
         </div>
+      </section>
+
+      <section>
+        <p className="eyebrow">Market Intelligence Source Layer (Sprint 37, internal)</p>
+        <MarketIntelligencePanel />
       </section>
 
       <section>

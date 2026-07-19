@@ -15,3 +15,4 @@ export { qualityDashboardApi } from "./qualityDashboardApi";
 export { outcomeIntelligenceApi } from "./outcomeIntelligenceApi";
 export { calibrationReportApi } from "./calibrationReportApi";
 export { personalProgressApi } from "./personalProgressApi";
+export { marketIntelligenceApi } from "./marketIntelligenceApi";
