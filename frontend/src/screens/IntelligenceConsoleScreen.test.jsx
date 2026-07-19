@@ -1,12 +1,13 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import IntelligenceConsoleScreen from "./IntelligenceConsoleScreen";
-import { providerApi, qualityDashboardApi, marketIntelligenceApi } from "../services/api";
+import { providerApi, qualityDashboardApi, marketIntelligenceApi, committeeIntelligenceApi } from "../services/api";
 
 vi.mock("../services/api", () => ({
   providerApi: { list: vi.fn(), getMetrics: vi.fn(), getDiagnostics: vi.fn(), getMetadata: vi.fn(), run: vi.fn() },
   qualityDashboardApi: { get: vi.fn(), getLearningSignals: vi.fn() },
   marketIntelligenceApi: { getProviderInventory: vi.fn(), getEvidenceMatrix: vi.fn(), getTechnical: vi.fn() },
+  committeeIntelligenceApi: { convene: vi.fn() },
 }));
 
 const PROVIDERS_FIXTURE = {
@@ -151,5 +152,37 @@ describe("IntelligenceConsoleScreen", () => {
 
     await waitFor(() => expect(screen.getByText(/DISAGREEMENT/)).toBeInTheDocument());
     expect(screen.getByText(/zacks rates this/)).toBeInTheDocument();
+  });
+
+  it("Sprint 38 — convening the committee shows each specialist's confidence, counter-evidence, and the CIO's largest disagreement", async () => {
+    providerApi.list.mockResolvedValue(PROVIDERS_FIXTURE);
+    committeeIntelligenceApi.convene.mockResolvedValue({
+      symbol: "AAPL",
+      isVerdict: false,
+      committee: {
+        members: [
+          { memberId: "technicalAnalyst", memberName: "Technical Analyst", headline: "Technical structure is supportive.", confidence: 60, uncertainty: 40, freshness: "CURRENT", counterEvidence: [], missingEvidence: [] },
+          { memberId: "equityResearchSpecialist", memberName: "Equity Research Specialist", headline: "Analysts disagree — this is not a consensus view.", confidence: 25, uncertainty: 75, freshness: "UNKNOWN", counterEvidence: [{ category: "ANALYSTS", reason: "zacks rates this Hold while finviz rates it Strong Buy" }], missingEvidence: [] },
+        ],
+        isVerdict: false,
+      },
+      cio: {
+        overallThesis: "The committee is split.",
+        confidence: "LOW_SPLIT",
+        largestDisagreement: "technicalAnalyst vs. equityResearchSpecialist",
+        highestRisk: "equityResearchSpecialist: zacks rates this Hold while finviz rates it Strong Buy",
+        missingInformation: [],
+        whyRecommendationMayBeWrong: ["Committee members disagree: technicalAnalyst vs. equityResearchSpecialist."],
+        isVerdict: false,
+      },
+    });
+    render(<IntelligenceConsoleScreen />);
+    await waitFor(() => expect(screen.getByText("Convene committee")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Convene committee"));
+
+    await waitFor(() => expect(screen.getByText("Technical Analyst")).toBeInTheDocument());
+    expect(screen.getByText("Equity Research Specialist")).toBeInTheDocument();
+    expect(screen.getAllByText(/technicalAnalyst vs. equityResearchSpecialist/).length).toBeGreaterThan(0);
   });
 });

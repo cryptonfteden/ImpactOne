@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
 import { Button, LoadingSpinner } from "../components/ui";
-import { providerApi, qualityDashboardApi, marketIntelligenceApi } from "../services/api";
+import { providerApi, qualityDashboardApi, marketIntelligenceApi, committeeIntelligenceApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 
 // Sprint 37 Priority 12 — Internal Source Intelligence Console. Status
@@ -143,6 +143,99 @@ function MarketIntelligencePanel() {
         ) : null}
       </SectionCard>
     </>
+  );
+}
+
+// Sprint 38 — Investment Intelligence Committee. Shows each specialist's
+// confidence, counter-evidence, missing evidence, and freshness side by
+// side, plus the CIO's summary of where the committee agrees/disagrees —
+// the mission's explicit requirement that users see WHY specialists
+// disagree, never just a single blended verdict. Read-only.
+function CommitteeIntelligencePanel() {
+  const [symbol, setSymbol] = useState("AAPL");
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  async function loadCommittee() {
+    if (!symbol.trim()) return;
+    setIsLoading(true);
+    setError("");
+    try {
+      const data = await committeeIntelligenceApi.convene(symbol.trim().toUpperCase());
+      setResult(data);
+    } catch (loadError) {
+      logError("committee intelligence load failed", loadError);
+      setError("Couldn't convene the committee right now.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  return (
+    <SectionCard title="Investment Intelligence Committee" subtitle="Independent specialists debate the same evidence — the committee never votes or averages scores" className="screen-card" icon="◐">
+      <div className="opportunity-item__actions">
+        <input
+          className="onboarding-numeric-input"
+          style={{ maxWidth: 160 }}
+          value={symbol}
+          onChange={(event) => setSymbol(event.target.value)}
+          placeholder="Symbol (e.g. AAPL)"
+        />
+        <Button type="button" className="ghost-button" onClick={loadCommittee} disabled={isLoading}>
+          {isLoading ? "Convening…" : "Convene committee"}
+        </Button>
+      </div>
+      {error ? <p className="company-description negative">{error}</p> : null}
+      {result ? (
+        <>
+          <div className="explanation-section">
+            <p className="explanation-section__title">CIO summary</p>
+            <p className="company-description">{result.cio.overallThesis}</p>
+            <p className="company-description subtle">Confidence: {result.cio.confidence}</p>
+            {result.cio.largestDisagreement ? (
+              <p className="company-description negative">Largest disagreement: {result.cio.largestDisagreement}</p>
+            ) : null}
+            <p className="company-description subtle">Highest risk: {result.cio.highestRisk}</p>
+            {result.cio.missingInformation.length ? (
+              <p className="company-description subtle">Missing: {result.cio.missingInformation.join("; ")}</p>
+            ) : null}
+            {result.cio.whyRecommendationMayBeWrong.length ? (
+              <p className="company-description negative">Why this may be wrong: {result.cio.whyRecommendationMayBeWrong.join(" ")}</p>
+            ) : null}
+          </div>
+
+          <div className="table-wrapper">
+            <table className="watchlist-table">
+              <thead>
+                <tr>
+                  <th>Specialist</th>
+                  <th>Headline</th>
+                  <th>Confidence</th>
+                  <th>Uncertainty</th>
+                  <th>Freshness</th>
+                  <th>Counter-evidence</th>
+                  <th>Missing evidence</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.committee.members.map((member) => (
+                  <tr key={member.memberId}>
+                    <td>{member.memberName}</td>
+                    <td>{member.headline}</td>
+                    <td>{member.confidence}</td>
+                    <td>{member.uncertainty}</td>
+                    <td className={member.freshness === "STALE" ? "negative" : ""}>{member.freshness}</td>
+                    <td>{member.counterEvidence.map((item) => item.reason).join("; ") || "—"}</td>
+                    <td>{member.missingEvidence.join("; ") || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : null}
+    </SectionCard>
   );
 }
 
@@ -413,6 +506,11 @@ export default function IntelligenceConsoleScreen() {
       <section>
         <p className="eyebrow">Market Intelligence Source Layer (Sprint 37, internal)</p>
         <MarketIntelligencePanel />
+      </section>
+
+      <section>
+        <p className="eyebrow">Investment Intelligence Committee (Sprint 38, internal)</p>
+        <CommitteeIntelligencePanel />
       </section>
 
       <section>
