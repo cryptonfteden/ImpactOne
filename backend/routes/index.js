@@ -31,6 +31,7 @@ const personalProgressRoutes = require("./personalProgressRoutes");
 const investorMemoryRoutes = require("./investorMemoryRoutes");
 const analyticsRoutes = require("./analyticsRoutes");
 const marketIntelligenceRoutes = require("./marketIntelligenceRoutes");
+const committeeIntelligenceRoutes = require("./committeeIntelligenceRoutes");
 
 const router = express.Router();
 
@@ -79,6 +80,11 @@ router.use("/v2/analytics", analyticsRoutes);
 // normalization views (see each service's safety-critical header); the
 // canonical recommendation system remains the only verdict source.
 router.use("/v2/market-intelligence", marketIntelligenceRoutes);
+// Sprint 38 — Investment Intelligence Committee. Distinct from the legacy
+// /committee/* routes above (Sprint 16/18A committee-debate system, wired
+// into the live recommendation flow) — this is a new, read-only, evidence-
+// matrix-driven analysis layer that never feeds a verdict.
+router.use("/v2/committee-intelligence", committeeIntelligenceRoutes);
 router.use("/chat", chatRoutes);
 
 module.exports = router;

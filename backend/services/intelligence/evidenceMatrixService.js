@@ -11,6 +11,7 @@ const analystConsensusService = require("./analystConsensusService");
 const socialInfluenceService = require("./socialInfluenceService");
 const cryptoDerivativesService = require("./cryptoDerivativesService");
 const optionsIntelligenceService = require("./optionsIntelligenceService");
+const researchAgentService = require("../researchAgentService");
 
 const MATRIX_CATEGORIES = ["NEWS", "SOCIAL", "INSTITUTIONS", "ANALYSTS", "OPTIONS", "TECHNICAL", "SENTIMENT", "COT", "FUNDAMENTALS", "RESEARCH"];
 
@@ -99,6 +100,20 @@ function buildOptionsRow(optionsSnapshot) {
   };
 }
 
+function buildResearchRow(evidenceItems) {
+  if (!evidenceItems.length) return unavailableRow("RESEARCH", "No principle in the research registry references this symbol yet.");
+  return {
+    category: "RESEARCH",
+    stance: "NEUTRAL", // a research principle is never a directional call by itself
+    confidence: 30,
+    uncertainty: 70,
+    sourceCount: evidenceItems.length,
+    newestSource: null,
+    strongestCounterEvidence: null,
+    reason: `${evidenceItems.length} registry principle(s) apply — see attributed source(s) for regime-scoped detail, not a directional signal.`,
+  };
+}
+
 /**
  * Builds the full matrix for a symbol. Categories with no real integration
  * yet (News beyond the existing feed, Institutions, COT for an equity
@@ -106,9 +121,10 @@ function buildOptionsRow(optionsSnapshot) {
  * honestly UNAVAILABLE rather than populated with invented rows.
  */
 async function buildEvidenceMatrix(symbol) {
-  const [technical, socialFeed] = await Promise.all([
+  const [technical, socialFeed, researchEvidence] = await Promise.all([
     technicalIntelligenceService.analyzeSymbol(symbol),
     Promise.resolve(socialInfluenceService.getFixtureFeed()),
+    researchAgentService.supplyResearchEvidence({}),
   ]);
   const analystConsensus = analystConsensusService.getFixtureConsensus(symbol);
   const cryptoSnapshot = cryptoDerivativesService.getFixtureSnapshot(symbol);
@@ -124,7 +140,7 @@ async function buildEvidenceMatrix(symbol) {
     SENTIMENT: buildCryptoRow(cryptoSnapshot),
     COT: unavailableRow("COT", "COT reports are scoped to futures markets, not individual equity symbols."),
     FUNDAMENTALS: unavailableRow("FUNDAMENTALS", "Not yet wired into this matrix — existing earnings provider covers this separately."),
-    RESEARCH: unavailableRow("RESEARCH", "No principle in the research registry references this symbol yet."),
+    RESEARCH: buildResearchRow(researchEvidence),
   };
 
   return {
