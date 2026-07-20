@@ -17,3 +17,4 @@ export { calibrationReportApi } from "./calibrationReportApi";
 export { personalProgressApi } from "./personalProgressApi";
 export { marketIntelligenceApi } from "./marketIntelligenceApi";
 export { committeeIntelligenceApi } from "./committeeIntelligenceApi";
+export { explainabilityApi } from "./explainabilityApi";

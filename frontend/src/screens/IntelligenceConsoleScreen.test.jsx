@@ -1,13 +1,14 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import IntelligenceConsoleScreen from "./IntelligenceConsoleScreen";
-import { providerApi, qualityDashboardApi, marketIntelligenceApi, committeeIntelligenceApi } from "../services/api";
+import { providerApi, qualityDashboardApi, marketIntelligenceApi, committeeIntelligenceApi, explainabilityApi } from "../services/api";
 
 vi.mock("../services/api", () => ({
   providerApi: { list: vi.fn(), getMetrics: vi.fn(), getDiagnostics: vi.fn(), getMetadata: vi.fn(), run: vi.fn() },
   qualityDashboardApi: { get: vi.fn(), getLearningSignals: vi.fn() },
   marketIntelligenceApi: { getProviderInventory: vi.fn(), getEvidenceMatrix: vi.fn(), getTechnical: vi.fn() },
   committeeIntelligenceApi: { convene: vi.fn() },
+  explainabilityApi: { explainRecommendation: vi.fn(), whatIf: vi.fn() },
 }));
 
 const PROVIDERS_FIXTURE = {
@@ -184,5 +185,44 @@ describe("IntelligenceConsoleScreen", () => {
     await waitFor(() => expect(screen.getByText("Technical Analyst")).toBeInTheDocument());
     expect(screen.getByText("Equity Research Specialist")).toBeInTheDocument();
     expect(screen.getAllByText(/technicalAnalyst vs. equityResearchSpecialist/).length).toBeGreaterThan(0);
+  });
+
+  it("Sprint 39 — explaining a recommendation shows consistency, disagreement level, and expandable sections", async () => {
+    providerApi.list.mockResolvedValue(PROVIDERS_FIXTURE);
+    explainabilityApi.explainRecommendation.mockResolvedValue({
+      recommendationId: "rec-1",
+      symbol: "NVDA",
+      timestamp: "2026-07-20T00:00:00.000Z",
+      decisionTrace: { finalOutput: { action: "BUY" }, historicalCommitteeDebate: null },
+      liveCommittee: { members: [], missingEvidence: [], staleEvidence: [], unavailableEvidence: [] },
+      cio: {},
+      disagreement: { level: "STRONG_DISAGREEMENT", pairs: [] },
+      consistency: { consistent: false, mismatchExplanation: "Recommendation is BUY but the committee currently leans contrary." },
+      explanation: { action: "BUY", whyAction: "Real reasoning.", whyNot: { EXIT: "Not Exit: real risk data." }, contradictingEvidence: null, missingEvidence: [], singleFactThatWouldChangeThis: "No single fact identified." },
+      provenance: [],
+      confidence: 70,
+      uncertainty: 35,
+      isVerdict: false,
+    });
+    render(<IntelligenceConsoleScreen />);
+    await waitFor(() => expect(screen.getByPlaceholderText("Recommendation id")).toBeInTheDocument());
+
+    fireEvent.change(screen.getByPlaceholderText("Recommendation id"), { target: { value: "rec-1" } });
+    fireEvent.click(screen.getByText("Explain"));
+
+    await waitFor(() => expect(screen.getByText(/committee currently leans contrary/)).toBeInTheDocument());
+    expect(screen.getByText(/Disagreement level: STRONG_DISAGREEMENT/)).toBeInTheDocument();
+  });
+
+  it("Sprint 39 — running a what-if shows the baseline vs. excluded-category lean without exposing a hidden weight", async () => {
+    providerApi.list.mockResolvedValue(PROVIDERS_FIXTURE);
+    explainabilityApi.whatIf.mockResolvedValue({ symbol: "AAPL", excludedCategory: "TECHNICAL", baseline: { lean: "SUPPORTIVE" }, whatIf: { lean: "SPLIT" }, verdictChanged: true, isVerdict: false });
+    render(<IntelligenceConsoleScreen />);
+    await waitFor(() => expect(screen.getByText("Run what-if")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Run what-if"));
+
+    await waitFor(() => expect(screen.getByText(/Verdict direction changed/)).toBeInTheDocument());
+    expect(explainabilityApi.whatIf).toHaveBeenCalledWith("AAPL", "TECHNICAL");
   });
 });

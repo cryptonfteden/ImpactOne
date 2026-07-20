@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
 import { Button, LoadingSpinner } from "../components/ui";
-import { providerApi, qualityDashboardApi, marketIntelligenceApi, committeeIntelligenceApi } from "../services/api";
+import { providerApi, qualityDashboardApi, marketIntelligenceApi, committeeIntelligenceApi, explainabilityApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 
 // Sprint 37 Priority 12 — Internal Source Intelligence Console. Status
@@ -236,6 +236,190 @@ function CommitteeIntelligencePanel() {
         </>
       ) : null}
     </SectionCard>
+  );
+}
+
+const EVIDENCE_CATEGORIES = ["NEWS", "SOCIAL", "INSTITUTIONS", "ANALYSTS", "OPTIONS", "TECHNICAL", "SENTIMENT", "COT", "FUNDAMENTALS", "RESEARCH"];
+
+function ExpandableSection({ title, children }) {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className="explanation-section">
+      <Button type="button" className="ghost-button" onClick={() => setIsOpen((current) => !current)}>
+        {isOpen ? "▾ " : "▸ "}{title}
+      </Button>
+      {isOpen ? <div className="explanation-section">{children}</div> : null}
+    </div>
+  );
+}
+
+// Sprint 39 — Explainability Layer. Every recommendation must be
+// traceable from final verdict back to the original evidence: this panel
+// looks up a recommendation's real DecisionTrace plus a freshly re-
+// convened committee and renders the mission's required expandable
+// sections (Decision Trace, Committee Debate, Evidence Tree,
+// Recommendation Explanation, What Could Change My Mind, Counter
+// Evidence, Missing Evidence), plus an internal What-If tool.
+function ExplainabilityPanel() {
+  const [recommendationId, setRecommendationId] = useState("");
+  const [bundle, setBundle] = useState(null);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [whatIfSymbol, setWhatIfSymbol] = useState("AAPL");
+  const [whatIfCategory, setWhatIfCategory] = useState("TECHNICAL");
+  const [whatIfResult, setWhatIfResult] = useState(null);
+  const [whatIfError, setWhatIfError] = useState("");
+  const [isWhatIfLoading, setIsWhatIfLoading] = useState(false);
+
+  async function loadExplanation() {
+    if (!recommendationId.trim()) return;
+    setIsLoading(true);
+    setError("");
+    try {
+      const data = await explainabilityApi.explainRecommendation(recommendationId.trim());
+      setBundle(data);
+    } catch (loadError) {
+      logError("explainability load failed", loadError);
+      setError("Couldn't load an explanation for that recommendation id.");
+      setBundle(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function runWhatIf() {
+    if (!whatIfSymbol.trim()) return;
+    setIsWhatIfLoading(true);
+    setWhatIfError("");
+    try {
+      const data = await explainabilityApi.whatIf(whatIfSymbol.trim().toUpperCase(), whatIfCategory);
+      setWhatIfResult(data);
+    } catch (loadError) {
+      logError("what-if load failed", loadError);
+      setWhatIfError("Couldn't run the what-if analysis right now.");
+    } finally {
+      setIsWhatIfLoading(false);
+    }
+  }
+
+  return (
+    <>
+      <SectionCard title="Recommendation explainability" subtitle="Every displayed conclusion must be reproducible — no fabricated reasoning, no hidden weighting" className="screen-card" icon="◔">
+        <div className="opportunity-item__actions">
+          <input
+            className="onboarding-numeric-input"
+            style={{ maxWidth: 320 }}
+            value={recommendationId}
+            onChange={(event) => setRecommendationId(event.target.value)}
+            placeholder="Recommendation id"
+          />
+          <Button type="button" className="ghost-button" onClick={loadExplanation} disabled={isLoading}>
+            {isLoading ? "Loading…" : "Explain"}
+          </Button>
+        </div>
+        {error ? <p className="company-description negative">{error}</p> : null}
+        {bundle ? (
+          <>
+            <p className="company-description subtle">
+              {bundle.symbol} · action {bundle.explanation.action} · confidence {bundle.confidence} · uncertainty {bundle.uncertainty ?? "n/a"}
+            </p>
+            {bundle.consistency.consistent === false ? (
+              <p className="company-description negative">Consistency check: {bundle.consistency.mismatchExplanation}</p>
+            ) : bundle.consistency.consistent === true ? (
+              <p className="company-description positive">Consistency check: recommendation and live committee agree.</p>
+            ) : null}
+            <p className="company-description subtle">Disagreement level: {bundle.disagreement.level}</p>
+
+            <ExpandableSection title="Decision Trace">
+              <p className="company-description subtle">Timestamp: {new Date(bundle.timestamp).toLocaleString()}</p>
+              <pre className="company-description subtle" style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(bundle.decisionTrace.finalOutput, null, 2)}</pre>
+            </ExpandableSection>
+
+            <ExpandableSection title="Committee Debate (historical, immutable)">
+              <pre className="company-description subtle" style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(bundle.decisionTrace.historicalCommitteeDebate, null, 2)}</pre>
+            </ExpandableSection>
+
+            <ExpandableSection title="Evidence Tree (live committee members)">
+              <div className="table-wrapper">
+                <table className="watchlist-table">
+                  <thead>
+                    <tr><th>Specialist</th><th>Confidence</th><th>Uncertainty</th><th>Freshness</th><th>Counter-evidence</th></tr>
+                  </thead>
+                  <tbody>
+                    {bundle.liveCommittee.members.map((memberItem) => (
+                      <tr key={memberItem.memberId}>
+                        <td>{memberItem.memberName}</td>
+                        <td>{memberItem.confidence}</td>
+                        <td>{memberItem.uncertainty}</td>
+                        <td className={memberItem.freshness === "STALE" ? "negative" : ""}>{memberItem.freshness}</td>
+                        <td>{memberItem.counterEvidence.map((item) => item.reason).join("; ") || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </ExpandableSection>
+
+            <ExpandableSection title="Recommendation Explanation">
+              <p className="company-description">Why {bundle.explanation.action}: {bundle.explanation.whyAction}</p>
+              {Object.entries(bundle.explanation.whyNot).map(([action, text]) => (
+                <p key={action} className="company-description subtle">{text}</p>
+              ))}
+            </ExpandableSection>
+
+            <ExpandableSection title="What Could Change My Mind">
+              <p className="company-description">{bundle.explanation.singleFactThatWouldChangeThis}</p>
+            </ExpandableSection>
+
+            <ExpandableSection title="Counter Evidence">
+              {bundle.explanation.contradictingEvidence ? (
+                <p className="company-description negative">{bundle.explanation.contradictingEvidence.memberId}: {bundle.explanation.contradictingEvidence.reason}</p>
+              ) : (
+                <p className="company-description subtle">No strongest contradictory evidence was identified.</p>
+              )}
+            </ExpandableSection>
+
+            <ExpandableSection title="Missing Evidence">
+              {bundle.liveCommittee.missingEvidence.length ? (
+                bundle.liveCommittee.missingEvidence.map((item, index) => (
+                  <p key={index} className="company-description subtle">{item.memberId}: {item.item}</p>
+                ))
+              ) : (
+                <p className="company-description subtle">No missing evidence reported.</p>
+              )}
+            </ExpandableSection>
+          </>
+        ) : null}
+      </SectionCard>
+
+      <SectionCard title="What-If Engine (internal)" subtitle="Remove one evidence category and recompute — never exposes a hidden weight" className="screen-card" icon="◔">
+        <div className="opportunity-item__actions">
+          <input
+            className="onboarding-numeric-input"
+            style={{ maxWidth: 140 }}
+            value={whatIfSymbol}
+            onChange={(event) => setWhatIfSymbol(event.target.value)}
+            placeholder="Symbol"
+          />
+          <select className="onboarding-numeric-input" style={{ maxWidth: 200 }} value={whatIfCategory} onChange={(event) => setWhatIfCategory(event.target.value)}>
+            {EVIDENCE_CATEGORIES.map((category) => (
+              <option key={category} value={category}>Without {category}</option>
+            ))}
+          </select>
+          <Button type="button" className="ghost-button" onClick={runWhatIf} disabled={isWhatIfLoading}>
+            {isWhatIfLoading ? "Running…" : "Run what-if"}
+          </Button>
+        </div>
+        {whatIfError ? <p className="company-description negative">{whatIfError}</p> : null}
+        {whatIfResult ? (
+          <p className="company-description">
+            Baseline lean: {whatIfResult.baseline.lean} → Without {whatIfResult.excludedCategory}: {whatIfResult.whatIf.lean}.{" "}
+            {whatIfResult.verdictChanged ? <span className="negative">Verdict direction changed.</span> : <span className="positive">Verdict direction unchanged.</span>}
+          </p>
+        ) : null}
+      </SectionCard>
+    </>
   );
 }
 
@@ -511,6 +695,11 @@ export default function IntelligenceConsoleScreen() {
       <section>
         <p className="eyebrow">Investment Intelligence Committee (Sprint 38, internal)</p>
         <CommitteeIntelligencePanel />
+      </section>
+
+      <section>
+        <p className="eyebrow">Explainability (Sprint 39, internal)</p>
+        <ExplainabilityPanel />
       </section>
 
       <section>
