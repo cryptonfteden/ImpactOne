@@ -32,6 +32,7 @@ const investorMemoryRoutes = require("./investorMemoryRoutes");
 const analyticsRoutes = require("./analyticsRoutes");
 const marketIntelligenceRoutes = require("./marketIntelligenceRoutes");
 const committeeIntelligenceRoutes = require("./committeeIntelligenceRoutes");
+const explainabilityRoutes = require("./explainabilityRoutes");
 
 const router = express.Router();
 
@@ -85,6 +86,9 @@ router.use("/v2/market-intelligence", marketIntelligenceRoutes);
 // into the live recommendation flow) — this is a new, read-only, evidence-
 // matrix-driven analysis layer that never feeds a verdict.
 router.use("/v2/committee-intelligence", committeeIntelligenceRoutes);
+// Sprint 39 — Explainability Layer. Read-only: explains a DecisionTrace
+// plus a live re-convened committee; never a second recommendation path.
+router.use("/v2/explainability", explainabilityRoutes);
 router.use("/chat", chatRoutes);
 
 module.exports = router;
