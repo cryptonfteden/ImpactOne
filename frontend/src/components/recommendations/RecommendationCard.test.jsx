@@ -68,6 +68,29 @@ describe("RecommendationCard", () => {
     expect(screen.getByText(/Elevated inflation pressure\./)).toBeInTheDocument();
   });
 
+  it("Sprint 40 — shows a distinct 'what would change my mind' from confidenceReducers, separate from 'would prove it wrong'", () => {
+    const fixture = {
+      ...RECOMMENDATION_FIXTURE,
+      createdAt: "2026-07-14T00:00:00.000Z",
+      explanation: {
+        ...RECOMMENDATION_FIXTURE.explanation,
+        invalidationConditions: ["Forward guidance softens the policy signal."],
+        confidenceReducers: ["Analyst ratings disagree on near-term direction."],
+      },
+    };
+    render(<RecommendationCard recommendation={fixture} isExpanded={false} onToggleExpand={vi.fn()} />);
+
+    expect(screen.getByText(/What would change my mind:/)).toBeInTheDocument();
+    expect(screen.getByText(/Analyst ratings disagree on near-term direction\./)).toBeInTheDocument();
+  });
+
+  it("Sprint 40 — a same-day recommendation honestly states it wasn't carried over from a previous day", () => {
+    const fixture = { ...RECOMMENDATION_FIXTURE, createdAt: new Date().toISOString() };
+    render(<RecommendationCard recommendation={fixture} isExpanded={false} onToggleExpand={vi.fn()} />);
+
+    expect(screen.getByText(/not a carried-over call from a previous day/)).toBeInTheDocument();
+  });
+
   it("always shows symbol, action, provenance badge, quality badge, and thesis, collapsed by default", () => {
     render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded={false} onToggleExpand={vi.fn()} />);
 

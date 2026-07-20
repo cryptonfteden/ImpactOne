@@ -172,6 +172,11 @@ function RecommendationCard({ recommendation, isExpanded, onToggleExpand }) {
   const explanation = recommendation.explanation || {};
   const qualityScore = Number.isFinite(Number(recommendation.qualityScore)) ? Number(recommendation.qualityScore) : null;
   const affectedPositions = explanation.affectedPositions || [];
+  // Sprint 40 — "Why today, why not yesterday" answered honestly: a real
+  // same-calendar-day check against the recommendation's own createdAt,
+  // never assumed.
+  const createdDate = recommendation.createdAt ? new Date(recommendation.createdAt) : null;
+  const isFromToday = Boolean(createdDate && !Number.isNaN(createdDate.getTime()) && createdDate.toDateString() === new Date().toDateString());
 
   const [decisionTrace, setDecisionTrace] = useState(null);
   const [history, setHistory] = useState([]);
@@ -335,11 +340,23 @@ function RecommendationCard({ recommendation, isExpanded, onToggleExpand }) {
           omitted rather than padded with a placeholder. */}
       <div className="rec-at-a-glance">
         <p className="company-description subtle">
-          <strong>Why now:</strong> {formatTimestamp(recommendation.createdAt) || "Recently"}, timed to the {recommendation.timeHorizon || "stated"} horizon.
+          <strong>Why now:</strong> {isFromToday ? "Generated today" : formatTimestamp(recommendation.createdAt) || "Recently"}, timed to the {recommendation.timeHorizon || "stated"} horizon
+          {isFromToday ? " — not a carried-over call from a previous day." : "."}
         </p>
         {explanation.invalidationConditions?.length ? (
           <p className="company-description subtle">
             <strong>Would prove it wrong:</strong> {explanation.invalidationConditions[0]}
+          </p>
+        ) : null}
+        {/* Sprint 40 — "What would change my mind" is deliberately distinct
+            from "Would prove it wrong" above: invalidation conditions are
+            the thesis's own stated failure points, while a confidence
+            reducer is the single weakest link already dragging down this
+            call's own confidence score today — both real, different
+            questions, both answered from data already on this object. */}
+        {explanation.confidenceReducers?.length ? (
+          <p className="company-description subtle">
+            <strong>What would change my mind:</strong> {explanation.confidenceReducers[0]}
           </p>
         ) : null}
         {explanation.keyRisks?.length ? (

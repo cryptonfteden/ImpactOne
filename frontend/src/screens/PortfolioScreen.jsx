@@ -10,6 +10,54 @@ import PortfolioEngineScreen from "./PortfolioEngineScreen";
 
 const DEFAULT_SCENARIOS = ["Oil spike", "Fed rate hike", "BTC ETF approval", "Israel conflict"];
 
+const SECTOR_CONCENTRATION_LIMIT_PCT = 25; // matches this screen's own displayed "Portfolio Rules"
+const ELEVATED_RISK_EXPOSURE_PCT = 50;
+
+/**
+ * Sprint 40 — Portfolio as AI advisor: insights, not just positions.
+ * Every line here is derived from data this screen already fetched —
+ * nothing new is requested, nothing is invented. Where this codebase
+ * genuinely has no data source yet (macro exposure at the portfolio
+ * level), this says so honestly instead of fabricating a reading.
+ */
+function buildAdvisorInsights(portfolio) {
+  const positions = portfolio?.positions || [];
+  const sectors = portfolio?.allocationBySector || [];
+  const riskExposure = Number(portfolio?.riskExposure || 0);
+
+  const topSector = sectors.length ? sectors.slice().sort((a, b) => b.pct - a.pct)[0] : null;
+  const largestHiddenRisk = topSector
+    ? topSector.pct > SECTOR_CONCENTRATION_LIMIT_PCT
+      ? `${topSector.pct}% concentrated in ${topSector.name} — above your own ${SECTOR_CONCENTRATION_LIMIT_PCT}% sector limit.`
+      : `Largest sector exposure is ${topSector.name} at ${topSector.pct}% — within your ${SECTOR_CONCENTRATION_LIMIT_PCT}% limit.`
+    : "No open positions yet — no sector concentration to report.";
+
+  const bestPosition = positions.length ? positions.slice().sort((a, b) => Number(b.unrealizedPnL || 0) - Number(a.unrealizedPnL || 0))[0] : null;
+  const largestOpportunity = bestPosition
+    ? `${bestPosition.symbol} is your best-performing open position (${Number(bestPosition.unrealizedPnL || 0) >= 0 ? "+" : ""}$${Number(bestPosition.unrealizedPnL || 0).toFixed(2)} unrealized).`
+    : "No open positions yet — no opportunity to report.";
+
+  const worstPosition = positions.length ? positions.slice().sort((a, b) => Number(a.unrealizedPnL || 0) - Number(b.unrealizedPnL || 0))[0] : null;
+  const whatDeservesAttentionToday = worstPosition && Number(worstPosition.unrealizedPnL || 0) < 0
+    ? `${worstPosition.symbol} is your worst-performing open position (-$${Math.abs(Number(worstPosition.unrealizedPnL || 0)).toFixed(2)} unrealized) — worth a look.`
+    : "No open position is currently underwater.";
+
+  const aiWarning = riskExposure > ELEVATED_RISK_EXPOSURE_PCT
+    ? `Risk exposure is elevated at ${riskExposure.toFixed(2)}% of capital.`
+    : positions.length
+      ? `Risk exposure is ${riskExposure.toFixed(2)}% of capital — no elevated-risk warning today.`
+      : "No open positions — no risk exposure to warn about.";
+
+  return {
+    largestHiddenRisk,
+    largestOpportunity,
+    sectorConcentration: topSector ? `${topSector.name} — ${topSector.pct}%` : "No allocation yet.",
+    macroExposure: "Not tracked at the portfolio level yet — see the Investment Intelligence Committee's Macro Economist view per symbol (Intelligence Console).",
+    aiWarning,
+    whatDeservesAttentionToday,
+  };
+}
+
 // Default is the existing localStorage-driven engine, unchanged. Set
 // VITE_PORTFOLIO_ENGINE=api to preview the new server-owned Portfolio
 // Engine (Sprint 14) instead. Neither hook is called by this outer
@@ -64,6 +112,7 @@ function LegacyPortfolioScreen() {
 
   const positions = portfolio?.positions || [];
   const trades = portfolio?.trades || [];
+  const insights = buildAdvisorInsights(portfolio);
 
   return (
     <div className="screen-page">
@@ -83,6 +132,17 @@ function LegacyPortfolioScreen() {
           {error}{overview ? " Showing the last portfolio data that loaded successfully." : ""}
         </p>
       ) : null}
+
+      <SectionCard title="AI Advisor Insights" subtitle="Not positions — what actually deserves your attention today" className="screen-card">
+        <div className="widget-list">
+          <div className="widget-list-item"><strong>Largest hidden risk</strong><span>{insights.largestHiddenRisk}</span></div>
+          <div className="widget-list-item"><strong>Largest opportunity</strong><span>{insights.largestOpportunity}</span></div>
+          <div className="widget-list-item"><strong>Sector concentration</strong><span>{insights.sectorConcentration}</span></div>
+          <div className="widget-list-item"><strong>Macro exposure</strong><span>{insights.macroExposure}</span></div>
+          <div className="widget-list-item"><strong>AI warning</strong><span>{insights.aiWarning}</span></div>
+          <div className="widget-list-item"><strong>Deserves attention today</strong><span>{insights.whatDeservesAttentionToday}</span></div>
+        </div>
+      </SectionCard>
 
       <div className="portfolio-grid">
         <SectionCard title="Cash Balance" subtitle="Available capital" className="screen-card">

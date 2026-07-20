@@ -68,3 +68,14 @@ describe("PortfolioScreen feature flag", () => {
     expect(screen.queryByText("Virtual agent portfolio and paper trading")).not.toBeInTheDocument();
   });
 });
+
+describe("Sprint 40 — Portfolio AI Advisor Insights", () => {
+  it("shows an honest empty state when there are no open positions or sector allocation", () => {
+    render(<PortfolioScreen />);
+    expect(screen.getByText("AI Advisor Insights")).toBeInTheDocument();
+    expect(screen.getByText("No open positions yet — no sector concentration to report.")).toBeInTheDocument();
+    expect(screen.getByText("No open positions yet — no opportunity to report.")).toBeInTheDocument();
+    expect(screen.getByText("No open positions — no risk exposure to warn about.")).toBeInTheDocument();
+    expect(screen.getByText(/Not tracked at the portfolio level yet/)).toBeInTheDocument();
+  });
+});

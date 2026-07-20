@@ -6,6 +6,7 @@ import useWatchlist from "../hooks/useWatchlist";
 import RecommendationCard from "../components/recommendations/RecommendationCard";
 import { outcomeIntelligenceApi, calibrationReportApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
+import { trackEvent } from "../utils/analytics";
 
 function recommendationKey(recommendation) {
   return recommendation.id;
@@ -64,6 +65,14 @@ export default function RecommendationsScreen() {
       cancelled = true;
     };
   }, []);
+
+  // Sprint 40 — Performance: "first recommendation rendered" is a real
+  // Time To Value milestone the mission names. Fires exactly once, the
+  // first time this screen actually has a non-empty list to show — never
+  // on every re-render/poll.
+  useEffect(() => {
+    if (recommendations.length) trackEvent("first_recommendation_rendered");
+  }, [recommendations.length > 0]);
 
   if (isLoading && !recommendations.length) {
     return (
