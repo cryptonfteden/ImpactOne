@@ -7,6 +7,7 @@ import RecommendationCard from "../components/recommendations/RecommendationCard
 import { outcomeIntelligenceApi, calibrationReportApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 import { trackEvent } from "../utils/analytics";
+import { msSinceBoot } from "../utils/performanceTiming";
 
 function recommendationKey(recommendation) {
   return recommendation.id;
@@ -71,7 +72,7 @@ export default function RecommendationsScreen() {
   // first time this screen actually has a non-empty list to show — never
   // on every re-render/poll.
   useEffect(() => {
-    if (recommendations.length) trackEvent("first_recommendation_rendered");
+    if (recommendations.length) trackEvent("first_recommendation_rendered", { durationMs: msSinceBoot() });
   }, [recommendations.length > 0]);
 
   if (isLoading && !recommendations.length) {

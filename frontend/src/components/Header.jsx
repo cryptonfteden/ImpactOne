@@ -6,6 +6,7 @@ import { logError } from "../utils/errorHandling";
 import { startVisibilityAwarePolling } from "../utils/pollWhileVisible";
 import { useI18n } from "../i18n/I18nProvider";
 import { trackEvent } from "../utils/analytics";
+import { msSinceBoot } from "../utils/performanceTiming";
 
 // Sprint 40 — Search must become conversational: "Should I buy Nvidia?",
 // "What changed overnight?" etc., not just ticker lookup. A query is
@@ -107,7 +108,9 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
     setConversationalAnswer(null);
     setAnswerError("");
     setIsAnswerLoading(true);
-    trackEvent("search_conversational_used");
+    // Sprint 40 — a real interaction-latency measurement (question submit
+    // to answer received), not just that the feature was used.
+    const startedAt = msSinceBoot();
     try {
       const result = await chatApi.ask({ question });
       setConversationalAnswer({ question, answer: result.answer || result.response || "No answer was returned." });
@@ -115,6 +118,10 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
       logError("conversational search failed", error);
       setAnswerError("Couldn't get an answer right now — try a plain ticker symbol instead.");
     } finally {
+      // Fires once per real attempt regardless of outcome, so usage rate
+      // and latency both reflect every real question asked, not just
+      // successful ones.
+      trackEvent("search_conversational_used", { durationMs: msSinceBoot() - startedAt });
       setIsAnswerLoading(false);
     }
   }, []);

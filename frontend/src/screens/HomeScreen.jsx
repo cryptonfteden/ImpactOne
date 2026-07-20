@@ -6,6 +6,7 @@ import useWatchlist from "../hooks/useWatchlist";
 import { logError } from "../utils/errorHandling";
 import { useI18n } from "../i18n/I18nProvider";
 import { trackEvent } from "../utils/analytics";
+import { msSinceBoot } from "../utils/performanceTiming";
 
 const ACTION_PILL_CLASS = {
   BUY: "pill opportunity",
@@ -91,7 +92,11 @@ export default function HomeScreen({ onNavigate }) {
           // first moment this browser saw real, personalized content.
           // Both fire from the same real event rather than inventing an
           // artificial distinction between them.
-          trackEvent("first_useful_information");
+          // Sprint 40 — attaches the real elapsed time (ms since this page
+          // began loading) to the same milestone, so this event now
+          // measures actual "first useful content" latency, not just that
+          // it eventually happened.
+          trackEvent("first_useful_information", { durationMs: msSinceBoot() });
         }
       } catch (loadError) {
         logError("home summary load failed", loadError);
