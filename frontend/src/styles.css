@@ -1478,6 +1478,16 @@ body {
   max-width: 460px;
 }
 
+/* Sprint 40 — conversational search answer popover, reuses .header-
+   autocomplete's positioning but needs a column layout and more width
+   for a real sentence-length answer rather than a row of ticker chips. */
+.header-conversational-answer {
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 380px;
+  gap: 8px;
+}
+
 .header-suggestion {
   color: var(--text-1);
   background: rgba(19, 32, 49, 0.9);

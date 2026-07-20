@@ -68,7 +68,9 @@ function PersonalProgress() {
 // no longer have their own top-level nav slot on mobile; they stay fully
 // reachable from here instead of being deleted. Desktop's Sidebar keeps
 // its own richer, always-visible list independently of this section.
-const MORE_DESTINATIONS = ["Themes", "AI Analysis", "Alerts", "Global Intelligence", "Watchlist", "Dashboard", "Settings"];
+// Sprint 40 — "Dashboard" removed: it duplicated Home's content (see
+// Sidebar.jsx's own comment and SPRINT_40_REPORT.md).
+const MORE_DESTINATIONS = ["Themes", "AI Analysis", "Alerts", "Global Intelligence", "Watchlist", "Settings"];
 
 function MoreLinks({ onNavigate }) {
   const destinations = import.meta.env.VITE_DEV_CONSOLE === "true" ? [...MORE_DESTINATIONS, "Intelligence Console"] : MORE_DESTINATIONS;

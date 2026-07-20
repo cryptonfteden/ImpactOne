@@ -1,7 +1,13 @@
 import { memo } from "react";
 import { Button } from "../components/ui";
 
-const navItems = ["Home", "Dashboard", "Global Intelligence", "AI Analysis", "Watchlist", "Portfolio", "Recommendations", "Daily Feed", "Themes", "Alerts", "My Profile", "Settings"];
+// Sprint 40 — "Dashboard" removed: it duplicated Home's morning-brief
+// content almost entirely (two competing landing experiences built in
+// different sprints — see SPRINT_40_REPORT.md's duplication findings).
+// Home is now the single landing surface; DashboardScreen/DashboardHome
+// remain in the codebase (their own tests still pass) but are no longer
+// reachable from any nav surface.
+const navItems = ["Home", "Global Intelligence", "AI Analysis", "Watchlist", "Portfolio", "Recommendations", "Daily Feed", "Themes", "Alerts", "My Profile", "Settings"];
 
 // Sprint 23A — developer-only; only present in the nav when explicitly
 // enabled at build time (same VITE_* flag precedent as

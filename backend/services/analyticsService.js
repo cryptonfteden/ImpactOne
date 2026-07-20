@@ -19,6 +19,14 @@ const ALLOWED_EVENTS = new Set([
   // distinct from merely opening it.
   "first_useful_information",
   "recommendation_understood",
+  // Sprint 40 — Product Excellence. Onboarding drop-off (per-step, not
+  // just completion) and two more real interaction milestones the
+  // mission names: a conversational (non-ticker) search actually used,
+  // and the first recommendation genuinely rendered on screen.
+  "onboarding_step_completed",
+  "onboarding_step_skipped",
+  "search_conversational_used",
+  "first_recommendation_rendered",
 ]);
 
 // Every property key any event is allowed to carry. Anything else —
@@ -26,7 +34,7 @@ const ALLOWED_EVENTS = new Set([
 // investor profile (age, country, income) — is silently dropped, not
 // stored. Values are also constrained to primitives so a caller can't
 // smuggle a nested object holding unexpected fields.
-const ALLOWED_PROPERTY_KEYS = new Set(["symbol", "action", "feedbackType", "cardKey"]);
+const ALLOWED_PROPERTY_KEYS = new Set(["symbol", "action", "feedbackType", "cardKey", "stepKey", "stepIndex", "durationMs"]);
 
 // Sprint 36 — a random, client-generated UUID (crypto.randomUUID), never
 // anything resembling a device fingerprint or account identifier.

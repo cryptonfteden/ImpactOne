@@ -7,7 +7,6 @@ import UpdateBanner from "../components/UpdateBanner";
 import ScreenErrorBoundary from "../components/ScreenErrorBoundary";
 import useWatchlist from "../hooks/useWatchlist";
 import {
-  DashboardFeature,
   AnalysisFeature,
   NewsFeature,
   WatchlistFeature,
@@ -23,9 +22,13 @@ import {
 
 const GlobalIntelligenceFeature = lazy(() => import("../features/intelligence/GlobalIntelligenceFeature"));
 
+// Sprint 40 — "Dashboard" removed from screenMap/nav: it duplicated
+// Home's morning-brief content almost entirely (see Sidebar.jsx's own
+// comment and SPRINT_40_REPORT.md's duplication findings). Home is now
+// the sole nav-reachable landing screen and the unreachable-view fallback
+// below.
 const screenMap = {
   Home: HomeFeature,
-  Dashboard: DashboardFeature,
   "Daily Feed": NewsFeature,
   "AI Analysis": AnalysisFeature,
   Watchlist: WatchlistFeature,
@@ -74,7 +77,7 @@ export default function MainLayout() {
         <OfflineBanner />
         <UpdateBanner />
         {(() => {
-          const ActiveScreen = screenMap[activeView] || DashboardFeature;
+          const ActiveScreen = screenMap[activeView] || HomeFeature;
           if (activeView === "AI Analysis") {
             return (
               <ScreenErrorBoundary>

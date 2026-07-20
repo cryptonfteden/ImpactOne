@@ -19,6 +19,12 @@ const ALLOWED_EVENTS = new Set([
   "returning_user",
   "first_useful_information",
   "recommendation_understood",
+  // Sprint 40 — Product Excellence: onboarding per-step drop-off, real
+  // conversational search usage, and first recommendation actually seen.
+  "onboarding_step_completed",
+  "onboarding_step_skipped",
+  "search_conversational_used",
+  "first_recommendation_rendered",
 ]);
 
 // Sprint 36 Priority 1 — Time To Value measurement. A random correlation

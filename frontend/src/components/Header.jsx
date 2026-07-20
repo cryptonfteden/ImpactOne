@@ -1,10 +1,22 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Input } from "./ui";
 import usePortfolioEngine from "../hooks/usePortfolioEngine";
-import { intelligenceApi } from "../services/api";
+import { intelligenceApi, chatApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 import { startVisibilityAwarePolling } from "../utils/pollWhileVisible";
 import { useI18n } from "../i18n/I18nProvider";
+import { trackEvent } from "../utils/analytics";
+
+// Sprint 40 — Search must become conversational: "Should I buy Nvidia?",
+// "What changed overnight?" etc., not just ticker lookup. A query is
+// treated as a question (routed to chatApi.ask) rather than a ticker
+// symbol if it contains whitespace or ends in "?" — real tickers are
+// always a single unspaced token.
+function looksConversational(value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return false;
+  return trimmed.includes(" ") || trimmed.endsWith("?");
+}
 
 const CORE_SYMBOLS = [
   "AAPL",
@@ -31,6 +43,9 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
+  const [conversationalAnswer, setConversationalAnswer] = useState(null);
+  const [isAnswerLoading, setIsAnswerLoading] = useState(false);
+  const [answerError, setAnswerError] = useState("");
 
   // Sprint 15 Top App Bar (spec §4.1): portfolio value + daily P/L, reusing
   // the Sprint 14 server-owned engine already fetched elsewhere.
@@ -85,6 +100,33 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
     onQuickSearch?.(normalized);
   }, [onQuickSearch]);
 
+  const askConversationally = useCallback(async (value) => {
+    const question = String(value || "").trim();
+    if (!question) return;
+    setIsSearchFocused(false);
+    setConversationalAnswer(null);
+    setAnswerError("");
+    setIsAnswerLoading(true);
+    trackEvent("search_conversational_used");
+    try {
+      const result = await chatApi.ask({ question });
+      setConversationalAnswer({ question, answer: result.answer || result.response || "No answer was returned." });
+    } catch (error) {
+      logError("conversational search failed", error);
+      setAnswerError("Couldn't get an answer right now — try a plain ticker symbol instead.");
+    } finally {
+      setIsAnswerLoading(false);
+    }
+  }, []);
+
+  const submitSearch = useCallback((value) => {
+    if (looksConversational(value)) {
+      askConversationally(value);
+    } else {
+      submitTicker(value);
+    }
+  }, [askConversationally, submitTicker]);
+
   const dailyPnl = Number(portfolioSummary?.dailyPnl || 0);
 
   return (
@@ -109,24 +151,42 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
             type="text"
             placeholder={t("header.searchPlaceholder")}
             value={query}
-            onChange={(event) => setQuery(event.target.value.toUpperCase())}
+            onChange={(event) => {
+              const raw = event.target.value;
+              setQuery(looksConversational(raw) ? raw : raw.toUpperCase());
+            }}
             onFocus={() => setIsSearchFocused(true)}
             onBlur={() => setTimeout(() => setIsSearchFocused(false), 150)}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
-                submitTicker(query);
+                submitSearch(query);
               }
             }}
           />
-          <Button type="button" className="search-submit" onClick={() => submitTicker(query)}>{t("header.searchGo")}</Button>
+          <Button type="button" className="search-submit" onClick={() => submitSearch(query)}>{t("header.searchGo")}</Button>
         </label>
-        {isSearchFocused && suggestions.length ? (
+        {isSearchFocused && !looksConversational(query) && suggestions.length ? (
           <div className="header-autocomplete">
             {suggestions.map((symbol) => (
               <Button key={symbol} type="button" className="header-suggestion" onClick={() => submitTicker(symbol)}>
                 {symbol}
               </Button>
             ))}
+          </div>
+        ) : null}
+        {isAnswerLoading || conversationalAnswer || answerError ? (
+          <div className="header-autocomplete header-conversational-answer">
+            {isAnswerLoading ? (
+              <p className="company-description subtle">Thinking…</p>
+            ) : answerError ? (
+              <p className="company-description negative">{answerError}</p>
+            ) : (
+              <>
+                <p className="company-description subtle">"{conversationalAnswer.question}"</p>
+                <p className="company-description">{conversationalAnswer.answer}</p>
+                <Button type="button" className="ghost-button" onClick={() => { setConversationalAnswer(null); setQuery(""); }}>Dismiss</Button>
+              </>
+            )}
           </div>
         ) : null}
         <div className="market-pill">{t("header.marketOpen")} 🟢</div>
@@ -152,7 +212,7 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
           </Button>
           {isQuickActionsOpen ? (
             <div className="header-menu__dropdown">
-              <Button type="button" className="header-menu__item" onClick={() => navigateTo("Dashboard")}>{t("header.openDashboard")}</Button>
+              <Button type="button" className="header-menu__item" onClick={() => navigateTo("Home")}>{t("header.openDashboard")}</Button>
               <Button type="button" className="header-menu__item" onClick={() => navigateTo("Portfolio")}>{t("header.openPortfolio")}</Button>
               <Button type="button" className="header-menu__item" onClick={() => navigateTo("Alerts")}>{t("header.openAlerts")}</Button>
             </div>
