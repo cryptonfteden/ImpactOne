@@ -59,4 +59,25 @@ describe("FeedItemCard", () => {
     expect(screen.getByText("Minimal event")).toBeInTheDocument();
     expect(screen.queryByText("Evidence, reasoning & portfolio impact")).not.toBeInTheDocument();
   });
+
+  it("Sprint 40 — shows a real relative-freshness badge and an honest read-time estimate, not just a raw timestamp", () => {
+    render(<FeedItemCard item={{ ...ITEM_FIXTURE, publishedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString() }} />);
+    expect(screen.getByText("30m ago")).toBeInTheDocument();
+    expect(screen.getByText(/min read/)).toBeInTheDocument();
+  });
+
+  it("Sprint 40 — a high-confidence opportunity/risk item is marked 'Act now'", () => {
+    render(<FeedItemCard item={{ ...ITEM_FIXTURE, impactType: "opportunity", confidence: 85 }} />);
+    expect(screen.getByText("Act now")).toBeInTheDocument();
+  });
+
+  it("Sprint 40 — a low-confidence directional item is marked 'Monitor', never overclaimed as actionable", () => {
+    render(<FeedItemCard item={{ ...ITEM_FIXTURE, impactType: "risk", confidence: 40 }} />);
+    expect(screen.getByText("Monitor")).toBeInTheDocument();
+  });
+
+  it("Sprint 40 — a neutral item is marked 'FYI', never presented as something to act on", () => {
+    render(<FeedItemCard item={{ ...ITEM_FIXTURE, impactType: "neutral", confidence: 90 }} />);
+    expect(screen.getByText("FYI")).toBeInTheDocument();
+  });
 });

@@ -44,6 +44,12 @@ const MONTHLY_AMOUNT_OPTIONS = [100, 500, 1000, 2500];
 
 const TOTAL_STEPS = 7;
 
+// Sprint 40 — one key per step, in step order, used for per-step
+// completed/skipped analytics (matches each step's real answers field
+// name so a future audit can join telemetry back to what the question
+// actually collects).
+const STEP_KEYS = ["age", "country", "experienceLevel", "monthlyInvestmentAmount", "investmentGoal", "riskTolerance", "investmentHorizon"];
+
 function ChipGroup({ options, onSelect, selectedValue }) {
   return (
     <div className="onboarding-chip-group" role="group">
@@ -82,7 +88,15 @@ export default function OnboardingFlow({ onComplete, onFinish }) {
   const currencySymbol = useMemo(() => getCurrencyForCountry(answers.country), [answers.country]);
 
   const advance = () => setStep((current) => Math.min(current + 1, TOTAL_STEPS - 1));
-  const skip = () => advance();
+  // Sprint 40 — Onboarding drop-off measurement. Every question must
+  // justify itself; per-step completed/skipped events (missing before
+  // this sprint — only overall completion was tracked) are what let a
+  // future sprint actually see which questions people skip and decide
+  // whether to remove them, rather than guessing.
+  const skip = () => {
+    trackEvent("onboarding_step_skipped", { stepKey: STEP_KEYS[step], stepIndex: step });
+    advance();
+  };
   // Sprint 36 Priority 2 — reduce onboarding friction. Age and investment
   // horizon are the only two required answers; the five steps between
   // them are already individually skippable, but a user who wants to
@@ -92,7 +106,12 @@ export default function OnboardingFlow({ onComplete, onFinish }) {
   // answered value in `answers` — a user who answered some questions and
   // then taps this keeps those real answers, only the ones they hadn't
   // reached yet stay unset.
-  const skipToEnd = () => setStep(TOTAL_STEPS - 1);
+  const skipToEnd = () => {
+    for (let index = step; index < TOTAL_STEPS - 1; index += 1) {
+      trackEvent("onboarding_step_skipped", { stepKey: STEP_KEYS[index], stepIndex: index });
+    }
+    setStep(TOTAL_STEPS - 1);
+  };
   // Sprint 33 Priority 4 — mobile onboarding requires back navigation
   // without losing already-entered answers. `answers` (and ageInput/
   // customAmount) already persist across the whole flow in this
@@ -101,6 +120,7 @@ export default function OnboardingFlow({ onComplete, onFinish }) {
   const goBack = () => setStep((current) => Math.max(current - 1, 0));
 
   const selectAndAdvance = (key, value) => {
+    trackEvent("onboarding_step_completed", { stepKey: key, stepIndex: step });
     setAnswers((current) => ({ ...current, [key]: value }));
     setTimeout(advance, 150);
   };
@@ -112,6 +132,7 @@ export default function OnboardingFlow({ onComplete, onFinish }) {
       return;
     }
     setAgeError("");
+    trackEvent("onboarding_step_completed", { stepKey: "age", stepIndex: step });
     setAnswers((current) => ({ ...current, age: parsed }));
     advance();
   };
@@ -133,6 +154,7 @@ export default function OnboardingFlow({ onComplete, onFinish }) {
   };
 
   const handleFinish = async (horizon) => {
+    trackEvent("onboarding_step_completed", { stepKey: "investmentHorizon", stepIndex: step });
     const finalAnswers = { ...answers, investmentHorizon: horizon };
     setAnswers(finalAnswers);
     setIsSubmitting(true);

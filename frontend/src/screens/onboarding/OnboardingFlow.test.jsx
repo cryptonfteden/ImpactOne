@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import OnboardingFlow from "./OnboardingFlow";
 import { investorProfileApi } from "../../services/api";
+import { trackEvent } from "../../utils/analytics";
 
 vi.mock("../../services/api", () => ({
   investorProfileApi: {
@@ -11,6 +12,8 @@ vi.mock("../../services/api", () => ({
     getInvestmentProfile: vi.fn(),
   },
 }));
+
+vi.mock("../../utils/analytics", () => ({ trackEvent: vi.fn() }));
 
 const INVESTMENT_PROFILE_FIXTURE = {
   suggestedAllocation: { stocks: 80, bonds: 14, cash: 6 },
@@ -62,6 +65,38 @@ describe("OnboardingFlow", () => {
 
     fireEvent.click(screen.getByText("Skip"));
     await waitFor(() => expect(screen.getByText("How experienced are you as an investor?")).toBeInTheDocument());
+  });
+
+  it("Sprint 40 — records a real onboarding_step_completed event with the step's own key when an answer is given", async () => {
+    render(<OnboardingFlow onComplete={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText("Age"), { target: { value: "30" } });
+    fireEvent.click(screen.getByText("Continue"));
+
+    expect(trackEvent).toHaveBeenCalledWith("onboarding_step_completed", { stepKey: "age", stepIndex: 0 });
+  });
+
+  it("Sprint 40 — records a real onboarding_step_skipped event with the real step key, not a generic one", async () => {
+    render(<OnboardingFlow onComplete={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText("Age"), { target: { value: "30" } });
+    fireEvent.click(screen.getByText("Continue"));
+    await waitFor(() => expect(screen.getByText("Where are you investing from?")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Skip"));
+    expect(trackEvent).toHaveBeenCalledWith("onboarding_step_skipped", { stepKey: "country", stepIndex: 1 });
+  });
+
+  it("Sprint 40 — 'Skip remaining questions' records one onboarding_step_skipped event per real step it actually skips", async () => {
+    render(<OnboardingFlow onComplete={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText("Age"), { target: { value: "30" } });
+    fireEvent.click(screen.getByText("Continue"));
+    await waitFor(() => expect(screen.getByText("Where are you investing from?")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Skip remaining questions"));
+    expect(trackEvent).toHaveBeenCalledWith("onboarding_step_skipped", { stepKey: "country", stepIndex: 1 });
+    expect(trackEvent).toHaveBeenCalledWith("onboarding_step_skipped", { stepKey: "experienceLevel", stepIndex: 2 });
+    expect(trackEvent).toHaveBeenCalledWith("onboarding_step_skipped", { stepKey: "monthlyInvestmentAmount", stepIndex: 3 });
+    expect(trackEvent).toHaveBeenCalledWith("onboarding_step_skipped", { stepKey: "investmentGoal", stepIndex: 4 });
+    expect(trackEvent).toHaveBeenCalledWith("onboarding_step_skipped", { stepKey: "riskTolerance", stepIndex: 5 });
   });
 
   it("Sprint 36 Priority 2 — 'Skip remaining questions' jumps straight to the final required step in one tap", async () => {

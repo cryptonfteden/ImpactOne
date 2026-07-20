@@ -6,6 +6,51 @@ function formatTimestamp(value) {
   return Number.isNaN(date.getTime()) ? null : date.toLocaleString();
 }
 
+// Sprint 40 — Feed: freshness as a relative-age badge, not just a raw
+// timestamp (per the mission's explicit requirement and the Sprint 39
+// audit finding that only a raw timestamp existed). A real computation
+// off item.publishedAt, honestly null when there's no timestamp at all.
+function computeFreshnessLabel(publishedAt) {
+  if (!publishedAt) return null;
+  const date = new Date(publishedAt);
+  if (Number.isNaN(date.getTime())) return null;
+  const ageMs = Date.now() - date.getTime();
+  if (ageMs < 0) return "Just now";
+  const ageMinutes = Math.floor(ageMs / 60000);
+  if (ageMinutes < 1) return "Just now";
+  if (ageMinutes < 60) return `${ageMinutes}m ago`;
+  const ageHours = Math.floor(ageMinutes / 60);
+  if (ageHours < 24) return `${ageHours}h ago`;
+  return `${Math.floor(ageHours / 24)}d ago`;
+}
+
+// Sprint 40 — time-to-read: an honest word-count-based estimate (~200
+// wpm), never a fabricated fixed number. Only counts text this card
+// actually renders (whyItMatters + reasoning), so the estimate matches
+// what a reader really has to read, not the raw API payload.
+const WORDS_PER_MINUTE = 200;
+function estimateReadTimeMinutes(item) {
+  const text = [item.whyItMatters, item.explainability?.reasoning].filter(Boolean).join(" ");
+  if (!text.trim()) return null;
+  const wordCount = text.trim().split(/\s+/).length;
+  return Math.max(1, Math.round(wordCount / WORDS_PER_MINUTE));
+}
+
+// Sprint 40 — actionability: derived only from fields this item already
+// carries (impactType, confidence), never a new fabricated call. A
+// "neutral" item or a low-confidence directional item is honestly not
+// presented as something to act on.
+const ACTIONABILITY_CONFIDENCE_THRESHOLD = 70;
+function computeActionability(item) {
+  if (!item.impactType || item.impactType === "neutral") {
+    return { label: "FYI", detail: "No direct action indicated." };
+  }
+  if (Number.isFinite(item.confidence) && item.confidence >= ACTIONABILITY_CONFIDENCE_THRESHOLD) {
+    return { label: "Act now", detail: `High-confidence, direct ${item.impactType} signal.` };
+  }
+  return { label: "Monitor", detail: `Plausible ${item.impactType}, not yet high-confidence.` };
+}
+
 const IMPACT_PILL_CLASS = {
   opportunity: "pill opportunity",
   risk: "pill risk",
@@ -40,9 +85,18 @@ const THEME_LABELS = {
 // these; memo() avoids re-rendering every card when the screen's own
 // state changes for unrelated reasons (this component takes no callback
 // props, so there's no stale-closure risk to worry about here).
+const ACTIONABILITY_PILL_CLASS = {
+  "Act now": "pill opportunity",
+  Monitor: "pill monitor",
+  FYI: "pill",
+};
+
 function FeedItemCard({ item }) {
   const explainability = item.explainability || {};
   const themeLabel = THEME_LABELS[item.eventType];
+  const freshnessLabel = computeFreshnessLabel(item.publishedAt);
+  const readTimeMinutes = estimateReadTimeMinutes(item);
+  const actionability = computeActionability(item);
   // Sprint 33 Priority 5 — mobile Feed needs a concise collapsed state;
   // sectors/companies/portfolio-impact/reasoning/evidence all move behind
   // one progressive-disclosure toggle instead of always rendering, so a
@@ -61,6 +115,7 @@ function FeedItemCard({ item }) {
         <h4>{item.headline}</h4>
         {item.impactType ? <span className={IMPACT_PILL_CLASS[item.impactType] || "pill"}>{item.impactType}</span> : null}
         {themeLabel ? <span className="pill monitor">{themeLabel}</span> : null}
+        <span className={ACTIONABILITY_PILL_CLASS[actionability.label]} title={actionability.detail}>{actionability.label}</span>
       </div>
 
       <p className="company-description">{item.whyItMatters}</p>
@@ -69,6 +124,8 @@ function FeedItemCard({ item }) {
         <span>Importance {item.importanceScore ?? "—"}/100</span>
         <span>Confidence {item.confidence ?? "—"}/100</span>
         {item.timeHorizon ? <span>Horizon: {item.timeHorizon}</span> : null}
+        {freshnessLabel ? <span>{freshnessLabel}</span> : null}
+        {readTimeMinutes ? <span>{readTimeMinutes} min read</span> : null}
       </div>
 
       {item.sourceUrl ? (
