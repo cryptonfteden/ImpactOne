@@ -1,12 +1,17 @@
 // Sprint 38 — Investment Intelligence Committee orchestrator.
+// Sprint 41 — Committee Unification: this is now the ONE canonical
+// committee entry point used by the live Recommendation Engine
+// (autonomousRecommendationEngine.js) as well as every internal/explainability
+// caller. There is exactly one committee, one CIO, one execution path —
+// see SPRINT_41_REPORT.md.
 //
 // This is the ONLY file in this subsystem allowed to call
 // evidenceMatrixService.buildEvidenceMatrix — it builds the matrix once
 // and hands the same object to every member, so no member ever fetches a
 // provider or the matrix itself. Flow: Providers -> Evidence Matrix ->
-// Committee -> (Recommendation Engine, unchanged, elsewhere).
+// Committee -> CIO -> Decision Trace -> Recommendation Explanation -> UI.
 const evidenceMatrixService = require("../intelligence/evidenceMatrixService");
-const { summarizeCommittee } = require("./committeeCoordinator");
+const { summarizeCommittee, computeConsensusLevel } = require("./committeeCoordinator");
 const { summarizeForCio } = require("./chiefInvestmentOfficerService");
 
 const macroEconomistMember = require("./members/macroEconomistMember");
@@ -65,4 +70,4 @@ async function convene(symbol, { excludeCategory } = {}) {
   };
 }
 
-module.exports = { convene };
+module.exports = { convene, computeConsensusLevel };

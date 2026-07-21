@@ -6,7 +6,6 @@ const { analyze } = require("../controllers/aiController");
 const { getComparison } = require("../controllers/comparisonController");
 const { getPortfolio } = require("../controllers/portfolioController");
 const { getQuoteController } = require("../controllers/quoteController");
-const { analyzeCommittee, getCommitteeTrackRecordController } = require("../controllers/committeeController");
 const { getHomeSummary } = require("../controllers/homeSummaryController");
 const {
 	getCot,
@@ -41,9 +40,6 @@ router.get("/watchlist", getWatchlist);
 router.get("/market", getMarket);
 router.get("/ai/analyze", analyze);
 router.post("/ai/analyze", analyze);
-router.get("/committee/analyze", analyzeCommittee);
-router.post("/committee/analyze", analyzeCommittee);
-router.get("/committee/track-record", getCommitteeTrackRecordController);
 router.get("/compare", getComparison);
 router.get("/portfolio", getPortfolio);
 router.get("/quote", getQuoteController);
@@ -81,10 +77,12 @@ router.use("/v2/analytics", analyticsRoutes);
 // normalization views (see each service's safety-critical header); the
 // canonical recommendation system remains the only verdict source.
 router.use("/v2/market-intelligence", marketIntelligenceRoutes);
-// Sprint 38 — Investment Intelligence Committee. Distinct from the legacy
-// /committee/* routes above (Sprint 16/18A committee-debate system, wired
-// into the live recommendation flow) — this is a new, read-only, evidence-
-// matrix-driven analysis layer that never feeds a verdict.
+// Sprint 38 — Investment Intelligence Committee. Sprint 41 — Committee
+// Unification: this is now THE ONE committee, wired into the live
+// Recommendation Engine (autonomousRecommendationEngine.js) and /ai/analyze
+// (aiController.js) alike. The legacy /committee/* routes (Sprint 16/18A
+// committee-debate system) and investmentCommitteeService.js were retired
+// this sprint — see SPRINT_41_REPORT.md.
 router.use("/v2/committee-intelligence", committeeIntelligenceRoutes);
 // Sprint 39 — Explainability Layer. Read-only: explains a DecisionTrace
 // plus a live re-convened committee; never a second recommendation path.

@@ -74,4 +74,24 @@ function summarizeCommittee(memberOutputs) {
   };
 }
 
-module.exports = { summarizeCommittee, leanOf };
+// Sprint 41 — Committee Unification. A real, derived numeric consensus
+// reading (what fraction of members actually agree), for callers outside
+// this module that need a number rather than the qualitative agreement/
+// disagreement structure above (e.g. scoringVocabulary.computeUncertainty).
+// Never an invented/arbitrary score — always computed from the real
+// member count and the real agreement/disagreement this summary already
+// found. Returns null only when there are no members to measure at all.
+function computeConsensusLevel(committeeSummary) {
+  const total = committeeSummary?.members?.length;
+  if (!total) return null;
+  if (committeeSummary.agreement.status === "AGREEMENT") {
+    return Math.round((committeeSummary.agreement.members.length / total) * 100);
+  }
+  if (committeeSummary.disagreement.status === "DISAGREEMENT") {
+    const majority = Math.max(committeeSummary.disagreement.supportiveMembers.length, committeeSummary.disagreement.contraryMembers.length);
+    return Math.round((majority / total) * 100);
+  }
+  return 0; // no clear agreement or disagreement found — no measurable consensus
+}
+
+module.exports = { summarizeCommittee, leanOf, computeConsensusLevel };

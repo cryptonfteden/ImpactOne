@@ -3,41 +3,28 @@
 // The canonical verdict contract named in INTELLIGENCE_PLATFORM_REVIEW.md
 // §10 item 1: "the single canonical 'verdict' contract... every sprint the
 // two coexist independently deepens the 'two engines disagree' trust
-// problem." This module is the one place the Committee's 6-way vote scale
-// is reconciled against the Recommendation Engine's persisted BUY/REDUCE/
-// EXIT action, and the one function (buildCanonicalVerdictView) that
-// assembles what the API/frontend actually render — guaranteeing exactly
-// one action field ever reaches a response.
+// problem." This module is the one function (buildCanonicalVerdictView)
+// that assembles what the API/frontend actually render — guaranteeing
+// exactly one action field ever reaches a response, with the committee's
+// debate present only as sanitized explanatory context.
 //
-// normalizeCommitteeVoteToAction is exposed for internal reconciliation and
-// testing only. It is deliberately never wired into a published API field —
-// doing so would recreate the exact "committee publishes its own verdict"
-// problem this module exists to prevent. The committee's allowed published
-// fields (Sprint 18A requirement #2) are: supportingArguments,
-// opposingArguments, expertVotes, disagreementLevel, consensusLevel,
-// specialistObservations — never an action/decision/verdict field.
+// Sprint 41 — Committee Unification. Removed normalizeCommitteeVoteToAction
+// and COMMITTEE_VOTE_TO_ACTION: they reconciled the legacy committee's
+// 6-way vote scale ("Strong Buy".."Strong Sell") against the Recommendation
+// Engine's action, but the one unified committee (intelligenceCommitteeService,
+// evidence-matrix-driven) never publishes a vote-scale string at all — it
+// publishes qualitative agreement/disagreement per-member evidence, never
+// a Buy/Sell-style vote. Dead code with the legacy system it existed for.
 const CANONICAL_VERDICT_CONTRACT_VERSION = "1.0.0";
 
 const CANONICAL_ACTIONS = ["BUY", "REDUCE", "EXIT", "HOLD"];
 
-const COMMITTEE_VOTE_TO_ACTION = {
-  "Strong Buy": "BUY",
-  Buy: "BUY",
-  Hold: "HOLD",
-  Reduce: "REDUCE",
-  Sell: "EXIT",
-  "Strong Sell": "EXIT",
-};
-
 // A structural, defensive guard against the two-verdict problem —
-// independent of whatever investmentCommitteeService.js happens to
-// produce. If any of these keys ever appear on a committeeDebate object,
-// this module strips them before the debate reaches an API response.
+// independent of whatever the committee (the one unified
+// intelligenceCommitteeService) happens to produce. If any of these keys
+// ever appear on a committeeDebate object, this module strips them before
+// the debate reaches an API response.
 const FORBIDDEN_COMMITTEE_KEYS = ["action", "decision", "verdict", "finalDecision", "recommendation"];
-
-function normalizeCommitteeVoteToAction(vote) {
-  return COMMITTEE_VOTE_TO_ACTION[vote] || "HOLD";
-}
 
 function sanitizeCommitteeDebate(committeeDebate) {
   if (!committeeDebate || typeof committeeDebate !== "object") {
@@ -83,9 +70,7 @@ function buildCanonicalVerdictView({ recommendation = null, committeeDebate = nu
 module.exports = {
   CANONICAL_VERDICT_CONTRACT_VERSION,
   CANONICAL_ACTIONS,
-  COMMITTEE_VOTE_TO_ACTION,
   FORBIDDEN_COMMITTEE_KEYS,
-  normalizeCommitteeVoteToAction,
   sanitizeCommitteeDebate,
   buildCanonicalVerdictView,
 };

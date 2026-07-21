@@ -7,7 +7,6 @@ const {
   CANONICAL_VERDICT_CONTRACT_VERSION,
   CANONICAL_ACTIONS,
   FORBIDDEN_COMMITTEE_KEYS,
-  normalizeCommitteeVoteToAction,
   sanitizeCommitteeDebate,
   buildCanonicalVerdictView,
 } = require("./canonicalVerdict");
@@ -21,24 +20,9 @@ test("CANONICAL_VERDICT_CONTRACT_VERSION is a non-empty version string", () => {
   assert.ok(CANONICAL_VERDICT_CONTRACT_VERSION.length > 0);
 });
 
-test("normalizeCommitteeVoteToAction maps every 6-way vote to a canonical action", () => {
-  assert.equal(normalizeCommitteeVoteToAction("Strong Buy"), "BUY");
-  assert.equal(normalizeCommitteeVoteToAction("Buy"), "BUY");
-  assert.equal(normalizeCommitteeVoteToAction("Hold"), "HOLD");
-  assert.equal(normalizeCommitteeVoteToAction("Reduce"), "REDUCE");
-  assert.equal(normalizeCommitteeVoteToAction("Sell"), "EXIT");
-  assert.equal(normalizeCommitteeVoteToAction("Strong Sell"), "EXIT");
-});
-
-test("normalizeCommitteeVoteToAction defaults unknown votes to HOLD", () => {
-  assert.equal(normalizeCommitteeVoteToAction("Not A Real Vote"), "HOLD");
-  assert.equal(normalizeCommitteeVoteToAction(undefined), "HOLD");
-});
-
 test("sanitizeCommitteeDebate strips every forbidden verdict-shaped key", () => {
   const dirty = {
-    supportingArguments: ["a"],
-    expertVotes: [{ agent: "Risk Manager", vote: "Hold" }],
+    committee: { members: [], agreement: { status: "AGREEMENT", direction: "SUPPORTIVE", members: ["technicalAnalyst"] } },
     action: "BUY",
     decision: "Strong Buy",
     verdict: "Buy",
@@ -51,8 +35,7 @@ test("sanitizeCommitteeDebate strips every forbidden verdict-shaped key", () => 
   for (const key of FORBIDDEN_COMMITTEE_KEYS) {
     assert.ok(!(key in clean), `${key} should have been stripped`);
   }
-  assert.deepEqual(clean.supportingArguments, ["a"]);
-  assert.deepEqual(clean.expertVotes, [{ agent: "Risk Manager", vote: "Hold" }]);
+  assert.deepEqual(clean.committee.agreement.direction, "SUPPORTIVE");
 });
 
 test("sanitizeCommitteeDebate passes through null unchanged", () => {
@@ -63,7 +46,7 @@ test("sanitizeCommitteeDebate passes through null unchanged", () => {
 test("buildCanonicalVerdictView exposes exactly one action field, sourced from the persisted recommendation", () => {
   const view = buildCanonicalVerdictView({
     recommendation: { action: "BUY", confidenceScore: "72.00", qualityScore: "81.00", riskLabel: "Moderate" },
-    committeeDebate: { expertVotes: [{ agent: "Equity Analyst", vote: "Strong Buy" }], consensusLevel: 80 },
+    committeeDebate: { committee: { agreement: { status: "AGREEMENT", direction: "SUPPORTIVE" } }, cio: { confidence: "HIGH_UNANIMOUS" } },
   });
 
   assert.equal(view.hasCanonicalRecommendation, true);
@@ -76,7 +59,7 @@ test("buildCanonicalVerdictView exposes exactly one action field, sourced from t
 test("buildCanonicalVerdictView with no persisted recommendation returns action: null, never a synthesized substitute", () => {
   const view = buildCanonicalVerdictView({
     recommendation: null,
-    committeeDebate: { expertVotes: [{ agent: "Equity Analyst", vote: "Strong Sell" }], consensusLevel: 40 },
+    committeeDebate: { committee: { agreement: { status: "AGREEMENT", direction: "CONTRARY" } }, cio: { confidence: "LOW_SPLIT" } },
   });
 
   assert.equal(view.hasCanonicalRecommendation, false);
@@ -87,7 +70,7 @@ test("buildCanonicalVerdictView with no persisted recommendation returns action:
 test("buildCanonicalVerdictView strips a maliciously-injected decision field even when a real recommendation exists", () => {
   const view = buildCanonicalVerdictView({
     recommendation: { action: "EXIT", confidenceScore: "40.00", qualityScore: "55.00", riskLabel: "High" },
-    committeeDebate: { decision: "Strong Buy", expertVotes: [] },
+    committeeDebate: { decision: "Strong Buy", committee: { members: [] } },
   });
 
   assert.equal(view.action, "EXIT", "the canonical action always comes from the persisted recommendation");

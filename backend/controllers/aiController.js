@@ -1,7 +1,9 @@
 const { analyzeTicker } = require("../services/openaiService");
 const { analyzeMarketImpact } = require("../services/marketImpactService");
 const { getAltDataSummary } = require("../services/altDataService");
-const { analyzeInvestmentCommittee } = require("../services/investmentCommitteeService");
+// Sprint 41 — Committee Unification: the ONE canonical committee, replacing
+// the retired investmentCommitteeService.js.
+const intelligenceCommitteeService = require("../services/intelligenceCommittee/intelligenceCommitteeService");
 const { analyzeIntelligence } = require("../services/impactIntelligenceService");
 
 async function analyze(req, res, next) {
@@ -28,13 +30,11 @@ async function analyze(req, res, next) {
       analyzeMarketImpact(symbol, context),
       analyzeIntelligence({ event: eventHint, symbol }).catch(() => null),
     ]);
-    const committeeReport = await analyzeInvestmentCommittee({
-      symbol,
-      context,
-      intelligenceReport,
-      altDataSummary,
-      marketImpact,
-    }).catch(() => null);
+    // Sprint 41 — Committee Unification: convenes the ONE canonical
+    // committee (evidence-matrix-driven, Sprint 38) for this symbol.
+    // Replaces the retired investmentCommitteeService.js call — same gate
+    // (never blocks the rest of the analysis on failure), new shape.
+    const committeeResult = await intelligenceCommitteeService.convene(symbol).catch(() => null);
     console.log(`[ai-controller] response analysis=${JSON.stringify(analysis).slice(0, 4000)}`);
     console.log(`[ai-controller] response marketImpact=${JSON.stringify(marketImpact).slice(0, 4000)}`);
     res.json({
@@ -43,12 +43,11 @@ async function analyze(req, res, next) {
         ...analysis,
         marketImpact,
         alternativeDataSignals: altDataSummary?.signals || null,
-        // Sprint 18A — renamed from `committee` to `committeeDebate`: the
-        // shape changed (no more independent cio.decision) and a silent
-        // rename-under-the-old-key would be a worse, more deceptive break
-        // than a clearly-signaled one. See investmentCommitteeService.js.
-        committeeDebate: committeeReport?.committeeDebate || null,
-        committeeTrackRecord: committeeReport?.trackRecord?.stats || null,
+        // Sprint 41 — the unified committee's coordinator summary and CIO
+        // summary, exactly as produced by intelligenceCommitteeService —
+        // never a second verdict (both carry isVerdict: false).
+        committee: committeeResult?.committee || null,
+        cio: committeeResult?.cio || null,
       },
     });
   } catch (error) {

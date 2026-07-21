@@ -8,25 +8,49 @@ const autonomousMarketService = require("./autonomousMarketService");
 const portfolioEngineService = require("./portfolioEngineService");
 const autonomousRecommendationRepository = require("./autonomousRecommendationRepository");
 const autonomousRecommendationEngine = require("./autonomousRecommendationEngine");
-const investmentCommitteeService = require("./investmentCommitteeService");
+const intelligenceCommitteeService = require("./intelligenceCommittee/intelligenceCommitteeService");
 const { getPrismaClient } = require("../db/prismaClient");
 
-// Sprint 18A — a realistic committeeDebate fixture, standing in for a real
-// analyzeInvestmentCommittee call (which fans out to several external
-// providers) so this suite stays fast and deterministic.
+// Sprint 41 — Committee Unification: a realistic convene() fixture,
+// standing in for a real committee call (which builds a full evidence
+// matrix across several intelligence services) so this suite stays fast
+// and deterministic. Matches the ONE unified committee's real output shape
+// (committeeCoordinator.summarizeCommittee + chiefInvestmentOfficerService.summarizeForCio).
 const DEFAULT_COMMITTEE_DEBATE = {
-  generatedAt: new Date().toISOString(),
-  eventHint: "Test event",
-  supportingArguments: [{ agent: "Equity Analyst", argument: "Business quality supports upside." }],
-  opposingArguments: [],
-  expertVotes: [{ agent: "Equity Analyst", vote: "Buy", confidence: 70, rationale: "Business quality supports upside." }],
-  disagreementLevel: 20,
-  consensusLevel: 80,
-  expertsDisagree: false,
-  disagreementExplanation: "Committee alignment is high enough to support a cleaner final recommendation.",
-  voteBreakdown: [{ vote: "Buy", count: 5 }],
-  specialistObservations: [],
-  synthesis: { executiveSummary: "Balance of views points to buy.", expectedReturn: "12-18%", risk: "Moderate", confidence: 74 },
+  committee: {
+    members: [
+      {
+        memberId: "technicalAnalyst",
+        memberName: "Technical Analyst",
+        headline: "Technical structure is supportive.",
+        reasoning: "Uptrend signal, confidence 70.",
+        supportingEvidence: [{ category: "TECHNICAL", reason: "Uptrend signal" }],
+        counterEvidence: [],
+        confidence: 70,
+        uncertainty: 30,
+        freshness: "CURRENT",
+        missingEvidence: [],
+        isRecommendation: false,
+      },
+    ],
+    agreement: { status: "AGREEMENT", direction: "SUPPORTIVE", members: ["technicalAnalyst"] },
+    disagreement: { status: "NO_DISAGREEMENT", supportiveMembers: [], contraryMembers: [] },
+    strongestSupportingEvidence: { memberId: "technicalAnalyst", category: "TECHNICAL", reason: "Uptrend signal", memberConfidence: 70 },
+    strongestContradictoryEvidence: null,
+    missingEvidence: [],
+    staleEvidence: [],
+    isVerdict: false,
+  },
+  cio: {
+    overallThesis: "1 of 1 committee members lean supportive, with no members reporting the opposite lean.",
+    confidence: "HIGH_UNANIMOUS",
+    largestDisagreement: null,
+    highestRisk: "No single strongest counter-evidence was reported by any member.",
+    missingInformation: [],
+    whyRecommendationExists: "Independent members covering different evidence sources converged on the same lean (supportive) without being shown each other's conclusions.",
+    whyRecommendationMayBeWrong: [],
+    isVerdict: false,
+  },
 };
 
 // A neutral, "Wait"-tier ranking entry (conviction ~60) so filler symbols in
@@ -50,7 +74,7 @@ function withMocks({ rankings, feed = [], macroRegime = { recessionRisk: "low", 
   const originalOverview = autonomousMarketService.getAutonomousOverview;
   const originalSummary = portfolioEngineService.getPortfolioSummary;
   const originalPlaceOrder = portfolioEngineService.placeOrder;
-  const originalAnalyzeCommittee = investmentCommitteeService.analyzeInvestmentCommittee;
+  const originalConvene = intelligenceCommitteeService.convene;
 
   let placeOrderCalls = 0;
   portfolioEngineService.placeOrder = async () => {
@@ -64,14 +88,14 @@ function withMocks({ rankings, feed = [], macroRegime = { recessionRisk: "low", 
     globalMap: { macroRegime },
   });
   portfolioEngineService.getPortfolioSummary = async () => portfolioSummary;
-  investmentCommitteeService.analyzeInvestmentCommittee = async () => ({ committeeDebate });
+  intelligenceCommitteeService.convene = async () => committeeDebate;
 
   return Promise.resolve(run(() => placeOrderCalls))
     .finally(() => {
       autonomousMarketService.getAutonomousOverview = originalOverview;
       portfolioEngineService.getPortfolioSummary = originalSummary;
       portfolioEngineService.placeOrder = originalPlaceOrder;
-      investmentCommitteeService.analyzeInvestmentCommittee = originalAnalyzeCommittee;
+      intelligenceCommitteeService.convene = originalConvene;
     });
 }
 
@@ -230,10 +254,12 @@ test("runOnce generates a structured explanation, bull/base/bear scenarios, a tr
         }
       });
 
-      // --- Sprint 18A: committee debate, event envelope, version metadata ---
-      assert.equal(trace.committeeDebate.consensusLevel, 80, "the mocked committee debate should thread straight through");
+      // --- Sprint 18A/41: committee debate (unified committee), event envelope, version metadata ---
+      assert.equal(trace.committeeDebate.committee.agreement.direction, "SUPPORTIVE", "the mocked committee debate should thread straight through");
+      assert.equal(trace.committeeDebate.cio.confidence, "HIGH_UNANIMOUS");
       assert.ok(!("action" in trace.committeeDebate) && !("decision" in trace.committeeDebate), "the trace's committee debate must never carry a verdict field");
-      assert.equal(nvda.explanation.committeeDebate.consensusLevel, 80, "committeeDebate is also embedded in explanation for direct UI consumption");
+      assert.equal(nvda.explanation.committeeDebate.committee.agreement.direction, "SUPPORTIVE", "committeeDebate is also embedded in explanation for direct UI consumption");
+      assert.ok(Number.isFinite(trace.confidenceCalculation.uncertainty), "uncertainty is derived from the real unified committee's consensus, never left undefined");
 
       assert.equal(trace.evidenceReferences.length, 2, "one canonical envelope per matched event");
       trace.evidenceReferences.forEach((envelope) => {

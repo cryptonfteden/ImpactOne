@@ -13,7 +13,9 @@ const autonomousRecommendationRepository = require("./autonomousRecommendationRe
 const portfolioRiskMetrics = require("../utils/portfolioRiskMetrics");
 const scenarioEngineService = require("./scenarioEngineService");
 // Sprint 18A — Canonical Decision Architecture.
-const investmentCommitteeService = require("./investmentCommitteeService");
+// Sprint 41 — Committee Unification: the ONE canonical committee (see
+// SPRINT_41_REPORT.md). This replaces the retired investmentCommitteeService.js.
+const intelligenceCommitteeService = require("./intelligenceCommittee/intelligenceCommitteeService");
 const eventEnvelope = require("./eventEnvelope");
 const scoringVocabulary = require("./scoringVocabulary");
 const canonicalVerdict = require("./canonicalVerdict");
@@ -197,8 +199,9 @@ function buildExplanation({ symbol, action, rankingItem, matchedEvents, heldPosi
     // Sprint 18A — the Committee's debate as explanatory context only.
     // Never a second verdict: committeeDebate is sanitized (see
     // canonicalVerdict.sanitizeCommitteeDebate) so it structurally cannot
-    // carry an action/decision/verdict field, on top of
-    // investmentCommitteeService.js already never producing one.
+    // carry an action/decision/verdict field, on top of the unified
+    // committee (Sprint 41, intelligenceCommitteeService) already never
+    // producing one (isVerdict: false throughout its own output).
     committeeDebate: canonicalVerdict.sanitizeCommitteeDebate(committeeDebate),
   };
 }
@@ -371,18 +374,19 @@ function buildDecisionTraceInput({ rankingItem, matchedEvents, heldPosition, sec
  * recommendation: a committee-call failure degrades to no debate, not a
  * broken run — consistent with the rest of this engine's fallback
  * discipline.
+ *
+ * Sprint 41 — Committee Unification. This is now the ONE call site that
+ * convenes the ONE committee (intelligenceCommitteeService, Sprint 38's
+ * evidence-matrix-driven system) for the live recommendation path —
+ * replacing the retired investmentCommitteeService.js. Returns
+ * { committee, cio } (the coordinator summary and CIO summary), stored
+ * verbatim (after sanitization) as DecisionTrace.committeeDebate — same
+ * column, unified content.
  */
-async function buildCommitteeDebate({ symbol, rankingItem }) {
+async function buildCommitteeDebate({ symbol }) {
   try {
-    const result = await investmentCommitteeService.analyzeInvestmentCommittee({
-      symbol,
-      context: {
-        quote: Number.isFinite(rankingItem?.currentPrice)
-          ? { price: rankingItem.currentPrice, change: rankingItem.dayChangePercent }
-          : null,
-      },
-    });
-    return result?.committeeDebate || null;
+    const result = await intelligenceCommitteeService.convene(symbol);
+    return { committee: result.committee, cio: result.cio };
   } catch (error) {
     return null;
   }
@@ -468,7 +472,7 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
 
   // Sprint 18A — the Committee runs only for symbols that already triggered
   // an action (this line), never across the full scan universe.
-  const committeeDebate = await buildCommitteeDebate({ symbol, rankingItem });
+  const committeeDebate = await buildCommitteeDebate({ symbol });
 
   const { supporting, opposing } = splitMatchedEvents({ matchedEvents, action });
   const explanation = buildExplanation({
@@ -566,7 +570,11 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
       conviction: convictionScore,
       uncertainty: scoringVocabulary.computeUncertainty({
         evidenceAgreement: qualityComponents.evidenceAgreement,
-        consensusLevel: committeeDebate?.consensusLevel,
+        // Sprint 41 — real numeric consensus derived from the unified
+        // committee's own agreement/disagreement structure (never an
+        // arbitrary label-to-number mapping); null when the committee
+        // call failed, which computeUncertainty treats as "not available".
+        consensusLevel: committeeDebate?.committee ? intelligenceCommitteeService.computeConsensusLevel(committeeDebate.committee) : undefined,
       }),
     },
     finalOutput: {
