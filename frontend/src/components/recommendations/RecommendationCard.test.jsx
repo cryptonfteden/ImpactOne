@@ -155,6 +155,47 @@ describe("RecommendationCard", () => {
     expect(screen.getByText(/Technical Analyst: Technical structure is supportive\. \(confidence 74\/100\)/)).toBeInTheDocument();
   });
 
+  it("Sprint 41 — never renders stale committee data: re-rendering with a different recommendation's committee shows only that committee's real data", () => {
+    const first = {
+      ...RECOMMENDATION_FIXTURE,
+      explanation: {
+        ...RECOMMENDATION_FIXTURE.explanation,
+        committeeDebate: {
+          committee: {
+            members: [{ memberId: "technicalAnalyst", memberName: "Technical Analyst", headline: "Technical structure is supportive.", confidence: 74 }],
+            agreement: { status: "AGREEMENT", direction: "SUPPORTIVE", members: ["technicalAnalyst"] },
+            disagreement: { status: "NO_DISAGREEMENT", supportiveMembers: [], contraryMembers: [] },
+          },
+          cio: { overallThesis: "First execution: committee leans supportive." },
+        },
+      },
+    };
+    const second = {
+      ...RECOMMENDATION_FIXTURE,
+      explanation: {
+        ...RECOMMENDATION_FIXTURE.explanation,
+        committeeDebate: {
+          committee: {
+            members: [{ memberId: "marketSentimentSpecialist", memberName: "Market Sentiment Specialist", headline: "Positioning is crowded.", confidence: 55 }],
+            agreement: { status: "AGREEMENT", direction: "CONTRARY", members: ["marketSentimentSpecialist"] },
+            disagreement: { status: "NO_DISAGREEMENT", supportiveMembers: [], contraryMembers: [] },
+          },
+          cio: { overallThesis: "Second execution: committee leans contrary." },
+        },
+      },
+    };
+
+    const { rerender } = render(<RecommendationCard recommendation={first} isExpanded onToggleExpand={vi.fn()} />);
+    expect(screen.getByText("First execution: committee leans supportive.")).toBeInTheDocument();
+    expect(screen.getByText(/Agreement: SUPPORTIVE/)).toBeInTheDocument();
+
+    rerender(<RecommendationCard recommendation={second} isExpanded onToggleExpand={vi.fn()} />);
+    expect(screen.queryByText("First execution: committee leans supportive.")).not.toBeInTheDocument();
+    expect(screen.getByText("Second execution: committee leans contrary.")).toBeInTheDocument();
+    expect(screen.getByText(/Agreement: CONTRARY/)).toBeInTheDocument();
+    expect(screen.queryByText("Technical Analyst: Technical structure is supportive. (confidence 74/100)")).not.toBeInTheDocument();
+  });
+
   it("renders no committee debate section when none is present on the recommendation", () => {
     render(<RecommendationCard recommendation={RECOMMENDATION_FIXTURE} isExpanded onToggleExpand={vi.fn()} />);
     expect(screen.queryByText("Committee debate")).not.toBeInTheDocument();
