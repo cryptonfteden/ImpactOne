@@ -49,12 +49,15 @@ async function getActiveForSymbol(symbol) {
  * (rather than findFirst-then-update) so it's correct even if more than
  * one ACTIVE row exists for the symbol at call time.
  */
+// Sprint 42 — now also returns the real ids of every row it actually
+// changed (never a fabricated list), so a caller can record a real
+// CANCELLED lifecycle event per superseded recommendation.
 async function supersedeActiveForSymbol(symbol, newRecommendationId) {
   const prisma = getPrismaClient();
-  return prisma.recommendation.updateMany({
-    where: { symbol, status: "ACTIVE", id: { not: newRecommendationId } },
-    data: { status: "SUPERSEDED", supersededById: newRecommendationId },
-  });
+  const where = { symbol, status: "ACTIVE", id: { not: newRecommendationId } };
+  const matched = await prisma.recommendation.findMany({ where, select: { id: true } });
+  const result = await prisma.recommendation.updateMany({ where, data: { status: "SUPERSEDED", supersededById: newRecommendationId } });
+  return { ...result, ids: matched.map((row) => row.id) };
 }
 
 // Sprint 29 Priority 1 — the EXPIRED transition, previously schema-only
@@ -63,12 +66,14 @@ async function supersedeActiveForSymbol(symbol, newRecommendationId) {
 // one for the same symbol should stop reading as "still active" forever.
 // updateMany rather than a per-row loop, matching supersedeActiveForSymbol
 // above; a status change, never a delete — history is preserved.
+// Sprint 42 — now also returns the real ids of every row it actually
+// expired, so a caller can record a real EXPIRED lifecycle event per row.
 async function expireStaleRecommendations() {
   const prisma = getPrismaClient();
-  return prisma.recommendation.updateMany({
-    where: { status: "ACTIVE", expiresAt: { lt: new Date() } },
-    data: { status: "EXPIRED" },
-  });
+  const where = { status: "ACTIVE", expiresAt: { lt: new Date() } };
+  const matched = await prisma.recommendation.findMany({ where, select: { id: true } });
+  const result = await prisma.recommendation.updateMany({ where, data: { status: "EXPIRED" } });
+  return { ...result, ids: matched.map((row) => row.id) };
 }
 
 async function createRunLog(data) {

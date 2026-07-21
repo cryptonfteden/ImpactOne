@@ -567,9 +567,45 @@ model Outcome {
   dataSourceSnapshot           Json
   gradedAt                     DateTime   @default(now())
 
+  // Sprint 42 — Intelligence Quality Platform. Performance Engine metrics
+  // computed from the real daily price series over the recommendation's
+  // window (never fabricated when the series is unavailable — the whole
+  // object is simply null): { maxDrawdownPct, maxGainPct, volatilityPct,
+  // timeToTargetDays, timeToFailureDays, sectorEtfSymbol, sectorEtfReturnPct }.
+  performanceMetrics Json?
+
   @@unique([recommendationId, timeWindow, methodologyVersion])
   @@index([symbol])
   @@map("outcomes")
+}
+
+// Sprint 42 — Recommendation Lifecycle. Append-only, one row per real state
+// transition — never updated or deleted, mirroring this codebase's existing
+// immutable-history convention (DecisionTrace, WorldMemory*). A
+// recommendation's full lifecycle is reconstructed by reading every row for
+// its recommendationId in order, never by mutating a single "current state"
+// column.
+model RecommendationLifecycleEvent {
+  id               String                  @id @default(uuid())
+  recommendationId String
+  state            RecommendationLifecycleState
+  occurredAt       DateTime                @default(now())
+  metadata         Json?
+
+  @@index([recommendationId])
+  @@map("recommendation_lifecycle_events")
+}
+
+enum RecommendationLifecycleState {
+  GENERATED
+  PUBLISHED
+  VIEWED
+  PAPER_TRADED
+  ACTIVE
+  EXPIRED
+  SUCCEEDED
+  FAILED
+  CANCELLED
 }
 
 // "Which thesis changed" — the first place thesis TEXT history (not just a

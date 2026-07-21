@@ -12,6 +12,9 @@ async function truncateAll() {
   await prisma.portfolio.deleteMany();
   await prisma.dailyBriefSnapshot.deleteMany();
   await prisma.decisionTrace.deleteMany();
+  // Sprint 42 — Recommendation Lifecycle (plain string reference column,
+  // same World Memory convention as everything else in this file).
+  await prisma.recommendationLifecycleEvent.deleteMany();
   await prisma.recommendation.deleteMany();
   await prisma.autonomousRunLog.deleteMany();
   await prisma.investorProfile.deleteMany();

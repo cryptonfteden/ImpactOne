@@ -22,6 +22,8 @@ const canonicalVerdict = require("./canonicalVerdict");
 // Sprint 29 — Feedback Intelligence Layer, Priority 1 (Outcome Pipeline).
 const worldMemoryRepository = require("./worldMemoryRepository");
 const outcomeGradingService = require("./outcomeGradingService");
+// Sprint 42 — Intelligence Quality Platform.
+const recommendationLifecycleService = require("./qualityPlatform/recommendationLifecycleService");
 // Sprint 31 — Outcome Intelligence, Priority 4.
 const outcomeIntelligenceService = require("./outcomeIntelligenceService");
 
@@ -550,7 +552,24 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
     expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
   });
 
-  await autonomousRecommendationRepository.supersedeActiveForSymbol(symbol, created.id);
+  const superseded = await autonomousRecommendationRepository.supersedeActiveForSymbol(symbol, created.id);
+  for (const supersededId of superseded.ids) {
+    await recommendationLifecycleService.recordTransitionSafely({
+      recommendationId: supersededId,
+      state: "CANCELLED",
+      metadata: { reason: "superseded", supersededById: created.id },
+    });
+  }
+
+  // Sprint 42 — Recommendation Lifecycle. This engine has no separate
+  // draft/review step — a recommendation is generated and immediately
+  // visible via the API — so GENERATED, PUBLISHED, and ACTIVE are real,
+  // distinct events that all genuinely happen at creation time, recorded
+  // in order. Best-effort: lifecycle logging must never block a
+  // recommendation from being created.
+  await recommendationLifecycleService.recordTransitionSafely({ recommendationId: created.id, state: "GENERATED" });
+  await recommendationLifecycleService.recordTransitionSafely({ recommendationId: created.id, state: "PUBLISHED" });
+  await recommendationLifecycleService.recordTransitionSafely({ recommendationId: created.id, state: "ACTIVE" });
 
   // Sprint 18A — confidenceCalculation gains the full shared scoring-
   // vocabulary breakdown (conviction, uncertainty) alongside the existing
@@ -682,7 +701,10 @@ async function runOnce({ watchlist = [] } = {}) {
   // and never block the run or fail runOnce — a lifecycle-bookkeeping
   // failure must not look like a recommendation-generation failure.
   try {
-    await autonomousRecommendationRepository.expireStaleRecommendations();
+    const expired = await autonomousRecommendationRepository.expireStaleRecommendations();
+    for (const expiredId of expired.ids) {
+      await recommendationLifecycleService.recordTransitionSafely({ recommendationId: expiredId, state: "EXPIRED" });
+    }
   } catch (expiryError) {
     // stays ACTIVE, retried next run
   }

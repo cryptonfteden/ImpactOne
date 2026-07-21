@@ -9,6 +9,8 @@ const autonomousRecommendationRepository = require("./autonomousRecommendationRe
 const worldMemoryRepository = require("./worldMemoryRepository");
 const finnhubService = require("./finnhubService");
 const outcomeGradingService = require("./outcomeGradingService");
+const priceHistoryProvider = require("./intelligence/priceHistoryProvider");
+const recommendationLifecycleService = require("./qualityPlatform/recommendationLifecycleService");
 
 function recommendationData(overrides = {}) {
   return {
@@ -55,8 +57,28 @@ async function createGradablePrediction({ recommendationOverrides = {}, predicte
   return { recommendation, prediction };
 }
 
+// Sprint 42 — dated relative to "today" so they survive
+// performanceEngineService's real startDate filter regardless of when this
+// suite runs.
+function isoDaysAgo(days) {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+const FIXTURE_BARS = [
+  { date: isoDaysAgo(2), open: 100, high: 102, low: 99, close: 100, volume: 1000 },
+  { date: isoDaysAgo(1), open: 100, high: 108, low: 100, close: 105, volume: 1000 },
+  { date: isoDaysAgo(0), open: 105, high: 112, low: 104, close: 110, volume: 1000 },
+];
+
+let originalGetDailyBars;
 test.beforeEach(async () => {
   await truncateAll();
+  originalGetDailyBars = priceHistoryProvider.getDailyBars;
+  // Sprint 42 — never hit the real Yahoo endpoint in this suite; a
+  // deterministic fixture series keeps grading tests fast and stable.
+  priceHistoryProvider.getDailyBars = async () => FIXTURE_BARS;
+});
+test.afterEach(() => {
+  priceHistoryProvider.getDailyBars = originalGetDailyBars;
 });
 
 test("computeDirectionCorrect: BUY is correct only when price rose, EXIT/REDUCE only when price fell", () => {
@@ -119,6 +141,44 @@ test("gradePendingOutcomes skips predictions younger than the grading window", a
   try {
     const result = await outcomeGradingService.gradePendingOutcomes();
     assert.equal(result.graded, 0);
+  } finally {
+    finnhubService.getQuote = originalGetQuote;
+  }
+});
+
+test("Sprint 42 — gradePendingOutcomes populates real performance metrics and benchmark fields, and records a SUCCEEDED lifecycle transition", async () => {
+  const { recommendation, prediction } = await createGradablePrediction({ recommendationOverrides: { evidence: { currentPrice: 100 } } });
+
+  const originalGetQuote = finnhubService.getQuote;
+  finnhubService.getQuote = async () => ({ quote: { price: 110 } });
+
+  try {
+    await outcomeGradingService.gradePendingOutcomes();
+
+    const outcomes = await worldMemoryRepository.listOutcomesForRecord(prediction.id);
+    assert.equal(outcomes[0].benchmarkSymbol, "SPY");
+    assert.ok(Number.isFinite(Number(outcomes[0].riskAdjustedReturnPct)), "return vs SPY must be a real computed number");
+    assert.ok(outcomes[0].performanceMetrics, "performanceMetrics must be populated from the real fixture price series");
+    assert.ok(Number.isFinite(outcomes[0].performanceMetrics.maxDrawdownPct));
+    assert.ok(Number.isFinite(outcomes[0].performanceMetrics.maxGainPct));
+
+    const lifecycle = await recommendationLifecycleService.getLifecycle(recommendation.id);
+    assert.ok(lifecycle.events.some((event) => event.state === "SUCCEEDED"), "a directionCorrect=true outcome must record a real SUCCEEDED transition");
+  } finally {
+    finnhubService.getQuote = originalGetQuote;
+  }
+});
+
+test("Sprint 42 — gradePendingOutcomes records a FAILED lifecycle transition when direction was wrong", async () => {
+  const { recommendation } = await createGradablePrediction({ recommendationOverrides: { evidence: { currentPrice: 100 } }, predictedAction: "BUY" });
+
+  const originalGetQuote = finnhubService.getQuote;
+  finnhubService.getQuote = async () => ({ quote: { price: 90 } });
+
+  try {
+    await outcomeGradingService.gradePendingOutcomes();
+    const lifecycle = await recommendationLifecycleService.getLifecycle(recommendation.id);
+    assert.ok(lifecycle.events.some((event) => event.state === "FAILED"), "a directionCorrect=false outcome must record a real FAILED transition");
   } finally {
     finnhubService.getQuote = originalGetQuote;
   }

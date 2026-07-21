@@ -2,6 +2,7 @@ const autonomousRecommendationRepository = require("../services/autonomousRecomm
 const autonomousRecommendationEngine = require("../services/autonomousRecommendationEngine");
 const schedulerService = require("../services/schedulerService");
 const userMemoryRepository = require("../services/userMemoryRepository");
+const recommendationLifecycleService = require("../services/qualityPlatform/recommendationLifecycleService");
 
 function handleKnownError(error, res, next) {
   if (error.statusCode) {
@@ -139,6 +140,9 @@ async function recordRecommendationView(req, res, next) {
       sector: recommendation.portfolioContext?.sector || null,
       detail: { recommendationId: recommendation.id },
     });
+    // Sprint 42 — Recommendation Lifecycle. Best-effort: a view must still
+    // succeed even if lifecycle logging has a transient failure.
+    await recommendationLifecycleService.recordTransitionSafely({ recommendationId: recommendation.id, state: "VIEWED" });
     res.status(201).json(event);
   } catch (error) {
     handleKnownError(error, res, next);

@@ -9,6 +9,9 @@
 const worldMemoryRepository = require("./worldMemoryRepository");
 const autonomousRecommendationRepository = require("./autonomousRecommendationRepository");
 const finnhubService = require("./finnhubService");
+// Sprint 42 — Intelligence Quality Platform.
+const performanceEngineService = require("./qualityPlatform/performanceEngineService");
+const recommendationLifecycleService = require("./qualityPlatform/recommendationLifecycleService");
 
 const METHODOLOGY_VERSION = "sprint29-v1";
 const GRADING_WINDOW_MS = 24 * 60 * 60 * 1000; // D1 — the only window graded this sprint.
@@ -70,6 +73,20 @@ async function gradePendingOutcomes({ timeWindow = "D1" } = {}) {
       const directionCorrect = computeDirectionCorrect(prediction.predictedAction, windowReturnPct);
       const { grade, gradeLabel } = computeGrade({ directionCorrect, windowReturnPct });
 
+      // Sprint 42 — Performance Engine. Best-effort: a real price-history
+      // fetch failure must never block grading itself, so this degrades to
+      // null (honestly absent metrics), never a fabricated number.
+      const performanceMetrics = await performanceEngineService
+        .computePerformanceMetrics({
+          symbol: recommendation.symbol,
+          entryPrice: windowStartPrice,
+          startDate: recommendation.createdAt,
+          sector: recommendation.portfolioContext?.sector || null,
+          expectedUpside: recommendation.expectedUpside,
+          expectedDownside: recommendation.expectedDownside,
+        })
+        .catch(() => null);
+
       const outcome = await worldMemoryRepository.createOutcome({
         recommendationId: recommendation.id,
         decisionTraceId: prediction.decisionTraceId,
@@ -83,9 +100,23 @@ async function gradePendingOutcomes({ timeWindow = "D1" } = {}) {
         directionCorrect,
         grade,
         gradeLabel,
+        benchmarkSymbol: performanceMetrics ? "SPY" : null,
+        benchmarkReturnPct: performanceMetrics?.spyReturnPct ?? null,
+        riskAdjustedReturnPct: performanceMetrics?.returnVsSpyPct ?? null,
         methodologyVersion: METHODOLOGY_VERSION,
         dataSourceSnapshot: { windowStartPrice, windowEndPrice },
+        performanceMetrics,
       });
+
+      // Sprint 42 — Recommendation Lifecycle: a graded outcome is a real
+      // terminal transition. UNGRADEABLE stays whatever it was (no honest
+      // success/failure signal exists), never forced into either bucket.
+      if (directionCorrect === true) {
+        await recommendationLifecycleService.recordTransitionSafely({ recommendationId: recommendation.id, state: "SUCCEEDED", metadata: { windowReturnPct, timeWindow } });
+      } else if (directionCorrect === false) {
+        await recommendationLifecycleService.recordTransitionSafely({ recommendationId: recommendation.id, state: "FAILED", metadata: { windowReturnPct, timeWindow } });
+      }
+
       results.push({ recommendationId: recommendation.id, gradeLabel: outcome.gradeLabel });
     } catch (error) {
       // One recommendation's grading failure must never block the batch —
