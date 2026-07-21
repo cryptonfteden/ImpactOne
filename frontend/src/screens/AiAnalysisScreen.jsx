@@ -68,11 +68,12 @@ export default function AiAnalysisScreen() {
   const [altSignalsError, setAltSignalsError] = useState("");
   const [intelligenceReport, setIntelligenceReport] = useState(null);
   const [intelligenceError, setIntelligenceError] = useState("");
-  // Sprint 18A — renamed from committeeReport: the committee no longer
-  // publishes an independent decision, only debate context (arguments,
-  // expert votes, consensus/disagreement, synthesis narrative).
-  const [committeeDebate, setCommitteeDebate] = useState(null);
-  const [committeeTrackRecord, setCommitteeTrackRecord] = useState(null);
+  // Sprint 41 — Committee Unification: the ONE committee's coordinator
+  // summary and CIO summary (intelligenceCommitteeService), never an
+  // independent decision — only debate context (per-member evidence,
+  // agreement/disagreement, CIO thesis).
+  const [committee, setCommittee] = useState(null);
+  const [cio, setCio] = useState(null);
   const [committeeError, setCommitteeError] = useState("");
 
   const { watchlist, toggleTicker } = useWatchlist();
@@ -181,16 +182,17 @@ export default function AiAnalysisScreen() {
               setAiNotice(aiData.error || "AI analysis is temporarily unavailable. Please try again shortly.");
               setAiError(aiData.error || "OpenAI analysis failed to complete.");
               setAiLastUpdated("");
-              setCommitteeDebate(null);
-              setCommitteeTrackRecord(null);
+              setCommittee(null);
+              setCio(null);
             }
 
-            if (aiData.analysis?.committeeDebate) {
-              setCommitteeDebate(aiData.analysis.committeeDebate);
-              setCommitteeTrackRecord(aiData.analysis.committeeTrackRecord || null);
+            if (aiData.analysis?.committee) {
+              setCommittee(aiData.analysis.committee);
+              setCio(aiData.analysis.cio || null);
+              setCommitteeError("");
             } else {
-              setCommitteeDebate(null);
-              setCommitteeTrackRecord(null);
+              setCommittee(null);
+              setCio(null);
               setCommitteeError("Investment committee is temporarily unavailable.");
             }
 
@@ -241,8 +243,8 @@ export default function AiAnalysisScreen() {
           setAltSignalsError("Alternative data feeds are temporarily unavailable.");
           setIntelligenceReport(null);
           setIntelligenceError("Intelligence engine is temporarily unavailable.");
-          setCommitteeDebate(null);
-          setCommitteeTrackRecord(null);
+          setCommittee(null);
+          setCio(null);
           setCommitteeError("Investment committee is temporarily unavailable.");
           setErrorMessage(error?.message || "Unable to contact the analysis service.");
           setStatusMessage("Live market data request failed.");
@@ -598,80 +600,80 @@ export default function AiAnalysisScreen() {
       </div>
 
       <div id="ai-committee" className="analysis-section-block">
-      {/* Sprint 18A — this is a debate/explanation layer, not a second
-          verdict: it never shows its own Buy/Sell pill. The platform's one
-          canonical call (when one exists) lives on the Recommendations
-          screen, backed by DecisionTrace. */}
+      {/* Sprint 41 — Committee Unification: this is the ONE canonical
+          committee (intelligenceCommitteeService, evidence-matrix-driven) —
+          a debate/explanation layer, not a second verdict: it never shows
+          its own Buy/Sell pill. The platform's one canonical call (when one
+          exists) lives on the Recommendations screen, backed by the same
+          committee's DecisionTrace snapshot. */}
       <SectionCard title="AI Investment Committee" subtitle="Multi-agent debate — advisory context, not a standalone verdict" icon="◆" className="screen-card">
-        {committeeDebate ? (
+        {committee ? (
           <div className="ai-report">
             <div className="ai-report__header">
-              <div className="ai-report__score">Consensus {committeeDebate.consensusLevel ?? 0}%</div>
-              <div className="ai-report__score">Disagreement {committeeDebate.disagreementLevel ?? 0}%</div>
+              <div className="ai-report__score">
+                {committee.agreement.status === "AGREEMENT"
+                  ? `Agreement: ${committee.agreement.direction}`
+                  : committee.disagreement.status === "DISAGREEMENT"
+                    ? "Disagreement among specialists"
+                    : "No clear agreement"}
+              </div>
+              <div className="ai-report__score">{committee.members.length} specialists</div>
             </div>
-            <div className="company-description"><SafeValue value={committeeDebate.synthesis?.executiveSummary || "Committee summary unavailable."} /></div>
-            {committeeDebate.expertsDisagree ? <p className="company-description subtle">Experts disagree: {committeeDebate.disagreementExplanation}</p> : null}
-            {committeeDebate.synthesis?.providerNotice ? <p className="company-description subtle">Provider notice: {committeeDebate.synthesis.providerNotice}</p> : null}
-            <div className="ai-report__grid">
-              <div>
-                <h4>Synthesis</h4>
-                <p className="company-description">Expected return: {committeeDebate.synthesis?.expectedReturn || "N/A"}</p>
-                <p className="company-description">Risk: {committeeDebate.synthesis?.risk || "N/A"}</p>
-                <p className="company-description">Horizon: {committeeDebate.synthesis?.investmentHorizon || "N/A"}</p>
-                <p className="company-description subtle">Allocation: {committeeDebate.synthesis?.portfolioAllocationSuggestion || "N/A"}</p>
-              </div>
-              <div>
-                <h4>Opposing arguments</h4>
-                <SafeList value={(committeeDebate.opposingArguments || []).map((item) => `${item.agent}: ${item.argument}`)} fallback="-" />
-              </div>
-              <div>
-                <h4>Supporting arguments</h4>
-                <SafeList value={(committeeDebate.supportingArguments || []).map((item) => `${item.agent}: ${item.argument}`)} fallback="-" />
-              </div>
-              <div>
-                <h4>Track Record</h4>
-                <p className="company-description">Total decisions: {committeeTrackRecord?.totalDecisions ?? 0}</p>
-                <p className="company-description subtle">Accuracy: {committeeTrackRecord?.accuracy ?? "Pending"}</p>
-                <p className="company-description subtle">Win rate: {committeeTrackRecord?.winRate ?? "Pending"}</p>
-                <p className="company-description subtle">Average return: {committeeTrackRecord?.averageReturn ?? "Pending"}</p>
-              </div>
-            </div>
+            {cio ? (
+              <>
+                <div className="company-description"><SafeValue value={cio.overallThesis || "Committee summary unavailable."} /></div>
+                {cio.largestDisagreement ? <p className="company-description subtle">Largest disagreement: {cio.largestDisagreement}</p> : null}
+                <div className="ai-report__grid">
+                  <div>
+                    <h4>CIO summary</h4>
+                    <p className="company-description">Confidence: {cio.confidence}</p>
+                    <p className="company-description subtle">Highest risk: {cio.highestRisk}</p>
+                    <p className="company-description subtle">Why this exists: {cio.whyRecommendationExists}</p>
+                  </div>
+                  <div>
+                    <h4>Why this may be wrong</h4>
+                    <SafeList value={cio.whyRecommendationMayBeWrong || []} fallback="-" />
+                  </div>
+                  <div>
+                    <h4>Missing information</h4>
+                    <SafeList value={cio.missingInformation || []} fallback="-" />
+                  </div>
+                </div>
+              </>
+            ) : null}
             <div className="table-wrapper">
               <table className="watchlist-table comparison-table">
                 <thead>
                   <tr>
-                    <th>Agent</th>
-                    <th>Vote</th>
+                    <th>Specialist</th>
+                    <th>Headline</th>
                     <th>Confidence</th>
-                    <th>Rationale</th>
+                    <th>Uncertainty</th>
+                    <th>Freshness</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(committeeDebate.expertVotes || []).map((vote) => (
-                    <tr key={vote.agent}>
-                      <td>{vote.agent}</td>
-                      <td>{vote.vote}</td>
-                      <td>{vote.confidence}/100</td>
-                      <td>{vote.rationale || "N/A"}</td>
+                  {(committee.members || []).map((member) => (
+                    <tr key={member.memberId}>
+                      <td>{member.memberName}</td>
+                      <td>{member.headline}</td>
+                      <td>{member.confidence}/100</td>
+                      <td>{member.uncertainty}/100</td>
+                      <td>{member.freshness}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
             <div className="ai-report__grid">
-              {(committeeDebate.specialistObservations || []).map((observation) => {
-                const vote = (committeeDebate.expertVotes || []).find((item) => item.agent === observation.agent);
-                const supporting = (committeeDebate.supportingArguments || []).filter((item) => item.agent === observation.agent).map((item) => item.argument);
-                const opposing = (committeeDebate.opposingArguments || []).filter((item) => item.agent === observation.agent).map((item) => item.argument);
-                return (
-                  <div key={`${observation.agent}-detail`}>
-                    <h4>{observation.agent}</h4>
-                    <p className="company-description subtle">Vote: {vote?.vote || "N/A"} | Confidence: {vote?.confidence ?? "N/A"}/100</p>
-                    <SafeList value={supporting} fallback="-" />
-                    <SafeList value={opposing} fallback="-" />
-                  </div>
-                );
-              })}
+              {(committee.members || []).map((member) => (
+                <div key={`${member.memberId}-detail`}>
+                  <h4>{member.memberName}</h4>
+                  <p className="company-description subtle">{member.reasoning}</p>
+                  <SafeList value={(member.supportingEvidence || []).map((item) => item.reason || item.category)} fallback="-" />
+                  <SafeList value={(member.counterEvidence || []).map((item) => item.reason || item.category)} fallback="-" />
+                </div>
+              ))}
             </div>
           </div>
         ) : (

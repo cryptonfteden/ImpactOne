@@ -14,34 +14,55 @@ vi.mock("../hooks/useWatchlist", () => ({
   default: () => ({ watchlist: [], toggleTicker: vi.fn() }),
 }));
 
-const COMMITTEE_DEBATE_FIXTURE = {
-  generatedAt: new Date().toISOString(),
-  eventHint: "AI capex remains strong",
-  supportingArguments: [{ agent: "Equity Analyst", argument: "Business quality supports upside." }],
-  opposingArguments: [{ agent: "Risk Manager", argument: "Tail risk remains elevated." }],
-  expertVotes: [
-    { agent: "Equity Analyst", vote: "Buy", confidence: 74, rationale: "Business quality supports upside." },
-    { agent: "Risk Manager", vote: "Hold", confidence: 60, rationale: "Tail risk remains elevated." },
+// Sprint 41 — Committee Unification: the ONE committee's real output shape
+// (committeeCoordinator.summarizeCommittee + chiefInvestmentOfficerService.summarizeForCio).
+const COMMITTEE_FIXTURE = {
+  members: [
+    {
+      memberId: "equityResearchSpecialist",
+      memberName: "Equity Analyst",
+      headline: "Business quality supports upside.",
+      reasoning: "Analyst ratings skew positive.",
+      supportingEvidence: [{ category: "ANALYSTS", reason: "Business quality supports upside." }],
+      counterEvidence: [],
+      confidence: 74,
+      uncertainty: 26,
+      freshness: "CURRENT",
+      missingEvidence: [],
+      isRecommendation: false,
+    },
+    {
+      memberId: "marketSentimentSpecialist",
+      memberName: "Risk Manager",
+      headline: "Tail risk remains elevated.",
+      reasoning: "Crowding risk is high.",
+      supportingEvidence: [],
+      counterEvidence: [{ category: "SENTIMENT", reason: "Tail risk remains elevated." }],
+      confidence: 60,
+      uncertainty: 40,
+      freshness: "CURRENT",
+      missingEvidence: [],
+      isRecommendation: false,
+    },
   ],
-  disagreementLevel: 20,
-  consensusLevel: 80,
-  expertsDisagree: false,
-  disagreementExplanation: "Committee alignment is high enough to support a cleaner final recommendation.",
-  voteBreakdown: [{ vote: "Buy", count: 4 }],
-  specialistObservations: [
-    { agent: "Equity Analyst", focus: ["Valuation"], supportingEvidence: ["Analyst posture: Buy"], unknowns: ["Future earnings quality is uncertain."] },
-    { agent: "Risk Manager", focus: ["Tail risk"], supportingEvidence: ["Market impact score: 55/100"], unknowns: ["Hidden balance-sheet issues may not be visible yet."] },
-  ],
-  synthesis: {
-    executiveSummary: "Balance of views points to buy with moderate conviction.",
-    expectedReturn: "12-18%",
-    risk: "Moderate",
-    confidence: 74,
-    investmentHorizon: "3-12 months",
-    portfolioAllocationSuggestion: "3-5% tactical allocation",
-    providerNotice: null,
-    source: "openai",
-  },
+  agreement: { status: "NO_CLEAR_AGREEMENT", direction: null, members: [] },
+  disagreement: { status: "DISAGREEMENT", supportiveMembers: ["equityResearchSpecialist"], contraryMembers: ["marketSentimentSpecialist"] },
+  strongestSupportingEvidence: { memberId: "equityResearchSpecialist", category: "ANALYSTS", reason: "Business quality supports upside.", memberConfidence: 74 },
+  strongestContradictoryEvidence: { memberId: "marketSentimentSpecialist", category: "SENTIMENT", reason: "Tail risk remains elevated.", memberConfidence: 60 },
+  missingEvidence: [],
+  staleEvidence: [],
+  isVerdict: false,
+};
+
+const CIO_FIXTURE = {
+  overallThesis: "Balance of views points to buy with moderate conviction.",
+  confidence: "LOW_SPLIT",
+  largestDisagreement: "equityResearchSpecialist vs. marketSentimentSpecialist",
+  highestRisk: "marketSentimentSpecialist: Tail risk remains elevated.",
+  missingInformation: [],
+  whyRecommendationExists: "Analyst evidence leans positive.",
+  whyRecommendationMayBeWrong: ["Committee members disagree: equityResearchSpecialist vs. marketSentimentSpecialist."],
+  isVerdict: false,
 };
 
 function mockSuccessfulLoad() {
@@ -58,8 +79,8 @@ function mockSuccessfulLoad() {
     analysis: {
       investmentRating: "Buy",
       confidenceScore: 80,
-      committeeDebate: COMMITTEE_DEBATE_FIXTURE,
-      committeeTrackRecord: { totalDecisions: 5, accuracy: 80, winRate: 60, averageReturn: 4.2 },
+      committee: COMMITTEE_FIXTURE,
+      cio: CIO_FIXTURE,
     },
   });
   analysisApi.compare.mockResolvedValue({ comparison: [] });
@@ -67,15 +88,15 @@ function mockSuccessfulLoad() {
   intelligenceApi.analyze.mockResolvedValue(null);
 }
 
-describe("AiAnalysisScreen — Investment Committee panel (Sprint 18A)", () => {
-  it("renders committee debate (consensus, disagreement, expert votes) without a standalone verdict pill", async () => {
+describe("AiAnalysisScreen — Investment Committee panel (Sprint 18A, unified Sprint 41)", () => {
+  it("Sprint 41 — renders the unified committee's real debate (members, agreement/disagreement, CIO thesis) without a standalone verdict pill", async () => {
     mockSuccessfulLoad();
     render(<AiAnalysisScreen />);
 
-    await waitFor(() => expect(screen.getByText(/Consensus 80%/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Disagreement among specialists/)).toBeInTheDocument());
 
-    expect(screen.getByText(/Disagreement 20%/)).toBeInTheDocument();
     expect(screen.getByText(/Balance of views points to buy with moderate conviction/)).toBeInTheDocument();
+    expect(screen.getByText(/Largest disagreement: equityResearchSpecialist vs. marketSentimentSpecialist/)).toBeInTheDocument();
     expect(screen.getAllByText(/Equity Analyst/).length).toBeGreaterThan(0);
 
     // The committee section must never render a bare "Buy"/"Strong Buy"

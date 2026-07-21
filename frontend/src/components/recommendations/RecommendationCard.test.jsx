@@ -128,18 +128,21 @@ describe("RecommendationCard", () => {
     expect(screen.queryByRole("button", { name: /place order/i })).not.toBeInTheDocument();
   });
 
-  it("shows the committee debate (consensus, disagreement, expert votes) when expanded, with no second verdict pill", () => {
+  it("Sprint 41 — shows the unified committee's real debate (members, agreement, CIO thesis) when expanded, with no second verdict pill", () => {
     const withDebate = {
       ...RECOMMENDATION_FIXTURE,
       explanation: {
         ...RECOMMENDATION_FIXTURE.explanation,
         committeeDebate: {
-          consensusLevel: 80,
-          disagreementLevel: 20,
-          expertVotes: [
-            { agent: "Equity Analyst", vote: "Buy", confidence: 74 },
-            { agent: "Risk Manager", vote: "Hold", confidence: 60 },
-          ],
+          committee: {
+            members: [
+              { memberId: "technicalAnalyst", memberName: "Technical Analyst", headline: "Technical structure is supportive.", confidence: 74 },
+              { memberId: "equityResearchSpecialist", memberName: "Equity Research Specialist", headline: "Analyst stance: NEUTRAL.", confidence: 60 },
+            ],
+            agreement: { status: "AGREEMENT", direction: "SUPPORTIVE", members: ["technicalAnalyst"] },
+            disagreement: { status: "NO_DISAGREEMENT", supportiveMembers: [], contraryMembers: [] },
+          },
+          cio: { overallThesis: "The committee leans supportive." },
         },
       },
     };
@@ -147,8 +150,9 @@ describe("RecommendationCard", () => {
     render(<RecommendationCard recommendation={withDebate} isExpanded onToggleExpand={vi.fn()} />);
 
     expect(screen.getByText("Committee debate")).toBeInTheDocument();
-    expect(screen.getByText(/Consensus 80%/)).toBeInTheDocument();
-    expect(screen.getByText(/Equity Analyst: Buy \(74\/100\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Agreement: SUPPORTIVE/)).toBeInTheDocument();
+    expect(screen.getByText("The committee leans supportive.")).toBeInTheDocument();
+    expect(screen.getByText(/Technical Analyst: Technical structure is supportive\. \(confidence 74\/100\)/)).toBeInTheDocument();
   });
 
   it("renders no committee debate section when none is present on the recommendation", () => {

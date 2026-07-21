@@ -461,15 +461,27 @@ function RecommendationCard({ recommendation, isExpanded, onToggleExpand }) {
             </div>
           ) : null}
 
-          {explanation.committeeDebate ? (
+          {/* Sprint 41 — Committee Unification: this is the ONE committee's
+              real output (committeeCoordinator + chiefInvestmentOfficerService),
+              the same data stored on this recommendation's DecisionTrace —
+              never a second, differently-shaped committee. */}
+          {explanation.committeeDebate?.committee ? (
             <div className="explanation-section">
               <p className="explanation-section__title">Committee debate</p>
               <p className="company-description subtle">
-                Consensus {explanation.committeeDebate.consensusLevel ?? 0}% · Disagreement {explanation.committeeDebate.disagreementLevel ?? 0}%
+                {explanation.committeeDebate.committee.members.length} specialists ·{" "}
+                {explanation.committeeDebate.committee.agreement.status === "AGREEMENT"
+                  ? `Agreement: ${explanation.committeeDebate.committee.agreement.direction}`
+                  : explanation.committeeDebate.committee.disagreement.status === "DISAGREEMENT"
+                    ? "Disagreement among specialists"
+                    : "No clear agreement"}
               </p>
-              {(explanation.committeeDebate.expertVotes || []).map((vote) => (
-                <p key={vote.agent} className="company-description subtle">
-                  {vote.agent}: {vote.vote} ({vote.confidence}/100)
+              {explanation.committeeDebate.cio ? (
+                <p className="company-description subtle">{explanation.committeeDebate.cio.overallThesis}</p>
+              ) : null}
+              {(explanation.committeeDebate.committee.members || []).map((member) => (
+                <p key={member.memberId} className="company-description subtle">
+                  {member.memberName}: {member.headline} (confidence {member.confidence}/100)
                 </p>
               ))}
             </div>

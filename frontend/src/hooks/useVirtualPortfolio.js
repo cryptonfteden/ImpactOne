@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { committeeApi, intelligenceApi, marketApi } from "../services/api";
+import { committeeIntelligenceApi, intelligenceApi, marketApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 import {
   getVirtualPortfolioEventName,
@@ -78,23 +78,18 @@ function eventImpactPass(overview, symbol) {
   return (overview?.feed || []).some((item) => (item.relatedTickers || []).includes(symbol) || (item.affectedAssets || []).includes(symbol));
 }
 
-function committeeVotePass(vote = "Hold") {
-  return ["Strong Buy", "Buy", "Hold"].includes(String(vote || "Hold"));
-}
-
-// Sprint 18A — the committee no longer publishes an independent cio.decision
-// (see investmentCommitteeService.js). This client-side helper computes the
-// same style of majority-vote string from the raw expertVotes array the
-// committee still legitimately publishes, so this legacy auto-trading rule
-// keeps its original threshold semantics without relying on a server-side
-// synthesized verdict.
-function majorityCommitteeVote(expertVotes = []) {
-  const counts = {};
-  for (const { vote } of expertVotes || []) {
-    counts[vote] = (counts[vote] || 0) + 1;
-  }
-  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  return sorted.length ? sorted[0][0] : "Hold";
+// Sprint 41 — Committee Unification. This legacy auto-trading gate used to
+// read a "Strong Buy".."Strong Sell" vote-scale string from the retired
+// committee (investmentCommitteeService.js). The ONE unified committee
+// (intelligenceCommitteeService, evidence-matrix-driven) never publishes a
+// vote scale — only a qualitative agreement/disagreement lean per real
+// evidence. This keeps the gate's original intent (only block on a real,
+// clear negative committee reading) against the new shape: it blocks only
+// when every available member's evidence clearly leans CONTRARY, exactly
+// like the old rule only blocked on Reduce/Sell/Strong Sell, never on Hold.
+function committeeLeanPass(committeeSummary) {
+  if (!committeeSummary) return true; // unavailable committee data never blocks, same as the old "Hold" default
+  return !(committeeSummary.agreement?.status === "AGREEMENT" && committeeSummary.agreement.direction === "CONTRARY");
 }
 
 function buildTradeRecord({ symbol, action, confidence, reason, sourceSignals, entryPrice, suggestedPositionSize, stopLevel, targetPrice, timeHorizon, quantity, value, thesis }) {
@@ -279,7 +274,7 @@ function openOrAddPosition(state, candidate, committee, quote, overview) {
     timeHorizon: candidate.portfolioAction?.timeHorizon,
     quantity,
     value,
-    thesis: committee?.committeeDebate?.synthesis?.executiveSummary || candidate.thesis,
+    thesis: committee?.cio?.overallThesis || candidate.thesis,
   });
 
   const nextPositions = [...(state.positions || [])];
@@ -348,11 +343,12 @@ async function syncPortfolioState(currentState, watchlist, overview) {
       continue;
     }
 
-    const committee = await committeeApi.analyze({ symbol }).catch(() => null);
-    const committeeVote = majorityCommitteeVote(committee?.committeeDebate?.expertVotes);
+    // Sprint 41 — Committee Unification: convenes the ONE canonical
+    // committee, replacing the retired committeeApi.js (/committee/analyze).
+    const committee = await committeeIntelligenceApi.convene(symbol).catch(() => null);
     const meetsThresholds = conviction >= Number(nextState.rules?.minConfidence || 75)
       && riskReward >= Number(nextState.rules?.minRiskReward || 1.5)
-      && committeeVotePass(committeeVote)
+      && committeeLeanPass(committee?.committee)
       && marketRegimePass(overview)
       && eventImpactPass(overview, symbol)
       && riskScore <= 70;
@@ -383,7 +379,7 @@ async function syncPortfolioState(currentState, watchlist, overview) {
         timeHorizon: candidate.portfolioAction?.timeHorizon,
         quantity: 0,
         value: 0,
-        thesis: committee?.committeeDebate?.synthesis?.executiveSummary || candidate.thesis,
+        thesis: committee?.cio?.overallThesis || candidate.thesis,
       });
       nextState.trades = [...(nextState.trades || []), holdTrade];
     }
