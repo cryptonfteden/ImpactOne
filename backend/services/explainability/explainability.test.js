@@ -13,6 +13,8 @@ const whatIfService = require("./whatIfService");
 const decisionTraceExplainabilityService = require("./decisionTraceExplainabilityService");
 const autonomousRecommendationRepository = require("../autonomousRecommendationRepository");
 const technicalIntelligenceService = require("../intelligence/technicalIntelligenceService");
+const worldMemoryRepository = require("../worldMemoryRepository");
+const recommendationLifecycleService = require("../qualityPlatform/recommendationLifecycleService");
 
 test.beforeEach(async () => {
   await truncateAll();
@@ -210,6 +212,67 @@ test("decisionTraceExplainabilityService: assembles a full, real explainability 
     assert.ok(bundle.explanation);
     assert.equal(bundle.provenance.length, 10);
     assert.equal(bundle.uncertainty, 35);
+    // Sprint 42 — Explainability History: honest, not fabricated, when
+    // nothing has happened yet.
+    assert.equal(bundle.finalOutcome, null);
+    assert.deepEqual(bundle.lifecycle.events, []);
+    assert.equal(bundle.lifecycle.currentState, null);
+  } finally {
+    technicalIntelligenceService.analyzeSymbol = originalAnalyzeSymbol;
+  }
+});
+
+test("Sprint 42 — decisionTraceExplainabilityService includes the real final outcome and real lifecycle history once they exist, never rewriting the immutable trace", async () => {
+  const originalAnalyzeSymbol = technicalIntelligenceService.analyzeSymbol;
+  technicalIntelligenceService.analyzeSymbol = async () => ({ enoughDataStatus: "INSUFFICIENT", signals: {} });
+  try {
+    const recommendation = await autonomousRecommendationRepository.createRecommendation({
+      symbol: "NVDA",
+      action: "BUY",
+      confidenceScore: 70,
+      expectedUpside: "10%",
+      expectedDownside: "-5%",
+      riskScore: 30,
+      riskLabel: "Moderate",
+      positionSizeSuggestion: "2%",
+      reasoning: "Test reasoning",
+      evidence: {},
+      explanation: {},
+      scenarios: {},
+      qualityScore: 60,
+      qualityComponents: {},
+    });
+    await autonomousRecommendationRepository.createDecisionTrace({
+      recommendationId: recommendation.id,
+      inputEvidence: {},
+      rankingResult: {},
+      confidenceCalculation: {},
+      finalOutput: {},
+    });
+
+    await recommendationLifecycleService.recordTransition({ recommendationId: recommendation.id, state: "GENERATED" });
+    await recommendationLifecycleService.recordTransition({ recommendationId: recommendation.id, state: "SUCCEEDED" });
+
+    await worldMemoryRepository.createOutcome({
+      recommendationId: recommendation.id,
+      symbol: "NVDA",
+      action: "BUY",
+      timeWindow: "D1",
+      windowStartPrice: 100,
+      windowEndPrice: 110,
+      windowReturnPct: 10,
+      directionCorrect: true,
+      grade: 60,
+      gradeLabel: "CORRECT",
+      methodologyVersion: "test-v1",
+      dataSourceSnapshot: {},
+    });
+
+    const bundle = await decisionTraceExplainabilityService.explainRecommendationById(recommendation.id);
+    assert.equal(bundle.finalOutcome.gradeLabel, "CORRECT");
+    assert.equal(Number(bundle.finalOutcome.windowReturnPct), 10);
+    assert.deepEqual(bundle.lifecycle.events.map((event) => event.state), ["GENERATED", "SUCCEEDED"]);
+    assert.equal(bundle.lifecycle.currentState, "SUCCEEDED");
   } finally {
     technicalIntelligenceService.analyzeSymbol = originalAnalyzeSymbol;
   }

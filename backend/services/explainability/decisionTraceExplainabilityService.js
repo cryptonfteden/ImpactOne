@@ -14,6 +14,12 @@ const { buildProvenance } = require("./provenanceService");
 const { classifyDisagreement } = require("./disagreementEngine");
 const { checkConsistency } = require("./consistencyCheckService");
 const { explainRecommendation } = require("./recommendationExplanationService");
+// Sprint 42 — Intelligence Quality Platform: Explainability History. Users
+// must be able to inspect the original recommendation/committee/evidence/
+// confidence alongside the final real outcome and the real lifecycle —
+// both read-only, both never rewriting the immutable DecisionTrace above.
+const worldMemoryRepository = require("../worldMemoryRepository");
+const recommendationLifecycleService = require("../qualityPlatform/recommendationLifecycleService");
 
 /**
  * Sprint 39 Priority 1/2/3/4/5/6/8 — assembles the full explainability
@@ -46,6 +52,14 @@ async function explainRecommendationById(recommendationId) {
   const explanation = explainRecommendation({ recommendation, committeeSummary: liveCommittee.committee });
   const provenance = buildProvenance(liveCommittee.evidenceMatrix);
 
+  // Sprint 42 — real, honestly-nullable final outcome and lifecycle;
+  // neither is ever fabricated when grading/lifecycle logging hasn't
+  // happened yet for this recommendation.
+  const [finalOutcome, lifecycle] = await Promise.all([
+    worldMemoryRepository.getOutcomeForRecommendation(recommendationId),
+    recommendationLifecycleService.getLifecycle(recommendationId),
+  ]);
+
   return {
     recommendationId: recommendation.id,
     symbol: recommendation.symbol,
@@ -55,9 +69,15 @@ async function explainRecommendationById(recommendationId) {
       rankingResult: decisionTrace.rankingResult,
       confidenceCalculation: decisionTrace.confidenceCalculation,
       finalOutput: decisionTrace.finalOutput,
-      historicalCommitteeDebate: decisionTrace.committeeDebate, // legacy, immutable snapshot from creation time
+      historicalCommitteeDebate: decisionTrace.committeeDebate, // the unified committee's own immutable snapshot from creation time (Sprint 41)
       evidenceReferences: decisionTrace.evidenceReferences,
     },
+    // Sprint 42 — Explainability History. Never rewritten: finalOutcome is
+    // whatever the (immutable, append-only) Outcome table says, or null if
+    // grading hasn't happened yet; lifecycle is the real, ordered
+    // transition history, or an empty list if none has been recorded yet.
+    finalOutcome: finalOutcome || null,
+    lifecycle,
     liveCommittee: {
       generatedAt: liveCommittee.generatedAt,
       evidenceMatrixGeneratedAt: liveCommittee.evidenceMatrixGeneratedAt,

@@ -32,6 +32,7 @@ const analyticsRoutes = require("./analyticsRoutes");
 const marketIntelligenceRoutes = require("./marketIntelligenceRoutes");
 const committeeIntelligenceRoutes = require("./committeeIntelligenceRoutes");
 const explainabilityRoutes = require("./explainabilityRoutes");
+const qualityPlatformRoutes = require("./qualityPlatformRoutes");
 
 const router = express.Router();
 
@@ -87,6 +88,9 @@ router.use("/v2/committee-intelligence", committeeIntelligenceRoutes);
 // Sprint 39 — Explainability Layer. Read-only: explains a DecisionTrace
 // plus a live re-convened committee; never a second recommendation path.
 router.use("/v2/explainability", explainabilityRoutes);
+// Sprint 42 — Intelligence Quality Platform. Internal analytics API
+// (lifecycle, committee/CIO/evidence scorecards) — no public UI yet.
+router.use("/v2/quality-platform", qualityPlatformRoutes);
 router.use("/chat", chatRoutes);
 
 module.exports = router;
