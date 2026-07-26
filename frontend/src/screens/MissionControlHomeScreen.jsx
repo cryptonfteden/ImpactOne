@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Page, Container, Section, Grid, Stack } from "../components/layout";
-import { Card, Badge, ConfidenceArc, EmptyState, Skeleton, Button } from "../components/nova";
+import { Card, Badge, MetricArc, EmptyState, Skeleton, Button, InlineMessage } from "../components/nova";
 import { useI18n } from "../i18n/I18nProvider";
 import {
   todaysBrief,
@@ -11,6 +11,7 @@ import {
   marketPulse,
   liveIntelligenceCount,
   sessionSummary,
+  isDemoData,
 } from "./missionControl/missionControlMockData";
 
 // Phase MISSION-CONTROL-001 — the first production-quality implementation
@@ -31,6 +32,19 @@ import {
 // Only three distinct visual/motion treatments exist across the whole
 // screen — see components.css's `.mc-tier-1/2/3` rules — never a fourth,
 // per-section-specific rule.
+//
+// Phase MISSION-CONTROL-002 — release-readiness pass. Two fixes of note:
+// (1) Confidence, Probability, and Attention are three independent
+// metrics (see MetricArc.jsx) — every MetricArc instance below now
+// states its `metric` explicitly (Today's Brief/hero use "attention";
+// Biggest Risk/Best Opportunity/Market Pulse use "confidence"), and the
+// visible "Attention: {level}" badge wording is now consistent between
+// the hero and every other Brief row, never a bare, unlabeled level.
+// (2) This screen still runs entirely on deterministic demo data
+// (`isDemoData`, from missionControlMockData.js) — a persistent, quiet
+// Demo Mode indicator now discloses this at the top of the screen so no
+// user can mistake simulated values for a live read of their real
+// portfolio.
 
 const INITIAL_LOAD_DELAY_MS = 300;
 const BRIEF_COLLAPSED_COUNT = 3;
@@ -77,7 +91,7 @@ function HeroBriefItem({ item }) {
       eyebrow="Top Priority"
     >
       <Stack direction="horizontal" gap={6} align="center" wrap>
-        <ConfidenceArc score={item.attentionScore} size="lg" />
+        <MetricArc score={item.attentionScore} metric="attention" size="lg" />
         <Stack gap={2} style={{ flex: 1, minInlineSize: 240 }}>
           <h2 className="nova-heading-h1">{item.headline}</h2>
           <p className="nova-text-sm" style={{ color: "var(--nova-color-text-secondary)" }}>
@@ -121,7 +135,7 @@ function BriefRow({ item, index }) {
       aria-expanded={expanded}
       onClick={() => setExpanded((value) => !value)}
     >
-      <ConfidenceArc score={item.attentionScore} size="sm" />
+      <MetricArc score={item.attentionScore} metric="attention" size="sm" />
       <Stack gap={1} style={{ flex: 1 }}>
         <strong className="nova-text-sm">{item.headline}</strong>
         {expanded ? (
@@ -130,7 +144,7 @@ function BriefRow({ item, index }) {
           </p>
         ) : null}
       </Stack>
-      <Badge tone={attentionLevelTone(item.recommendedAttentionLevel)}>{item.recommendedAttentionLevel}</Badge>
+      <Badge tone={attentionLevelTone(item.recommendedAttentionLevel)}>Attention: {item.recommendedAttentionLevel}</Badge>
     </button>
   );
 }
@@ -139,13 +153,32 @@ function BriefRow({ item, index }) {
  * Tier 2 — one half of the paired Biggest Risk / Best Opportunity
  * signals. Deliberately identical structure for both halves (the
  * masterplan's one documented exception to "nothing is equal").
+ *
+ * Phase MISSION-CONTROL-002 — an independent implementation review
+ * (MISSION_CONTROL_UI_GAPS.md, H1) found "Show more" was functionally
+ * inert here: Card's generic `expandable` prop only toggles a height
+ * clip around identical children, so on content short enough to already
+ * fit collapsed, expanding changed nothing visible — confirmed live.
+ * Fixed by managing expand state locally (same pattern as BriefRow
+ * below) and only rendering `claim.portfolioImpact` — real data the mock
+ * fixtures already carry, previously rendered nowhere at all — once
+ * expanded, so the affordance always has real, additional content to
+ * reveal, matching the masterplan's "expanded state adds real portfolio
+ * impact magnitude" spec.
  */
 function SignalCard({ title, claim }) {
+  const [expanded, setExpanded] = useState(false);
+
   return (
-    <Card title={title} expandable>
+    <Card title={title}>
       <Stack gap={3}>
         <Stack direction="horizontal" gap={2} wrap align="center">
-          <ConfidenceArc score={claim.confidence} size="sm" showValue />
+          <Stack gap={1} align="center">
+            <MetricArc score={claim.confidence} metric="confidence" size="sm" showValue />
+            <span className="nova-text-xs" style={{ color: "var(--nova-color-text-tertiary)" }}>
+              Confidence
+            </span>
+          </Stack>
           <Badge tone={directionTone(claim.expectedDirection)}>{claim.expectedDirection}</Badge>
           <Badge tone="neutral">{(claim.symbols || []).join(", ")}</Badge>
         </Stack>
@@ -155,6 +188,14 @@ function SignalCard({ title, claim }) {
             {claim.evidence[0].observedFact}
           </p>
         ) : null}
+        {expanded && claim.portfolioImpact ? (
+          <p className="nova-text-xs" style={{ color: "var(--nova-color-text-tertiary)" }}>
+            Portfolio impact: {claim.portfolioImpact.magnitude}/100 ({claim.portfolioImpact.direction})
+          </p>
+        ) : null}
+        <Button variant="ghost" onClick={() => setExpanded((value) => !value)}>
+          {expanded ? "Show less" : "Show more"}
+        </Button>
       </Stack>
     </Card>
   );
@@ -193,11 +234,27 @@ export default function MissionControlHomeScreen({ onNavigate }) {
   return (
     <Page className="screen-page mission-control-screen" dir={dir}>
       <Container>
-        <Stack gap={2} style={{ paddingBlockEnd: "var(--nova-space-6)" }}>
+        <Stack gap={2} style={{ paddingBlockEnd: "var(--nova-space-4)" }}>
           <span className="nova-heading-eyebrow">Mission Control</span>
           <h1 className="nova-heading-h1">Today's briefing</h1>
           <p className="nova-heading-subtext">Everything that needs you, in one coherent briefing — not a wall of widgets.</p>
         </Stack>
+
+        {/* Phase MISSION-CONTROL-002 — Demo Mode indicator. Quiet and
+            persistent (not a dismissible toast) for as long as
+            isDemoData is true, so a user can never mistake this
+            screen's simulated values for a live read of their real
+            portfolio. Informative, not alarming: an InlineMessage, the
+            smallest/quietest real notification treatment this library
+            has, placed once at the top rather than repeated per card. */}
+        {isDemoData ? (
+          <div style={{ marginBlockEnd: "var(--nova-space-6)" }} role="status" aria-label="Demo mode: showing simulated intelligence, not live data.">
+            <InlineMessage tone="info">
+              <strong>Demo</strong> — every value on this screen is simulated for demonstration. It does not reflect your real portfolio or live
+              market data.
+            </InlineMessage>
+          </div>
+        ) : null}
 
         {/* Tier 1 — The Brief */}
         <Section aria-label="Today's Brief" className="mc-tier-1">
@@ -290,7 +347,12 @@ export default function MissionControlHomeScreen({ onNavigate }) {
 
           <Card title="Market Pulse">
             <Stack direction="horizontal" gap={3} align="center" wrap>
-              <ConfidenceArc score={marketPulse.confidence} size="sm" showValue />
+              <Stack gap={1} align="center">
+                <MetricArc score={marketPulse.confidence} metric="confidence" size="sm" showValue />
+                <span className="nova-text-xs" style={{ color: "var(--nova-color-text-tertiary)" }}>
+                  Confidence
+                </span>
+              </Stack>
               <p className="nova-text-sm" style={{ color: "var(--nova-color-text-secondary)" }}>
                 {marketPulse.summary}
               </p>

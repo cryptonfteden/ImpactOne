@@ -621,16 +621,22 @@ html[data-motion="reduced"] .nova-skeleton {
 }
 
 /* =============================================================================
- * Confidence Arc — Phase MISSION-CONTROL-001. The one, single recurring
- * scoring primitive per IMPACTONE_DESIGN_BIBLE.md §3.9/§4 and
- * MISSION_CONTROL_EXPERIENCE_MASTERPLAN.md §3.5: a partial radial arc,
- * fill proportional to a real score, replacing three separate numeric/
- * badge indicators with one instrument-style reading. Never decorative —
- * the fill is always a real, computed percentage, never animated for its
- * own sake (see the one-time reveal transition below, applied once on
- * mount, never looping).
+ * Metric Arc — Phase MISSION-CONTROL-001 (introduced as "Confidence
+ * Arc"), renamed in Phase MISSION-CONTROL-002 once the same primitive
+ * was found rendering Confidence, Probability, AND Attention Score
+ * without distinguishing them. One shape, three independent, explicitly
+ * labeled metrics (see MetricArc.jsx's `metric` prop) — a partial radial
+ * arc, fill proportional to a real score, replacing three separate
+ * numeric/badge indicators with one instrument-style reading. Never
+ * decorative — the fill is always a real, computed percentage, never
+ * animated for its own sake (see the one-time reveal transition below,
+ * applied once on mount, never looping). `data-metric` never changes
+ * this component's visual shape, only which fixed color rule it applies
+ * (Confidence bands by real confidence level; Attention and Probability
+ * each use one fixed hue, never Confidence's positive/negative banding —
+ * see MetricArc.jsx for why).
  * ========================================================================= */
-.nova-confidence-arc {
+.nova-metric-arc {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -638,13 +644,13 @@ html[data-motion="reduced"] .nova-skeleton {
   flex-shrink: 0;
 }
 
-.nova-confidence-arc__fill {
+.nova-metric-arc__fill {
   transition-property: stroke-dasharray;
   transition-duration: var(--nova-motion-duration-screen);
   transition-timing-function: var(--nova-motion-curve-enter);
 }
 
-.nova-confidence-arc__value {
+.nova-metric-arc__value {
   position: absolute;
   font-family: var(--nova-font-family-numeric);
   font-variant-numeric: tabular-nums;
@@ -652,22 +658,22 @@ html[data-motion="reduced"] .nova-skeleton {
   color: var(--nova-color-text-primary);
 }
 
-.nova-confidence-arc[data-size="sm"] .nova-confidence-arc__value {
+.nova-metric-arc[data-size="sm"] .nova-metric-arc__value {
   font-size: var(--nova-font-size-xs);
 }
-.nova-confidence-arc[data-size="md"] .nova-confidence-arc__value {
+.nova-metric-arc[data-size="md"] .nova-metric-arc__value {
   font-size: var(--nova-font-size-sm);
 }
-.nova-confidence-arc[data-size="lg"] .nova-confidence-arc__value {
+.nova-metric-arc[data-size="lg"] .nova-metric-arc__value {
   font-size: var(--nova-font-size-xl);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nova-confidence-arc__fill {
+  .nova-metric-arc__fill {
     transition-duration: 1ms;
   }
 }
-html[data-motion="reduced"] .nova-confidence-arc__fill {
+html[data-motion="reduced"] .nova-metric-arc__fill {
   transition-duration: 1ms;
 }
 

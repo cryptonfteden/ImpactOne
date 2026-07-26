@@ -12,6 +12,16 @@
 // morningBriefService's Brief item shape, portfolioEngineService's
 // getPerformanceDelta shape) — this is demo content standing in for real
 // intelligence, not a new data model.
+//
+// Phase MISSION-CONTROL-002 — `isDemoData` is the one flag the screen
+// reads to decide whether to show the Demo Mode indicator (see
+// MissionControlHomeScreen.jsx). It is true for as long as this file
+// remains the screen's data source; the day this module is replaced by
+// real API calls, flipping this constant (or removing it in favor of a
+// real "is this real or simulated" signal from the backend) is the only
+// change needed to turn the indicator off — never a place where "demo"
+// and "live" data can be silently confused.
+export const isDemoData = true;
 
 export const heroBriefItem = {
   claimId: "demo-hero-1",
@@ -99,15 +109,20 @@ export const biggestRisk = {
   portfolioImpact: { magnitude: 62, direction: "negative" },
 };
 
+// Phase MISSION-CONTROL-002 — deliberately a different symbol from the
+// Tier 1 hero (previously both were NVDA; flagged by
+// MISSION_CONTROL_UI_GAPS.md, M3, as reading like unintentional
+// repetition rather than reinforcement). Best Opportunity should
+// showcase a genuinely distinct real finding, not restate the hero.
 export const bestOpportunity = {
   claimId: "demo-opportunity-1",
-  symbols: ["NVDA"],
+  symbols: ["MSFT"],
   expectedDirection: "BULLISH",
   confidence: 88,
   status: "STRENGTHENING",
-  statement: "NVDA demand outpaces available supply through Q3.",
-  plainLanguageStatement: "NVDA looks set to keep beating expectations as supply, not demand, becomes the limiting factor.",
-  evidence: [{ id: "e2", observedFact: "Real options sweep activity confirms continued institutional accumulation." }],
+  statement: "MSFT Azure AI compute backlog signals durable, multi-quarter growth.",
+  plainLanguageStatement: "MSFT's Azure AI backlog looks set to keep beating expectations well beyond this quarter.",
+  evidence: [{ id: "e2", observedFact: "Real capacity commitments disclosed this quarter extend well past the current guidance window." }],
   portfolioImpact: { magnitude: 74, direction: "positive" },
 };
 
@@ -143,10 +158,16 @@ export const marketPulse = {
   summary: "Market-wide sentiment is mildly risk-on, with moderate confidence.",
 };
 
-export const upcomingEvents = [
-  { symbol: "NVDA", date: "2026-08-14", label: "Q2 earnings", comparisonPoint: "Consensus EPS $0.68" },
-  { symbol: "META", date: "2026-08-21", label: "Q2 earnings", comparisonPoint: null },
-];
+// Phase MISSION-CONTROL-002 — an "upcomingEvents" export previously
+// existed here but was never rendered by MissionControlHomeScreen.jsx
+// (dead code, flagged by MISSION_CONTROL_UI_GAPS.md, H3). This is a
+// deliberate, documented cut, not an oversight: MISSION-CONTROL-001's
+// explicit screen layout only specifies Tier 3 as Claims Changing /
+// Market Pulse / Live Intelligence / Session Summary — Upcoming Events
+// was never part of this build's scope. Removed rather than left unused,
+// per this phase's "no unfinished components" release-readiness bar; a
+// future phase that wants an Upcoming Events section should treat that
+// as new scope, not silently revive dead code.
 
 export const liveIntelligenceCount = 14;
 

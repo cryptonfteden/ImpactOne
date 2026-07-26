@@ -23,6 +23,56 @@ describe("MissionControlHomeScreen — Phase MISSION-CONTROL-001", () => {
     await waitForLoaded();
   });
 
+  describe("Phase MISSION-CONTROL-002 — Demo Mode indicator", () => {
+    it("shows a persistent, informative Demo Mode indicator while the screen runs on demo data", async () => {
+      renderScreen();
+      await waitForLoaded();
+
+      const indicator = screen.getByRole("status", { name: "Demo mode: showing simulated intelligence, not live data." });
+      expect(within(indicator).getByText("Demo")).toBeInTheDocument();
+      expect(within(indicator).getByText(/does not reflect your real portfolio or live/)).toBeInTheDocument();
+    });
+  });
+
+  describe("Phase MISSION-CONTROL-002 — Confidence/Probability/Attention are independent metrics", () => {
+    it("the hero and Today's Brief rows label their score Attention, never Confidence", async () => {
+      renderScreen();
+      await waitForLoaded();
+
+      const briefRegion = screen.getByRole("region", { name: "Today's Brief" });
+      expect(within(briefRegion).getByRole("img", { name: "Attention 91 out of 100" })).toBeInTheDocument();
+      expect(within(briefRegion).queryByRole("img", { name: /^Confidence/ })).not.toBeInTheDocument();
+    });
+
+    it("Biggest Risk and Best Opportunity label their score Confidence, never Attention, with a visible caption too", async () => {
+      renderScreen();
+      await waitForLoaded();
+
+      const region = screen.getByRole("region", { name: "Your Signals" });
+      expect(within(region).getAllByText("Confidence").length).toBeGreaterThan(0);
+      expect(within(region).queryByRole("img", { name: /^Attention/ })).not.toBeInTheDocument();
+    });
+
+    it("Market Pulse labels its score Confidence, with a visible caption, consistent with every other real confidence reading", async () => {
+      renderScreen();
+      await waitForLoaded();
+
+      const region = screen.getByRole("region", { name: "Context" });
+      const marketPulseCard = within(region).getByText("Market Pulse").closest(".nova-card");
+      expect(within(marketPulseCard).getByText("Confidence")).toBeInTheDocument();
+      expect(within(marketPulseCard).getByRole("img", { name: /^Confidence 64 out of 100/ })).toBeInTheDocument();
+    });
+
+    it("the Attention Level badge reads identically ('Attention: {level}') on the hero and every other Brief row", async () => {
+      renderScreen();
+      await waitForLoaded();
+
+      const briefRegion = screen.getByRole("region", { name: "Today's Brief" });
+      expect(within(briefRegion).getByText("Attention: High")).toBeInTheDocument();
+      expect(within(briefRegion).getAllByText(/^Attention: (High|Medium|Low)$/).length).toBeGreaterThan(1);
+    });
+  });
+
   describe("Tier 1 — The Brief", () => {
     it("renders exactly one hero (Top Priority) as the screen's unmistakable starting point", async () => {
       renderScreen();
@@ -88,7 +138,22 @@ describe("MissionControlHomeScreen — Phase MISSION-CONTROL-001", () => {
       expect(within(region).getByText("Biggest Risk")).toBeInTheDocument();
       expect(within(region).getByText("Best Opportunity")).toBeInTheDocument();
       expect(within(region).getByText(/META ad pricing is softening/)).toBeInTheDocument();
-      expect(within(region).getByText(/NVDA looks set to keep beating expectations/)).toBeInTheDocument();
+      expect(within(region).getByText(/MSFT's Azure AI backlog looks set to keep beating expectations/)).toBeInTheDocument();
+    });
+
+    it("Phase MISSION-CONTROL-002 — 'Show more' on Biggest Risk/Best Opportunity reveals real, additional portfolio impact content (regression for a previously inert toggle)", async () => {
+      renderScreen();
+      await waitForLoaded();
+
+      const region = screen.getByRole("region", { name: "Your Signals" });
+      const riskCard = within(region).getByText("Biggest Risk").closest(".nova-card");
+      expect(within(riskCard).queryByText(/Portfolio impact:/)).not.toBeInTheDocument();
+
+      fireEvent.click(within(riskCard).getByText("Show more"));
+      expect(within(riskCard).getByText("Portfolio impact: 62/100 (negative)")).toBeInTheDocument();
+
+      fireEvent.click(within(riskCard).getByText("Show less"));
+      expect(within(riskCard).queryByText(/Portfolio impact:/)).not.toBeInTheDocument();
     });
   });
 
