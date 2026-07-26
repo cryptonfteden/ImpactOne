@@ -3,6 +3,7 @@ import { Button } from "../ui";
 import ScenarioComparison from "./ScenarioComparison";
 import QualityScoreBreakdown from "./QualityScoreBreakdown";
 import { recommendationsApi } from "../../services/api";
+import { openSymbolPanel } from "../../utils/symbolPanel";
 import { logError } from "../../utils/errorHandling";
 import { trackEvent } from "../../utils/analytics";
 
@@ -301,7 +302,12 @@ function RecommendationCard({ recommendation, isExpanded, onToggleExpand }) {
   return (
     <article className="opportunity-item">
       <div className="opportunity-item__top">
-        <strong>{recommendation.symbol}</strong>
+        {/* Phase X3 — Chart Integration: opens the same shared Side
+            Analysis Panel every other entry point uses, never a
+            duplicated chart. */}
+        <button type="button" className="ghost-button" onClick={(event) => { event.stopPropagation(); openSymbolPanel(recommendation.symbol); }}>
+          <strong>{recommendation.symbol}</strong>
+        </button>
         <span className={ACTION_PILL_CLASS[recommendation.action] || "pill"}>
           {ACTION_LABEL[recommendation.action] || recommendation.action}
         </span>

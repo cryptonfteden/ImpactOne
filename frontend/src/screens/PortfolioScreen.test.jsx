@@ -43,6 +43,11 @@ vi.mock("../hooks/usePortfolioEngine", () => ({
 
 vi.mock("../services/api", () => ({
   intelligenceApi: { overview: vi.fn().mockResolvedValue({}) },
+  impactGraphApi: {
+    getGraph: vi.fn().mockResolvedValue({ status: "NO_DATA", nodes: [], edges: [] }),
+    getPortfolioGraph: vi.fn().mockResolvedValue({ status: "NO_DATA", nodes: [], edges: [] }),
+    getWorkspaceGraph: vi.fn().mockResolvedValue({ status: "NO_DATA", nodes: [], edges: [] }),
+  },
 }));
 
 afterEach(() => {

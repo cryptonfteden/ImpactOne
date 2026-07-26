@@ -19,7 +19,7 @@ test("QUALITY_WEIGHTS sum to 1 (a transparent, fully-allocated rollup)", () => {
   assert.ok(Math.abs(total - 1) < 1e-9, `weights should sum to 1, got ${total}`);
 });
 
-test("computeQualityScore returns all six named components plus a bounded rollup", () => {
+test("computeQualityScore returns all six named components, the Phase X11 outcome-feedback component, plus a bounded rollup", () => {
   const { qualityScore, qualityComponents } = computeQualityScore({
     matchedEvents: [matchedEvent()],
     symbolSource: "portfolio",
@@ -37,9 +37,13 @@ test("computeQualityScore returns all six named components plus a bounded rollup
     "evidenceAgreement",
     "evidenceFreshness",
     "modelConfidence",
+    "outcomeFeedbackAdjustment",
     "portfolioRelevance",
     "sourceQuality",
   ]);
+  // Phase X11 — Part 1. No adjustment was passed in this call, so the
+  // component is honestly null, not a fabricated zero-with-no-explanation.
+  assert.equal(qualityComponents.outcomeFeedbackAdjustment, null);
 });
 
 test("modelConfidence always equals the passed convictionScore directly", () => {

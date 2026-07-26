@@ -2,6 +2,7 @@ import { useState } from "react";
 import SectionCard from "../components/SectionCard";
 import { Button, ConfirmButton, ErrorState, Input } from "../components/ui";
 import usePortfolioEngine from "../hooks/usePortfolioEngine";
+import ImpactGraph from "../components/ImpactGraph";
 
 function average(values) {
   if (!values.length) {
@@ -278,6 +279,15 @@ export default function PortfolioEngineScreen() {
             </tbody>
           </table>
         </div>
+      </SectionCard>
+
+      {/* Phase X4 — Part 2, Impact Graph Portfolio endpoint. Real, merged
+          causal chains across every symbol actually held in this
+          server-owned engine — the one portfolio surface where the
+          Impact Graph's portfolio scope is honestly wired to the same
+          positions shown above. */}
+      <SectionCard title="Impact Graph — Portfolio" subtitle="Real causal chains across every symbol you hold" className="screen-card">
+        <ImpactGraph scope="portfolio" />
       </SectionCard>
 
       <SectionCard title="Transaction Log" subtitle="Cash ledger" className="screen-card">

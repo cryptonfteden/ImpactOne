@@ -28,11 +28,11 @@ function validateAge(age) {
   return parsed;
 }
 
-async function getInvestorProfile() {
-  return investorProfileRepository.findDefaultInvestorProfile();
+async function getInvestorProfile(betaUserId) {
+  return investorProfileRepository.findDefaultInvestorProfile(betaUserId);
 }
 
-async function createInvestorProfile(data = {}) {
+async function createInvestorProfile(data = {}, betaUserId) {
   const age = validateAge(data.age);
   return investorProfileRepository.createInvestorProfile({
     age,
@@ -42,11 +42,12 @@ async function createInvestorProfile(data = {}) {
     investmentGoal: data.investmentGoal || null,
     riskTolerance: data.riskTolerance || null,
     investmentHorizon: data.investmentHorizon || null,
+    betaUserId: betaUserId || null,
   });
 }
 
-async function updateInvestorProfile(data = {}) {
-  const existing = await investorProfileRepository.findDefaultInvestorProfile();
+async function updateInvestorProfile(data = {}, betaUserId) {
+  const existing = await investorProfileRepository.findDefaultInvestorProfile(betaUserId);
   if (!existing) {
     const error = new Error("No investor profile exists yet.");
     error.statusCode = 404;

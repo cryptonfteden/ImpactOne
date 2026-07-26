@@ -1,0 +1,163 @@
+/*
+ * Phase X12B — NOVA Foundation, Part 4: Layout Foundation (CSS layer).
+ * Part 8 constraint applies throughout this entire file: every rule uses
+ * LOGICAL properties (margin-inline, padding-inline, inset-inline-*) —
+ * never `left`/`right`/`margin-left` etc. — so every layout primitive
+ * mirrors correctly under `dir="rtl"` (set by I18nProvider.jsx for
+ * Hebrew/Arabic) with zero component-level RTL patches, per
+ * NOVA_DESIGN_BIBLE.md §13's "no fixed left/right positioning" rule.
+ *
+ * Breakpoints duplicate tokens.css's --nova-breakpoint-* values as literal
+ * numbers, since a CSS @media condition cannot consume a custom property
+ * — see tokens.css's Breakpoints section for the documented source of
+ * truth this duplication must be kept in sync with.
+ */
+
+.nova-page {
+  min-height: 100vh;
+  background-color: var(--nova-surface-base);
+  color: var(--nova-color-text-primary);
+}
+
+.nova-container {
+  width: 100%;
+  max-width: var(--nova-breakpoint-container-max);
+  margin-inline: auto;
+  padding-inline: var(--nova-space-8);
+}
+
+@media (max-width: 1279px) {
+  .nova-container {
+    padding-inline: var(--nova-space-6);
+  }
+}
+
+@media (max-width: 767px) {
+  .nova-container {
+    padding-inline: var(--nova-space-4);
+  }
+}
+
+.nova-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nova-space-6);
+  margin-block-end: var(--nova-space-12);
+}
+
+.nova-section:last-child {
+  margin-block-end: 0;
+}
+
+/* Grid — 12 columns desktop, 8 tablet, 4 mobile, per §6. `gap` (not
+ * margin) is the one CSS spacing mechanism this grid uses, so nothing
+ * can silently collapse/double per NOVA_DESIGN_BIBLE.md's "let layout do
+ * the spacing" rule. */
+.nova-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--nova-space-6);
+}
+
+@media (max-width: 1279px) {
+  .nova-grid {
+    grid-template-columns: repeat(8, 1fr);
+    gap: var(--nova-space-4);
+  }
+}
+
+@media (max-width: 767px) {
+  .nova-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--nova-space-4);
+  }
+}
+
+/* Stack — the one reusable flex-with-gap primitive for vertical/
+ * horizontal rhythm; direction and gap are the only variable inputs
+ * (via inline style / data attributes set by Stack.jsx), never a new
+ * one-off flex utility per screen. */
+.nova-stack {
+  display: flex;
+}
+
+.nova-stack[data-direction="vertical"] {
+  flex-direction: column;
+}
+
+.nova-stack[data-direction="horizontal"] {
+  flex-direction: row;
+}
+
+.nova-stack[data-align="start"] {
+  align-items: flex-start;
+}
+.nova-stack[data-align="center"] {
+  align-items: center;
+}
+.nova-stack[data-align="end"] {
+  align-items: flex-end;
+}
+.nova-stack[data-align="stretch"] {
+  align-items: stretch;
+}
+
+.nova-stack[data-justify="start"] {
+  justify-content: flex-start;
+}
+.nova-stack[data-justify="center"] {
+  justify-content: center;
+}
+.nova-stack[data-justify="end"] {
+  justify-content: flex-end;
+}
+.nova-stack[data-justify="between"] {
+  justify-content: space-between;
+}
+
+.nova-stack[data-wrap="wrap"] {
+  flex-wrap: wrap;
+}
+
+/* Panel — the base surface every card/modal/drawer body in the future
+ * component library composes from. Elevation levels match
+ * NOVA_DESIGN_BIBLE.md §4 exactly; "glass" is opt-in only (Part 6), never
+ * the value of the default `elevation` prop in Panel.jsx. */
+.nova-panel {
+  border-radius: var(--nova-radius-lg);
+  border: var(--nova-border-subtle);
+}
+
+.nova-panel[data-elevation="0"] {
+  background-color: transparent;
+  border: none;
+  box-shadow: var(--nova-elevation-0);
+}
+
+.nova-panel[data-elevation="1"] {
+  background-color: var(--nova-surface-1);
+  box-shadow: var(--nova-elevation-0);
+}
+
+.nova-panel[data-elevation="2"] {
+  background-color: var(--nova-surface-2);
+  box-shadow: var(--nova-elevation-1);
+}
+
+/* Glass — Part 6. Opt-in only: no selector above ever resolves to this
+ * automatically; Panel.jsx must be given elevation="glass" explicitly. */
+.nova-panel[data-elevation="glass"] {
+  background-color: color-mix(in srgb, var(--nova-surface-2) calc(var(--nova-opacity-glass-surface) * 100%), transparent);
+  backdrop-filter: blur(var(--nova-blur-glass));
+  -webkit-backdrop-filter: blur(var(--nova-blur-glass));
+  box-shadow: var(--nova-shadow-glass);
+}
+
+/* High Contrast and reduced-transparency both zero out blur (see
+ * theme.css) — this selector is the one place that consequence is made
+ * concrete for the glass panel specifically, so a panel never silently
+ * keeps translucency when the active theme/OS setting says not to. */
+[data-theme="high-contrast"] .nova-panel[data-elevation="glass"] {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}

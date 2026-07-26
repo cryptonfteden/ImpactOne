@@ -22,9 +22,14 @@ const EXPECTED_SCORE_NAMES = [
   "evidenceFreshness",
   "evidenceAgreement",
   "uncertainty",
+  // Phase AI-ENGINE-001.1 — Unusual Options Agent foundation.
+  "optionsAnomalyConfidence",
+  // Phase AI-ENGINE-002.1 — Market Sentiment Engine foundation.
+  "marketSentimentComponentConfidence",
+  "marketSentimentOverallConfidence",
 ];
 
-test("the shared vocabulary documents exactly the nine required scores", () => {
+test("the shared vocabulary documents exactly the twelve required scores", () => {
   assert.deepEqual(CANONICAL_SCORE_NAMES.sort(), [...EXPECTED_SCORE_NAMES].sort());
 });
 

@@ -1,0 +1,123 @@
+/*
+ * Phase X12B — NOVA Foundation, Part 3: Typography System.
+ *
+ * Three families, per NOVA_DESIGN_BIBLE.md §5 / the mission:
+ *   - Space Grotesk — display face (screen H1s, the numeric-hero figure,
+ *     the splash wordmark). Loaded via index.html's <link> (see that
+ *     file's header comment) rather than @font-face here, so the
+ *     browser can start the font fetch in parallel with CSS parsing.
+ *   - Inter — the UI/body/numeric face (tabular-nums enabled for the
+ *     numeric utility specifically, per the Bible's "numeric MODE of the
+ *     same face, not a second physical typeface" rule).
+ *   - JetBrains Mono — structural/data face (tickers, version strings,
+ *     raw IDs) — never prose.
+ *
+ * Every class below consumes tokens.css tokens only — no hardcoded size,
+ * weight, or family value exists in this file.
+ */
+
+.nova-text-display {
+  font-family: var(--nova-font-family-display);
+}
+
+.nova-text-ui {
+  font-family: var(--nova-font-family-ui);
+}
+
+.nova-text-numeric {
+  font-family: var(--nova-font-family-numeric);
+  font-variant-numeric: tabular-nums;
+}
+
+.nova-text-mono {
+  font-family: var(--nova-font-family-mono);
+}
+
+/* Type scale — one class per NOVA_DESIGN_BIBLE.md §5 scale step. */
+.nova-text-xs {
+  font-size: var(--nova-font-size-xs);
+  line-height: var(--nova-line-height-xs);
+}
+.nova-text-sm {
+  font-size: var(--nova-font-size-sm);
+  line-height: var(--nova-line-height-sm);
+}
+.nova-text-base {
+  font-size: var(--nova-font-size-base);
+  line-height: var(--nova-line-height-base);
+}
+.nova-text-lg {
+  font-size: var(--nova-font-size-lg);
+  line-height: var(--nova-line-height-lg);
+}
+.nova-text-xl {
+  font-size: var(--nova-font-size-xl);
+  line-height: var(--nova-line-height-xl);
+}
+.nova-text-2xl {
+  font-size: var(--nova-font-size-2xl);
+  line-height: var(--nova-line-height-2xl);
+}
+.nova-text-3xl {
+  font-size: var(--nova-font-size-3xl);
+  line-height: var(--nova-line-height-3xl);
+}
+.nova-text-numeric-hero {
+  font-size: var(--nova-font-size-numeric-hero);
+  line-height: var(--nova-line-height-numeric-hero);
+  letter-spacing: var(--nova-tracking-numeric-hero);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Weights */
+.nova-font-regular {
+  font-weight: var(--nova-font-weight-regular);
+}
+.nova-font-medium {
+  font-weight: var(--nova-font-weight-medium);
+}
+.nova-font-semibold {
+  font-weight: var(--nova-font-weight-semibold);
+}
+.nova-font-bold {
+  font-weight: var(--nova-font-weight-bold);
+}
+.nova-font-extrabold {
+  font-weight: var(--nova-font-weight-extrabold);
+}
+
+/* Uppercase eyebrow/label treatment — always +6% tracking per §5, never
+ * uppercase text without it. */
+.nova-text-label {
+  text-transform: uppercase;
+  letter-spacing: var(--nova-tracking-label);
+}
+
+/* Hierarchy stack roles (eyebrow → H1 → subtext), composed from the
+ * primitives above so a screen can apply one class per role instead of
+ * re-deriving the combination every time. */
+.nova-heading-eyebrow {
+  font-family: var(--nova-font-family-ui);
+  font-size: var(--nova-font-size-xs);
+  line-height: var(--nova-line-height-xs);
+  font-weight: var(--nova-font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--nova-tracking-label);
+  color: var(--nova-color-text-tertiary);
+}
+
+.nova-heading-h1 {
+  font-family: var(--nova-font-family-display);
+  font-size: var(--nova-font-size-2xl);
+  line-height: var(--nova-line-height-2xl);
+  font-weight: var(--nova-font-weight-bold);
+  color: var(--nova-color-text-primary);
+}
+
+.nova-heading-subtext {
+  font-family: var(--nova-font-family-ui);
+  font-size: var(--nova-font-size-base);
+  line-height: var(--nova-line-height-base);
+  font-weight: var(--nova-font-weight-regular);
+  color: var(--nova-color-text-secondary);
+}

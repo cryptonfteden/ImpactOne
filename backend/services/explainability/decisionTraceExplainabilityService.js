@@ -14,6 +14,7 @@ const { buildProvenance } = require("./provenanceService");
 const { classifyDisagreement } = require("./disagreementEngine");
 const { checkConsistency } = require("./consistencyCheckService");
 const { explainRecommendation } = require("./recommendationExplanationService");
+const { buildSevenQuestions } = require("./sevenQuestionsService");
 // Sprint 42 — Intelligence Quality Platform: Explainability History. Users
 // must be able to inspect the original recommendation/committee/evidence/
 // confidence alongside the final real outcome and the real lifecycle —
@@ -60,7 +61,7 @@ async function explainRecommendationById(recommendationId) {
     recommendationLifecycleService.getLifecycle(recommendationId),
   ]);
 
-  return {
+  const bundle = {
     recommendationId: recommendation.id,
     symbol: recommendation.symbol,
     timestamp: decisionTrace.createdAt,
@@ -97,6 +98,13 @@ async function explainRecommendationById(recommendationId) {
     uncertainty: decisionTrace.confidenceCalculation?.uncertainty ?? null,
     isVerdict: false, // this is an explanation of a past verdict, never a new one
   };
+
+  // Phase X7 — Part 2. Every recommendation must answer the mission's
+  // seven required questions — derived here from the real fields already
+  // assembled above, never a second explanation path.
+  bundle.sevenQuestions = buildSevenQuestions(bundle);
+
+  return bundle;
 }
 
 module.exports = { explainRecommendationById };

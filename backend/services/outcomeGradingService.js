@@ -14,6 +14,13 @@ const performanceEngineService = require("./qualityPlatform/performanceEngineSer
 const recommendationLifecycleService = require("./qualityPlatform/recommendationLifecycleService");
 
 const METHODOLOGY_VERSION = "sprint29-v1";
+// Phase D1 — Learning Data Remediation. Identifies which real version of
+// the benchmark-population pipeline (performanceEngineService, Sprint 42)
+// computed this row's benchmark fields — required so a future learning
+// process can distinguish rows benchmarked under different real pipelines
+// rather than assuming they're comparable. Only ever set alongside a real
+// benchmark (never on its own) — see the benchmarkVersion assignment below.
+const BENCHMARK_PIPELINE_VERSION = "d1-v1";
 const GRADING_WINDOW_MS = 24 * 60 * 60 * 1000; // D1 — the only window graded this sprint.
 
 // A BUY is graded correct if price rose over the window; an EXIT/REDUCE
@@ -102,7 +109,11 @@ async function gradePendingOutcomes({ timeWindow = "D1" } = {}) {
         gradeLabel,
         benchmarkSymbol: performanceMetrics ? "SPY" : null,
         benchmarkReturnPct: performanceMetrics?.spyReturnPct ?? null,
+        // Phase D1 — Alpha (riskAdjustedReturnPct) is only ever populated
+        // in the same branch where a real benchmark was actually computed
+        // — never before a benchmark exists.
         riskAdjustedReturnPct: performanceMetrics?.returnVsSpyPct ?? null,
+        benchmarkVersion: performanceMetrics ? BENCHMARK_PIPELINE_VERSION : null,
         methodologyVersion: METHODOLOGY_VERSION,
         dataSourceSnapshot: { windowStartPrice, windowEndPrice },
         performanceMetrics,
@@ -132,4 +143,5 @@ module.exports = {
   computeDirectionCorrect,
   computeGrade,
   METHODOLOGY_VERSION,
+  BENCHMARK_PIPELINE_VERSION,
 };

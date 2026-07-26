@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
-import { ConfirmButton } from "../components/ui";
+import { ConfirmButton, ErrorState } from "../components/ui";
 import useWatchlist from "../hooks/useWatchlist";
 import useVirtualPortfolio from "../hooks/useVirtualPortfolio";
 import { intelligenceApi } from "../services/api";
@@ -75,40 +75,39 @@ function LegacyPortfolioScreen() {
   const [error, setError] = useState("");
   const { portfolio, reset } = useVirtualPortfolio({ watchlist, overview, autoSync: true });
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadOverview() {
-      try {
-        const payload = await intelligenceApi.overview({
-          watchlist: watchlist.length ? watchlist : ["AAPL", "NVDA", "TSLA", "BTC"],
-          scenarios: DEFAULT_SCENARIOS,
-          sessionType: "morning",
-        });
-        if (!cancelled) {
-          setOverview(payload);
-          setError("");
-        }
-      } catch (nextError) {
-        logError("Portfolio overview load failed", nextError);
-        // Sprint 34 — this used to null out overview on every refresh
-        // failure (including the visibility-aware 60s poll), actively
-        // destroying already-loaded portfolio data instead of just
-        // failing to refresh it. Keep the last good overview and only
-        // surface the error.
-        if (!cancelled) {
-          setError(nextError?.message || "We couldn't refresh portfolio intelligence right now.");
-        }
-      }
+  // Phase X6 — Part 3, extracted from the load effect (via useCallback)
+  // so the error state below can offer a real, working "Try again"
+  // retry action, not just a static message.
+  const loadOverview = useCallback(async () => {
+    try {
+      const payload = await intelligenceApi.overview({
+        watchlist: watchlist.length ? watchlist : ["AAPL", "NVDA", "TSLA", "BTC"],
+        scenarios: DEFAULT_SCENARIOS,
+        sessionType: "morning",
+      });
+      setOverview(payload);
+      setError("");
+    } catch (nextError) {
+      logError("Portfolio overview load failed", nextError);
+      // Sprint 34 — this used to null out overview on every refresh
+      // failure (including the visibility-aware 60s poll), actively
+      // destroying already-loaded portfolio data instead of just
+      // failing to refresh it. Keep the last good overview and only
+      // surface the error.
+      // Phase X5 — Part 7, Private Beta Polish. Never render a raw
+      // caught-error message to an investor — logError above already
+      // captured it for diagnostics.
+      setError("We couldn't refresh portfolio intelligence right now.");
     }
+  }, [watchlist]);
 
+  useEffect(() => {
     loadOverview();
     const stopPolling = startVisibilityAwarePolling(loadOverview, 60000);
     return () => {
-      cancelled = true;
       stopPolling();
     };
-  }, [watchlist]);
+  }, [loadOverview]);
 
   const positions = portfolio?.positions || [];
   const trades = portfolio?.trades || [];
@@ -128,9 +127,11 @@ function LegacyPortfolioScreen() {
       </section>
 
       {error ? (
-        <p className="company-description subtle negative">
-          {error}{overview ? " Showing the last portfolio data that loaded successfully." : ""}
-        </p>
+        <ErrorState
+          message={error}
+          reason={overview ? "Showing the last portfolio data that loaded successfully." : "This is usually temporary."}
+          onRetry={loadOverview}
+        />
       ) : null}
 
       <SectionCard title="AI Advisor Insights" subtitle="Not positions — what actually deserves your attention today" className="screen-card">

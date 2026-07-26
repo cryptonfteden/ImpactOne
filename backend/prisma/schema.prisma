@@ -7,6 +7,113 @@ datasource db {
   provider = "postgresql"
 }
 
+// Phase H3 — Watchlist Folders & Price Alerts. Unlike Phase H2's
+// singleton-with-fallback models (Portfolio, InvestorProfile), these are
+// genuinely new, beta-only features with no pre-existing global behavior
+// to preserve — betaUserId is REQUIRED here, not optional. A request with
+// no resolved beta user is rejected (400), never silently scoped to a
+// shared/global folder.
+model WatchlistFolder {
+  id         String   @id @default(uuid())
+  betaUserId String
+  name       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  items WatchlistFolderItem[]
+  notes WorkspaceNote[]
+
+  @@index([betaUserId])
+  @@map("watchlist_folders")
+}
+
+// Phase X3 — Workspace 2.0. Append-only (no update/delete method planned
+// in the repository — a corrected note is a new row, matching this
+// codebase's established RecommendationFeedback/WorldMemoryLesson
+// convention of preserving the real evidence trail rather than editing
+// history). isAiNote distinguishes a system-generated note (e.g. a
+// summarized rationale) from a user's own — both stored identically,
+// never conflated in the UI without this flag.
+model WorkspaceNote {
+  id         String          @id @default(uuid())
+  folderId   String
+  folder     WatchlistFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  betaUserId String
+  text       String          @db.Text
+  isAiNote   Boolean         @default(false)
+  createdAt  DateTime        @default(now())
+
+  @@index([folderId])
+  @@map("workspace_notes")
+}
+
+model WatchlistFolderItem {
+  id       String          @id @default(uuid())
+  folderId String
+  folder   WatchlistFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  symbol   String
+  addedAt  DateTime        @default(now())
+  // Phase X5 — Part 4, Professional Watchlists. Three independent,
+  // user-set flags — not a single enum — since a symbol can genuinely be
+  // more than one of these at once (e.g. pinned AND an AI focus symbol).
+  pinned   Boolean         @default(false)
+  priority Boolean         @default(false)
+  aiFocus  Boolean         @default(false)
+
+  @@unique([folderId, symbol])
+  @@index([folderId])
+  @@map("watchlist_folder_items")
+}
+
+enum PriceAlertDirection {
+  ABOVE
+  BELOW
+}
+
+enum PriceAlertStatus {
+  ACTIVE
+  TRIGGERED
+  INACTIVE
+}
+
+// One-time trigger by design: once TRIGGERED, an alert never re-fires or
+// resets to ACTIVE on its own (see priceAlertService.js) — a real,
+// permanent record of "this condition was met once," not a recurring
+// notification.
+model PriceAlert {
+  id           String              @id @default(uuid())
+  betaUserId   String
+  symbol       String
+  direction    PriceAlertDirection
+  targetPrice  Decimal             @db.Decimal(18, 6)
+  status       PriceAlertStatus    @default(ACTIVE)
+  createdAt    DateTime            @default(now())
+  triggeredAt  DateTime?
+  triggerPrice Decimal?            @db.Decimal(18, 6)
+
+  @@index([betaUserId])
+  @@index([status])
+  @@map("price_alerts")
+}
+
+model Notification {
+  id           String   @id @default(uuid())
+  betaUserId   String
+  priceAlertId String?
+  symbol       String
+  message      String
+  targetPrice  Decimal? @db.Decimal(18, 6)
+  triggerPrice Decimal? @db.Decimal(18, 6)
+  triggeredAt  DateTime @default(now())
+  isRead       Boolean  @default(false)
+  isPinned     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([betaUserId])
+  @@index([betaUserId, isRead])
+  @@map("notifications")
+}
+
 enum OrderSide {
   BUY
   SELL
@@ -26,6 +133,48 @@ enum LedgerEntryType {
   RESET
 }
 
+// Phase H2 — Beta User Isolation (Phase F2 design, implemented as approved).
+// Nullable, unconstrained (no FK), indexed — never set for any pre-existing
+// row, honestly null forever for anything that predates the beta.
+model BetaUser {
+  id         String    @id @default(uuid())
+  label      String
+  inviteCode String    @unique
+  createdAt  DateTime  @default(now())
+  // Phase X4 — real, honest invite expiry. Nullable: a null value means
+  // "no expiry set," never treated as "expired" or "never expires" by
+  // assumption — resolution logic checks explicitly (see
+  // betaUserService.js).
+  expiresAt  DateTime?
+
+  @@map("beta_users")
+}
+
+// Phase X4 — Decision Center V1. Real, persisted per-user state for a
+// decision item (pin/dismiss/complete). decisionKey matches the real
+// synthetic id decisionCenterService.js already generates (e.g.
+// "alert-<notificationId>") — no separate decision-identity system.
+// Append-and-upsert, not delete: dismissing/completing is a real state
+// transition tracked with its own timestamp, never silently erased.
+model DecisionState {
+  id          String         @id @default(uuid())
+  betaUserId  String
+  decisionKey String
+  status      DecisionStatus
+  updatedAt   DateTime       @updatedAt
+  createdAt   DateTime       @default(now())
+
+  @@unique([betaUserId, decisionKey])
+  @@index([betaUserId])
+  @@map("decision_states")
+}
+
+enum DecisionStatus {
+  PINNED
+  DISMISSED
+  COMPLETED
+}
+
 model Portfolio {
   id              String   @id @default(uuid())
   name            String   @default("Default Portfolio")
@@ -34,6 +183,8 @@ model Portfolio {
   benchmarkSymbol String   @default("SPY")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  // Phase H2 — nullable, unconstrained per the approved F2 design.
+  betaUserId      String?
 
   positions            Position[]
   orders               Order[]
@@ -41,6 +192,7 @@ model Portfolio {
   ledgerEntries        CashLedgerEntry[]
   performanceSnapshots PerformanceSnapshot[]
 
+  @@index([betaUserId])
   @@map("portfolios")
 }
 
@@ -196,11 +348,18 @@ model Recommendation {
   qualityScore      Decimal @db.Decimal(5, 2)
   qualityComponents Json
 
+  // Phase H2 — nullable, unconstrained per the approved F2 design. Stays
+  // null for the scheduled global engine run (recommendations remain
+  // globally generated per the G1 decision); only set when a future
+  // per-user run path writes one directly, which does not exist yet.
+  betaUserId String?
+
   decisionTrace DecisionTrace?
   feedback      RecommendationFeedback[]
 
   @@index([symbol, status])
   @@index([createdAt])
+  @@index([betaUserId])
   @@map("recommendations")
 }
 
@@ -218,8 +377,11 @@ model RecommendationFeedback {
   recommendation   Recommendation             @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
   feedbackType     RecommendationFeedbackType
   createdAt        DateTime                   @default(now())
+  // Phase H2 — nullable, unconstrained per the approved F2 design.
+  betaUserId       String?
 
   @@index([recommendationId])
+  @@index([betaUserId])
   @@map("recommendation_feedback")
 }
 
@@ -258,6 +420,20 @@ model DecisionTrace {
   committeeDebate      Json? // supportingArguments/opposingArguments/expertVotes/disagreementLevel/consensusLevel/specialistObservations — never an action/decision field, see canonicalVerdict.js.
   evidenceReferences   Json? // canonical Event Envelope array (eventEnvelope.js), additive alongside inputEvidence.matchedEvents.
   modelVersionMetadata Json? // { eventEnvelopeVersion, contractVersion } recorded at creation time, for future auditability as these contracts evolve.
+
+  // Phase D1 — Learning Data Remediation (SPRINT_43's design, now captured
+  // as real metadata; this is a measurement/attribution addition, never a
+  // decision input — nothing here is read by the recommendation engine or
+  // the committee). Immutable, same convention as every other field above:
+  // { regime, rulesetVersion, inputs, computedAt } or
+  // { regime: "UNKNOWN", reason, rulesetVersion } — never fabricated.
+  regimeSnapshot         Json?
+  // The real evidence-matrix snapshot (10 categories, each with
+  // stance/confidence/sourceCount/isFixture/isStale/newestSource) captured
+  // at the exact moment this DecisionTrace was created — closes the gap
+  // LEARNING_DATA_CONTRACT.md §1.1 flagged (freshness/provider-availability
+  // were previously only observable live, never preserved per-decision).
+  evidenceMatrixSnapshot Json?
 
   @@map("decision_traces")
 }
@@ -315,11 +491,14 @@ model ThemeConfidenceSnapshot {
   @@map("theme_confidence_snapshots")
 }
 
-// Sprint 20 — single-tenant singleton, same convention as Portfolio
-// (no userId: the app has no auth yet, this is deliberate at this stage,
-// not an oversight — see VISION.md's Personalization Principles). Unlike
-// DecisionTrace this is user-editable settings data, not an immutable
-// audit record, so a real update path is correct here.
+// Sprint 20 — originally a single-tenant singleton, same convention as
+// Portfolio (no auth, deliberate — see VISION.md's Personalization
+// Principles). Phase H2 adds an optional betaUserId (nullable,
+// unconstrained, per the approved F2 design) so the closed beta's known
+// users each get their own profile without building real auth; the
+// singleton fallback (oldest row) still applies whenever no betaUserId is
+// resolved. Unlike DecisionTrace this is user-editable settings data, not
+// an immutable audit record, so a real update path is correct here.
 model InvestorProfile {
   id                      String                   @id @default(uuid())
   age                     Int
@@ -331,7 +510,10 @@ model InvestorProfile {
   investmentHorizon       InvestmentHorizonBucket?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
+  // Phase H2 — nullable, unconstrained per the approved F2 design.
+  betaUserId              String?
 
+  @@index([betaUserId])
   @@map("investor_profiles")
 }
 
@@ -574,6 +756,13 @@ model Outcome {
   // timeToTargetDays, timeToFailureDays, sectorEtfSymbol, sectorEtfReturnPct }.
   performanceMetrics Json?
 
+  // Phase D1 — Learning Data Remediation. The real version of the
+  // benchmark-population pipeline that computed benchmarkSymbol/
+  // benchmarkReturnPct for this row — never populated until a real
+  // benchmark exists (see performanceEngineService), so Alpha
+  // (riskAdjustedReturnPct) is only ever computed once this is set.
+  benchmarkVersion String?
+
   @@unique([recommendationId, timeWindow, methodologyVersion])
   @@index([symbol])
   @@map("outcomes")
@@ -586,10 +775,10 @@ model Outcome {
 // its recommendationId in order, never by mutating a single "current state"
 // column.
 model RecommendationLifecycleEvent {
-  id               String                  @id @default(uuid())
+  id               String                       @id @default(uuid())
   recommendationId String
   state            RecommendationLifecycleState
-  occurredAt       DateTime                @default(now())
+  occurredAt       DateTime                     @default(now())
   metadata         Json?
 
   @@index([recommendationId])
@@ -661,12 +850,86 @@ model WorldMemoryLesson {
   @@map("world_memory_lessons")
 }
 
-// Sprint 35 Priority 5 — Private Beta Telemetry. Genuinely anonymous: no
-// userId, no profileId, no IP, no device identifier — nothing here can be
-// tied back to a specific person. eventName is restricted to a fixed
-// allowlist (see analyticsService.js) and properties only ever holds
-// non-identifying shape metadata (e.g. a recommendation's symbol/action,
-// never anything from the investor profile).
+// ============================================================================
+// Phase X11 — Closed Learning Loop. Three append-only audit tables, same
+// immutable-history convention as World Memory above: nothing here is ever
+// updated or deleted, a changed understanding writes a NEW row. This is
+// the real persistence "closing the loop" requires — every adjustment,
+// every source-score snapshot, and every methodology change must remain
+// permanently auditable.
+// ============================================================================
+
+// Part 3 — Methodology Versioning. One row per real scoring-weight change.
+// isActive is the only mutable-looking field, but it is only ever flipped
+// by rollback (which also writes a new row for the restored version) —
+// never by editing history.
+model MethodologyVersion {
+  id             String    @id @default(uuid())
+  version        String    @unique
+  reason         String    @db.Text
+  evidence       Json
+  affectedModels Json
+  expectedImpact String    @db.Text
+  isActive       Boolean   @default(true)
+  rolledBackAt   DateTime?
+  rolledBackFrom String?
+  createdAt      DateTime  @default(now())
+
+  @@index([isActive])
+  @@map("methodology_versions")
+}
+
+// Part 1 — Outcome Feedback Loop, Part 6 — Safety. One immutable row per
+// computed scoring adjustment, whether or not it was actually applied
+// (appliedAt null + a real reason means "computed, withheld by a safety
+// gate" — never silently dropped).
+model ScoringAdjustmentAudit {
+  id                 String   @id @default(uuid())
+  adjustmentKey      String
+  scope              String
+  sampleSize         Int
+  observedRate       Decimal? @db.Decimal(6, 4)
+  confidenceInterval Json?
+  adjustmentValue    Decimal  @db.Decimal(6, 2)
+  applied            Boolean
+  reason             String   @db.Text
+  methodologyVersion String
+  computedAt         DateTime @default(now())
+
+  @@index([adjustmentKey])
+  @@index([computedAt])
+  @@map("scoring_adjustment_audits")
+}
+
+// Part 2 — Dynamic Source Scoring. One immutable snapshot per computation,
+// so a source's trust trajectory over time is a real, queryable history —
+// never overwritten in place.
+model SourceScoreSnapshot {
+  id                 String   @id @default(uuid())
+  sourceName         String
+  trustScore         Decimal? @db.Decimal(6, 2)
+  accuracyRate       Decimal? @db.Decimal(6, 4)
+  falsePositiveRate  Decimal? @db.Decimal(6, 4)
+  falseNegativeRate  Decimal? @db.Decimal(6, 4)
+  timelinessMs       Int?
+  engagementCount    Int
+  sampleSize         Int
+  methodologyVersion String
+  computedAt         DateTime @default(now())
+
+  @@index([sourceName])
+  @@index([computedAt])
+  @@map("source_score_snapshots")
+}
+
+// Sprint 35 Priority 5 — Private Beta Telemetry. Anonymous by default: no
+// IP, no device identifier, no investor-profile data — eventName is
+// restricted to a fixed allowlist (see analyticsService.js) and properties
+// only ever holds non-identifying shape metadata (e.g. a recommendation's
+// symbol/action). Phase H2 adds an optional betaUserId (nullable,
+// unconstrained, per the approved F2 design) strictly for per-beta-user
+// attribution during the closed beta — still never resolvable to a real
+// name/email, only to the founder-issued invite code that created it.
 model AnalyticsEvent {
   id         String   @id @default(uuid())
   eventName  String
@@ -682,11 +945,100 @@ model AnalyticsEvent {
   // first_open and its first returning_user event") without ever knowing
   // who that browser belonged to.
   sessionId  String?
+  // Phase H2 — nullable, unconstrained per the approved F2 design.
+  betaUserId String?
+  // Phase X9 — Part 1, Product Analytics. First-class per the mission's
+  // explicit "every event must include... screen" — kept out of the
+  // free-form `properties` JSON specifically so it's directly groupable/
+  // filterable (GROUP BY screen) without a JSON-path query.
+  screen     String?
+  // Real duration in milliseconds, when the event has one (e.g. a
+  // session-ended event's session length, a screen-viewed event's dwell
+  // time) — null, never a fabricated 0, when not applicable.
+  durationMs Int?
 
   @@index([eventName])
   @@index([createdAt])
   @@index([sessionId])
+  @@index([betaUserId])
+  @@index([screen])
   @@map("analytics_events")
+}
+
+// Phase X9 — Part 2, Feedback System. One real, user-submitted item per
+// row — never aggregated or summarized at write time. `screen`/
+// `browser`/`appVersion` are captured automatically by the client at
+// submission time (see feedbackApi.js), never asked of the user.
+enum FeedbackType {
+  BUG
+  SUGGESTION
+  QUESTION
+  PRAISE
+}
+
+model Feedback {
+  id         String       @id @default(uuid())
+  type       FeedbackType
+  message    String       @db.Text
+  screen     String?
+  browser    String?
+  appVersion String?
+  betaUserId String?
+  createdAt  DateTime     @default(now())
+
+  @@index([type])
+  @@index([createdAt])
+  @@index([betaUserId])
+  @@map("feedback")
+}
+
+// Phase X9 — Part 3, Crash & Error Reporting. Every frontend/backend
+// error becomes one real, structured row — never a silent console-only
+// failure. `correlationId` lets one real user-visible failure be traced
+// across a frontend error and the backend request it was calling, when
+// both are available.
+model ErrorReport {
+  id            String   @id @default(uuid())
+  source        String // "frontend" | "backend"
+  message       String   @db.Text
+  stack         String?  @db.Text
+  screen        String?
+  action        String?
+  apiInvolved   String?
+  correlationId String?
+  betaUserId    String?
+  createdAt     DateTime @default(now())
+
+  @@index([source])
+  @@index([createdAt])
+  @@index([correlationId])
+  @@index([betaUserId])
+  @@map("error_reports")
+}
+
+// Phase X9 — Part 4, Feature Flags. Real, toggleable server-side state —
+// "no code changes required for toggling" means literally that: a flag's
+// mode is read from this table on every evaluation, not from an env var
+// or a build-time constant.
+enum FeatureFlagMode {
+  ENABLED
+  DISABLED
+  BETA_ONLY
+  USER_SPECIFIC
+}
+
+model FeatureFlag {
+  key             String          @id
+  mode            FeatureFlagMode @default(DISABLED)
+  // Only meaningful when mode is USER_SPECIFIC — the real, explicit list
+  // of betaUserIds this flag is enabled for. Empty array, never null,
+  // when unused.
+  enabledForUsers String[]
+  description     String?
+  updatedAt       DateTime        @updatedAt
+  createdAt       DateTime        @default(now())
+
+  @@map("feature_flags")
 }
 
 // Sprint 37 Priority 11 — Research and Trading Knowledge Agent Foundation.
@@ -718,15 +1070,488 @@ model TradingPrinciple {
 // real outcome), and researchAgentService.js requires at least one row
 // before a principle can be described as tested at all.
 model PrincipleBacktestResult {
-  id             String   @id @default(uuid())
-  principleId    String
-  regimeTested   String
-  sampleSize     Int
-  winRate        Decimal? @db.Decimal(5, 2)
-  averageReturn  Decimal? @db.Decimal(8, 4)
-  notes          String   @db.Text
-  testedAt       DateTime @default(now())
+  id            String   @id @default(uuid())
+  principleId   String
+  regimeTested  String
+  sampleSize    Int
+  winRate       Decimal? @db.Decimal(5, 2)
+  averageReturn Decimal? @db.Decimal(8, 4)
+  notes         String   @db.Text
+  testedAt      DateTime @default(now())
 
   @@index([principleId])
   @@map("principle_backtest_results")
+}
+
+// Phase AI-ENGINE-001.1 — Unusual Options Agent foundation. Purely
+// additive: three new tables, four new enums, zero changes to any
+// existing model, and no foreign key from any existing table points at
+// these — see OPTIONS_AGENT_DATA_MODEL.md §1/§5 for the full design and
+// the reasoning for what is deliberately reused instead of duplicated
+// (CanonicalEvent, ProviderRunLog, DecisionTrace.evidenceReferences,
+// WorldMemoryRecord/Prediction/Outcome, FeatureFlag, Position,
+// WatchlistFolderItem).
+
+enum OptionRight {
+  CALL
+  PUT
+}
+
+enum AggressorSide {
+  BUY
+  SELL
+  UNKNOWN
+}
+
+enum OptionsSignalType {
+  VOLUME_SPIKE
+  SWEEP
+  BLOCK_TRADE
+  CALL_PUT_SKEW
+}
+
+enum OiConfirmationStatus {
+  PENDING
+  CONFIRMED_NEW_POSITION
+  CONFIRMED_CLOSING
+  UNCONFIRMED
+}
+
+// Raw, normalized options trade prints — the ingestion-layer detail the
+// detectors run against. Deliberately NOT the durable record (see
+// OptionsSignal below) — pruned on a rolling window once no longer
+// needed for detection (data model doc §3). No betaUserId: options
+// market data is not personal, same precedent as CanonicalEvent.
+model OptionsFlowPrint {
+  id               String        @id @default(uuid())
+  symbol           String
+  expiry           DateTime      @db.Date
+  strike           Decimal       @db.Decimal(12, 4)
+  optionType       OptionRight
+  exchange         String
+  tradeTimestamp   DateTime
+  price            Decimal       @db.Decimal(12, 4)
+  size             Int
+  notionalValue    Decimal       @db.Decimal(18, 2)
+  bidAtTrade       Decimal?      @db.Decimal(12, 4)
+  askAtTrade       Decimal?      @db.Decimal(12, 4)
+  // Inferred from price vs. bidAtTrade/askAtTrade at ingestion time —
+  // never guessed without both real values present (architecture §5c).
+  aggressorSide    AggressorSide @default(UNKNOWN)
+  sourceProviderId String
+  ingestedAt       DateTime      @default(now())
+
+  @@index([symbol, tradeTimestamp])
+  @@index([symbol, expiry, strike, optionType])
+  @@map("options_flow_prints")
+}
+
+// One row per (contract, session) open-interest snapshot, published
+// end-of-day by the exchanges/OCC — the one input the OI-confirmation
+// detector needs that intraday trade prints alone cannot supply.
+model OptionsOpenInterestSnapshot {
+  id               String      @id @default(uuid())
+  symbol           String
+  expiry           DateTime    @db.Date
+  strike           Decimal     @db.Decimal(12, 4)
+  optionType       OptionRight
+  openInterest     Int
+  snapshotDate     DateTime    @db.Date
+  sourceProviderId String
+  ingestedAt       DateTime    @default(now())
+
+  @@unique([symbol, expiry, strike, optionType, snapshotDate])
+  @@index([symbol, snapshotDate])
+  @@map("options_open_interest_snapshots")
+}
+
+// The durable, queryable output of the detection pipeline. Append-only
+// by convention (same discipline as DecisionTrace/WorldMemory*): create +
+// read only, with exactly one disclosed exception (§4 of the data model
+// doc) — oiConfirmationStatus/openInterestDelta transition exactly once,
+// the session after detection, via a narrow confirmOpenInterest repository
+// method, never a general-purpose update. No action/decision/verdict
+// field anywhere on this model, ever — enforced structurally by
+// optionsSignalGovernance.js the same way canonicalVerdict.js's
+// FORBIDDEN_COMMITTEE_KEYS enforces it for the Committee. No betaUserId:
+// this is market-wide evidence, not a personal recommendation.
+model OptionsSignal {
+  id         String            @id @default(uuid())
+  symbol     String
+  expiry     DateTime          @db.Date
+  strike     Decimal           @db.Decimal(12, 4)
+  optionType OptionRight
+  signalType OptionsSignalType
+  detectedAt DateTime          @default(now())
+
+  aggressorSide  AggressorSide
+  totalVolume    Int
+  baselineVolume Int? // null during the baseline-bootstrap window — never fabricated
+  volumeMultiple Decimal?      @db.Decimal(8, 2)
+  notionalValue  Decimal       @db.Decimal(18, 2)
+
+  // Sweep-specific (null when signalType doesn't involve a sweep)
+  sweepExchangeCount     Int?
+  // Block-specific (null when no single print cleared the block threshold)
+  largestSinglePrintSize Int?
+
+  // OI confirmation — staged, honest, one-session-lagged (architecture §5e)
+  openInterestPriorSession Int?
+  openInterestDelta        Int?
+  oiConfirmationStatus     OiConfirmationStatus @default(PENDING)
+
+  // Skew corroboration (architecture §5b/§6)
+  putCallSkewZScore Decimal? @db.Decimal(6, 3)
+
+  anomalyScore       Decimal @db.Decimal(5, 2)
+  explanation        String  @db.Text // always generated per-signal, never a shared template
+  evidenceSnapshot   Json // the raw aggregated detector inputs — auditability
+  methodologyVersion String // e.g. "options-agent-v1"
+
+  sourceProviderId String
+
+  // Loose, non-cascading links — same nullable "FK-ish string, not a hard
+  // relation" pattern WorldMemoryPrediction/WorldMemoryCausalLink already use.
+  canonicalEventId    String?
+  worldMemoryRecordId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([symbol, detectedAt])
+  @@index([signalType])
+  @@index([symbol, expiry, strike, optionType])
+  @@map("options_signals")
+}
+
+// Phase AI-ENGINE-002.1 — Market Sentiment Engine foundation. Purely
+// additive: one new table, two new enums, zero changes to any existing
+// model. Modeled directly on the real, already-running
+// ThemeConfidenceSnapshot (String date, Decimal(5,2) score,
+// @@unique/@@map shape) per MARKET_SENTIMENT_DATA_MODEL.md §2 —
+// extended here with a `market` column, since market segmentation
+// (MARKET_SENTIMENT_ENGINE.md's approved architecture did not yet
+// specify per-market snapshots) was added as explicit scope in this
+// implementation phase; disclosed in
+// MARKET_SENTIMENT_IMPLEMENTATION_REPORT.md rather than silently
+// reconciled. Append-only by convention: no update method is ever
+// exposed by marketSentimentRepository.js for this model — a
+// (market, dimension, snapshotDate) triple, once captured, is never
+// revised (@@unique enforces this at the DB level too).
+enum MarketSentimentDimension {
+  NEWS_SENTIMENT
+  AI_RECOMMENDATION_DISTRIBUTION
+  MARKET_BREADTH
+  FEAR_GREED
+  VOLATILITY
+  SECTOR_ROTATION
+  MACRO_EVENTS
+  EARNINGS_TREND
+  OVERALL
+}
+
+enum MarketSentimentRegion {
+  US
+  EUROPE
+  CHINA
+  JAPAN
+  INDIA
+  CRYPTO
+  COMMODITIES
+  ENERGY
+}
+
+model MarketSentimentSnapshot {
+  id           String                   @id @default(uuid())
+  market       MarketSentimentRegion
+  dimension    MarketSentimentDimension
+  snapshotDate String // YYYY-MM-DD, same convention as ThemeConfidenceSnapshot.date
+
+  // Nullable, never defaulted to 0 — a dimension/market unavailable that
+  // day persists a real null, never a fabricated placeholder score.
+  score      Decimal? @db.Decimal(5, 2)
+  confidence Decimal? @db.Decimal(5, 2)
+
+  contributors  Json // the real evidence that produced this score — empty array when score is null
+  missingInputs String[]
+
+  methodologyVersion String // e.g. "sentiment-engine-v1"
+  capturedAt         DateTime @default(now())
+
+  @@unique([market, dimension, snapshotDate])
+  @@index([market, dimension, snapshotDate])
+  @@map("market_sentiment_snapshots")
+}
+
+// Phase AI-ENGINE-003 — Platform Intelligence Bus. Purely additive: one
+// new table, one new enum, zero changes to any existing model. This is
+// the one canonical pipeline every intelligence engine (Options,
+// Sentiment, Macro, Earnings, Ownership, Short Interest, Correlation,
+// News, and future engines) publishes exactly one event into — see
+// INTELLIGENCE_BUS_ARCHITECTURE.md. `CanonicalEvent` (existing, unchanged)
+// remains the shared substrate legacy consumers (findMatchedEvents, Daily
+// Feed, Themes) already depend on; a Bus event that graduates to
+// cross-engine evidence is additionally projected onto it via the
+// existing eventEnvelope.buildEventEnvelope(), exactly like the Options
+// Agent's OptionsSignal already does — this table is the Bus's own
+// administrative record (lifecycle, dedup, subscriber-relevant fields),
+// not a duplicate of CanonicalEvent's shape.
+enum IntelligenceBusLifecycleStatus {
+  ACTIVE
+  EXPIRED
+  SUPERSEDED
+}
+
+model IntelligenceBusEvent {
+  id        String   @id @default(uuid())
+  engineId  String // "options" | "sentiment" | "macro" | "earnings" | "ownership" | "shortInterest" | "correlation" | "news" | future engine ids — a string, not an enum, so a new engine never requires a schema migration (same pattern CanonicalEvent.providerId already uses)
+  eventType String
+  symbols   String[]
+
+  // Canonical, normalized confidence (0-100) — null, never fabricated,
+  // when the source engine reported none. rawConfidence preserves
+  // exactly what the engine sent, before normalization, for audit.
+  confidence    Decimal? @db.Decimal(5, 2)
+  rawConfidence Decimal? @db.Decimal(5, 2)
+
+  // Real provenance — which engine, which of its own event ids, which
+  // real source this ultimately traces to. Never fabricated when the
+  // engine didn't supply a field (null, not a placeholder string).
+  provenance Json
+
+  // Evidence references this event carries or aggregates — same role as
+  // DecisionTrace.evidenceReferences, reused shape, not reinvented.
+  evidenceRefs Json
+
+  // The engine-specific event body — already governance-sanitized by the
+  // originating engine before publish; the Bus re-asserts this
+  // structurally too (intelligenceBusGovernance.js), since consumers
+  // reading only from the Bus means the Bus is the one remaining place a
+  // forbidden field could leak through.
+  payload Json
+
+  // (engineId, eventType, sorted symbols) — identifies a *series* (e.g.
+  // "options sweep signals for NVDA", "overall sentiment for US") for
+  // supersession purposes, distinct from deduplicationKey which
+  // identifies one exact event.
+  identityKey      String
+  deduplicationKey String @unique
+
+  publishedAt DateTime
+  ingestedAt  DateTime  @default(now())
+  expiresAt   DateTime?
+
+  // The one bounded, disclosed exception to append-only (same precedent
+  // as OptionsSignal.oiConfirmationStatus): lifecycleStatus transitions
+  // ACTIVE -> EXPIRED (time-based, recomputed at read time, no write
+  // required) or ACTIVE -> SUPERSEDED (written once, when a newer event
+  // in the same identityKey series is published) — never a general
+  // update.
+  lifecycleStatus     IntelligenceBusLifecycleStatus @default(ACTIVE)
+  supersededByEventId String?
+
+  methodologyVersion String
+  // Set once this event is projected onto the existing CanonicalEvent
+  // table (eventEnvelope.buildEventEnvelope) — loose, non-cascading link,
+  // same pattern as OptionsSignal.canonicalEventId.
+  canonicalEventId   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([engineId, publishedAt])
+  @@index([identityKey])
+  @@index([lifecycleStatus])
+  @@map("intelligence_bus_events")
+}
+
+// Phase AI-CORE-001 — Claim Intelligence Layer. The canonical reasoning
+// object of ImpactOne, sitting ABOVE the Intelligence Bus (it consumes
+// IntelligenceBusEvent rows, it does not replace them — see
+// CLAIM_INTELLIGENCE_ARCHITECTURE.md). Purely additive: four new tables,
+// three new enums, and only nullable-additive links to existing tables
+// (Scenario/Recommendation/WorldMemoryPrediction/IntelligenceBusEvent are
+// all referenced by loose, non-cascading string ids, same "FK-ish string,
+// not a hard relation" pattern WorldMemoryPrediction already uses — zero
+// changes to any existing model).
+//
+// Reuses TimeWindow and GradeLabel (both defined above, unchanged) rather
+// than redefining a parallel horizon/grade vocabulary.
+enum ClaimStatus {
+  DRAFT
+  ACTIVE
+  STRENGTHENING
+  WEAKENING
+  CONTESTED
+  INVALIDATED
+  EXPIRED
+  RESOLVED_CORRECT
+  RESOLVED_PARTIAL
+  RESOLVED_INCORRECT
+  INSUFFICIENT_DATA
+}
+
+enum ClaimDirection {
+  BULLISH
+  BEARISH
+  NEUTRAL
+}
+
+enum ClaimEvidenceStance {
+  SUPPORTS
+  CONTRADICTS
+  INVALIDATES
+}
+
+// The canonical reasoning object. Evidence/counterEvidence are NOT stored
+// redundantly here — they are always derived at read time from the
+// append-only ClaimEvidence ledger (claimContract.composeClaimView),
+// same "recompute at read time, never a second source of truth" discipline
+// the Intelligence Bus's lifecycleStatus already established. This table
+// stores the Claim's own scalar/summary fields only.
+model Claim {
+  id        String   @id @default(uuid())
+  claimType String
+  subject   String
+  market    String?
+  symbols   String[]
+  sectors   String[]
+  regions   String[]
+
+  statement              String @db.Text
+  plainLanguageStatement String @db.Text
+
+  expectedDirection ClaimDirection
+  expectedMagnitude Json? // { min, max, unit } — honestly null when no real magnitude estimate exists
+  timeHorizon       TimeWindow
+
+  // Confidence (evidence quality) and probability (likelihood of the
+  // predicted outcome) are deliberately separate columns, computed from
+  // separate real inputs (claimConfidence.js) — never interchangeable,
+  // never derived from one another.
+  probability Decimal? @db.Decimal(5, 2)
+  confidence  Decimal? @db.Decimal(5, 2)
+  uncertainty Decimal? @db.Decimal(5, 2)
+
+  assumptions            String[]
+  confirmationConditions String[]
+  invalidationConditions String[]
+  portfolioImpact        Json?
+
+  sourceAgents String[] // real engineIds that contributed evidence
+  provenance   Json
+
+  // Deterministic identity (claimIdentity.computeIdentityKey) — the real
+  // duplicate-prevention mechanism (mission §4): the @@unique constraint
+  // makes "prevents duplicate claims" a structural DB guarantee, not just
+  // an application-layer check.
+  identityKey String @unique
+
+  firstObservedAt DateTime
+  lastUpdatedAt   DateTime  @updatedAt
+  expiresAt       DateTime?
+
+  status     ClaimStatus @default(DRAFT)
+  // Final grading summary once resolved — a real, disclosed summary of
+  // ClaimOutcome; the ClaimOutcome row itself remains the durable ground
+  // truth (this is a read-convenience denormalization, not authoritative).
+  resolution Json?
+
+  methodologyVersion String
+
+  // Superseding (mission §4) uses this loose link + a terminal-status
+  // transition rather than a dedicated lifecycle status, since none was
+  // specified in the approved status list (CLAIM_LIFECYCLE.md §5).
+  supersededByClaimId String?
+
+  // Loose, nullable, non-cascading references — mission §7. A Claim may
+  // cite any of these as supporting context; none is ever required, none
+  // is ever a hard Prisma relation (so deleting a Scenario/Recommendation
+  // can never cascade into deleting claim history).
+  scenarioId              String?
+  recommendationId        String?
+  worldMemoryPredictionId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([status])
+  @@index([subject])
+  @@map("claims")
+}
+
+// The append-only evidence ledger (mission §6). Create-only — no update
+// or delete method is ever exposed by claimRepository.js for this model.
+model ClaimEvidence {
+  id                     String              @id @default(uuid())
+  claimId                String
+  intelligenceBusEventId String?
+  sourceEngine           String
+  sourceProvider         String?
+  stance                 ClaimEvidenceStance
+  observedFact           String              @db.Text
+  inference              String?             @db.Text
+  freshness              Json
+  confidence             Decimal?            @db.Decimal(5, 2)
+  // Groups evidence entries that are NOT independent of each other (e.g.
+  // two readings from the same underlying provider) — real input to
+  // claimConfidence.js's evidence-independence term, so 5 correlated
+  // readings from one source never count as 5x the real evidence
+  // 1 independent source provides.
+  independenceGroup      String
+  contributionToClaim    Decimal?            @db.Decimal(6, 2)
+  addedAt                DateTime            @default(now())
+
+  @@index([claimId])
+  @@map("claim_evidence")
+}
+
+// The deterministic, auditable lifecycle transition log (mission §2).
+// Append-only — every real status change is one new row, never an edit
+// to a prior one.
+model ClaimTransition {
+  id                   String       @id @default(uuid())
+  claimId              String
+  fromStatus           ClaimStatus?
+  toStatus             ClaimStatus
+  reason               String       @db.Text
+  triggeringEvidenceId String?
+  transitionedAt       DateTime     @default(now())
+
+  @@index([claimId])
+  @@map("claim_transitions")
+}
+
+// The graded resolution of one claim (mission §10). Reuses GradeLabel
+// verbatim (CORRECT/PARTIALLY_CORRECT/INCORRECT/UNGRADEABLE map 1:1 onto
+// Claim.status's RESOLVED_CORRECT/RESOLVED_PARTIAL/RESOLVED_INCORRECT/
+// INSUFFICIENT_DATA) rather than a parallel grading vocabulary.
+model ClaimOutcome {
+  id         String     @id @default(uuid())
+  claimId    String
+  gradeLabel GradeLabel
+
+  predictedDirection ClaimDirection
+  actualDirection    ClaimDirection?
+  directionCorrect   Boolean?
+  magnitudeErrorPct  Decimal?        @db.Decimal(8, 4)
+  timingErrorDays    Int?
+  // A real, deterministic Brier-score-style calibration error
+  // (|predictedProbability/100 - actualOutcomeAsOneOrZero|) — null,
+  // never fabricated, when the claim's own probability was itself null.
+  calibrationError   Decimal?        @db.Decimal(8, 4)
+
+  windowReturnPct    Decimal? @db.Decimal(8, 4)
+  benchmarkReturnPct Decimal? @db.Decimal(8, 4)
+
+  // Bounded, disclosed feedback inputs for the EXISTING learning services
+  // (newsSourceScoringService/committeeScorecardService-style) — this
+  // layer never applies them itself (mission §10/§8's explicit boundary:
+  // "do not allow the Claim Layer to change action-selection policy
+  // directly in this phase").
+  learningFeedback Json
+
+  methodologyVersion String
+  gradedAt           DateTime @default(now())
+
+  @@unique([claimId, methodologyVersion])
+  @@index([claimId])
+  @@map("claim_outcomes")
 }

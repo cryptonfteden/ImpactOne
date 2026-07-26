@@ -158,6 +158,7 @@ test("Sprint 42 — gradePendingOutcomes populates real performance metrics and 
     const outcomes = await worldMemoryRepository.listOutcomesForRecord(prediction.id);
     assert.equal(outcomes[0].benchmarkSymbol, "SPY");
     assert.ok(Number.isFinite(Number(outcomes[0].riskAdjustedReturnPct)), "return vs SPY must be a real computed number");
+    assert.equal(outcomes[0].benchmarkVersion, outcomeGradingService.BENCHMARK_PIPELINE_VERSION, "Phase D1 — benchmark version is recorded alongside the real benchmark");
     assert.ok(outcomes[0].performanceMetrics, "performanceMetrics must be populated from the real fixture price series");
     assert.ok(Number.isFinite(outcomes[0].performanceMetrics.maxDrawdownPct));
     assert.ok(Number.isFinite(outcomes[0].performanceMetrics.maxGainPct));

@@ -1,41 +1,116 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Button } from "../components/ui";
 
-// Sprint 40 — "Dashboard" removed: it duplicated Home's morning-brief
-// content almost entirely (two competing landing experiences built in
-// different sprints — see SPRINT_40_REPORT.md's duplication findings).
-// Home is now the single landing surface; DashboardScreen/DashboardHome
-// remain in the codebase (their own tests still pass) but are no longer
-// reachable from any nav surface.
-const navItems = ["Home", "Global Intelligence", "AI Analysis", "Watchlist", "Portfolio", "Recommendations", "Daily Feed", "Themes", "Alerts", "My Profile", "Settings"];
+// Phase X5 — Part 1 (Single Product Entry). The flat 14-item list this
+// replaced read as "several products in a trenchcoat": two competing
+// watchlist paths (Watchlist vs. Watchlist Folders), no distinction
+// between the everyday workflow and rarely-used tools, and no visual
+// grouping at all. Grouped into three tiers instead:
+//   - PRIMARY: the one obvious path through a normal session (today's
+//     brief, what needs a decision, positions, workspaces).
+//   - ADVANCED: real, still fully reachable tools that aren't part of
+//     the daily loop — collapsed by default so the primary path reads
+//     clearly, not deleted.
+//   - ACCOUNT: profile/settings, pinned separately since neither is a
+//     "workflow."
+// "Watchlist" (the legacy flat, localStorage-driven list) is dropped as
+// a nav destination — Watchlist Folders ("Workspaces") is the real,
+// backend-persisted, connected replacement (Phase X3 Workspace 2.0,
+// X4 pin/alerts/impact summary). The sidebar's own favorites quick-list
+// below (a different, complementary surface) is unaffected. The
+// underlying WatchlistScreen.jsx/route are unchanged and still pass
+// their own tests — same "unreachable, not deleted" precedent as
+// Sprint 40's Dashboard removal.
+const PRIMARY_ITEMS = [
+  { key: "Home", label: "Today" },
+  { key: "Market Dashboard", label: "Market Dashboard" },
+  { key: "Decision Center", label: "Decision Center" },
+  { key: "Portfolio", label: "Portfolio" },
+  { key: "Watchlist Folders", label: "Workspaces" },
+];
 
-// Sprint 23A — developer-only; only present in the nav when explicitly
-// enabled at build time (same VITE_* flag precedent as
-// PortfolioScreen.jsx's VITE_PORTFOLIO_ENGINE). Never shown in a normal build.
+const ADVANCED_ITEMS = [
+  { key: "Mission Control", label: "Mission Control" },
+  { key: "Intelligence Workspace", label: "Intelligence Workspace" },
+  { key: "Portfolio Workspace", label: "Portfolio Workspace" },
+  { key: "Decision Timeline", label: "Decision Timeline" },
+  { key: "Market Positioning", label: "Market Positioning" },
+  { key: "Global Intelligence", label: "Global Intelligence" },
+  { key: "AI Analysis", label: "AI Analysis" },
+  { key: "Recommendations", label: "Recommendations" },
+  { key: "Daily Feed", label: "Daily Feed" },
+  { key: "Themes", label: "Themes" },
+  { key: "Alerts", label: "Alerts" },
+];
+
 if (import.meta.env.VITE_DEV_CONSOLE === "true") {
-  navItems.push("Intelligence Console");
+  ADVANCED_ITEMS.push({ key: "Intelligence Console", label: "Intelligence Console" });
+  // Phase X6 — Part 4, Health Dashboard. Internal diagnostics only —
+  // same gate as Intelligence Console, never shown to a real investor.
+  ADVANCED_ITEMS.push({ key: "Health Dashboard", label: "Health Dashboard" });
+  // Phase X9 — Part 5, Admin Dashboard. Same internal-only gate.
+  ADVANCED_ITEMS.push({ key: "Admin Dashboard", label: "Admin Dashboard" });
+  // Phase X10 — Part 7, AI Performance Dashboard. Same internal-only gate.
+  ADVANCED_ITEMS.push({ key: "AI Performance Dashboard", label: "AI Performance Dashboard" });
+}
+
+const ACCOUNT_ITEMS = [
+  { key: "My Profile", label: "My Profile" },
+  { key: "Settings", label: "Settings" },
+];
+
+// Phase X6 — Part 1, Startup Validation. Every real key this sidebar can
+// navigate to, exported so runStartupValidation can confirm each one has
+// a matching screenMap entry — a real, automated check against nav dead
+// ends, not just a promise in a comment.
+export const SIDEBAR_NAV_KEYS = [...PRIMARY_ITEMS, ...ADVANCED_ITEMS, ...ACCOUNT_ITEMS].map((item) => item.key);
+
+function NavLink({ item, activeView, onNavigate }) {
+  const isActive = activeView === item.key;
+  return (
+    <Button
+      type="button"
+      className={`sidebar-link ${isActive ? "active" : ""}`.trim()}
+      onClick={() => onNavigate(item.key)}
+    >
+      {item.label}
+    </Button>
+  );
 }
 
 function Sidebar({ activeView, onNavigate, favorites = [], onSelectFavorite }) {
+  // Advanced tools are collapsed by default (reduces sidebar complexity per
+  // the mission) but auto-expand if the user is already on one of them —
+  // e.g. arriving via a deep link — so the sidebar never hides where you
+  // actually are.
+  const isOnAdvancedItem = ADVANCED_ITEMS.some((item) => item.key === activeView);
+  const [advancedOpen, setAdvancedOpen] = useState(isOnAdvancedItem);
+
   return (
     <aside className="sidebar">
       <div className="logo">ImpactOne</div>
 
       <nav className="sidebar-nav" aria-label="Sidebar navigation">
-        {navItems.map((item) => {
-          const isActive = activeView === item;
+        {PRIMARY_ITEMS.map((item) => (
+          <NavLink key={item.key} item={item} activeView={activeView} onNavigate={onNavigate} />
+        ))}
 
-          return (
-            <Button
-              key={item}
-              type="button"
-              className={`sidebar-link ${isActive ? "active" : ""}`.trim()}
-              onClick={() => onNavigate(item)}
-            >
-              {item}
-            </Button>
-          );
-        })}
+        <Button
+          type="button"
+          className="sidebar-link sidebar-link--group-toggle"
+          onClick={() => setAdvancedOpen((value) => !value)}
+          aria-expanded={advancedOpen}
+        >
+          More tools {advancedOpen ? "▾" : "▸"}
+        </Button>
+        {advancedOpen
+          ? ADVANCED_ITEMS.map((item) => <NavLink key={item.key} item={item} activeView={activeView} onNavigate={onNavigate} />)
+          : null}
+
+        <div className="sidebar-nav__divider" role="separator" />
+        {ACCOUNT_ITEMS.map((item) => (
+          <NavLink key={item.key} item={item} activeView={activeView} onNavigate={onNavigate} />
+        ))}
       </nav>
 
       <div className="sidebar-section">

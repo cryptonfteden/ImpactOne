@@ -217,6 +217,16 @@ test("decisionTraceExplainabilityService: assembles a full, real explainability 
     assert.equal(bundle.finalOutcome, null);
     assert.deepEqual(bundle.lifecycle.events, []);
     assert.equal(bundle.lifecycle.currentState, null);
+
+    // Phase X7 — Part 2, the seven required questions, derived from the
+    // same real fields the bundle above already assembled.
+    assert.equal(bundle.sevenQuestions.whatHappened, "NVDA received a BUY recommendation.");
+    assert.equal(typeof bundle.sevenQuestions.whyItMatters, "string");
+    assert.match(bundle.sevenQuestions.whoIsAffected, /could not be determined|You hold|watchlist|market scan/);
+    assert.equal(Number(bundle.sevenQuestions.howConfident.confidence), Number(recommendation.confidenceScore));
+    assert.equal(bundle.sevenQuestions.howConfident.uncertainty, 35);
+    assert.ok(Array.isArray(bundle.sevenQuestions.whatIsMissing));
+    assert.equal(typeof bundle.sevenQuestions.whatWouldInvalidate, "string");
   } finally {
     technicalIntelligenceService.analyzeSymbol = originalAnalyzeSymbol;
   }

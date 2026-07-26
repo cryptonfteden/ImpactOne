@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
 import { LoadingSpinner } from "../components/ui";
-import { intelligenceApi } from "../services/api";
+import { intelligenceApi, claimsApi } from "../services/api";
 import useWatchlist from "../hooks/useWatchlist";
 import FeedItemCard from "../components/feed/FeedItemCard";
 import { logError } from "../utils/errorHandling";
@@ -24,6 +24,13 @@ export default function MarketNewsScreen() {
   const [feed, setFeed] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  // Phase UI-INTEGRATION-001 — "Changed Claims" per news item. Fetched once
+  // for the whole feed (not per-card) and handed down to FeedItemCard,
+  // which derives an honest, disclosed relationship (real symbol overlap +
+  // real recent-transition timing) — never a fabricated causal link. A
+  // failed fetch here degrades to every item honestly showing "No active
+  // Claims affected." rather than blocking the feed.
+  const [activeClaims, setActiveClaims] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,7 +56,23 @@ export default function MarketNewsScreen() {
         }
       }
     }
+    async function loadClaims() {
+      // Active claims cover "created/strengthened/weakened"; recently
+      // invalidated claims (a terminal status, so absent from "active")
+      // are fetched separately so a real invalidation can also be surfaced.
+      const [activeResult, invalidatedResult] = await Promise.allSettled([
+        claimsApi.listActive({ limit: 200 }),
+        claimsApi.listRecentlyInvalidated({ limit: 100 }),
+      ]);
+      if (cancelled) return;
+      const active = activeResult.status === "fulfilled" ? activeResult.value.claims || [] : [];
+      const invalidated = invalidatedResult.status === "fulfilled" ? invalidatedResult.value.claims || [] : [];
+      if (activeResult.status === "rejected") logError("daily feed active claims load failed", activeResult.reason);
+      if (invalidatedResult.status === "rejected") logError("daily feed invalidated claims load failed", invalidatedResult.reason);
+      setActiveClaims([...active, ...invalidated]);
+    }
     load();
+    loadClaims();
     return () => {
       cancelled = true;
     };
@@ -84,7 +107,7 @@ export default function MarketNewsScreen() {
             {feed.length ? (
               <div className="news-list">
                 {feed.map((item) => (
-                  <FeedItemCard key={item.id || item.headline} item={item} />
+                  <FeedItemCard key={item.id || item.headline} item={item} activeClaims={activeClaims} />
                 ))}
               </div>
             ) : !error ? (

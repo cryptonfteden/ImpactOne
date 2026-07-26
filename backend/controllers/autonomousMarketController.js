@@ -3,6 +3,8 @@ const { getAutonomousOverview } = require("../services/autonomousMarketService")
 // matching this codebase's established test-seam convention.
 const investorProfileService = require("../services/investorProfileService");
 const feedPersonalizationService = require("../services/feedPersonalizationService");
+const portfolioEngineService = require("../services/portfolioEngineService");
+const attentionEngine = require("../services/attentionEngine/attentionEngine");
 
 function parseCsv(value = "") {
   return String(value || "")
@@ -28,13 +30,29 @@ async function getAutonomousOverviewController(req, res, next) {
 // rest of this app's single-tenant pattern) rather than requiring the
 // client to pass profile data over the wire. Backward compatible: with no
 // profile yet (pre-onboarding), behavior is byte-for-byte unchanged.
+// Phase PRODUCT-001 — every feed item receives a real, deterministic
+// Attention Score (and the real held-symbols overlap it's based on) so
+// News can honestly answer "why do I care?" without recomputing anything
+// client-side. Portfolio relevance here means "this item's own real
+// affectedAssets overlaps a symbol the user actually holds" — a fact
+// about the request's own portfolio, not the feed engine's concern.
+async function attachAttentionScores(feed, betaUserId) {
+  const summary = await portfolioEngineService.getPortfolioSummary(betaUserId).catch(() => ({ positions: [] }));
+  const heldSymbols = new Set((summary.positions || []).map((position) => position.symbol));
+  const now = new Date();
+  return feed.map((item) => {
+    const scored = attentionEngine.scoreFeedItemAttention(item, { heldSymbols, now });
+    return { ...item, attentionScore: scored.score, attentionExplanation: scored.explanation, isHeld: scored.isHeld };
+  });
+}
+
 async function getLiveFeed(req, res, next) {
   try {
     const watchlist = parseCsv(req.query.watchlist || "AAPL,NVDA,TSLA");
     const overview = await getAutonomousOverview({ watchlist });
     const investorProfile = await investorProfileService.getInvestorProfile().catch(() => null);
     const feed = investorProfile ? feedPersonalizationService.rankFeedForInvestor(overview.feed, { investorProfile }) : overview.feed;
-    res.json({ generatedAt: overview.generatedAt, feed, alerts: overview.alerts });
+    res.json({ generatedAt: overview.generatedAt, feed: await attachAttentionScores(feed, req.betaUserId), alerts: overview.alerts });
   } catch (error) {
     next(error);
   }

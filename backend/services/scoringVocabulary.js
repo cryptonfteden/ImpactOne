@@ -92,6 +92,37 @@ const SCORE_DEFINITIONS = {
     apiField: "DecisionTrace.confidenceCalculation.uncertainty",
     uiRepresentation: "Not yet surfaced as its own UI element in this sprint; available via the decision-trace API for now.",
   },
+  // Phase AI-ENGINE-001.1 — Unusual Options Agent foundation. Proposed in
+  // OPTIONS_AGENT_ARCHITECTURE.md §6 as a new entry here, not a parallel
+  // scoring system — see optionsAnomalyConfidence.js for the actual
+  // computation this documents.
+  optionsAnomalyConfidence: {
+    range: [0, 100],
+    meaning: "How strongly this options-activity anomaly resembles genuine informed positioning, as opposed to routine hedging/rolling/noise.",
+    formula: "sizeScore*0.35 + classificationStrength*0.30 + oiConfirmationAdjustment + skewCorroborationAdjustment, clamped 0-100.",
+    fallback: "Reported only once at least the volume-vs-baseline detector can compute a real multiple, or a real sweep/block classification exists; never fabricated during the baseline bootstrap window.",
+    apiField: "OptionsSignal.anomalyScore",
+    uiRepresentation: "Reuses the existing 4-band ConfidenceBadge vocabulary (Low/Moderate/High/Very High) from Badge.jsx's confidenceBand — no new confidence taxonomy invented.",
+    note: "Fixed, hand-set weights until enough graded Outcome history exists for options signals specifically — stated here, not hidden, same discipline as conviction/confidence's own documented note above.",
+  },
+  // Phase AI-ENGINE-002.1 — Market Sentiment Engine foundation. Two new
+  // entries proposed in MARKET_SENTIMENT_ENGINE.md §6, additive — not a
+  // parallel scoring system. See marketSentimentRollup.js for the actual
+  // computation these document.
+  marketSentimentComponentConfidence: {
+    range: [0, 100],
+    meaning: "How much real, fresh, sufficient data backed one sentiment dimension's reading for a given market.",
+    formula: "Per-dimension — a function of real data recency/source quality (e.g. FRED live vs. disclosed fallback) and sample size (e.g. matched feed item count, active recommendation count).",
+    fallback: "null when the dimension is unavailable for this market — never a fabricated mid-range confidence.",
+    apiField: "SentimentReading.contributors[].confidence",
+  },
+  marketSentimentOverallConfidence: {
+    range: [0, 100],
+    meaning: "How much of the full 8-dimension picture is genuinely available for a market, and how strong that available evidence is — breadth AND depth, not just an average.",
+    formula: "(availableComponentCount / 8) * 60 + averageAvailableComponentConfidence * 0.4, clamped 0-100 — a reading missing half the dimensions cannot score above ~65 no matter how confident the available half is.",
+    fallback: "null (never fabricated) when zero dimensions are available for that market.",
+    apiField: "SentimentReading.confidence",
+  },
 };
 
 const CANONICAL_SCORE_NAMES = Object.keys(SCORE_DEFINITIONS);

@@ -91,12 +91,68 @@ const ACTIONABILITY_PILL_CLASS = {
   FYI: "pill",
 };
 
-function FeedItemCard({ item }) {
+// Phase UI-INTEGRATION-001 — "Changed Claims" per news item. This is
+// presentation-only correlation over two already-real facts: (1) the
+// news item's own affected symbols and (2) a real Claim's symbols and
+// status/lastUpdatedAt — never a fabricated causal link, since News is
+// not itself a Claim-forming engine. A Claim only counts as "changed by
+// this news" when its symbols genuinely overlap AND it genuinely
+// transitioned within RECENT_TRANSITION_WINDOW_MS of this item's
+// publish time; anything else is disclosed as a same-symbol relation,
+// not a claimed cause.
+const RECENT_TRANSITION_WINDOW_MS = 48 * 60 * 60 * 1000;
+
+function computeChangedClaimsText(item, activeClaims) {
+  const symbols = item.affectedAssets || [];
+  if (!symbols.length || !activeClaims?.length) return "No active Claims affected.";
+
+  const overlapping = activeClaims.filter((claim) => claim.symbols?.some((symbol) => symbols.includes(symbol)));
+  if (!overlapping.length) return "No active Claims affected.";
+
+  const publishedAt = item.publishedAt ? new Date(item.publishedAt).getTime() : null;
+  const descriptions = overlapping.slice(0, 3).map((claim) => {
+    const label = claim.plainLanguageStatement || claim.statement || "an active Claim";
+    const updatedAt = claim.lastUpdatedAt ? new Date(claim.lastUpdatedAt).getTime() : null;
+    const isRecentTransition = Boolean(publishedAt && updatedAt && Math.abs(updatedAt - publishedAt) <= RECENT_TRANSITION_WINDOW_MS);
+
+    if (claim.status === "INVALIDATED" && isRecentTransition) return `This news invalidated a Claim: "${label}".`;
+    if (claim.status === "DRAFT" && isRecentTransition) return `This news created a Claim: "${label}".`;
+    if (claim.status === "STRENGTHENING" && isRecentTransition) return `This news strengthened a Claim: "${label}".`;
+    if (claim.status === "WEAKENING" && isRecentTransition) return `This news weakened a Claim: "${label}".`;
+    return `This news relates to an active Claim: "${label}" (same symbol, no confirmed recent transition).`;
+  });
+  return descriptions.join(" ");
+}
+
+function formatWhyItMatters(item) {
+  const text = item.whyItMatters || "";
+  const headline = item.headline || "";
+  if (!text || !headline) return text;
+
+  const redundantPrefix = `"${headline}" is being weighed against `;
+  const rest = text.startsWith(redundantPrefix) ? text.slice(redundantPrefix.length) : text;
+  const capitalized = rest.charAt(0).toUpperCase() + rest.slice(1);
+  return capitalized;
+}
+
+// Phase PRODUCT-001 — "why do I care?" a real overlapping Claim, a real
+// held position, or a real affected asset are each honest reasons to
+// care; an item with none of them gets the honest "No meaningful impact
+// detected." instead of an empty-looking Why-do-I-care block.
+function hasMeaningfulImpact(item, overlappingClaims) {
+  return Boolean(item.isHeld || overlappingClaims.length || item.affectedAssets?.length);
+}
+
+function FeedItemCard({ item, activeClaims }) {
   const explainability = item.explainability || {};
   const themeLabel = THEME_LABELS[item.eventType];
   const freshnessLabel = computeFreshnessLabel(item.publishedAt);
   const readTimeMinutes = estimateReadTimeMinutes(item);
   const actionability = computeActionability(item);
+  const overlappingClaims = (activeClaims || []).filter((claim) => claim.symbols?.some((symbol) => item.affectedAssets?.includes(symbol)));
+  const changedClaimsText = computeChangedClaimsText(item, activeClaims);
+  const isRelevant = hasMeaningfulImpact(item, overlappingClaims);
+
   // Sprint 33 Priority 5 — mobile Feed needs a concise collapsed state;
   // sectors/companies/portfolio-impact/reasoning/evidence all move behind
   // one progressive-disclosure toggle instead of always rendering, so a
@@ -118,7 +174,13 @@ function FeedItemCard({ item }) {
         <span className={ACTIONABILITY_PILL_CLASS[actionability.label]} title={actionability.detail}>{actionability.label}</span>
       </div>
 
-      <p className="company-description">{item.whyItMatters}</p>
+      <p className="company-description">
+        {item.whyItMatters ? (
+          <>
+            <strong>{item.headline}:</strong> {formatWhyItMatters(item)}
+          </>
+        ) : null}
+      </p>
 
       <div className="feed-item-card__stats">
         <span>Importance {item.importanceScore ?? "—"}/100</span>
@@ -127,6 +189,28 @@ function FeedItemCard({ item }) {
         {freshnessLabel ? <span>{freshnessLabel}</span> : null}
         {readTimeMinutes ? <span>{readTimeMinutes} min read</span> : null}
       </div>
+
+      {/* Phase PRODUCT-001 — "why do I care?" every news item must answer
+          this immediately: real affected Claims, real affected holdings,
+          real portfolio relevance, and the item's real Attention Score.
+          When none of that is real for this item, it says so honestly
+          rather than showing an empty-looking block. */}
+      {isRelevant ? (
+        <div className="company-description subtle feed-item-card__why-i-care">
+          <p>{changedClaimsText}</p>
+          <p>
+            {item.isHeld
+              ? `Affected holdings: ${item.affectedAssets.join(", ")}.`
+              : item.affectedAssets?.length
+                ? `Affected assets (not currently held): ${item.affectedAssets.join(", ")}.`
+                : "No affected holdings."}
+          </p>
+          <p>{item.isHeld ? "Portfolio relevance: directly relevant to your portfolio." : "Portfolio relevance: not directly relevant to your portfolio."}</p>
+          <p>{Number.isFinite(item.attentionScore) ? `Attention score: ${item.attentionScore}/100.` : "Attention score: not yet available."}</p>
+        </div>
+      ) : (
+        <p className="company-description subtle feed-item-card__why-i-care">No meaningful impact detected.</p>
+      )}
 
       {item.sourceUrl ? (
         <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="matched-event__source">

@@ -2,8 +2,8 @@ const analyticsService = require("../services/analyticsService");
 
 async function recordEvent(req, res) {
   try {
-    const { eventName, properties, sessionId } = req.body || {};
-    await analyticsService.recordEvent({ eventName, properties, sessionId });
+    const { eventName, properties, sessionId, screen, durationMs } = req.body || {};
+    await analyticsService.recordEvent({ eventName, properties, sessionId, betaUserId: req.betaUserId, screen, durationMs });
     res.status(204).end();
   } catch (error) {
     // Sprint 35 — telemetry must never be able to break or even be

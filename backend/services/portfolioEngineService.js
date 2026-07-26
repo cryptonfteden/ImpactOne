@@ -15,12 +15,14 @@ function round2(value) {
   return Number(Number(value).toFixed(2));
 }
 
-async function getOrCreateDefaultPortfolio() {
-  const existing = await portfolioRepository.findDefaultPortfolio();
+// Phase H2 — betaUserId is optional; omitted, this is the exact pre-H2
+// singleton behavior every existing caller/test relies on.
+async function getOrCreateDefaultPortfolio(betaUserId) {
+  const existing = await portfolioRepository.findDefaultPortfolio(betaUserId);
   if (existing) {
     return existing;
   }
-  return portfolioRepository.createDefaultPortfolio();
+  return portfolioRepository.createDefaultPortfolio(betaUserId);
 }
 
 async function markPositions(positions) {
@@ -80,8 +82,8 @@ function computeAllocation(markedPositions, totalValue) {
   return { bySector: toRows(bySector), byAssetType: toRows(byAssetType) };
 }
 
-async function getPortfolioSummary() {
-  const portfolio = await getOrCreateDefaultPortfolio();
+async function getPortfolioSummary(betaUserId) {
+  const portfolio = await getOrCreateDefaultPortfolio(betaUserId);
   const openPositions = await portfolioRepository.getOpenPositions(portfolio.id);
   const markedPositions = await markPositions(openPositions);
 
@@ -120,7 +122,7 @@ async function getPortfolioSummary() {
  * today's product behavior) — the schema already supports fractional
  * quantities for when that becomes a requirement.
  */
-async function placeOrder({ symbol, side, quantity, sector, assetType }) {
+async function placeOrder({ symbol, side, quantity, sector, assetType, betaUserId }) {
   const normalizedSymbol = String(symbol || "").trim().toUpperCase();
   const normalizedSide = String(side || "").trim().toUpperCase();
   const normalizedQuantity = Number(quantity);
@@ -135,7 +137,7 @@ async function placeOrder({ symbol, side, quantity, sector, assetType }) {
     throw badRequest("quantity must be a positive whole number of shares.");
   }
 
-  const portfolio = await getOrCreateDefaultPortfolio();
+  const portfolio = await getOrCreateDefaultPortfolio(betaUserId);
   const quotePayload = await finnhubService.getQuote(normalizedSymbol);
   const price = Number(quotePayload.quote?.price);
   if (!Number.isFinite(price) || price <= 0) {
@@ -277,8 +279,8 @@ async function placeOrder({ symbol, side, quantity, sector, assetType }) {
   });
 }
 
-async function getTradeHistory({ limit } = {}) {
-  const portfolio = await getOrCreateDefaultPortfolio();
+async function getTradeHistory({ limit, betaUserId } = {}) {
+  const portfolio = await getOrCreateDefaultPortfolio(betaUserId);
   const trades = await portfolioRepository.getTrades(portfolio.id, { limit });
   return trades.map((trade) => ({
     id: trade.id,
@@ -291,8 +293,8 @@ async function getTradeHistory({ limit } = {}) {
   }));
 }
 
-async function getTransactionLog({ limit } = {}) {
-  const portfolio = await getOrCreateDefaultPortfolio();
+async function getTransactionLog({ limit, betaUserId } = {}) {
+  const portfolio = await getOrCreateDefaultPortfolio(betaUserId);
   const entries = await portfolioRepository.getLedgerEntries(portfolio.id, { limit });
   return entries.map((entry) => ({
     id: entry.id,
@@ -305,8 +307,8 @@ async function getTransactionLog({ limit } = {}) {
   }));
 }
 
-async function getPerformanceTimeline({ limit } = {}) {
-  const portfolio = await getOrCreateDefaultPortfolio();
+async function getPerformanceTimeline({ limit, betaUserId } = {}) {
+  const portfolio = await getOrCreateDefaultPortfolio(betaUserId);
   const snapshots = await portfolioRepository.getPerformanceSnapshots(portfolio.id, { limit });
   return snapshots.map((snapshot) => ({
     capturedAt: snapshot.capturedAt,
@@ -325,8 +327,8 @@ async function getPerformanceTimeline({ limit } = {}) {
  * Called on-demand this sprint; a scheduled daily job is a later sprint
  * (background workers/scheduler are out of scope here).
  */
-async function capturePerformanceSnapshot() {
-  const summary = await getPortfolioSummary();
+async function capturePerformanceSnapshot(betaUserId) {
+  const summary = await getPortfolioSummary(betaUserId);
   const snapshot = await portfolioRepository.createPerformanceSnapshot({
     portfolioId: summary.portfolioId,
     totalValue: summary.totalValue,
@@ -370,9 +372,9 @@ function startOfTodayUtc() {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
 
-async function getPerformanceDelta() {
-  const portfolio = await getOrCreateDefaultPortfolio();
-  const today = await getPortfolioSummary();
+async function getPerformanceDelta(betaUserId) {
+  const portfolio = await getOrCreateDefaultPortfolio(betaUserId);
+  const today = await getPortfolioSummary(betaUserId);
   const allSnapshots = await portfolioRepository.getPerformanceSnapshots(portfolio.id, { limit: 365 });
 
   const cutoff = startOfTodayUtc();
@@ -428,10 +430,10 @@ async function getPerformanceDelta() {
   };
 }
 
-async function resetPortfolio() {
-  const portfolio = await getOrCreateDefaultPortfolio();
+async function resetPortfolio(betaUserId) {
+  const portfolio = await getOrCreateDefaultPortfolio(betaUserId);
   await portfolioRepository.resetPortfolio(portfolio.id);
-  return getPortfolioSummary();
+  return getPortfolioSummary(betaUserId);
 }
 
 module.exports = {

@@ -24,8 +24,18 @@ const worldMemoryRepository = require("./worldMemoryRepository");
 const outcomeGradingService = require("./outcomeGradingService");
 // Sprint 42 — Intelligence Quality Platform.
 const recommendationLifecycleService = require("./qualityPlatform/recommendationLifecycleService");
+// Phase D1 — Learning Data Remediation. Metadata capture only — never
+// read by any decision logic in this file.
+const regimeClassifierService = require("./qualityPlatform/regimeClassifierService");
 // Sprint 31 — Outcome Intelligence, Priority 4.
 const outcomeIntelligenceService = require("./outcomeIntelligenceService");
+// Phase X11 — Part 1 (Outcome Feedback Loop) and Part 2 (Dynamic Source
+// Scoring). Both are additive, bounded inputs into computeQualityScore
+// below — fetched once per run (never per-symbol-per-run-again), with a
+// best-effort fallback to the pre-X11 static behavior on any failure, so
+// a learning-loop outage can never take down recommendation generation.
+const outcomeFeedbackService = require("./outcomeFeedbackService");
+const dynamicSourceScoringService = require("./dynamicSourceScoringService");
 
 // Above this sector weight (%), a held position's concentration risk can
 // independently trigger a REDUCE recommendation even when the underlying
@@ -304,9 +314,18 @@ function buildScenarios({ symbol, rankingItem, action, matchedEvents, heldPositi
  * to real computed data (see QUALITY_WEIGHTS for the documented rollup
  * weights) — not a single opaque number.
  */
-function computeQualityScore({ matchedEvents, symbolSource, positionWeightPct, convictionScore, rankingItem, macroRegime, supportingCount, opposingCount }) {
+function computeQualityScore({ matchedEvents, symbolSource, positionWeightPct, convictionScore, rankingItem, macroRegime, supportingCount, opposingCount, sourceCredibilityOverrides = {}, outcomeFeedbackAdjustment = null }) {
+  // Phase X11 — Part 2. Each matched event's source quality prefers the
+  // real, dynamic, outcome-informed score (when the source has enough
+  // graded evidence) over the static lookup — sourceCredibilityOverrides
+  // is only ever populated with real dynamicSourceScoringService results,
+  // never a guess, and always falls back to the exact pre-X11 static value
+  // when no override exists for a source.
   const sourceQuality = matchedEvents.length
-    ? Math.round(matchedEvents.reduce((sum, event) => sum + autonomousMarketService.sourceQualityScore(event.sourceName), 0) / matchedEvents.length)
+    ? Math.round(
+        matchedEvents.reduce((sum, event) => sum + (sourceCredibilityOverrides[event.sourceName]?.value ?? autonomousMarketService.sourceQualityScore(event.sourceName)), 0) /
+          matchedEvents.length
+      )
     : 50;
 
   const evidenceFreshness = matchedEvents.length
@@ -331,20 +350,36 @@ function computeQualityScore({ matchedEvents, symbolSource, positionWeightPct, c
 
   const modelConfidence = convictionScore;
 
-  const qualityComponents = { sourceQuality, evidenceFreshness, portfolioRelevance, evidenceAgreement, dataCompleteness, modelConfidence };
+  // Phase X11 — Part 1. A real, bounded, explainable adjustment computed
+  // by outcomeFeedbackService from graded Outcome history for this
+  // action, applied only when the evidence was statistically meaningful
+  // (outcomeFeedbackAdjustment.applied) — the withheld case is recorded
+  // as 0 with a real, disclosed reason (see qualityComponents.
+  // outcomeFeedbackAdjustment.reason), never silently applied or dropped.
+  const appliedAdjustmentPts = outcomeFeedbackAdjustment?.applied ? outcomeFeedbackAdjustment.adjustmentValue : 0;
 
-  const qualityScore = portfolioRiskMetrics.clamp(
-    Math.round(
-      sourceQuality * QUALITY_WEIGHTS.sourceQuality +
-        evidenceFreshness * QUALITY_WEIGHTS.evidenceFreshness +
-        portfolioRelevance * QUALITY_WEIGHTS.portfolioRelevance +
-        evidenceAgreement * QUALITY_WEIGHTS.evidenceAgreement +
-        dataCompleteness * QUALITY_WEIGHTS.dataCompleteness +
-        modelConfidence * QUALITY_WEIGHTS.modelConfidence
-    ),
-    0,
-    100
+  const qualityComponents = {
+    sourceQuality,
+    evidenceFreshness,
+    portfolioRelevance,
+    evidenceAgreement,
+    dataCompleteness,
+    modelConfidence,
+    outcomeFeedbackAdjustment: outcomeFeedbackAdjustment
+      ? { pointsApplied: appliedAdjustmentPts, applied: outcomeFeedbackAdjustment.applied, sampleSize: outcomeFeedbackAdjustment.sampleSize, reason: outcomeFeedbackAdjustment.reason }
+      : null,
+  };
+
+  const preAdjustmentScore = Math.round(
+    sourceQuality * QUALITY_WEIGHTS.sourceQuality +
+      evidenceFreshness * QUALITY_WEIGHTS.evidenceFreshness +
+      portfolioRelevance * QUALITY_WEIGHTS.portfolioRelevance +
+      evidenceAgreement * QUALITY_WEIGHTS.evidenceAgreement +
+      dataCompleteness * QUALITY_WEIGHTS.dataCompleteness +
+      modelConfidence * QUALITY_WEIGHTS.modelConfidence
   );
+
+  const qualityScore = portfolioRiskMetrics.clamp(preAdjustmentScore + appliedAdjustmentPts, 0, 100);
 
   return { qualityScore, qualityComponents };
 }
@@ -388,7 +423,13 @@ function buildDecisionTraceInput({ rankingItem, matchedEvents, heldPosition, sec
 async function buildCommitteeDebate({ symbol }) {
   try {
     const result = await intelligenceCommitteeService.convene(symbol);
-    return { committee: result.committee, cio: result.cio };
+    // Phase D1 — evidenceMatrix is carried alongside (never inside)
+    // committeeDebate: the stored committeeDebate shape stays exactly
+    // {committee, cio}, unchanged, so every existing consumer (UI,
+    // scorecards, explainability) is unaffected. evidenceMatrix is only
+    // used by the caller to populate the new, separate
+    // DecisionTrace.evidenceMatrixSnapshot field.
+    return { committee: result.committee, cio: result.cio, evidenceMatrix: result.evidenceMatrix };
   } catch (error) {
     return null;
   }
@@ -437,7 +478,7 @@ function buildReasoning({ symbol, action, rankingItem, portfolioAction, heldPosi
   return parts.join(" ");
 }
 
-async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, macroRegime, watchlistSymbols = [] }) {
+async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, macroRegime, watchlistSymbols = [], learningAdjustments = {} }) {
   const heldPosition = portfolioSummary.positions.find((position) => position.symbol === symbol) || null;
   const symbolSource = heldPosition ? "portfolio" : watchlistSymbols.includes(symbol) ? "watchlist" : "market-scan";
   const convictionScore = autonomousMarketService.computeConvictionScore(rankingItem);
@@ -474,7 +515,14 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
 
   // Sprint 18A — the Committee runs only for symbols that already triggered
   // an action (this line), never across the full scan universe.
-  const committeeDebate = await buildCommitteeDebate({ symbol });
+  const committeeDebateResult = await buildCommitteeDebate({ symbol });
+  // Phase D1 — evidenceMatrix is split off here so committeeDebate keeps
+  // its exact pre-existing shape ({committee, cio}) everywhere it already
+  // flows (explanation.committeeDebate, DecisionTrace.committeeDebate) —
+  // no behavior change to any existing consumer. It's threaded separately
+  // into DecisionTrace.evidenceMatrixSnapshot only.
+  const committeeDebate = committeeDebateResult ? { committee: committeeDebateResult.committee, cio: committeeDebateResult.cio } : null;
+  const evidenceMatrixSnapshot = committeeDebateResult?.evidenceMatrix || null;
 
   const { supporting, opposing } = splitMatchedEvents({ matchedEvents, action });
   const explanation = buildExplanation({
@@ -492,6 +540,18 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
     committeeDebate,
   });
   const scenarios = buildScenarios({ symbol, rankingItem, action, matchedEvents, heldPosition, positionWeightPct, convictionScore });
+
+  // Phase X11 — Part 2. Best-effort: a dynamic-source-scoring outage must
+  // never block recommendation generation, so a failure here just leaves
+  // the overrides map empty and computeQualityScore falls back to the
+  // exact pre-X11 static sourceQualityScore lookup.
+  let sourceCredibilityOverrides = {};
+  try {
+    sourceCredibilityOverrides = await dynamicSourceScoringService.getSourceCredibilityOverrides(matchedEvents.map((event) => event.sourceName));
+  } catch (sourceScoringError) {
+    sourceCredibilityOverrides = {};
+  }
+
   const { qualityScore, qualityComponents } = computeQualityScore({
     matchedEvents,
     symbolSource,
@@ -501,6 +561,8 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
     macroRegime,
     supportingCount: supporting.length,
     opposingCount: opposing.length,
+    sourceCredibilityOverrides,
+    outcomeFeedbackAdjustment: learningAdjustments[action] || null,
   });
 
   const portfolioContext = heldPosition
@@ -610,6 +672,12 @@ async function evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed, mac
       eventEnvelopeVersion: eventEnvelope.EVENT_ENVELOPE_VERSION,
       contractVersion: canonicalVerdict.CANONICAL_VERDICT_CONTRACT_VERSION,
     },
+    // Phase D1 — Learning Data Remediation. Pure metadata capture, never
+    // read by any decision logic above this line. regimeSnapshot degrades
+    // to an honest UNKNOWN (never fabricated) on any failure —
+    // regimeClassifierService.computeRegimeSnapshot never throws.
+    regimeSnapshot: await regimeClassifierService.computeRegimeSnapshot({ macroRegime }),
+    evidenceMatrixSnapshot,
   });
 
   // Sprint 29 Priority 1 — every recommendation now writes a real
@@ -674,6 +742,19 @@ async function runOnce({ watchlist = [] } = {}) {
     const overview = await autonomousMarketService.getAutonomousOverview({ watchlist: universe, portfolioContext });
     const macroRegime = overview.globalMap?.macroRegime || null;
 
+    // Phase X11 — Part 1. Fetched once per run (not per-symbol): every
+    // real, graded Outcome for each action is aggregated into a bounded,
+    // audited adjustment before any symbol is evaluated. Best-effort — an
+    // outage here must never block recommendation generation, so a
+    // failure just leaves every symbol's adjustment at the pre-X11
+    // baseline (no adjustment).
+    let learningAdjustments = {};
+    try {
+      learningAdjustments = await outcomeFeedbackService.getScoringAdjustmentMap();
+    } catch (learningError) {
+      learningAdjustments = {};
+    }
+
     for (const symbol of universe) {
       symbolsEvaluated += 1;
       try {
@@ -682,7 +763,7 @@ async function runOnce({ watchlist = [] } = {}) {
           continue;
         }
 
-        const created = await evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed: overview.feed, macroRegime, watchlistSymbols: normalizedWatchlist });
+        const created = await evaluateSymbol({ symbol, rankingItem, portfolioSummary, feed: overview.feed, macroRegime, watchlistSymbols: normalizedWatchlist, learningAdjustments });
         if (created) {
           recommendationsGenerated += 1;
         }

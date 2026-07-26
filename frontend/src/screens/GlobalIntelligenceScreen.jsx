@@ -30,7 +30,7 @@ export default function GlobalIntelligenceScreen() {
         logError("Global intelligence overview failed", nextError);
         if (!cancelled) {
           setOverview(null);
-          setError(nextError?.message || "Unable to load global intelligence.");
+          setError("Unable to load global intelligence.");
         }
       }
     }

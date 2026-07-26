@@ -9,7 +9,7 @@ function handleKnownError(error, res, next) {
 
 async function getInvestorProfile(req, res, next) {
   try {
-    const profile = await investorProfileService.getInvestorProfile();
+    const profile = await investorProfileService.getInvestorProfile(req.betaUserId);
     if (!profile) {
       return res.status(404).json({ error: "No investor profile exists yet." });
     }
@@ -21,7 +21,7 @@ async function getInvestorProfile(req, res, next) {
 
 async function createInvestorProfile(req, res, next) {
   try {
-    const created = await investorProfileService.createInvestorProfile(req.body || {});
+    const created = await investorProfileService.createInvestorProfile(req.body || {}, req.betaUserId);
     res.status(201).json(created);
   } catch (error) {
     handleKnownError(error, res, next);
@@ -30,7 +30,7 @@ async function createInvestorProfile(req, res, next) {
 
 async function updateInvestorProfile(req, res, next) {
   try {
-    const updated = await investorProfileService.updateInvestorProfile(req.body || {});
+    const updated = await investorProfileService.updateInvestorProfile(req.body || {}, req.betaUserId);
     res.json(updated);
   } catch (error) {
     handleKnownError(error, res, next);
@@ -39,7 +39,7 @@ async function updateInvestorProfile(req, res, next) {
 
 async function getInvestmentProfile(req, res, next) {
   try {
-    const profile = await investorProfileService.getInvestorProfile();
+    const profile = await investorProfileService.getInvestorProfile(req.betaUserId);
     if (!profile) {
       return res.status(404).json({ error: "No investor profile exists yet." });
     }

@@ -25,3 +25,12 @@ test("GET /api/intelligence/live-feed still returns a valid feed once an investo
   assert.equal(response.status, 200);
   assert.ok(Array.isArray(response.body.feed));
 });
+
+test("Phase PRODUCT-001 — every real feed item carries a real, deterministic attentionScore", async () => {
+  const response = await request(app).get("/api/intelligence/live-feed");
+  assert.equal(response.status, 200);
+  for (const item of response.body.feed) {
+    assert.equal(typeof item.attentionScore, "number");
+    assert.equal(typeof item.attentionExplanation, "string");
+  }
+});

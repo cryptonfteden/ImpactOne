@@ -3,6 +3,7 @@ const app = require("./app");
 const schedulerService = require("./services/schedulerService");
 const themeSnapshotScheduler = require("./services/themeSnapshotScheduler");
 const providerScheduler = require("./services/providerScheduler");
+const alertScheduler = require("./services/alertScheduler");
 
 app.listen(PORT, () => {
   console.log(`ImpactOne backend running on port ${PORT}`);
@@ -13,4 +14,5 @@ app.listen(PORT, () => {
 
   themeSnapshotScheduler.start();
   providerScheduler.start();
+  alertScheduler.start();
 });

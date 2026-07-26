@@ -1,6 +1,23 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Input } from "./ui";
+import NotificationCenter from "./NotificationCenter";
 import usePortfolioEngine from "../hooks/usePortfolioEngine";
+// Phase X6 — fixed a broken import: this key moved to useBetaIdentity.js
+// in Phase X4's identity-flow rewrite, but this file's import was never
+// updated — caught by the new release validation build check (Part 2).
+import { BETA_USER_LABEL_STORAGE_KEY } from "../hooks/useBetaIdentity";
+
+// Phase H3 — Account & beta-user experience. Read once at module load
+// (a resolved beta user's label never changes mid-session); falls back to
+// the existing "Guest workspace" identity when no beta user is resolved,
+// exactly the pre-H3 behavior.
+function readBetaUserLabel() {
+  try {
+    return window.localStorage.getItem(BETA_USER_LABEL_STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
 import { intelligenceApi, chatApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 import { startVisibilityAwarePolling } from "../utils/pollWhileVisible";
@@ -135,6 +152,8 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
   }, [askConversationally, submitTicker]);
 
   const dailyPnl = Number(portfolioSummary?.dailyPnl || 0);
+  const betaUserLabel = readBetaUserLabel();
+  const accountInitial = betaUserLabel ? betaUserLabel.trim().charAt(0).toUpperCase() : "G";
 
   return (
     <header className="header-bar">
@@ -208,6 +227,8 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
           {alertCount > 0 ? <span className="header-icon-button__badge">{alertCount}</span> : null}
         </Button>
 
+        <NotificationCenter />
+
         <div className="header-menu">
           <Button
             type="button"
@@ -232,13 +253,13 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
             className="header-icon-button header-avatar"
             onClick={() => setIsAccountMenuOpen((value) => !value)}
             aria-label={t("header.accountMenu")}
-            title={t("header.guestWorkspace")}
+            title={betaUserLabel || t("header.guestWorkspace")}
           >
-            G
+            {accountInitial}
           </Button>
           {isAccountMenuOpen ? (
             <div className="header-menu__dropdown">
-              <div className="header-menu__label">{t("header.guestWorkspace")}</div>
+              <div className="header-menu__label">{betaUserLabel ? `${betaUserLabel} · Private beta` : t("header.guestWorkspace")}</div>
               <Button type="button" className="header-menu__item" onClick={() => navigateTo("Settings")}>{t("nav.settings")}</Button>
             </div>
           ) : null}

@@ -158,6 +158,27 @@ describe("RecommendationsScreen", () => {
     await waitFor(() => expect(screen.getByText(/price moved \+8\.30%/)).toBeInTheDocument());
   });
 
+  it("Phase E3.5 — Lessons Learned collapses near-duplicate template lessons (same symbol/action/direction, different numbers) to one representative entry", async () => {
+    recommendationsApi.list.mockResolvedValue({ recommendations: [] });
+    recommendationsApi.status.mockResolvedValue(STATUS_FIXTURE);
+    outcomeIntelligenceApi.listLessons.mockResolvedValue({
+      lessons: [
+        { id: "lesson-1", lessonText: "NVDA (BUY, predicted confidence 82/100): price moved +8.30% over the D1 window, confirming the predicted direction." },
+        { id: "lesson-2", lessonText: "NVDA (BUY, predicted confidence 79/100): price moved +6.10% over the D1 window, confirming the predicted direction." },
+        { id: "lesson-3", lessonText: "AAPL (REDUCE, predicted confidence 40/100): price moved -2.10% over the D1 window, confirming the predicted direction." },
+      ],
+    });
+
+    render(<RecommendationsScreen />);
+    await waitFor(() => expect(screen.getByText("Lessons Learned")).toBeInTheDocument());
+    // Real lessons, not fabricated ones — the first NVDA lesson (most
+    // recent) is shown, its near-duplicate is collapsed, and the genuinely
+    // distinct AAPL lesson still renders.
+    await waitFor(() => expect(screen.getByText(/NVDA.*\+8\.30%/)).toBeInTheDocument());
+    expect(screen.queryByText(/\+6\.10%/)).not.toBeInTheDocument();
+    expect(screen.getByText(/AAPL.*-2\.10%/)).toBeInTheDocument();
+  });
+
   it("Sprint 31 — Lessons Learned shows an honest empty state with zero graded outcomes", async () => {
     recommendationsApi.list.mockResolvedValue({ recommendations: [] });
     recommendationsApi.status.mockResolvedValue(STATUS_FIXTURE);

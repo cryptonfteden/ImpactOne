@@ -13,6 +13,33 @@ function recommendationKey(recommendation) {
   return recommendation.id;
 }
 
+// Phase E3.5 — Lessons Learned dedup. buildLessonText (backend, unchanged
+// per this phase's "keep the same reasoning engine" constraint) is a
+// template — outcomes that share a symbol/action/direction can render as
+// near-identical sentences, differing only in the exact return% and
+// confidence numbers. Normalizing those two variable numbers out and
+// deduping on the resulting signature (presentation-only, real lessons
+// kept verbatim) surfaces one representative lesson per genuinely distinct
+// pattern instead of a wall of near-duplicates.
+function lessonSignature(text) {
+  return String(text || "")
+    .replace(/predicted confidence \S+\/100/gi, "predicted confidence X/100")
+    .replace(/[-+]?\d+(\.\d+)?%/g, "N%")
+    .trim();
+}
+
+function dedupeLessons(lessons) {
+  const seen = new Set();
+  const unique = [];
+  for (const lesson of lessons) {
+    const signature = lessonSignature(lesson.lessonText);
+    if (seen.has(signature)) continue;
+    seen.add(signature);
+    unique.push(lesson);
+  }
+  return unique;
+}
+
 /**
  * Sprint 16 Phase A — Autonomous Recommendation Engine. Advisory only: this
  * screen surfaces what the engine analyzed and why, it never places a
@@ -45,7 +72,7 @@ export default function RecommendationsScreen() {
     outcomeIntelligenceApi
       .listLessons(10)
       .then((data) => {
-        if (!cancelled) setLessons(data.lessons || []);
+        if (!cancelled) setLessons(dedupeLessons(data.lessons || []));
       })
       .catch((loadError) => logError("lessons load failed", loadError));
     return () => {
@@ -134,7 +161,18 @@ export default function RecommendationsScreen() {
             })}
           </div>
         ) : (
-          <EmptyState message="No active recommendations. Run the engine or wait for the next scheduled pass." />
+          <EmptyState
+            icon="◎"
+            title="No active recommendations yet"
+            message={
+              status?.intervalMinutes
+                ? `The engine analyzes your watchlist and portfolio every ${status.intervalMinutes} minutes and only recommends something when it finds a real, high-confidence opportunity — an empty list here is expected between passes, not an error.`
+                : "The engine only recommends something when it finds a real, high-confidence opportunity — an empty list here is expected between passes, not an error."
+            }
+            actionLabel={isRunning ? "Running..." : "Run engine now"}
+            onAction={() => runNow(watchlist)}
+            actionDisabled={isRunning}
+          />
         )}
       </SectionCard>
 

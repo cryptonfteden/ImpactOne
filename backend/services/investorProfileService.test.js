@@ -27,6 +27,32 @@ test("getInvestorProfile returns null before any profile is created", async () =
   assert.equal(await investorProfileService.getInvestorProfile(), null);
 });
 
+// Phase X8 — Part 1, Identity Correction. The real, reproduced bug: a
+// brand-new session with no resolved betaUserId used to inherit "the
+// first InvestorProfile ever created, by anyone" — including a real beta
+// user's own profile. Onboarding decisions must be session/identity-
+// scoped, never derived from global application state.
+test("a real beta user's profile never leaks into a session with no resolved identity", async () => {
+  await investorProfileService.createInvestorProfile({ age: 40 }, "real-beta-user-id");
+  const forNoIdentity = await investorProfileService.getInvestorProfile(undefined);
+  assert.equal(forNoIdentity, null, "a fresh, identity-less session must see no profile — never someone else's real one");
+});
+
+test("multiple real beta users' profiles are fully isolated from each other", async () => {
+  await investorProfileService.createInvestorProfile({ age: 25 }, "beta-user-a");
+  await investorProfileService.createInvestorProfile({ age: 60 }, "beta-user-b");
+  const forA = await investorProfileService.getInvestorProfile("beta-user-a");
+  const forB = await investorProfileService.getInvestorProfile("beta-user-b");
+  assert.equal(forA.age, 25);
+  assert.equal(forB.age, 60);
+});
+
+test("a genuine legacy/no-beta profile (created with no identity) is still found for a later identity-less session — real backward compatibility preserved", async () => {
+  await investorProfileService.createInvestorProfile({ age: 33 });
+  const found = await investorProfileService.getInvestorProfile(undefined);
+  assert.equal(found?.age, 33);
+});
+
 test("updateInvestorProfile 404s when no profile exists yet", async () => {
   await assert.rejects(() => investorProfileService.updateInvestorProfile({ age: 30 }), (error) => error.statusCode === 404);
 });

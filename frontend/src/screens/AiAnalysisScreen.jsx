@@ -3,7 +3,8 @@ import SectionCard from "../components/SectionCard";
 import { SafeList, SafeValue } from "../components/SafeValue";
 import useWatchlist from "../hooks/useWatchlist";
 import { Button, Input, LoadingSpinner } from "../components/ui";
-import { altDataApi, analysisApi, intelligenceApi, marketApi } from "../services/api";
+import { altDataApi, analysisApi, intelligenceApi, marketApi, performanceMetricsApi, claimsApi } from "../services/api";
+import { openSymbolPanel } from "../utils/symbolPanel";
 import { logError } from "../utils/errorHandling";
 
 function PriceChart({ points }) {
@@ -75,6 +76,12 @@ export default function AiAnalysisScreen() {
   const [committee, setCommittee] = useState(null);
   const [cio, setCio] = useState(null);
   const [committeeError, setCommitteeError] = useState("");
+  // Phase UI-INTEGRATION-001 — the Claims-Based Analysis section below is
+  // generated entirely from this real Claims fetch, never from the
+  // separate OpenAI-backed AI Report above. An honest empty state shows
+  // when no active claim exists for this symbol yet.
+  const [claims, setClaims] = useState([]);
+  const [claimsError, setClaimsError] = useState("");
 
   const { watchlist, toggleTicker } = useWatchlist();
 
@@ -119,6 +126,8 @@ export default function AiAnalysisScreen() {
             setAiNotice("");
             setAiLastUpdated("");
             setComparisonRows([]);
+            setClaims([]);
+            setClaimsError("");
             setErrorMessage(quoteData.error || "Unable to load live stock analysis from Finnhub right now.");
             setStatusMessage("Live market data request failed.");
             return;
@@ -138,7 +147,10 @@ export default function AiAnalysisScreen() {
           setStatusMessage(quoteData.quote?.companyDescription ? "Live market data loaded" : "Live market data loaded");
 
           const eventHint = quoteData.news?.[0]?.headline || `${normalizedTicker} earnings`;
-          const [aiResponse, compareResponse, altResponse, intelligenceResponse] = await Promise.allSettled([
+          // Phase X9 — Part 6, Performance Monitoring. Real elapsed time
+          // for the real AI analysis call — reported fire-and-forget.
+          const aiCallStart = performance.now();
+          const [aiResponse, compareResponse, altResponse, intelligenceResponse, claimsResponse] = await Promise.allSettled([
             analysisApi.analyze({
                 symbol: normalizedTicker,
                 context: {
@@ -155,10 +167,18 @@ export default function AiAnalysisScreen() {
             analysisApi.compare(normalizedTicker),
             altDataApi.getSummary(normalizedTicker),
             intelligenceApi.analyze({ event: eventHint, symbol: normalizedTicker }),
+            claimsApi.listBySymbol(normalizedTicker, { limit: 50 }),
           ]);
+          performanceMetricsApi.recordClientTiming("aiResponse", performance.now() - aiCallStart).catch(() => {});
 
-          const aiData = aiResponse.status === "fulfilled" ? aiResponse.value || {} : { error: aiResponse.reason?.message };
-          const compareData = compareResponse.status === "fulfilled" ? compareResponse.value || {} : { error: compareResponse.reason?.message };
+          // Phase X5 — Part 7, Private Beta Polish. Raw rejection messages
+          // are logged for diagnostics, never carried into state that
+          // reaches an investor's screen — see the friendly-only fallbacks
+          // below (no more `X.error ||` leaking a caught error.message).
+          if (aiResponse.status === "rejected") logError("AI analysis request failed", aiResponse.reason);
+          if (compareResponse.status === "rejected") logError("Comparison request failed", compareResponse.reason);
+          const aiData = aiResponse.status === "fulfilled" ? aiResponse.value || {} : {};
+          const compareData = compareResponse.status === "fulfilled" ? compareResponse.value || {} : {};
 
           if (isMounted) {
             if (aiData.analysis) {
@@ -179,8 +199,8 @@ export default function AiAnalysisScreen() {
               }
             } else {
               setAiReport(null);
-              setAiNotice(aiData.error || "AI analysis is temporarily unavailable. Please try again shortly.");
-              setAiError(aiData.error || "OpenAI analysis failed to complete.");
+              setAiNotice("AI analysis is temporarily unavailable. Please try again shortly.");
+              setAiError("AI analysis didn't complete this time — your data isn't affected.");
               setAiLastUpdated("");
               setCommittee(null);
               setCio(null);
@@ -201,7 +221,7 @@ export default function AiAnalysisScreen() {
               setComparisonError("");
             } else {
               setComparisonRows([]);
-              setComparisonError(compareData.error || "Comparison data is unavailable right now.");
+              setComparisonError("Comparison data is unavailable right now.");
             }
 
             const altResult = altResponse;
@@ -210,7 +230,8 @@ export default function AiAnalysisScreen() {
               setAltSignalsError("");
             } else {
               setAltSignals(aiData.analysis?.alternativeDataSignals || null);
-              setAltSignalsError(altResult?.reason?.message || "Alternative data feeds are temporarily unavailable.");
+              if (altResult?.reason) logError("Alternative data feeds request failed", altResult.reason);
+              setAltSignalsError("Alternative data feeds are temporarily unavailable.");
             }
 
             const intelResult = intelligenceResponse;
@@ -219,7 +240,17 @@ export default function AiAnalysisScreen() {
               setIntelligenceError("");
             } else {
               setIntelligenceReport(null);
-              setIntelligenceError(intelResult?.reason?.message || "Intelligence engine is temporarily unavailable.");
+              if (intelResult?.reason) logError("Intelligence engine request failed", intelResult.reason);
+              setIntelligenceError("Intelligence engine is temporarily unavailable.");
+            }
+
+            if (claimsResponse.status === "fulfilled") {
+              setClaims(claimsResponse.value?.claims || []);
+              setClaimsError("");
+            } else {
+              setClaims([]);
+              logError("Claims request failed", claimsResponse.reason);
+              setClaimsError("Claims are temporarily unavailable for this symbol.");
             }
           }
         }
@@ -243,10 +274,12 @@ export default function AiAnalysisScreen() {
           setAltSignalsError("Alternative data feeds are temporarily unavailable.");
           setIntelligenceReport(null);
           setIntelligenceError("Intelligence engine is temporarily unavailable.");
+          setClaims([]);
+          setClaimsError("Claims are temporarily unavailable for this symbol.");
           setCommittee(null);
           setCio(null);
           setCommitteeError("Investment committee is temporarily unavailable.");
-          setErrorMessage(error?.message || "Unable to contact the analysis service.");
+          setErrorMessage("Unable to contact the analysis service.");
           setStatusMessage("Live market data request failed.");
         }
       } finally {
@@ -284,9 +317,17 @@ export default function AiAnalysisScreen() {
   const marketOpportunities = marketImpact?.marketOpportunities || [];
   const finalRating = aiReport?.investmentRating || aiReport?.finalRating || "Hold";
   const isPartialReport = Boolean(aiReport && aiReport.source && aiReport.source !== "openai");
+  // Phase UI-INTEGRATION-001 — presentation-only pick of the
+  // highest-confidence open Claim as "current belief," same rule used by
+  // StockSidePanel's Current Platform View. Never computed intelligence,
+  // just a real-field sort over the one real fetch above.
+  const OPEN_CLAIM_STATUSES = ["DRAFT", "ACTIVE", "STRENGTHENING", "WEAKENING", "CONTESTED"];
+  const openClaims = claims.filter((claim) => OPEN_CLAIM_STATUSES.includes(claim.status));
+  const currentBeliefClaim = [...openClaims].sort((a, b) => (b.confidence ?? -1) - (a.confidence ?? -1))[0] || null;
   const sectionTabs = [
     { id: "ai-overview", label: "Overview" },
     { id: "ai-report", label: "AI Report" },
+    { id: "ai-claims", label: "Claims-Based Analysis" },
     { id: "ai-impact", label: "Market Impact" },
     { id: "ai-alt", label: "Alt Data" },
     { id: "ai-intel", label: "Intelligence" },
@@ -369,14 +410,21 @@ export default function AiAnalysisScreen() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Recommendation" subtitle="Analyst posture" icon="▲" className="screen-card">
+        {/* Phase E3.5 — this card surfaces Finnhub's third-party Wall
+            Street analyst consensus (buy/hold/sell counts), not an
+            ImpactOne-generated recommendation. ImpactOne's own AI
+            recommendations live on the Recommendations screen
+            (RecommendationCard, backed by the autonomous recommendation
+            engine + committee). Title/copy renamed to remove any
+            implication these are the same thing. */}
+        <SectionCard title="Wall Street Analyst Consensus" subtitle="Third-party data — not an ImpactOne recommendation" icon="▲" className="screen-card">
           <div className="score-card">
             <div className={`score-card__recommendation ${recommendation?.label ? recommendation.label.toLowerCase().replace(/\s+/g, "-") : "hold"}`}>
               {recommendation?.label || "Hold"}
             </div>
-            <div className="company-description"><SafeValue value={recommendation?.reason || "Recommendation data is being loaded."} /></div>
+            <div className="company-description"><SafeValue value={recommendation?.reason || "Analyst consensus data is being loaded."} /></div>
             <div className="company-description subtle"><SafeValue value={recommendation?.details || "-"} /></div>
-            <div className="company-description subtle">Trend: <SafeValue value={recommendationTrend?.direction || "Unknown"} /></div>
+            <div className="company-description subtle">Consensus trend: <SafeValue value={recommendationTrend?.direction || "Unknown"} /></div>
             <div className="company-description subtle"><SafeValue value={recommendationTrend?.summary || "-"} /></div>
           </div>
         </SectionCard>
@@ -393,8 +441,17 @@ export default function AiAnalysisScreen() {
           )}
         </SectionCard>
 
+        {/* Phase X3 — Chart Integration. This 30-day glance stays as a
+            lightweight preview (pre-existing, unchanged), but the real
+            professional candlestick chart is never duplicated here — it
+            opens the same shared Side Analysis Panel every other screen
+            uses (StockSidePanel/AdvancedChart), the single source of
+            truth per CHART_EXTENSION_API.md. */}
         <SectionCard title="Price chart" subtitle="30-day daily close" icon="◣" className="screen-card">
           <PriceChart points={chart} />
+          <button type="button" className="ghost-button" onClick={() => openSymbolPanel(ticker)} style={{ marginTop: 10 }}>
+            Open full chart &amp; analysis
+          </button>
         </SectionCard>
 
         <SectionCard title="Recent news" subtitle="Latest company coverage" icon="◍" className="screen-card">
@@ -473,6 +530,81 @@ export default function AiAnalysisScreen() {
           </div>
         ) : (
           <div className="company-description"><SafeValue value={aiNotice || "The AI report will appear here once the analysis completes."} /></div>
+        )}
+      </SectionCard>
+      </div>
+
+      <div id="ai-claims" className="analysis-section-block">
+      {/* Phase PRODUCT-001 — AI Analysis answers exactly one question:
+          "Explain everything." The required report order is Executive
+          Summary, Why this matters, Evidence, Counter evidence, Portfolio
+          impact, Possible outcomes, Confidence, Unknowns, Things to
+          monitor next — generated entirely from the real Claim contract
+          above, never from the separate OpenAI-backed AI Report, and
+          never an unsupported conclusion: every field below is a real
+          Claim field or an honest "not yet available" state. Unknowns
+          reuses the Claim's real `assumptions` (what this belief is
+          resting on that hasn't been independently confirmed); Things To
+          Monitor Next reuses the real `invalidationConditions` — no new
+          fields invented for this renaming. */}
+      <SectionCard title="Claims-Based Analysis" subtitle="Generated from the platform's real Claims — not a second AI opinion" icon="◇" className="screen-card">
+        {claimsError ? (
+          <p className="company-description">{claimsError}</p>
+        ) : currentBeliefClaim ? (
+          <div className="ai-report">
+            <div className="ai-report__header">
+              <div className={`score-card__recommendation ${currentBeliefClaim.expectedDirection === "BULLISH" ? "buy" : currentBeliefClaim.expectedDirection === "BEARISH" ? "sell" : "hold"}`}>
+                {currentBeliefClaim.expectedDirection}
+              </div>
+              <div className="ai-report__score">
+                {Number.isFinite(currentBeliefClaim.confidence) ? `Confidence ${currentBeliefClaim.confidence}/100` : "Confidence not yet available"}
+              </div>
+            </div>
+            <div className="ai-report__grid">
+              <div>
+                <h4>Executive Summary</h4>
+                <div className="company-description">{currentBeliefClaim.plainLanguageStatement || currentBeliefClaim.statement}</div>
+              </div>
+              <div>
+                <h4>Why this matters</h4>
+                <p className="company-description">{currentBeliefClaim.statement}</p>
+                <p className="company-description subtle">Status: {currentBeliefClaim.status}</p>
+              </div>
+              <div>
+                <h4>Evidence</h4>
+                <SafeList value={(currentBeliefClaim.evidence || []).map((entry) => entry.observedFact)} fallback="No real supporting evidence recorded yet." />
+              </div>
+              <div>
+                <h4>Counter evidence</h4>
+                <SafeList value={(currentBeliefClaim.counterEvidence || []).map((entry) => entry.observedFact)} fallback="No real counter-evidence recorded yet." />
+              </div>
+              <div>
+                <h4>Portfolio impact</h4>
+                <p className="company-description">{currentBeliefClaim.portfolioImpact ? JSON.stringify(currentBeliefClaim.portfolioImpact) : "No real portfolio impact computed for this Claim yet."}</p>
+              </div>
+              <div>
+                <h4>Possible outcomes</h4>
+                <p className="company-description">Scenario preview not yet available — the Scenario Engine is architecture-only today.</p>
+              </div>
+              <div>
+                <h4>Confidence</h4>
+                <p className="company-description">
+                  {Number.isFinite(currentBeliefClaim.confidence) ? `${currentBeliefClaim.confidence}/100` : "Not yet available."}
+                  {Number.isFinite(currentBeliefClaim.probability) ? ` · Probability ${currentBeliefClaim.probability}%` : ""}
+                </p>
+              </div>
+              <div>
+                <h4>Unknowns</h4>
+                <SafeList value={currentBeliefClaim.assumptions || []} fallback="No assumptions recorded for this Claim yet." />
+              </div>
+              <div>
+                <h4>Things to monitor next</h4>
+                <SafeList value={currentBeliefClaim.invalidationConditions || []} fallback="No invalidation conditions recorded for this Claim yet." />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="company-description">No active Claim exists for this symbol yet — a Claims-based report will appear once one forms.</p>
         )}
       </SectionCard>
       </div>

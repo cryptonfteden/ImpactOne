@@ -17,8 +17,8 @@ async function listRecommendations(req, res, next) {
     const limit = req.query.limit ? Number(req.query.limit) : undefined;
 
     const recommendations = status || symbol
-      ? await autonomousRecommendationRepository.listAll({ status, symbol, limit })
-      : await autonomousRecommendationRepository.listActive({ limit });
+      ? await autonomousRecommendationRepository.listAll({ status, symbol, limit, betaUserId: req.betaUserId })
+      : await autonomousRecommendationRepository.listActive({ limit, betaUserId: req.betaUserId });
 
     res.json({ recommendations });
   } catch (error) {
@@ -100,7 +100,7 @@ async function submitRecommendationFeedback(req, res, next) {
       return res.status(404).json({ error: "Recommendation not found." });
     }
 
-    const feedback = await autonomousRecommendationRepository.createFeedback({ recommendationId: req.params.id, feedbackType });
+    const feedback = await autonomousRecommendationRepository.createFeedback({ recommendationId: req.params.id, feedbackType, betaUserId: req.betaUserId });
     res.status(201).json(feedback);
   } catch (error) {
     handleKnownError(error, res, next);

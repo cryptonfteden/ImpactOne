@@ -7,12 +7,20 @@ const DEFAULT_BENCHMARK_SYMBOL = "SPY";
 // All raw Prisma access lives in this file. Service layers describe *what*
 // should happen; this file is the only place that knows *how* it's stored.
 
-async function findDefaultPortfolio() {
+// Phase H2 — betaUserId is optional. When present, scopes the lookup to
+// that beta user's own portfolio, isolated from every other user's.
+// When absent, behaves exactly as before this phase (the pre-H2 global
+// singleton, matched by name) — required for backward compatibility with
+// every existing call site and test.
+async function findDefaultPortfolio(betaUserId) {
   const prisma = getPrismaClient();
+  if (betaUserId) {
+    return prisma.portfolio.findFirst({ where: { betaUserId } });
+  }
   return prisma.portfolio.findFirst({ where: { name: DEFAULT_PORTFOLIO_NAME } });
 }
 
-async function createDefaultPortfolio() {
+async function createDefaultPortfolio(betaUserId) {
   const prisma = getPrismaClient();
   return prisma.portfolio.create({
     data: {
@@ -20,6 +28,7 @@ async function createDefaultPortfolio() {
       cashBalance: DEFAULT_STARTING_CAPITAL,
       startingCapital: DEFAULT_STARTING_CAPITAL,
       benchmarkSymbol: DEFAULT_BENCHMARK_SYMBOL,
+      betaUserId: betaUserId || null,
     },
   });
 }

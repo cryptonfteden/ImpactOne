@@ -173,11 +173,16 @@ test("getPerformanceDelta computes a real value change against yesterday's snaps
     benchmarkReturnPct: null,
   });
 
-  await withMockedQuote(200, async () => {
+  // Phase X7-RC — root-caused a long-standing, repeatedly-documented flake
+  // here (see ROOT_CAUSE_ANALYSIS.md #9): getPerformanceDelta() itself
+  // calls getPortfolioSummary(), which marks AMZN to market with its own
+  // real, live Finnhub quote — previously unmocked, so this assertion
+  // drifted whenever the real market moved between order placement and
+  // this read. The mocked quote must stay in scope for both calls.
+  const delta = await withMockedQuote(200, async () => {
     await portfolioEngineService.placeOrder({ symbol: "AMZN", side: "BUY", quantity: 10 });
+    return portfolioEngineService.getPerformanceDelta();
   });
-
-  const delta = await portfolioEngineService.getPerformanceDelta();
   assert.equal(delta.hasComparison, true);
   assert.equal(delta.totalValue, 100000);
   assert.ok(Array.isArray(delta.changes));

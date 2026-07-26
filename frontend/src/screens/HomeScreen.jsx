@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
-import { LoadingSpinner } from "../components/ui";
-import { homeApi } from "../services/api";
+import { LoadingSpinner, EmptyState } from "../components/ui";
+import { homeApi, priceAlertsApi } from "../services/api";
 import useWatchlist from "../hooks/useWatchlist";
 import { logError } from "../utils/errorHandling";
 import { useI18n } from "../i18n/I18nProvider";
@@ -63,6 +63,26 @@ export default function HomeScreen({ onNavigate }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTimelineSection, setActiveTimelineSection] = useState("today");
+  // Phase H3 — Command Center: real active/recently-triggered price alerts,
+  // isolated per beta user (X-Beta-User-Id, same as every H2/H3 request).
+  // Best-effort: this card degrades to empty rather than blocking the rest
+  // of Home if a beta user isn't resolved or the request fails.
+  const [alerts, setAlerts] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    priceAlertsApi
+      .list()
+      .then((result) => {
+        if (!cancelled) setAlerts(result.alerts || []);
+      })
+      .catch(() => {
+        // Silent — Active Alerts is additive, never a blocking error on Home.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const TIMELINE_SECTIONS = [
     { key: "overnight", label: t("home.timeline.overnight") },
@@ -366,10 +386,50 @@ export default function HomeScreen({ onNavigate }) {
               </span>
             ))}
           </div>
+          {/* Phase X5 — Part 1 (Single Product Entry). Today is the
+              landing page; this is the one obvious next step from it
+              into the two screens that act on what Today reports —
+              never a dead end. */}
+          <div className="opportunity-item__actions">
+            <button type="button" className="ghost-button" onClick={() => onNavigate?.("Decision Center")}>
+              Review today's decisions
+            </button>
+            <button type="button" className="ghost-button" onClick={() => onNavigate?.("Portfolio")}>
+              Open portfolio
+            </button>
+          </div>
         </div>
       </section>
 
       {cardOrder.map((key) => cardsByKey[key]).filter(Boolean)}
+
+      {/* Phase H3 — Command Center priority: what happened / why it
+          matters / what to watch / portfolio impact are all already
+          covered by the adaptive cards above; Active Alerts closes out
+          the mission's explicit priority list. */}
+      <SectionCard title="Active Alerts" icon="◉" subtitle="Live price alerts on your watchlist folders" className="screen-card home-card">
+        {alerts.filter((alert) => alert.status !== "INACTIVE").length ? (
+          <div className="folder-card__symbols">
+            {alerts
+              .filter((alert) => alert.status !== "INACTIVE")
+              .slice(0, 5)
+              .map((alert) => (
+                <div key={alert.id} className={`alert-row${alert.status === "TRIGGERED" ? " alert-row--triggered" : ""}`}>
+                  <span className={alert.status === "TRIGGERED" ? "pill opportunity" : "pill monitor"}>{alert.status}</span>
+                  <span>
+                    <strong>{alert.symbol}</strong> {alert.direction === "ABOVE" ? "rises above" : "falls below"}{" "}
+                    <span className="alert-row__price">${Number(alert.targetPrice).toFixed(2)}</span>
+                  </span>
+                  <span className="company-description subtle">
+                    {alert.currentPrice !== null ? <span className="alert-row__price">${alert.currentPrice.toFixed(2)}</span> : "—"}
+                  </span>
+                </div>
+              ))}
+          </div>
+        ) : (
+          <EmptyState message="No active price alerts yet. Set one from Watchlist Folders." />
+        )}
+      </SectionCard>
     </div>
   );
 }

@@ -8,16 +8,25 @@ async function createRecommendation(data) {
   return prisma.recommendation.create({ data });
 }
 
-async function listActive({ limit = 50 } = {}) {
+// Phase H2 — betaUserId is optional. Recommendations remain globally
+// generated (per the G1 decision), so the scheduled engine never sets
+// this field; passing it here is a no-op filter until a future per-user
+// generation path exists (F2's documented Option 2, not built this
+// phase). Omitted, this is the exact pre-H2 global-list behavior.
+async function listActive({ limit = 50, betaUserId } = {}) {
   const prisma = getPrismaClient();
+  const where = { status: "ACTIVE" };
+  if (betaUserId) {
+    where.betaUserId = betaUserId;
+  }
   return prisma.recommendation.findMany({
-    where: { status: "ACTIVE" },
+    where,
     orderBy: { createdAt: "desc" },
     take: limit,
   });
 }
 
-async function listAll({ status, symbol, limit = 100 } = {}) {
+async function listAll({ status, symbol, limit = 100, betaUserId } = {}) {
   const prisma = getPrismaClient();
   const where = {};
   if (status) {
@@ -25,6 +34,9 @@ async function listAll({ status, symbol, limit = 100 } = {}) {
   }
   if (symbol) {
     where.symbol = symbol;
+  }
+  if (betaUserId) {
+    where.betaUserId = betaUserId;
   }
   return prisma.recommendation.findMany({
     where,
@@ -104,9 +116,12 @@ async function getDecisionTraceByRecommendationId(recommendationId) {
 // no code path that can alter or remove a user's past feedback. A user
 // changing their mind creates a new row rather than editing the old one,
 // preserving the full evidence trail.
-async function createFeedback({ recommendationId, feedbackType }) {
+// Phase H2 — betaUserId optional, attributes this feedback to a specific
+// beta user without changing the create-only, never-updated contract
+// above. Omitted, behaves exactly as before this phase.
+async function createFeedback({ recommendationId, feedbackType, betaUserId }) {
   const prisma = getPrismaClient();
-  return prisma.recommendationFeedback.create({ data: { recommendationId, feedbackType } });
+  return prisma.recommendationFeedback.create({ data: { recommendationId, feedbackType, betaUserId: betaUserId || null } });
 }
 
 async function listFeedbackForRecommendation(recommendationId) {

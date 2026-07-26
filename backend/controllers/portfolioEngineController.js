@@ -9,7 +9,7 @@ function handleKnownError(error, res, next) {
 
 async function getPortfolioSummary(req, res, next) {
   try {
-    const summary = await portfolioEngineService.getPortfolioSummary();
+    const summary = await portfolioEngineService.getPortfolioSummary(req.betaUserId);
     res.json(summary);
   } catch (error) {
     handleKnownError(error, res, next);
@@ -19,7 +19,7 @@ async function getPortfolioSummary(req, res, next) {
 async function placeOrder(req, res, next) {
   try {
     const { symbol, side, quantity, sector, assetType } = req.body || {};
-    const result = await portfolioEngineService.placeOrder({ symbol, side, quantity, sector, assetType });
+    const result = await portfolioEngineService.placeOrder({ symbol, side, quantity, sector, assetType, betaUserId: req.betaUserId });
     res.status(201).json(result);
   } catch (error) {
     handleKnownError(error, res, next);
@@ -29,7 +29,7 @@ async function placeOrder(req, res, next) {
 async function getTradeHistory(req, res, next) {
   try {
     const limit = req.query.limit ? Number(req.query.limit) : undefined;
-    const trades = await portfolioEngineService.getTradeHistory({ limit });
+    const trades = await portfolioEngineService.getTradeHistory({ limit, betaUserId: req.betaUserId });
     res.json({ trades });
   } catch (error) {
     handleKnownError(error, res, next);
@@ -39,7 +39,7 @@ async function getTradeHistory(req, res, next) {
 async function getTransactionLog(req, res, next) {
   try {
     const limit = req.query.limit ? Number(req.query.limit) : undefined;
-    const transactions = await portfolioEngineService.getTransactionLog({ limit });
+    const transactions = await portfolioEngineService.getTransactionLog({ limit, betaUserId: req.betaUserId });
     res.json({ transactions });
   } catch (error) {
     handleKnownError(error, res, next);
@@ -49,7 +49,7 @@ async function getTransactionLog(req, res, next) {
 async function getPerformanceTimeline(req, res, next) {
   try {
     const limit = req.query.limit ? Number(req.query.limit) : undefined;
-    const timeline = await portfolioEngineService.getPerformanceTimeline({ limit });
+    const timeline = await portfolioEngineService.getPerformanceTimeline({ limit, betaUserId: req.betaUserId });
     res.json({ timeline });
   } catch (error) {
     handleKnownError(error, res, next);
@@ -58,7 +58,7 @@ async function getPerformanceTimeline(req, res, next) {
 
 async function capturePerformanceSnapshot(req, res, next) {
   try {
-    const snapshot = await portfolioEngineService.capturePerformanceSnapshot();
+    const snapshot = await portfolioEngineService.capturePerformanceSnapshot(req.betaUserId);
     res.status(201).json(snapshot);
   } catch (error) {
     handleKnownError(error, res, next);
@@ -67,7 +67,7 @@ async function capturePerformanceSnapshot(req, res, next) {
 
 async function getPerformanceDelta(req, res, next) {
   try {
-    const delta = await portfolioEngineService.getPerformanceDelta();
+    const delta = await portfolioEngineService.getPerformanceDelta(req.betaUserId);
     res.json(delta);
   } catch (error) {
     handleKnownError(error, res, next);
@@ -76,7 +76,7 @@ async function getPerformanceDelta(req, res, next) {
 
 async function resetPortfolio(req, res, next) {
   try {
-    const summary = await portfolioEngineService.resetPortfolio();
+    const summary = await portfolioEngineService.resetPortfolio(req.betaUserId);
     res.json(summary);
   } catch (error) {
     handleKnownError(error, res, next);

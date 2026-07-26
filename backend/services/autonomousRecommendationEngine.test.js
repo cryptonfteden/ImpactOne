@@ -9,6 +9,7 @@ const portfolioEngineService = require("./portfolioEngineService");
 const autonomousRecommendationRepository = require("./autonomousRecommendationRepository");
 const autonomousRecommendationEngine = require("./autonomousRecommendationEngine");
 const intelligenceCommitteeService = require("./intelligenceCommittee/intelligenceCommitteeService");
+const priceHistoryProvider = require("./intelligence/priceHistoryProvider");
 const { getPrismaClient } = require("../db/prismaClient");
 
 // Sprint 41 — Committee Unification: a realistic convene() fixture,
@@ -51,6 +52,24 @@ const DEFAULT_COMMITTEE_DEBATE = {
     whyRecommendationMayBeWrong: [],
     isVerdict: false,
   },
+  // Phase D1 — a minimal, realistic 10-category evidence matrix (matches
+  // evidenceMatrixService.MATRIX_CATEGORIES), standing in for a real
+  // buildEvidenceMatrix() call.
+  evidenceMatrix: {
+    symbol: "NVDA",
+    generatedAt: new Date().toISOString(),
+    categories: ["NEWS", "SOCIAL", "INSTITUTIONS", "ANALYSTS", "OPTIONS", "TECHNICAL", "SENTIMENT", "COT", "FUNDAMENTALS", "RESEARCH"].map((category) => ({
+      category,
+      stance: "UNAVAILABLE",
+      confidence: 0,
+      uncertainty: 100,
+      sourceCount: 0,
+      newestSource: null,
+      strongestCounterEvidence: null,
+      reason: "Test fixture.",
+    })),
+    isVerdict: false,
+  },
 };
 
 // A neutral, "Wait"-tier ranking entry (conviction ~60) so filler symbols in
@@ -75,6 +94,7 @@ function withMocks({ rankings, feed = [], macroRegime = { recessionRisk: "low", 
   const originalSummary = portfolioEngineService.getPortfolioSummary;
   const originalPlaceOrder = portfolioEngineService.placeOrder;
   const originalConvene = intelligenceCommitteeService.convene;
+  const originalGetDailyBars = priceHistoryProvider.getDailyBars;
 
   let placeOrderCalls = 0;
   portfolioEngineService.placeOrder = async () => {
@@ -89,6 +109,9 @@ function withMocks({ rankings, feed = [], macroRegime = { recessionRisk: "low", 
   });
   portfolioEngineService.getPortfolioSummary = async () => portfolioSummary;
   intelligenceCommitteeService.convene = async () => committeeDebate;
+  // Phase D1 — never hit the real Yahoo endpoint in this suite; the regime
+  // classifier's own tests cover its real logic in isolation.
+  priceHistoryProvider.getDailyBars = async () => [];
 
   return Promise.resolve(run(() => placeOrderCalls))
     .finally(() => {
@@ -96,6 +119,7 @@ function withMocks({ rankings, feed = [], macroRegime = { recessionRisk: "low", 
       portfolioEngineService.getPortfolioSummary = originalSummary;
       portfolioEngineService.placeOrder = originalPlaceOrder;
       intelligenceCommitteeService.convene = originalConvene;
+      priceHistoryProvider.getDailyBars = originalGetDailyBars;
     });
 }
 
@@ -260,6 +284,13 @@ test("runOnce generates a structured explanation, bull/base/bear scenarios, a tr
       assert.ok(!("action" in trace.committeeDebate) && !("decision" in trace.committeeDebate), "the trace's committee debate must never carry a verdict field");
       assert.equal(nvda.explanation.committeeDebate.committee.agreement.direction, "SUPPORTIVE", "committeeDebate is also embedded in explanation for direct UI consumption");
       assert.ok(Number.isFinite(trace.confidenceCalculation.uncertainty), "uncertainty is derived from the real unified committee's consensus, never left undefined");
+
+      // --- Phase D1: regime snapshot honestly UNKNOWN with no real price history, evidence matrix snapshot captured ---
+      assert.equal(trace.regimeSnapshot.regime, "UNKNOWN", "no real SPY history was available in this test — never fabricate a regime");
+      assert.equal(trace.regimeSnapshot.rulesetVersion, "d1-v1");
+      assert.ok(trace.evidenceMatrixSnapshot, "the real evidence matrix built for the committee must be captured alongside the trace");
+      assert.equal(trace.evidenceMatrixSnapshot.categories.length, 10);
+      assert.equal("evidenceMatrix" in trace.committeeDebate, false, "committeeDebate's own shape must stay exactly {committee, cio}, unchanged");
 
       assert.equal(trace.evidenceReferences.length, 2, "one canonical envelope per matched event");
       trace.evidenceReferences.forEach((envelope) => {

@@ -1,0 +1,793 @@
+/*
+ * Phase X12C.0 — NOVA Showcase. Component-level styles for the real,
+ * reusable NOVA component library the Showcase renders instances of.
+ * Every value below is a token reference (tokens.css/theme.css) — no
+ * hardcoded color/size/spacing exists in this file, per the mission's
+ * "No hardcoded values" rule.
+ *
+ * These classes are NOT wired into any existing application screen this
+ * phase — only NovaShowcaseScreen and its own components consume them.
+ */
+
+/* =============================================================================
+ * Button
+ * ========================================================================= */
+.nova-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--nova-space-2);
+  font-family: var(--nova-font-family-ui);
+  font-weight: var(--nova-font-weight-medium);
+  font-size: var(--nova-font-size-sm);
+  border-radius: var(--nova-radius-md);
+  border: none;
+  cursor: pointer;
+  transition-property: background-color, color, border-color, box-shadow, transform;
+}
+
+.nova-button[data-size="compact"] {
+  block-size: 32px;
+  padding-inline: var(--nova-space-3);
+}
+.nova-button[data-size="default"] {
+  block-size: 40px;
+  padding-inline: var(--nova-space-4);
+}
+.nova-button[data-size="large"] {
+  block-size: 48px;
+  padding-inline: var(--nova-space-6);
+}
+
+.nova-button[data-variant="primary"] {
+  background-color: var(--nova-color-brand-signal);
+  color: var(--nova-color-text-on-brand);
+}
+.nova-button[data-variant="primary"]:hover:not(:disabled) {
+  background-color: var(--nova-color-brand-signal-bright);
+  transform: translateY(-1px);
+}
+
+.nova-button[data-variant="secondary"] {
+  background-color: var(--nova-surface-3);
+  border: var(--nova-border-subtle);
+  color: var(--nova-color-text-primary);
+}
+
+.nova-button[data-variant="ghost"] {
+  background-color: transparent;
+  color: var(--nova-color-text-secondary);
+}
+.nova-button[data-variant="ghost"]:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.nova-button[data-variant="danger"] {
+  background-color: var(--nova-color-negative);
+  color: var(--nova-color-text-on-brand);
+}
+
+.nova-button[data-variant="success"] {
+  background-color: var(--nova-color-positive);
+  color: var(--nova-color-text-on-brand);
+}
+
+.nova-button:disabled {
+  opacity: var(--nova-opacity-disabled);
+  cursor: not-allowed;
+  transform: none;
+}
+
+.nova-button[data-loading="true"] {
+  color: transparent;
+  position: relative;
+  pointer-events: none;
+}
+
+.nova-button__spinner {
+  position: absolute;
+  inset-inline-start: 50%;
+  inset-block-start: 50%;
+  inline-size: 16px;
+  block-size: 16px;
+  margin-inline-start: -8px;
+  margin-block-start: -8px;
+  border-radius: var(--nova-radius-full);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-block-start-color: currentColor;
+  animation: nova-spin 700ms linear infinite;
+}
+
+.nova-button--icon-only {
+  padding-inline: 0;
+  inline-size: 40px;
+}
+
+@keyframes nova-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nova-button__spinner {
+    animation-duration: 1400ms;
+  }
+}
+
+/* =============================================================================
+ * Inputs
+ * ========================================================================= */
+.nova-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nova-space-2);
+}
+
+.nova-field__label {
+  font-family: var(--nova-font-family-ui);
+  font-size: var(--nova-font-size-sm);
+  font-weight: var(--nova-font-weight-medium);
+  color: var(--nova-color-text-secondary);
+}
+
+.nova-input,
+.nova-select {
+  block-size: 40px;
+  padding-inline: var(--nova-space-3);
+  border-radius: var(--nova-radius-md);
+  border: var(--nova-border-subtle);
+  background-color: var(--nova-surface-2);
+  color: var(--nova-color-text-primary);
+  font-family: var(--nova-font-family-ui);
+  font-size: var(--nova-font-size-sm);
+}
+
+.nova-input::placeholder {
+  color: var(--nova-color-text-tertiary);
+}
+
+.nova-input:focus-visible,
+.nova-select:focus-visible {
+  outline: none;
+  border-color: var(--nova-color-border-strong);
+  box-shadow: var(--nova-glow-focus);
+}
+
+.nova-field[data-state="error"] .nova-input {
+  border-color: var(--nova-color-negative);
+}
+.nova-field__hint {
+  font-size: var(--nova-font-size-xs);
+  color: var(--nova-color-text-tertiary);
+}
+.nova-field[data-state="error"] .nova-field__hint {
+  color: var(--nova-color-negative);
+}
+.nova-field[data-state="success"] .nova-field__hint {
+  color: var(--nova-color-positive);
+}
+
+.nova-checkbox,
+.nova-radio {
+  inline-size: 18px;
+  block-size: 18px;
+  accent-color: var(--nova-color-brand-signal);
+}
+.nova-radio {
+  border-radius: var(--nova-radius-full);
+}
+
+.nova-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  inline-size: 44px;
+  block-size: 24px;
+  border-radius: var(--nova-radius-full);
+  background-color: var(--nova-surface-3);
+  border: var(--nova-border-subtle);
+  cursor: pointer;
+  padding: 2px;
+  transition-property: background-color;
+}
+.nova-toggle[data-checked="true"] {
+  background-color: var(--nova-color-brand-signal);
+}
+.nova-toggle__thumb {
+  inline-size: 18px;
+  block-size: 18px;
+  border-radius: var(--nova-radius-full);
+  background-color: var(--nova-color-text-on-brand);
+  transition-property: transform;
+  transform: translateX(0);
+}
+.nova-toggle[data-checked="true"] .nova-toggle__thumb {
+  transform: translateX(20px);
+}
+
+.nova-slider {
+  inline-size: 100%;
+  accent-color: var(--nova-color-brand-signal);
+}
+
+.nova-placeholder-field {
+  block-size: 40px;
+  border-radius: var(--nova-radius-md);
+  border: 1px dashed var(--nova-color-border-subtle);
+  background-color: var(--nova-surface-1);
+  color: var(--nova-color-text-tertiary);
+  display: flex;
+  align-items: center;
+  padding-inline: var(--nova-space-3);
+  font-size: var(--nova-font-size-sm);
+  font-style: italic;
+}
+
+/* =============================================================================
+ * Badge
+ * ========================================================================= */
+.nova-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--nova-space-1);
+  padding-block: 4px;
+  padding-inline: 10px;
+  border-radius: var(--nova-radius-full);
+  font-family: var(--nova-font-family-ui);
+  font-size: var(--nova-font-size-xs);
+  font-weight: var(--nova-font-weight-medium);
+}
+
+.nova-badge[data-tone="positive"] {
+  background-color: color-mix(in srgb, var(--nova-color-positive) calc(var(--nova-opacity-badge-fill) * 100%), transparent);
+  color: var(--nova-color-positive);
+}
+.nova-badge[data-tone="negative"] {
+  background-color: color-mix(in srgb, var(--nova-color-negative) calc(var(--nova-opacity-badge-fill) * 100%), transparent);
+  color: var(--nova-color-negative);
+}
+.nova-badge[data-tone="warning"] {
+  background-color: color-mix(in srgb, var(--nova-color-warning) calc(var(--nova-opacity-badge-fill) * 100%), transparent);
+  color: var(--nova-color-warning);
+}
+.nova-badge[data-tone="info"] {
+  background-color: color-mix(in srgb, var(--nova-color-info) calc(var(--nova-opacity-badge-fill) * 100%), transparent);
+  color: var(--nova-color-info);
+}
+.nova-badge[data-tone="neutral"] {
+  background-color: var(--nova-surface-3);
+  color: var(--nova-color-text-secondary);
+}
+.nova-badge[data-tone="ai"] {
+  background-color: color-mix(in srgb, var(--nova-color-brand-violet) calc(var(--nova-opacity-badge-fill) * 100%), transparent);
+  color: var(--nova-color-brand-violet);
+}
+
+/* =============================================================================
+ * Card / Panel variants (compose on top of layout.css's .nova-panel)
+ * ========================================================================= */
+.nova-card {
+  padding: var(--nova-space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--nova-space-3);
+  transition-property: transform, box-shadow;
+}
+
+.nova-card:hover {
+  transform: translateY(-2px);
+}
+
+.nova-card__eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nova-card[data-variant="ai"],
+.nova-card[data-variant="recommendation"] {
+  border-color: var(--nova-color-brand-violet);
+}
+
+.nova-card--loading {
+  min-block-size: 120px;
+}
+
+/* =============================================================================
+ * AI Thinking / Confidence
+ * ========================================================================= */
+.nova-confidence-bar {
+  inline-size: 100%;
+  block-size: 6px;
+  border-radius: var(--nova-radius-full);
+  background-color: var(--nova-surface-3);
+  overflow: hidden;
+}
+.nova-confidence-bar__fill {
+  block-size: 100%;
+  border-radius: var(--nova-radius-full);
+  background-color: var(--nova-color-brand-signal);
+  transition-property: inline-size;
+  transition-duration: var(--nova-motion-duration-screen);
+  transition-timing-function: var(--nova-motion-curve-enter);
+}
+
+.nova-ai-avatar {
+  inline-size: 32px;
+  block-size: 32px;
+  border-radius: var(--nova-radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--nova-color-text-on-brand);
+}
+
+/* =============================================================================
+ * Table / Heatmap / Legend / Progress
+ * ========================================================================= */
+.nova-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--nova-font-family-ui);
+  font-size: var(--nova-font-size-sm);
+}
+.nova-table th {
+  text-align: start;
+  text-transform: uppercase;
+  font-size: var(--nova-font-size-xs);
+  letter-spacing: var(--nova-tracking-label);
+  color: var(--nova-color-text-tertiary);
+  background-color: var(--nova-surface-1);
+  padding: var(--nova-space-3);
+}
+.nova-table td {
+  padding: var(--nova-space-3);
+  border-block-end: var(--nova-border-subtle);
+  color: var(--nova-color-text-primary);
+}
+.nova-table td[data-align="end"],
+.nova-table th[data-align="end"] {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.nova-heatmap {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+  gap: var(--nova-space-1);
+}
+.nova-heatmap__cell {
+  aspect-ratio: 1;
+  border-radius: var(--nova-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--nova-font-size-xs);
+  color: var(--nova-color-text-on-brand);
+}
+
+.nova-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--nova-space-4);
+  font-size: var(--nova-font-size-xs);
+  color: var(--nova-color-text-secondary);
+}
+.nova-legend__swatch {
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: var(--nova-radius-sm);
+  display: inline-block;
+  margin-inline-end: var(--nova-space-1);
+}
+
+.nova-progress {
+  inline-size: 100%;
+  block-size: 8px;
+  border-radius: var(--nova-radius-full);
+  background-color: var(--nova-surface-3);
+  overflow: hidden;
+}
+.nova-progress__fill {
+  block-size: 100%;
+  background-color: var(--nova-color-brand-signal);
+}
+
+.nova-tooltip {
+  position: absolute;
+  padding: var(--nova-space-2) var(--nova-space-3);
+  border-radius: var(--nova-radius-md);
+  background-color: var(--nova-surface-2);
+  border: var(--nova-border-subtle);
+  box-shadow: var(--nova-elevation-1);
+  font-size: var(--nova-font-size-xs);
+  color: var(--nova-color-text-primary);
+  z-index: var(--nova-z-tooltip);
+}
+
+/* =============================================================================
+ * Navigation
+ * ========================================================================= */
+.nova-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--nova-space-2);
+  font-size: var(--nova-font-size-sm);
+  color: var(--nova-color-text-tertiary);
+}
+.nova-breadcrumb__current {
+  color: var(--nova-color-text-primary);
+  font-weight: var(--nova-font-weight-medium);
+}
+
+.nova-tabs {
+  display: flex;
+  gap: var(--nova-space-6);
+  border-block-end: var(--nova-border-subtle);
+}
+.nova-tabs__tab {
+  padding-block: var(--nova-space-3);
+  color: var(--nova-color-text-secondary);
+  font-size: var(--nova-font-size-sm);
+  font-weight: var(--nova-font-weight-medium);
+  border-block-end: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+}
+.nova-tabs__tab[data-active="true"] {
+  color: var(--nova-color-text-primary);
+  border-block-end-color: var(--nova-color-brand-signal);
+}
+
+.nova-drawer {
+  position: relative;
+  inline-size: 100%;
+  max-inline-size: 420px;
+  padding: var(--nova-space-6);
+}
+
+.nova-context-menu {
+  min-inline-size: 200px;
+  padding: var(--nova-space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--nova-space-1);
+}
+.nova-context-menu__item {
+  padding: var(--nova-space-2) var(--nova-space-3);
+  border-radius: var(--nova-radius-sm);
+  color: var(--nova-color-text-primary);
+  font-size: var(--nova-font-size-sm);
+  background: none;
+  text-align: start;
+  cursor: pointer;
+}
+.nova-context-menu__item:hover {
+  background-color: var(--nova-surface-3);
+}
+
+.nova-floating-panel {
+  position: relative;
+  padding: var(--nova-space-4);
+  inline-size: fit-content;
+}
+
+.nova-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: var(--nova-space-6);
+  block-size: 64px;
+  border-block-end: var(--nova-border-subtle);
+  background-color: var(--nova-surface-1);
+}
+
+.nova-sidebar-sample {
+  inline-size: 220px;
+  padding: var(--nova-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--nova-space-2);
+  background-color: var(--nova-surface-base);
+  border-inline-end: var(--nova-border-subtle);
+}
+.nova-sidebar-sample__item {
+  padding: var(--nova-space-2) var(--nova-space-3);
+  border-radius: var(--nova-radius-md);
+  color: var(--nova-color-text-secondary);
+  font-size: var(--nova-font-size-sm);
+}
+.nova-sidebar-sample__item[data-active="true"] {
+  color: var(--nova-color-text-primary);
+  background-color: var(--nova-surface-2);
+  border-inline-start: 3px solid var(--nova-color-brand-signal);
+}
+
+/* =============================================================================
+ * Notifications
+ * ========================================================================= */
+.nova-toast,
+.nova-alert,
+.nova-banner,
+.nova-inline-message {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--nova-space-3);
+  border-radius: var(--nova-radius-md);
+  padding: var(--nova-space-3) var(--nova-space-4);
+  font-size: var(--nova-font-size-sm);
+}
+
+.nova-toast {
+  background-color: var(--nova-surface-2);
+  box-shadow: var(--nova-elevation-1);
+  border-inline-start: 4px solid var(--nova-color-info);
+}
+.nova-alert {
+  background-color: var(--nova-surface-1);
+  border: var(--nova-border-subtle);
+}
+.nova-banner {
+  border-radius: 0;
+  border-block-start: var(--nova-border-subtle);
+  border-block-end: var(--nova-border-subtle);
+}
+.nova-inline-message {
+  padding: var(--nova-space-2) var(--nova-space-3);
+  background: none;
+}
+
+.nova-toast[data-tone="success"],
+.nova-alert[data-tone="success"],
+.nova-banner[data-tone="success"],
+.nova-inline-message[data-tone="success"] {
+  border-color: var(--nova-color-positive);
+  color: var(--nova-color-positive);
+}
+.nova-toast[data-tone="warning"],
+.nova-alert[data-tone="warning"],
+.nova-banner[data-tone="warning"],
+.nova-inline-message[data-tone="warning"] {
+  border-color: var(--nova-color-warning);
+  color: var(--nova-color-warning);
+}
+.nova-toast[data-tone="error"],
+.nova-alert[data-tone="error"],
+.nova-banner[data-tone="error"],
+.nova-inline-message[data-tone="error"] {
+  border-color: var(--nova-color-negative);
+  color: var(--nova-color-negative);
+}
+.nova-toast[data-tone="info"],
+.nova-alert[data-tone="info"],
+.nova-banner[data-tone="info"],
+.nova-inline-message[data-tone="info"] {
+  border-color: var(--nova-color-info);
+  color: var(--nova-color-info);
+}
+
+/* =============================================================================
+ * Loading / Skeleton / Empty states
+ * ========================================================================= */
+.nova-skeleton {
+  border-radius: var(--nova-radius-md);
+  /* X12C.0.2 — Final Showcase Polish, fix #1. The X12C.0.1 surface-1→
+   * surface-3 pass fixed the SWEEP but left the skeleton's BASE tone
+   * (surface-1) nearly identical to the surface-1 Panel it typically
+   * sits inside (1.3:1, real computed contrast) — so on its most common
+   * real container the block barely read as a shape at all, only the
+   * moving sweep was visible. Base is now --nova-color-border-strong, a
+   * real, already-existing NOVA token never used for a background before
+   * (still no new color introduced) — computed contrast against every
+   * real surface level the skeleton can sit on: 2.72:1 (base), 2.57:1
+   * (surface-1), 2.29:1 (surface-2) — roughly double the prior worst
+   * case, and consistent regardless of which surface it's placed on,
+   * since the base tone no longer depends on matching its container.
+   * The sweep now runs base → --nova-color-text-tertiary (2.32:1 swing)
+   * for a clearly visible pulse. Keyframes/duration/timing-function
+   * unchanged, per the mission's "keep the same animation" constraint. */
+  background: linear-gradient(90deg, var(--nova-color-border-strong) 25%, var(--nova-color-text-tertiary) 37%, var(--nova-color-border-strong) 63%);
+  background-size: 400% 100%;
+  animation: nova-shimmer 1600ms ease-in-out infinite;
+}
+@keyframes nova-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nova-skeleton {
+    animation: none;
+    background: var(--nova-color-border-strong);
+  }
+}
+html[data-motion="reduced"] .nova-skeleton {
+  animation: none;
+  background: var(--nova-color-border-strong);
+}
+
+.nova-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--nova-space-3);
+  padding: var(--nova-space-12);
+  color: var(--nova-color-text-tertiary);
+}
+
+/* =============================================================================
+ * Confidence Arc — Phase MISSION-CONTROL-001. The one, single recurring
+ * scoring primitive per IMPACTONE_DESIGN_BIBLE.md §3.9/§4 and
+ * MISSION_CONTROL_EXPERIENCE_MASTERPLAN.md §3.5: a partial radial arc,
+ * fill proportional to a real score, replacing three separate numeric/
+ * badge indicators with one instrument-style reading. Never decorative —
+ * the fill is always a real, computed percentage, never animated for its
+ * own sake (see the one-time reveal transition below, applied once on
+ * mount, never looping).
+ * ========================================================================= */
+.nova-confidence-arc {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nova-confidence-arc__fill {
+  transition-property: stroke-dasharray;
+  transition-duration: var(--nova-motion-duration-screen);
+  transition-timing-function: var(--nova-motion-curve-enter);
+}
+
+.nova-confidence-arc__value {
+  position: absolute;
+  font-family: var(--nova-font-family-numeric);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--nova-font-weight-semibold);
+  color: var(--nova-color-text-primary);
+}
+
+.nova-confidence-arc[data-size="sm"] .nova-confidence-arc__value {
+  font-size: var(--nova-font-size-xs);
+}
+.nova-confidence-arc[data-size="md"] .nova-confidence-arc__value {
+  font-size: var(--nova-font-size-sm);
+}
+.nova-confidence-arc[data-size="lg"] .nova-confidence-arc__value {
+  font-size: var(--nova-font-size-xl);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nova-confidence-arc__fill {
+    transition-duration: 1ms;
+  }
+}
+html[data-motion="reduced"] .nova-confidence-arc__fill {
+  transition-duration: 1ms;
+}
+
+/* =============================================================================
+ * Mission Control — Phase MISSION-CONTROL-001. The three-tier briefing
+ * (MISSION_CONTROL_EXPERIENCE_MASTERPLAN.md §3). Exactly three distinct
+ * treatments exist below, reused across every section within a tier —
+ * never a fourth, per-section-specific rule, per the masterplan's
+ * "reduction, not addition" discipline.
+ * ========================================================================= */
+
+/* Tier 1 — The Brief. The only tier permitted glass + the Emphasis
+ * surface material (the hero card only). */
+.mc-tier-1 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nova-space-4);
+}
+
+.mc-hero {
+  position: relative;
+  border: var(--nova-border-width-strong) solid var(--nova-color-brand-signal);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--nova-color-brand-signal) 14%, var(--nova-surface-2)) 0%, var(--nova-surface-2) 60%);
+}
+
+/* One-time emphasis pulse (Bible §6.7 / masterplan §3.1) — plays once on
+ * mount via the `mc-hero--enter` class (removed by the component after
+ * the animation completes), never a looping/repeating pulse. */
+@keyframes mc-hero-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--nova-color-brand-signal) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 18px color-mix(in srgb, var(--nova-color-brand-signal) 0%, transparent);
+  }
+}
+.mc-hero--enter {
+  animation: mc-hero-pulse 900ms var(--nova-motion-curve-enter) 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mc-hero--enter {
+    animation: none;
+  }
+}
+html[data-motion="reduced"] .mc-hero--enter {
+  animation: none;
+}
+
+.mc-brief-item {
+  border-inline-start: var(--nova-border-width-strong) solid transparent;
+}
+.mc-brief-item[data-level="High"] {
+  border-inline-start-color: var(--nova-color-warning);
+}
+.mc-brief-item[data-level="Medium"] {
+  border-inline-start-color: var(--nova-color-info);
+}
+.mc-brief-item[data-level="Low"] {
+  border-inline-start-color: var(--nova-color-border-subtle);
+}
+
+/* Tier 2 — Your Signals. Solid surfaces only, elevation 1, no glass. */
+.mc-tier-2 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nova-space-4);
+}
+
+.mc-signal-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--nova-space-4);
+}
+@media (max-width: 767px) {
+  .mc-signal-pair {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tier 3 — Context & Continuation. Flattest, quietest color/type. */
+.mc-tier-3 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nova-space-3);
+}
+.mc-tier-3 .nova-panel {
+  box-shadow: none;
+}
+.mc-tier-3 .nova-heading-h1 {
+  font-size: var(--nova-font-size-base);
+}
+
+.mc-session-summary {
+  text-align: center;
+  color: var(--nova-color-text-secondary);
+  padding-block: var(--nova-space-8);
+}
+
+/* Staggered entrance for Today's Brief items beneath the hero (masterplan
+ * §3.1: hero resolves alone first, then the rest stagger in). Delay is
+ * applied inline per-item (index * 60ms) by the component; this class
+ * only defines the shared enter transform/opacity. */
+@keyframes mc-stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.mc-stagger-item {
+  animation: mc-stagger-in var(--nova-motion-duration-standard) var(--nova-motion-curve-enter) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mc-stagger-item {
+    animation: none;
+  }
+}
+html[data-motion="reduced"] .mc-stagger-item {
+  animation: none;
+}

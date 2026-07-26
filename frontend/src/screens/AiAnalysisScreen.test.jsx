@@ -1,13 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import AiAnalysisScreen from "./AiAnalysisScreen";
-import { marketApi, analysisApi, altDataApi, intelligenceApi } from "../services/api";
+import { marketApi, analysisApi, altDataApi, intelligenceApi, claimsApi } from "../services/api";
 
 vi.mock("../services/api", () => ({
   marketApi: { getQuote: vi.fn() },
   analysisApi: { analyze: vi.fn(), compare: vi.fn() },
   altDataApi: { getSummary: vi.fn() },
   intelligenceApi: { analyze: vi.fn() },
+  claimsApi: { listBySymbol: vi.fn() },
+  performanceMetricsApi: { recordClientTiming: vi.fn().mockResolvedValue() },
 }));
 
 vi.mock("../hooks/useWatchlist", () => ({
@@ -86,6 +88,7 @@ function mockSuccessfulLoad() {
   analysisApi.compare.mockResolvedValue({ comparison: [] });
   altDataApi.getSummary.mockResolvedValue({ signals: null });
   intelligenceApi.analyze.mockResolvedValue(null);
+  claimsApi.listBySymbol.mockResolvedValue({ claims: [] });
 }
 
 describe("AiAnalysisScreen — Investment Committee panel (Sprint 18A, unified Sprint 41)", () => {
@@ -112,5 +115,75 @@ describe("AiAnalysisScreen — Investment Committee panel (Sprint 18A, unified S
     render(<AiAnalysisScreen />);
 
     await waitFor(() => expect(screen.getByText(/Investment committee is temporarily unavailable/)).toBeInTheDocument());
+  });
+});
+
+describe("AiAnalysisScreen — Claims-Based Analysis (Phase UI-INTEGRATION-001)", () => {
+  it("shows the honest empty state when no active Claim exists for this symbol", async () => {
+    mockSuccessfulLoad();
+    render(<AiAnalysisScreen />);
+
+    await waitFor(() => expect(screen.getByText(/No active Claim exists for this symbol yet/)).toBeInTheDocument());
+  });
+
+  it("generates the required Claims-based report structure from a real Claim, never fabricating unsupported fields", async () => {
+    mockSuccessfulLoad();
+    claimsApi.listBySymbol.mockResolvedValue({
+      claims: [
+        {
+          claimId: "c1",
+          status: "STRENGTHENING",
+          expectedDirection: "BULLISH",
+          confidence: 82,
+          probability: 65,
+          statement: "NVDA demand outpaces supply through Q3.",
+          plainLanguageStatement: "NVDA looks set to keep beating expectations.",
+          evidence: [{ id: "e1", observedFact: "Real capex guidance raised." }],
+          counterEvidence: [{ id: "e2", observedFact: "Real export restriction risk." }],
+          invalidationConditions: ["A confirmed capex pullback from a major hyperscaler."],
+          assumptions: ["Assumes no new export control action this quarter."],
+          portfolioImpact: null,
+        },
+      ],
+    });
+    render(<AiAnalysisScreen />);
+
+    // Executive Summary and Why this matters both honestly show real
+    // fields off the same Claim (plainLanguageStatement / statement), so
+    // some duplication across sections is expected, never fabricated.
+    await waitFor(() => expect(screen.getAllByText("NVDA looks set to keep beating expectations.").length).toBeGreaterThan(0));
+    expect(screen.getByText("Real capex guidance raised.")).toBeInTheDocument();
+    expect(screen.getByText("Real export restriction risk.")).toBeInTheDocument();
+    expect(screen.getAllByText(/82\/100/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Probability 65%/)).toBeInTheDocument();
+    expect(screen.getByText("Assumes no new export control action this quarter.")).toBeInTheDocument();
+    expect(screen.getByText("A confirmed capex pullback from a major hyperscaler.")).toBeInTheDocument();
+    expect(screen.getByText(/Scenario preview not yet available/)).toBeInTheDocument();
+    expect(screen.getByText("No real portfolio impact computed for this Claim yet.")).toBeInTheDocument();
+
+    // The required section order: Executive Summary, Why this matters,
+    // Evidence, Counter evidence, Portfolio impact, Possible outcomes,
+    // Confidence, Unknowns, Things to monitor next.
+    const headings = Array.from(document.querySelectorAll("#ai-claims h4")).map((el) => el.textContent);
+    expect(headings).toEqual([
+      "Executive Summary",
+      "Why this matters",
+      "Evidence",
+      "Counter evidence",
+      "Portfolio impact",
+      "Possible outcomes",
+      "Confidence",
+      "Unknowns",
+      "Things to monitor next",
+    ]);
+  });
+
+  it("shows an honest error state without blocking the rest of the screen when the claims fetch fails", async () => {
+    mockSuccessfulLoad();
+    claimsApi.listBySymbol.mockRejectedValue(new Error("down"));
+    render(<AiAnalysisScreen />);
+
+    await waitFor(() => expect(screen.getByText("Claims are temporarily unavailable for this symbol.")).toBeInTheDocument());
+    expect(screen.getByText("NVIDIA Corporation")).toBeInTheDocument();
   });
 });

@@ -20,6 +20,9 @@ const PRIMARY_DESTINATIONS = [
   { key: "My Profile", labelKey: "nav.profile", icon: "◑" },
 ];
 
+// Phase X6 — Part 1, Startup Validation.
+export const BOTTOM_NAV_KEYS = PRIMARY_DESTINATIONS.map((item) => item.key);
+
 function BottomNav({ activeView, onNavigate }) {
   const { t } = useI18n();
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
 import useWatchlist from "../hooks/useWatchlist";
 import { Button, EmptyState, ErrorState, Input } from "../components/ui";
-import { watchlistApi } from "../services/api";
+import { watchlistApi, claimsApi, optionsAgentApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 
 function MiniSparkline({ change = 0, score = 50 }) {
@@ -32,6 +32,8 @@ export default function WatchlistScreen() {
   const [rows, setRows] = useState([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [tickerInput, setTickerInput] = useState("");
+  const [attentionBySymbol, setAttentionBySymbol] = useState({});
+  const [attentionScoreBySymbol, setAttentionScoreBySymbol] = useState({});
 
   useEffect(() => {
     async function loadWatchlistIntelligence() {
@@ -48,11 +50,66 @@ export default function WatchlistScreen() {
       } catch (error) {
         logError("Watchlist load failed", error);
         setRows([]);
-        setErrorMessage(error?.message || "Unable to load watchlist intelligence.");
+        setErrorMessage("Unable to load watchlist intelligence.");
       }
     }
 
     loadWatchlistIntelligence();
+  }, [watchlist]);
+
+  // Phase UI-INTEGRATION-001 — "why does this symbol deserve attention
+  // today," per symbol. Additive and independent of the main intelligence
+  // load above — a slow/failed fetch here never blocks the watchlist
+  // itself from rendering. Every reason is a real, already-computed fact
+  // (a real Claim status, a real active options signal) — never a
+  // fabricated "something is happening" placeholder; a symbol with none
+  // of these honestly shows "Nothing new today."
+  //
+  // Phase PRODUCT-001 — the mission requires ranking by Attention Score,
+  // not price movement. Each Claim already carries a real, canonical
+  // attentionScore (computed server-side by the Attention Engine); this
+  // screen takes the max real score across a symbol's claims as that
+  // symbol's rank — a presentation-only aggregation over already-real,
+  // already-scored data, never a new score computed here.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadAttention() {
+      const entries = await Promise.all(
+        watchlist.map(async (symbol) => {
+          const reasons = [];
+          let maxAttentionScore = 0;
+          try {
+            const claimsResult = await claimsApi.listBySymbol(symbol, { limit: 20 });
+            const claims = claimsResult.claims || [];
+            if (claims.some((claim) => claim.status === "DRAFT")) reasons.push("New claim");
+            if (claims.some((claim) => claim.status === "STRENGTHENING")) reasons.push("Strengthening claim");
+            if (claims.some((claim) => claim.status === "WEAKENING")) reasons.push("Weakening claim");
+            maxAttentionScore = claims.reduce((max, claim) => Math.max(max, claim.attentionScore ?? 0), 0);
+          } catch {
+            // Additive — a failed claims lookup for one symbol never blocks the others.
+          }
+          try {
+            const optionsView = await optionsAgentApi.getSymbolView(symbol);
+            if (!optionsView.unavailable && optionsView.activeSignalCount > 0) reasons.push("Unusual options activity");
+          } catch {
+            // Additive — same isolation as above.
+          }
+          return [symbol, { reasons, attentionScore: maxAttentionScore }];
+        })
+      );
+      if (!cancelled) {
+        setAttentionBySymbol(Object.fromEntries(entries.map(([symbol, data]) => [symbol, data.reasons])));
+        setAttentionScoreBySymbol(Object.fromEntries(entries.map(([symbol, data]) => [symbol, data.attentionScore])));
+      }
+    }
+    if (watchlist.length) loadAttention();
+    else {
+      setAttentionBySymbol({});
+      setAttentionScoreBySymbol({});
+    }
+    return () => {
+      cancelled = true;
+    };
   }, [watchlist]);
 
   const handleAddTicker = () => {
@@ -67,6 +124,12 @@ export default function WatchlistScreen() {
   const openTicker = (ticker) => {
     window.dispatchEvent(new CustomEvent("impactone:select-ticker", { detail: ticker }));
   };
+
+  // Phase PRODUCT-001 — rank by real Attention Score, not price movement
+  // alone. Presentation-only sort over the real, already-scored data
+  // above; ties (including "no score loaded yet") keep the original
+  // AI-ranked order from watchlistApi rather than reshuffling arbitrarily.
+  const rankedRows = [...rows].sort((rowA, rowB) => (attentionScoreBySymbol[rowB.symbol] ?? 0) - (attentionScoreBySymbol[rowA.symbol] ?? 0));
 
   return (
     <div className="screen-page">
@@ -96,15 +159,15 @@ export default function WatchlistScreen() {
         </div>
         <div className="company-description subtle">Tracked tickers: {watchlist.length}</div>
 
-        {rows.length ? (
+        {rankedRows.length ? (
           <div className="watchlist-premium-grid">
-            {rows.map((item) => (
+            {rankedRows.map((item) => (
               <article key={item.symbol} className="watch-card-premium">
                 <div className="watch-card-premium__top">
                   <Button type="button" className="favorite-item favorite-item--inline" onClick={() => openTicker(item.symbol)}>
                     {item.symbol}
                   </Button>
-                  <span className="score-badge">AI {Number(item.aiScore || 0)}/100</span>
+                  <span className="score-badge">Attention {Number(attentionScoreBySymbol[item.symbol] || 0)}/100</span>
                 </div>
 
                 <div className="watch-card-premium__company">{item.company}</div>
@@ -127,6 +190,10 @@ export default function WatchlistScreen() {
                 </div>
 
                 <MiniSparkline change={Number(item.change || 0)} score={Number(item.aiScore || 0)} />
+
+                <div className="company-description subtle watch-card-premium__attention">
+                  {attentionBySymbol[item.symbol]?.length ? `Why today: ${attentionBySymbol[item.symbol].join(", ")}` : "Nothing new today."}
+                </div>
 
                 <div className="watch-card-premium__footer">
                   <span className={`alert-badge ${item.alertBadge?.type || "monitor"}`}>{item.alertBadge?.label || "Monitor"}</span>

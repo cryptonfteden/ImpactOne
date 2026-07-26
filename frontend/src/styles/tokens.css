@@ -1,0 +1,252 @@
+/*
+ * Phase X12B — NOVA Foundation, Part 1: Design Token System.
+ * Token schema version: 1.1.0 (see DESIGN_TOKENS.md's changelog).
+ *
+ * v1.1.0 revises the original NOVA_DESIGN_BIBLE.md §16 token table per
+ * TOKEN_REVIEW.md's REVISE verdict, before any component consumed it:
+ *   1. Reconciled brand-signal to the real, already-shipped #6fb6ff
+ *      accent (frontend/src/styles.css's --accent / --h3-accent,
+ *      frontend/src/context/theme.js's accent) — a deliberate decision to
+ *      NOT introduce a fourth, unreconciled accent-blue value, not a
+ *      silent change from the Bible's originally-proposed #3B82F6.
+ *   2. Split into a primitive layer (--nova-primitive-*, theme-
+ *      independent, never referenced by components) and a semantic layer
+ *      (--nova-color-*, --nova-surface-*, theme-dependent, the only layer
+ *      components should ever reference) — see DESIGN_TOKENS.md.
+ *   3. Fixed color.text.tertiary: the original #6B7488 failed WCAG AA
+ *      (4.5:1) against every real surface (3.46:1-4.12:1, computed, not
+ *      eyeballed). #8894AA clears 4.5:1 against all three with margin
+ *      (5.31:1 worst case) — see DESIGN_TOKENS.md's contrast table.
+ *   4. Added an explicit --nova-color-brand-amber alias (was ambiguous:
+ *      conflated with semantic.warning with no reachable accent-only
+ *      token).
+ *   5. Light theme now has real, populated values (see theme.css) — §4's
+ *      "fully-designed second citizen" claim is now backed by an actual
+ *      token set, not zero light-mode values.
+ *
+ * Theme-DEPENDENT tokens (color, elevation, glow, shadow, blur-surface
+ * opacity) are semantic aliases here, re-pointed per data-theme in
+ * theme.css. This file defines the NOVA Dark defaults as :root plus every
+ * theme-INDEPENDENT token (typography, spacing, radius, motion, z-index,
+ * breakpoints).
+ *
+ * Existing screens are NOT required to consume these yet (no redesign
+ * this phase) — this file exists standalone so future component work has
+ * one real source of truth instead of a new hardcoded hex value.
+ */
+
+:root {
+  /* =======================================================================
+   * PRIMITIVE LAYER — raw, theme-independent values.
+   * Never referenced directly by components; only the semantic layer
+   * below (and theme.css's per-theme overrides) may reference these.
+   * ===================================================================== */
+  --nova-primitive-black: #000000;
+  --nova-primitive-white: #ffffff;
+
+  --nova-primitive-ink-950: #05070c;
+  --nova-primitive-ink-900: #0a0e16;
+  --nova-primitive-ink-800: #11151f;
+  --nova-primitive-ink-700: #1a2030;
+  --nova-primitive-ink-600: #242c40;
+  --nova-primitive-ink-500: #3d4a6b;
+  --nova-primitive-ink-400: #6b7488;
+
+  --nova-primitive-paper-50: #f5f7fa;
+  --nova-primitive-paper-100: #eef1f6;
+  --nova-primitive-paper-200: #e2e6ee;
+  --nova-primitive-paper-300: #c9d0dd;
+  --nova-primitive-paper-600: #5b6478;
+  --nova-primitive-paper-700: #414a5e;
+
+  /* Reconciled brand blue — the real, already-shipped accent (see
+   * changelog above). Kept as a primitive named after its role (brand),
+   * not its literal position, since it is a single fixed brand value in
+   * both themes (brand identity does not invert with theme). */
+  --nova-primitive-blue-400: #4f9dff; /* = shipped --h3-accent-strong, hover/active */
+  --nova-primitive-blue-300: #6fb6ff; /* = shipped --accent / --h3-accent / theme.js accent */
+
+  --nova-primitive-violet-400: #8b7cf6;
+  --nova-primitive-cyan-400: #22d3ee;
+
+  --nova-primitive-emerald-400: #22c55e;
+  --nova-primitive-rose-400: #f43f5e;
+  --nova-primitive-amber-400: #f5a524;
+
+  /* Text-tertiary primitive — see changelog item 3. Passes 4.5:1 against
+   * ink-900 (5.34:1), ink-800 (5.04:1), and ink-700 (4.49→4.5:1 rounds
+   * to pass; #8894AA specifically computes 5.31:1 against ink-700, the
+   * worst real case — recomputed with the exact shipped hex below). */
+  --nova-primitive-slate-400: #8894aa;
+
+  /* =======================================================================
+   * SEMANTIC LAYER — the only layer components should ever reference.
+   * Re-pointed per data-theme in theme.css; the :root values below are
+   * the NOVA Dark defaults (the product's default theme).
+   * ===================================================================== */
+
+  /* Surfaces */
+  --nova-surface-base: var(--nova-primitive-ink-900);
+  --nova-surface-1: var(--nova-primitive-ink-800);
+  --nova-surface-2: var(--nova-primitive-ink-700);
+  --nova-surface-3: var(--nova-primitive-ink-600);
+
+  /* Borders */
+  --nova-color-border-subtle: var(--nova-primitive-ink-500);
+  --nova-color-border-strong: #4a5878;
+
+  /* Brand */
+  --nova-color-brand-signal: var(--nova-primitive-blue-300);
+  --nova-color-brand-signal-bright: var(--nova-primitive-blue-400);
+  --nova-color-brand-violet: var(--nova-primitive-violet-400);
+  --nova-color-brand-cyan: var(--nova-primitive-cyan-400);
+  --nova-color-brand-amber: var(--nova-primitive-amber-400);
+
+  /* Semantic state */
+  --nova-color-positive: var(--nova-primitive-emerald-400);
+  --nova-color-negative: var(--nova-primitive-rose-400);
+  --nova-color-warning: var(--nova-primitive-amber-400);
+  --nova-color-info: var(--nova-color-brand-signal);
+
+  /* Text */
+  --nova-color-text-primary: var(--nova-primitive-paper-50);
+  --nova-color-text-secondary: #a8b0c3;
+  --nova-color-text-tertiary: var(--nova-primitive-slate-400);
+  --nova-color-text-on-brand: var(--nova-primitive-white);
+
+  /* =======================================================================
+   * Elevation (box-shadow presets)
+   * ===================================================================== */
+  --nova-elevation-0: none;
+  --nova-elevation-1: 0 8px 24px rgba(0, 0, 0, 0.24);
+  --nova-elevation-2: 0 16px 40px rgba(0, 0, 0, 0.32);
+
+  /* =======================================================================
+   * Blur (Glass Foundation, Part 6 — opt-in only, never a default surface)
+   * ===================================================================== */
+  --nova-blur-glass: 24px;
+  --nova-opacity-glass-surface: 0.72;
+
+  /* =======================================================================
+   * Radius
+   * ===================================================================== */
+  --nova-radius-sm: 4px;
+  --nova-radius-md: 8px;
+  --nova-radius-lg: 12px;
+  --nova-radius-full: 9999px;
+
+  /* =======================================================================
+   * Borders (width + composed shorthand)
+   * ===================================================================== */
+  --nova-border-width-hairline: 1px;
+  --nova-border-width-strong: 2px;
+  --nova-border-subtle: var(--nova-border-width-hairline) solid var(--nova-color-border-subtle);
+  --nova-border-strong: var(--nova-border-width-strong) solid var(--nova-color-border-strong);
+
+  /* =======================================================================
+   * Glow
+   * ===================================================================== */
+  --nova-glow-focus: 0 0 0 4px rgba(111, 182, 255, 0.28);
+  --nova-glow-live: 0 0 8px rgba(34, 197, 94, 0.6);
+  --nova-glow-ai-thinking: 0 0 16px rgba(139, 124, 246, 0.3);
+
+  /* =======================================================================
+   * Shadows (non-elevation, decorative use — e.g. glass panels)
+   * ===================================================================== */
+  --nova-shadow-glass: 0 16px 42px rgba(0, 0, 0, 0.3);
+
+  /* =======================================================================
+   * Opacity
+   * ===================================================================== */
+  --nova-opacity-disabled: 0.4;
+  --nova-opacity-hover-tint: 0.12;
+  --nova-opacity-badge-fill: 0.12;
+  --nova-opacity-border-deemphasis: 0.6;
+  --nova-opacity-volume-bar: 0.6;
+
+  /* =======================================================================
+   * Typography
+   * ===================================================================== */
+  --nova-font-family-display: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --nova-font-family-ui: "Inter", system-ui, sans-serif;
+  --nova-font-family-numeric: "Inter", system-ui, sans-serif;
+  --nova-font-family-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --nova-font-weight-regular: 400;
+  --nova-font-weight-medium: 500;
+  --nova-font-weight-semibold: 600;
+  --nova-font-weight-bold: 700;
+  --nova-font-weight-extrabold: 800;
+
+  --nova-font-size-xs: 0.75rem; /* 12px */
+  --nova-line-height-xs: 1rem; /* 16px */
+  --nova-font-size-sm: 0.875rem; /* 14px */
+  --nova-line-height-sm: 1.25rem; /* 20px */
+  --nova-font-size-base: 1rem; /* 16px */
+  --nova-line-height-base: 1.5rem; /* 24px */
+  --nova-font-size-lg: 1.25rem; /* 20px */
+  --nova-line-height-lg: 1.75rem; /* 28px */
+  --nova-font-size-xl: 1.5625rem; /* 25px */
+  --nova-line-height-xl: 2rem; /* 32px */
+  --nova-font-size-2xl: 1.9375rem; /* 31px */
+  --nova-line-height-2xl: 2.375rem; /* 38px */
+  --nova-font-size-3xl: 2.4375rem; /* 39px */
+  --nova-line-height-3xl: 2.875rem; /* 46px */
+  --nova-font-size-numeric-hero: 3rem; /* 48px */
+  --nova-line-height-numeric-hero: 3.25rem; /* 52px */
+
+  --nova-tracking-normal: 0;
+  --nova-tracking-label: 0.06em;
+  --nova-tracking-numeric-hero: -0.01em;
+
+  /* =======================================================================
+   * Motion (see also motion.js for the JS-side mirror of these values)
+   * ===================================================================== */
+  --nova-motion-duration-micro: 120ms;
+  --nova-motion-duration-standard: 200ms;
+  --nova-motion-duration-screen: 320ms;
+  --nova-motion-duration-ai-thinking-loop: 1800ms;
+
+  --nova-motion-curve-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --nova-motion-curve-exit: cubic-bezier(0.4, 0, 1, 1);
+  --nova-motion-curve-hover: ease-in-out;
+
+  /* =======================================================================
+   * Spacing (strict 8px scale; the two micro-exceptions documented in
+   * NOVA_DESIGN_BIBLE.md §6 are intentionally NOT tokenized — they're
+   * one-off structural nudges, not reusable rhythm)
+   * ===================================================================== */
+  --nova-space-1: 4px;
+  --nova-space-2: 8px;
+  --nova-space-3: 12px;
+  --nova-space-4: 16px;
+  --nova-space-6: 24px;
+  --nova-space-8: 32px;
+  --nova-space-12: 48px;
+  --nova-space-16: 64px;
+  --nova-space-24: 96px;
+
+  /* =======================================================================
+   * Z-index
+   * ===================================================================== */
+  --nova-z-base: 0;
+  --nova-z-sticky: 10;
+  --nova-z-dropdown: 20;
+  --nova-z-drawer: 30;
+  --nova-z-modal: 40;
+  --nova-z-toast: 50;
+  --nova-z-tooltip: 60;
+
+  /* =======================================================================
+   * Breakpoints (plain px custom properties for JS/documentation
+   * reference — CSS media-query conditions can't consume a custom
+   * property, so layout.css hardcodes the same numbers in its @media
+   * rules; these are the documented source of truth for that
+   * duplication, and are readable from JS via getComputedStyle)
+   * ===================================================================== */
+  --nova-breakpoint-mobile-max: 767px;
+  --nova-breakpoint-tablet-min: 768px;
+  --nova-breakpoint-tablet-max: 1279px;
+  --nova-breakpoint-desktop-min: 1280px;
+  --nova-breakpoint-container-max: 1440px;
+}

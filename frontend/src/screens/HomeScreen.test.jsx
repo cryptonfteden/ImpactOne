@@ -14,6 +14,9 @@ function renderHomeScreen(props) {
 
 vi.mock("../services/api", () => ({
   homeApi: { getSummary: vi.fn() },
+  // Phase H3 — Active Alerts card; resolves to no alerts by default so
+  // existing Home tests are unaffected by this additive card.
+  priceAlertsApi: { list: vi.fn().mockResolvedValue({ alerts: [] }) },
 }));
 
 vi.mock("../hooks/useWatchlist", () => ({
@@ -77,13 +80,15 @@ describe("HomeScreen", () => {
     expect(screen.getByText("Recommendations")).toBeInTheDocument();
     expect(screen.getByText("Intelligence Timeline")).toBeInTheDocument();
 
-    // Nothing else: still exactly six .home-card sections despite three
-    // brand-new sections (Today For You, Portfolio Morning Summary,
-    // Intelligence Timeline) — overlapping old cards were merged rather
-    // than stacked on top, so total card count didn't grow (Sprint 28
-    // Priority 6: reduce repeated cards, increase signal per card).
+    // Six adaptive cards despite three brand-new sections (Today For You,
+    // Portfolio Morning Summary, Intelligence Timeline) — overlapping old
+    // cards were merged rather than stacked on top (Sprint 28 Priority 6).
+    // Phase H3 adds one further, always-present card (Active Alerts) on
+    // top of the adaptive six — a real, intentional addition, not a
+    // regression of the "reduce repeated cards" goal.
     const cards = document.querySelectorAll(".home-card");
-    expect(cards).toHaveLength(6);
+    expect(cards).toHaveLength(7);
+    expect(screen.getByText("Active Alerts")).toBeInTheDocument();
   });
 
   it("shows honest empty states across the merged cards when nothing changed", async () => {
