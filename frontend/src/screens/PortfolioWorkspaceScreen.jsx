@@ -1,35 +1,47 @@
 import { useEffect, useMemo, useState } from "react";
-import { Page, Container, Grid, Stack } from "../components/layout";
-import { Card, Badge, ConfidenceBadge, Table, EmptyState, Skeleton, Alert } from "../components/nova";
+import { Page, Container, Section, Grid, Stack } from "../components/layout";
+import { Card, Badge, MetricArc, Table, EmptyState, Skeleton, InlineMessage } from "../components/nova";
 import { portfolioEngineApi, claimsApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 import { useI18n } from "../i18n/I18nProvider";
 import { trackEvent } from "../utils/analytics";
+import { fallbackSummary, fallbackDelta, fallbackPortfolioClaims } from "./portfolioWorkspace/portfolioWorkspaceMockData";
 
 /**
- * Phase X12C.3 — Portfolio Intelligence Workspace. An AI operating center
- * for holdings, not a table. Built entirely from certified NOVA components
- * over the real, already-computed portfolio-engine data
- * (`portfolioEngineApi.getSummary()` / `getPerformanceDelta()` — the same
- * data PortfolioEngineScreen.jsx already reads, untouched by this phase)
- * plus, as of Phase UI-INTEGRATION-001, real Claims affecting this
- * portfolio (`claimsApi.listPortfolioRelevant()` — the Claim
- * Intelligence Layer's own portfolio-relevance filter, reused as-is,
- * never recomputed here). This replaced the screen's original
- * `recommendationsApi.list()`-based "AI Portfolio Recommendations"
- * section — Claims are the canonical reasoning object now.
+ * Phase X12C.3 — Portfolio Intelligence Workspace, built on real
+ * portfolio-engine + Claim Intelligence Layer data.
  *
- * Concentration, diversification, and per-sector risk have NO dedicated
- * backend field (confirmed by X12C.3 research — portfolioIntelligenceService's
- * sectorConcentration/riskConcentration operate on synthetic what-if
- * holdings, not the real DB-backed portfolio). Rather than borrow that
- * synthetic service or invent a new score, this screen computes concentration/
- * diversification with standard, transparent arithmetic (weight = real
- * marketValue / real totalValue; HHI = sum of squared real weights) directly
- * over the real positions/allocation this same API call already returned —
- * see PORTFOLIO_WORKSPACE.md for the exact formulas. Rebalance Suggestions
- * has no backing concept anywhere in the backend (grep-confirmed) and is
- * shown as an honest "not available" state, never a fabricated suggestion.
+ * Phase PORTFOLIO-001 — rebuilt on Mission Control's exact architecture
+ * (IMPACTONE_DESIGN_BIBLE.md, MISSION_CONTROL_EXPERIENCE_MASTERPLAN.md):
+ * three tiers, the shared MetricArc primitive (with Confidence,
+ * Probability, and Attention always kept as three separate, explicitly-
+ * labeled metrics — never conflated, per MISSION-CONTROL-002's fix), and
+ * per-section Demo Mode fallback with the same fault-isolation and
+ * service-status logging pattern as Mission Control (LIVE-DATA-001). No
+ * new backend service was built — every section reuses an already-real,
+ * already-tested call (portfolioEngineApi.getSummary/getPerformanceDelta,
+ * claimsApi.listPortfolioRelevant).
+ *
+ *   Tier 1 — The Brief: a hero card ("How am I doing?" + the single most
+ *     attention-worthy real claim affecting the portfolio, i.e. "why"),
+ *     followed by the real "what changed since yesterday" list.
+ *   Tier 2 — Your Positions: which real positions need attention
+ *     (ranked by the real, already-scored Attention Engine value of the
+ *     claims touching each symbol — a presentation-only max(), never a
+ *     new score), followed by the full "Why This Affects You" claim
+ *     detail (why/evidence/counter-evidence), each claim showing its
+ *     real Confidence and, when present, real Probability via MetricArc.
+ *   Tier 3 — Context: risk map, concentration, diversification, sector
+ *     allocation, winners/losers, rebalance (honest not-available), cash
+ *     — supporting detail, unchanged in substance from the prior build.
+ *
+ * Concentration, diversification, and per-sector risk still have no
+ * dedicated backend field (X12C.3 research stands) and are computed here
+ * with the same standard, transparent arithmetic as before (weight =
+ * real marketValue / real totalValue; HHI = sum of squared real
+ * weights) — see PORTFOLIO_WORKSPACE.md. Rebalance Suggestions has no
+ * backing concept anywhere in the backend and is shown as an honest
+ * "not available" state, never fabricated.
  */
 
 function computeConcentration(positions, totalValue) {
@@ -52,50 +64,73 @@ function computeSectorRisk(positions, bySector) {
   });
 }
 
+const SECTION_LABELS = {
+  overview: "Portfolio Health & What Changed",
+  claims: "Claims Affecting Your Portfolio",
+};
+
 export default function PortfolioWorkspaceScreen() {
   const { t, dir } = useI18n();
   const [summary, setSummary] = useState(null);
   const [delta, setDelta] = useState(null);
   const [portfolioClaims, setPortfolioClaims] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
+  // Phase PORTFOLIO-001 — per-section liveness, same pattern as Mission
+  // Control: Demo Mode is computed per section, never as a single global
+  // flag, so a partial outage is disclosed accurately instead of either
+  // hidden or overstated.
+  const [liveSections, setLiveSections] = useState({ overview: true, claims: true });
 
   useEffect(() => {
     let cancelled = false;
+
     async function load() {
       setIsLoading(true);
-      try {
-        const [summaryResult, deltaResult] = await Promise.all([portfolioEngineApi.getSummary(), portfolioEngineApi.getPerformanceDelta()]);
-        if (!cancelled) {
-          setSummary(summaryResult);
-          setDelta(deltaResult);
-          setError("");
-          trackEvent("portfolio_workspace_viewed");
-        }
-      } catch (loadError) {
-        logError("portfolio workspace summary load failed", loadError);
-        if (!cancelled) setError(t("portfolioWorkspace.refreshFailed"));
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [t]);
+      const [summaryResult, deltaResult, claimsResult] = await Promise.allSettled([
+        portfolioEngineApi.getSummary(),
+        portfolioEngineApi.getPerformanceDelta(),
+        claimsApi.listPortfolioRelevant(),
+      ]);
+      if (cancelled) return;
 
-  useEffect(() => {
-    let cancelled = false;
-    claimsApi
-      .listPortfolioRelevant()
-      .then((result) => {
-        if (!cancelled) setPortfolioClaims(result.claims || []);
-      })
-      .catch(() => {
-        // Claims affecting the portfolio is additive — never a blocking error here.
-        if (!cancelled) setPortfolioClaims([]);
-      });
+      const nextLive = {};
+      const connected = [];
+      const unavailable = [];
+
+      if (summaryResult.status === "fulfilled" && deltaResult.status === "fulfilled") {
+        setSummary(summaryResult.value);
+        setDelta(deltaResult.value);
+        nextLive.overview = true;
+        connected.push("Portfolio Intelligence");
+      } else {
+        if (summaryResult.status === "rejected") logError("portfolio workspace summary load failed", summaryResult.reason);
+        if (deltaResult.status === "rejected") logError("portfolio workspace delta load failed", deltaResult.reason);
+        setSummary(fallbackSummary);
+        setDelta(fallbackDelta);
+        nextLive.overview = false;
+        unavailable.push("Portfolio Intelligence");
+      }
+
+      if (claimsResult.status === "fulfilled") {
+        setPortfolioClaims(claimsResult.value?.claims || []);
+        nextLive.claims = true;
+        connected.push("Claims");
+      } else {
+        logError("portfolio workspace claims load failed", claimsResult.reason);
+        setPortfolioClaims(fallbackPortfolioClaims);
+        nextLive.claims = false;
+        unavailable.push("Claims");
+      }
+
+      setLiveSections(nextLive);
+      setIsLoading(false);
+      trackEvent("portfolio_workspace_viewed");
+      // Phase PORTFOLIO-001 — required: log which services connected and
+      // which remain unavailable, every load.
+      console.info("[PortfolioWorkspace] service status", { connected, unavailable });
+    }
+
+    load();
     return () => {
       cancelled = true;
     };
@@ -131,6 +166,35 @@ export default function PortfolioWorkspaceScreen() {
   const distinctSectors = bySector.length;
   const cashWeightPct = totalValue > 0 ? ((summary?.cashBalance || 0) / totalValue) * 100 : null;
 
+  // Phase PORTFOLIO-001 — "Which positions need attention?" A
+  // presentation-only max() of each position's own real Attention
+  // Engine scores (already attached server-side to every Claim) among
+  // the Claims that actually name its symbol — never a new score. A
+  // position with no Claims touching it honestly shows "No claims
+  // affecting this position" rather than a fabricated score.
+  const positionAttention = useMemo(() => {
+    const claims = portfolioClaims || [];
+    return [...positions]
+      .map((position) => {
+        const claimsForSymbol = claims.filter((claim) => claim.symbols?.includes(position.symbol));
+        const attentionScore = claimsForSymbol.length ? claimsForSymbol.reduce((max, claim) => Math.max(max, claim.attentionScore ?? 0), 0) : null;
+        return { ...position, attentionScore };
+      })
+      .sort((a, b) => (b.attentionScore ?? -1) - (a.attentionScore ?? -1));
+  }, [positions, portfolioClaims]);
+
+  // Phase PORTFOLIO-001 — the Tier 1 hero: "how am I doing" (real total
+  // value/return) paired with "why" (the single highest-Attention-Score
+  // real claim affecting the portfolio, if one exists). Mirrors Mission
+  // Control's hero exactly — largest scale, one-time entrance pulse, the
+  // only object using the Emphasis surface material.
+  const [pulsing, setPulsing] = useState(true);
+  const heroClaim = sortedPortfolioClaims[0] || null;
+
+  const demoSectionKeys = Object.keys(liveSections).filter((key) => !liveSections[key]);
+  const isFullyDemo = demoSectionKeys.length > 0 && demoSectionKeys.length === Object.keys(liveSections).length;
+  const isFullyLive = demoSectionKeys.length === 0;
+
   if (isLoading && !summary) {
     return (
       <Page className="screen-page portfolio-workspace-screen" dir={dir}>
@@ -147,43 +211,72 @@ export default function PortfolioWorkspaceScreen() {
     );
   }
 
-  if (error && !summary) {
-    return (
-      <Page className="screen-page portfolio-workspace-screen" dir={dir}>
-        <Container>
-          <Alert tone="error">{error}</Alert>
-          <p className="nova-heading-subtext">{t("portfolioWorkspace.noCachedFallback")}</p>
-        </Container>
-      </Page>
-    );
-  }
-
-  if (!summary) {
-    return (
-      <Page className="screen-page portfolio-workspace-screen" dir={dir}>
-        <Container>
-          <p className="nova-heading-subtext">{t("portfolioWorkspace.nothingToShow")}</p>
-        </Container>
-      </Page>
-    );
-  }
-
   return (
     <Page className="screen-page portfolio-workspace-screen" dir={dir}>
       <Container>
-        <Stack gap={2} style={{ paddingBlockEnd: "var(--nova-space-6)" }}>
+        <Stack gap={2} style={{ paddingBlockEnd: "var(--nova-space-4)" }}>
           <span className="nova-heading-eyebrow">{t("portfolioWorkspace.eyebrow")}</span>
           <h1 className="nova-heading-h1">{t("portfolioWorkspace.title")}</h1>
           <p className="nova-heading-subtext">{t("portfolioWorkspace.subtitle")}</p>
-          {error ? <Alert tone="error">{error}</Alert> : null}
         </Stack>
 
-        {/* Phase PRODUCT-001 — Portfolio answers exactly one question:
-            "How does this affect me?" Mission requires: what changed
-            since yesterday, then why, then evidence, then potential
-            scenarios — never recommendations first. These two sections
-            come before everything else on the screen. */}
-        <section aria-label={t("portfolioWorkspace.sections.whatChanged")}>
+        {/* Phase PORTFOLIO-001 — Demo Mode indicator, same pattern as
+            Mission Control: absent entirely once every section is live,
+            accurate and section-specific when only some fell back. */}
+        {!isFullyLive ? (
+          <div
+            style={{ marginBlockEnd: "var(--nova-space-6)" }}
+            role="status"
+            aria-label={isFullyDemo ? "Demo mode: showing simulated intelligence, not live data." : "Some sections are showing simulated data because a live service is unavailable."}
+          >
+            <InlineMessage tone="info">
+              {isFullyDemo ? (
+                <>
+                  <strong>Demo</strong> — every value on this screen is simulated for demonstration. It does not reflect your real portfolio or
+                  live market data.
+                </>
+              ) : (
+                <>
+                  <strong>Demo data</strong> — {demoSectionKeys.map((key) => SECTION_LABELS[key]).join(", ")} could not be loaded live right now
+                  and {demoSectionKeys.length === 1 ? "is" : "are"} showing simulated values. Everything else on this screen reflects real, live
+                  data.
+                </>
+              )}
+            </InlineMessage>
+          </div>
+        ) : null}
+
+        {/* Tier 1 — The Brief: "How am I doing?" + "Why?" */}
+        <Section aria-label="Portfolio Brief" className="mc-tier-1">
+          <Card className={`mc-hero${pulsing ? " mc-hero--enter" : ""}`} onAnimationEnd={() => setPulsing(false)} eyebrow="How am I doing?">
+            <Stack direction="horizontal" gap={6} align="center" wrap>
+              {heroClaim ? <MetricArc score={heroClaim.attentionScore} metric="attention" size="lg" /> : null}
+              <Stack gap={2} style={{ flex: 1, minInlineSize: 240 }}>
+                <h2 className="nova-heading-h1">${totalValue.toLocaleString()}</h2>
+                <Stack direction="horizontal" gap={2} wrap>
+                  {summary?.totalReturnPct !== undefined ? (
+                    <Badge tone={summary.totalReturnPct >= 0 ? "positive" : "negative"}>{summary.totalReturnPct?.toFixed(2)}% total return</Badge>
+                  ) : null}
+                  {delta?.hasComparison ? (
+                    <Badge tone={delta.valueChangePct >= 0 ? "positive" : "negative"}>
+                      {delta.valueChangePct >= 0 ? "+" : ""}
+                      {delta.valueChangePct}% since yesterday
+                    </Badge>
+                  ) : null}
+                </Stack>
+                {heroClaim ? (
+                  <p className="nova-text-sm" style={{ color: "var(--nova-color-text-secondary)" }}>
+                    {heroClaim.plainLanguageStatement || heroClaim.statement}
+                  </p>
+                ) : (
+                  <p className="nova-text-sm" style={{ color: "var(--nova-color-text-secondary)" }}>
+                    No active Claims currently explain your portfolio's performance.
+                  </p>
+                )}
+              </Stack>
+            </Stack>
+          </Card>
+
           <Card title={t("portfolioWorkspace.sections.whatChanged")}>
             {delta?.hasComparison && delta.changes?.length ? (
               <ul className="stack-list">
@@ -198,9 +291,35 @@ export default function PortfolioWorkspaceScreen() {
               <EmptyState icon="◇" title={delta?.summary || t("portfolioWorkspace.empty.whatChanged")} />
             )}
           </Card>
-        </section>
+        </Section>
 
-        <section aria-label={t("portfolioWorkspace.sections.whyThisAffectsYou")}>
+        {/* Tier 2 — Your Positions: "Which positions need attention?" + "Why?" */}
+        <Section aria-label="Your Positions" className="mc-tier-2">
+          <Card title="Which Positions Need Attention">
+            {positionAttention.length ? (
+              <ul className="stack-list">
+                {positionAttention.map((position) => (
+                  <li key={position.id} style={{ display: "flex", alignItems: "center", gap: "var(--nova-space-4)" }}>
+                    {position.attentionScore !== null ? (
+                      <MetricArc score={position.attentionScore} metric="attention" size="sm" showValue />
+                    ) : (
+                      <span className="nova-text-xs" style={{ color: "var(--nova-color-text-tertiary)" }}>
+                        —
+                      </span>
+                    )}
+                    <strong className="nova-text-sm">{position.symbol}</strong>
+                    <Badge tone={(position.unrealizedPnl || 0) >= 0 ? "positive" : "negative"}>{(position.unrealizedPnlPct || 0).toFixed(2)}%</Badge>
+                    <span className="nova-text-xs" style={{ color: "var(--nova-color-text-tertiary)" }}>
+                      {position.attentionScore !== null ? "Claims affect this position" : "No claims affecting this position"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyState icon="◇" title="No open positions yet — nothing to rank for attention." />
+            )}
+          </Card>
+
           <Card title={t("portfolioWorkspace.sections.whyThisAffectsYou")}>
             {portfolioClaims === null ? (
               <Skeleton height={60} />
@@ -209,9 +328,22 @@ export default function PortfolioWorkspaceScreen() {
                 {sortedPortfolioClaims.map((claim) => (
                   <Card key={claim.claimId} eyebrow={(claim.symbols || []).join(", ") || t("portfolioWorkspace.empty.whyThisAffectsYou")}>
                     <Stack gap={2}>
-                      <Stack direction="horizontal" gap={2} wrap>
+                      <Stack direction="horizontal" gap={3} wrap align="center">
+                        <Stack gap={1} align="center">
+                          <MetricArc score={claim.confidence} metric="confidence" size="sm" showValue />
+                          <span className="nova-text-xs" style={{ color: "var(--nova-color-text-tertiary)" }}>
+                            Confidence
+                          </span>
+                        </Stack>
+                        {Number.isFinite(claim.probability) ? (
+                          <Stack gap={1} align="center">
+                            <MetricArc score={claim.probability} metric="probability" size="sm" showValue />
+                            <span className="nova-text-xs" style={{ color: "var(--nova-color-text-tertiary)" }}>
+                              Probability
+                            </span>
+                          </Stack>
+                        ) : null}
                         <Badge tone={claim.expectedDirection === "BULLISH" ? "positive" : claim.expectedDirection === "BEARISH" ? "negative" : "neutral"}>{claim.expectedDirection}</Badge>
-                        {Number.isFinite(claim.confidence) ? <ConfidenceBadge score={claim.confidence} /> : null}
                         <Badge tone="neutral">{claim.status}</Badge>
                       </Stack>
                       <p className="nova-text-xs"><strong>{t("portfolioWorkspace.claims.why")}:</strong> {claim.plainLanguageStatement || claim.statement}</p>
@@ -231,180 +363,171 @@ export default function PortfolioWorkspaceScreen() {
               <EmptyState icon="◇" title={t("portfolioWorkspace.empty.whyThisAffectsYou")} />
             )}
           </Card>
-        </section>
+        </Section>
 
-        {/* 1. Portfolio Health */}
-        <section aria-label={t("portfolioWorkspace.sections.health")}>
-          <Card title={t("portfolioWorkspace.sections.health")}>
-            {positions.length || totalValue ? (
-              <Grid className="portfolio-workspace__grid">
-                <div style={{ gridColumn: "span 3" }}>
-                  <Card eyebrow={t("portfolioWorkspace.health.totalValue")}><strong className="nova-text-lg">${totalValue.toLocaleString()}</strong></Card>
-                </div>
-                <div style={{ gridColumn: "span 3" }}>
-                  <Card eyebrow={t("portfolioWorkspace.health.totalReturn")}>
-                    <Badge tone={summary.totalReturnPct >= 0 ? "positive" : "negative"}><strong className="nova-text-lg">{summary.totalReturnPct?.toFixed(2)}%</strong></Badge>
-                  </Card>
-                </div>
-                <div style={{ gridColumn: "span 3" }}>
-                  <Card eyebrow={t("portfolioWorkspace.health.dailyPnl")}>
-                    <Badge tone={summary.dailyPnl >= 0 ? "positive" : "negative"}><strong className="nova-text-lg">${summary.dailyPnl?.toLocaleString()}</strong></Badge>
-                  </Card>
-                </div>
-                <div style={{ gridColumn: "span 3" }}>
-                  <Card eyebrow={t("portfolioWorkspace.health.cash")}><strong className="nova-text-lg">${(summary.cashBalance || 0).toLocaleString()}</strong></Card>
-                </div>
-              </Grid>
-            ) : (
-              <EmptyState icon="◇" title={t("portfolioWorkspace.empty.health")} />
-            )}
-            {delta?.hasComparison ? (
-              <p className="nova-heading-subtext">{delta.summary}</p>
-            ) : delta ? (
-              <p className="nova-heading-subtext">{t("portfolioWorkspace.health.noComparison")}</p>
-            ) : null}
-          </Card>
-        </section>
-
-        {/* 2. Portfolio Risk Map */}
-        <section aria-label={t("portfolioWorkspace.sections.riskMap")}>
-          <Card title={t("portfolioWorkspace.sections.riskMap")}>
-            {sectorRisk.length ? (
-              <Grid className="portfolio-workspace__grid">
-                {sectorRisk.map((sector) => (
-                  <div key={sector.name} style={{ gridColumn: "span 4" }}>
-                    <Card eyebrow={sector.name}>
-                      <Stack gap={2}>
-                        <Badge tone={sector.tone}>{t("portfolioWorkspace.riskMap.weight", { pct: sector.pct?.toFixed(1) })}</Badge>
-                        <span className="nova-text-xs">{t("portfolioWorkspace.riskMap.netUnrealized", { value: sector.netUnrealizedPnl.toLocaleString() })}</span>
-                      </Stack>
+        {/* Tier 3 — Context: supporting detail, unchanged in substance */}
+        <Section aria-label="Context" className="mc-tier-3">
+          <section aria-label={t("portfolioWorkspace.sections.health")}>
+            <Card title={t("portfolioWorkspace.sections.health")}>
+              {positions.length || totalValue ? (
+                <Grid className="portfolio-workspace__grid">
+                  <div style={{ gridColumn: "span 3" }}>
+                    <Card eyebrow={t("portfolioWorkspace.health.totalValue")}><strong className="nova-text-lg">${totalValue.toLocaleString()}</strong></Card>
+                  </div>
+                  <div style={{ gridColumn: "span 3" }}>
+                    <Card eyebrow={t("portfolioWorkspace.health.totalReturn")}>
+                      <Badge tone={summary.totalReturnPct >= 0 ? "positive" : "negative"}><strong className="nova-text-lg">{summary.totalReturnPct?.toFixed(2)}%</strong></Badge>
                     </Card>
                   </div>
-                ))}
-              </Grid>
-            ) : (
-              <EmptyState icon="◇" title={t("portfolioWorkspace.empty.riskMap")} />
-            )}
-          </Card>
-        </section>
+                  <div style={{ gridColumn: "span 3" }}>
+                    <Card eyebrow={t("portfolioWorkspace.health.dailyPnl")}>
+                      <Badge tone={summary.dailyPnl >= 0 ? "positive" : "negative"}><strong className="nova-text-lg">${summary.dailyPnl?.toLocaleString()}</strong></Badge>
+                    </Card>
+                  </div>
+                  <div style={{ gridColumn: "span 3" }}>
+                    <Card eyebrow={t("portfolioWorkspace.health.cash")}><strong className="nova-text-lg">${(summary.cashBalance || 0).toLocaleString()}</strong></Card>
+                  </div>
+                </Grid>
+              ) : (
+                <EmptyState icon="◇" title={t("portfolioWorkspace.empty.health")} />
+              )}
+              {delta?.hasComparison ? (
+                <p className="nova-heading-subtext">{delta.summary}</p>
+              ) : delta ? (
+                <p className="nova-heading-subtext">{t("portfolioWorkspace.health.noComparison")}</p>
+              ) : null}
+            </Card>
+          </section>
 
-        {/* 3. Concentration Analysis */}
-        <section aria-label={t("portfolioWorkspace.sections.concentration")}>
-          <Card title={t("portfolioWorkspace.sections.concentration")}>
-            {concentration ? (
-              <Stack gap={2}>
-                <p className="nova-text-sm">{t("portfolioWorkspace.concentration.largest", { symbol: concentration.largestHolding.symbol, pct: (concentration.largestHolding.weight * 100).toFixed(1) })}</p>
-                <Stack direction="horizontal" gap={2} wrap>
-                  <Badge tone="neutral">{t("portfolioWorkspace.concentration.top1", { pct: (concentration.top1 * 100).toFixed(1) })}</Badge>
-                  <Badge tone="neutral">{t("portfolioWorkspace.concentration.top3", { pct: (concentration.top3 * 100).toFixed(1) })}</Badge>
-                  <Badge tone="neutral">{t("portfolioWorkspace.concentration.top5", { pct: (concentration.top5 * 100).toFixed(1) })}</Badge>
-                  <Badge tone="neutral">{t("portfolioWorkspace.concentration.hhi", { value: concentration.hhi.toFixed(0) })}</Badge>
+          <section aria-label={t("portfolioWorkspace.sections.riskMap")}>
+            <Card title={t("portfolioWorkspace.sections.riskMap")}>
+              {sectorRisk.length ? (
+                <Grid className="portfolio-workspace__grid">
+                  {sectorRisk.map((sector) => (
+                    <div key={sector.name} style={{ gridColumn: "span 4" }}>
+                      <Card eyebrow={sector.name}>
+                        <Stack gap={2}>
+                          <Badge tone={sector.tone}>{t("portfolioWorkspace.riskMap.weight", { pct: sector.pct?.toFixed(1) })}</Badge>
+                          <span className="nova-text-xs">{t("portfolioWorkspace.riskMap.netUnrealized", { value: sector.netUnrealizedPnl.toLocaleString() })}</span>
+                        </Stack>
+                      </Card>
+                    </div>
+                  ))}
+                </Grid>
+              ) : (
+                <EmptyState icon="◇" title={t("portfolioWorkspace.empty.riskMap")} />
+              )}
+            </Card>
+          </section>
+
+          <section aria-label={t("portfolioWorkspace.sections.concentration")}>
+            <Card title={t("portfolioWorkspace.sections.concentration")}>
+              {concentration ? (
+                <Stack gap={2}>
+                  <p className="nova-text-sm">{t("portfolioWorkspace.concentration.largest", { symbol: concentration.largestHolding.symbol, pct: (concentration.largestHolding.weight * 100).toFixed(1) })}</p>
+                  <Stack direction="horizontal" gap={2} wrap>
+                    <Badge tone="neutral">{t("portfolioWorkspace.concentration.top1", { pct: (concentration.top1 * 100).toFixed(1) })}</Badge>
+                    <Badge tone="neutral">{t("portfolioWorkspace.concentration.top3", { pct: (concentration.top3 * 100).toFixed(1) })}</Badge>
+                    <Badge tone="neutral">{t("portfolioWorkspace.concentration.top5", { pct: (concentration.top5 * 100).toFixed(1) })}</Badge>
+                    <Badge tone="neutral">{t("portfolioWorkspace.concentration.hhi", { value: concentration.hhi.toFixed(0) })}</Badge>
+                  </Stack>
+                  <p className="nova-text-xs">{t("portfolioWorkspace.concentration.methodology")}</p>
                 </Stack>
-                <p className="nova-text-xs">{t("portfolioWorkspace.concentration.methodology")}</p>
-              </Stack>
-            ) : (
-              <EmptyState icon="◇" title={t("portfolioWorkspace.empty.concentration")} />
-            )}
-          </Card>
-        </section>
+              ) : (
+                <EmptyState icon="◇" title={t("portfolioWorkspace.empty.concentration")} />
+              )}
+            </Card>
+          </section>
 
-        {/* 4. Diversification Score */}
-        <section aria-label={t("portfolioWorkspace.sections.diversification")}>
-          <Card title={t("portfolioWorkspace.sections.diversification")}>
-            {positions.length ? (
-              <Stack direction="horizontal" gap={2} wrap>
-                <Badge tone="neutral">{t("portfolioWorkspace.diversification.holdings", { count: positions.length })}</Badge>
-                <Badge tone="neutral">{t("portfolioWorkspace.diversification.sectors", { count: distinctSectors })}</Badge>
-                {concentration ? <Badge tone={concentration.top1 > 0.4 ? "warning" : "neutral"}>{t("portfolioWorkspace.diversification.largestWeight", { pct: (concentration.top1 * 100).toFixed(1) })}</Badge> : null}
-                <p className="nova-text-xs">{t("portfolioWorkspace.diversification.methodology")}</p>
-              </Stack>
-            ) : (
-              <EmptyState icon="◇" title={t("portfolioWorkspace.empty.diversification")} />
-            )}
-          </Card>
-        </section>
+          <section aria-label={t("portfolioWorkspace.sections.diversification")}>
+            <Card title={t("portfolioWorkspace.sections.diversification")}>
+              {positions.length ? (
+                <Stack direction="horizontal" gap={2} wrap>
+                  <Badge tone="neutral">{t("portfolioWorkspace.diversification.holdings", { count: positions.length })}</Badge>
+                  <Badge tone="neutral">{t("portfolioWorkspace.diversification.sectors", { count: distinctSectors })}</Badge>
+                  {concentration ? <Badge tone={concentration.top1 > 0.4 ? "warning" : "neutral"}>{t("portfolioWorkspace.diversification.largestWeight", { pct: (concentration.top1 * 100).toFixed(1) })}</Badge> : null}
+                  <p className="nova-text-xs">{t("portfolioWorkspace.diversification.methodology")}</p>
+                </Stack>
+              ) : (
+                <EmptyState icon="◇" title={t("portfolioWorkspace.empty.diversification")} />
+              )}
+            </Card>
+          </section>
 
-        {/* 5. Sector Allocation */}
-        <section aria-label={t("portfolioWorkspace.sections.sectorAllocation")}>
-          <Card title={t("portfolioWorkspace.sections.sectorAllocation")}>
-            {bySector.length ? (
-              <Table
-                columns={[
-                  { key: "name", label: t("portfolioWorkspace.sectorAllocation.sector") },
-                  { key: "value", label: t("portfolioWorkspace.sectorAllocation.value"), align: "end" },
-                  { key: "pct", label: t("portfolioWorkspace.sectorAllocation.weight"), align: "end" },
-                ]}
-                rows={bySector.map((sector) => ({ id: sector.name, name: sector.name, value: `$${(sector.value || 0).toLocaleString()}`, pct: `${(sector.pct || 0).toFixed(1)}%` }))}
-              />
-            ) : (
-              <EmptyState icon="◇" title={t("portfolioWorkspace.empty.sectorAllocation")} />
-            )}
-          </Card>
-        </section>
+          <section aria-label={t("portfolioWorkspace.sections.sectorAllocation")}>
+            <Card title={t("portfolioWorkspace.sections.sectorAllocation")}>
+              {bySector.length ? (
+                <Table
+                  columns={[
+                    { key: "name", label: t("portfolioWorkspace.sectorAllocation.sector") },
+                    { key: "value", label: t("portfolioWorkspace.sectorAllocation.value"), align: "end" },
+                    { key: "pct", label: t("portfolioWorkspace.sectorAllocation.weight"), align: "end" },
+                  ]}
+                  rows={bySector.map((sector) => ({ id: sector.name, name: sector.name, value: `$${(sector.value || 0).toLocaleString()}`, pct: `${(sector.pct || 0).toFixed(1)}%` }))}
+                />
+              ) : (
+                <EmptyState icon="◇" title={t("portfolioWorkspace.empty.sectorAllocation")} />
+              )}
+            </Card>
+          </section>
 
-        <Grid className="portfolio-workspace__grid">
-          {/* 6. Biggest Winners */}
-          <div style={{ gridColumn: "span 6" }}>
-            <section aria-label={t("portfolioWorkspace.sections.winners")}>
-              <Card title={t("portfolioWorkspace.sections.winners")}>
-                {winners.length ? (
-                  <ul className="stack-list">
-                    {winners.map((position) => (
-                      <li key={position.id} className="nova-heading-subtext">
-                        <strong>{position.symbol}</strong> <Badge tone="positive">+{position.unrealizedPnlPct?.toFixed(2)}%</Badge> (${position.unrealizedPnl?.toLocaleString()})
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <EmptyState icon="◇" title={t("portfolioWorkspace.empty.winners")} />
-                )}
-              </Card>
-            </section>
-          </div>
+          <Grid className="portfolio-workspace__grid">
+            <div style={{ gridColumn: "span 6" }}>
+              <section aria-label={t("portfolioWorkspace.sections.winners")}>
+                <Card title={t("portfolioWorkspace.sections.winners")}>
+                  {winners.length ? (
+                    <ul className="stack-list">
+                      {winners.map((position) => (
+                        <li key={position.id} className="nova-heading-subtext">
+                          <strong>{position.symbol}</strong> <Badge tone="positive">+{position.unrealizedPnlPct?.toFixed(2)}%</Badge> (${position.unrealizedPnl?.toLocaleString()})
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <EmptyState icon="◇" title={t("portfolioWorkspace.empty.winners")} />
+                  )}
+                </Card>
+              </section>
+            </div>
 
-          {/* 7. Biggest Losers */}
-          <div style={{ gridColumn: "span 6" }}>
-            <section aria-label={t("portfolioWorkspace.sections.losers")}>
-              <Card title={t("portfolioWorkspace.sections.losers")}>
-                {losers.length ? (
-                  <ul className="stack-list">
-                    {losers.map((position) => (
-                      <li key={position.id} className="nova-heading-subtext">
-                        <strong>{position.symbol}</strong> <Badge tone="negative">{position.unrealizedPnlPct?.toFixed(2)}%</Badge> (${position.unrealizedPnl?.toLocaleString()})
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <EmptyState icon="◇" title={t("portfolioWorkspace.empty.losers")} />
-                )}
-              </Card>
-            </section>
-          </div>
-        </Grid>
+            <div style={{ gridColumn: "span 6" }}>
+              <section aria-label={t("portfolioWorkspace.sections.losers")}>
+                <Card title={t("portfolioWorkspace.sections.losers")}>
+                  {losers.length ? (
+                    <ul className="stack-list">
+                      {losers.map((position) => (
+                        <li key={position.id} className="nova-heading-subtext">
+                          <strong>{position.symbol}</strong> <Badge tone="negative">{position.unrealizedPnlPct?.toFixed(2)}%</Badge> (${position.unrealizedPnl?.toLocaleString()})
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <EmptyState icon="◇" title={t("portfolioWorkspace.empty.losers")} />
+                  )}
+                </Card>
+              </section>
+            </div>
+          </Grid>
 
-        {/* 9. Rebalance Suggestions */}
-        <section aria-label={t("portfolioWorkspace.sections.rebalance")}>
-          <Card title={t("portfolioWorkspace.sections.rebalance")}>
-            {/* No rebalance-suggestion concept exists anywhere in the backend
-                (grep-confirmed, X12C.3 research) — showing an honest
-                not-available state here, never a fabricated suggestion. */}
-            <EmptyState icon="◇" title={t("portfolioWorkspace.empty.rebalanceNotAvailable")} />
-          </Card>
-        </section>
+          <section aria-label={t("portfolioWorkspace.sections.rebalance")}>
+            <Card title={t("portfolioWorkspace.sections.rebalance")}>
+              <EmptyState icon="◇" title={t("portfolioWorkspace.empty.rebalanceNotAvailable")} />
+            </Card>
+          </section>
 
-        {/* 10. Cash Allocation */}
-        <section aria-label={t("portfolioWorkspace.sections.cash")}>
-          <Card title={t("portfolioWorkspace.sections.cash")}>
-            {cashWeightPct !== null ? (
-              <Stack direction="horizontal" gap={2} wrap>
-                <Badge tone="neutral">{t("portfolioWorkspace.cash.balance", { value: (summary.cashBalance || 0).toLocaleString() })}</Badge>
-                <Badge tone={cashWeightPct > 25 ? "warning" : "neutral"}>{t("portfolioWorkspace.cash.weight", { pct: cashWeightPct.toFixed(1) })}</Badge>
-              </Stack>
-            ) : (
-              <EmptyState icon="◇" title={t("portfolioWorkspace.empty.cash")} />
-            )}
-          </Card>
-        </section>
+          <section aria-label={t("portfolioWorkspace.sections.cash")}>
+            <Card title={t("portfolioWorkspace.sections.cash")}>
+              {cashWeightPct !== null ? (
+                <Stack direction="horizontal" gap={2} wrap>
+                  <Badge tone="neutral">{t("portfolioWorkspace.cash.balance", { value: (summary.cashBalance || 0).toLocaleString() })}</Badge>
+                  <Badge tone={cashWeightPct > 25 ? "warning" : "neutral"}>{t("portfolioWorkspace.cash.weight", { pct: cashWeightPct.toFixed(1) })}</Badge>
+                </Stack>
+              ) : (
+                <EmptyState icon="◇" title={t("portfolioWorkspace.empty.cash")} />
+              )}
+            </Card>
+          </section>
+        </Section>
       </Container>
     </Page>
   );
