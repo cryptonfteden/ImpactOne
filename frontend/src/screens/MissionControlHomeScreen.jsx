@@ -1,29 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Page, Container, Section, Grid, Stack } from "../components/layout";
 import { Card, Badge, MetricArc, EmptyState, Skeleton, Button, InlineMessage } from "../components/nova";
 import { useI18n } from "../i18n/I18nProvider";
+import { morningBriefApi, claimsApi, portfolioEngineApi, marketSentimentApi, intelligenceApi } from "../services/api";
+import { logError } from "../utils/errorHandling";
 import {
-  todaysBrief,
-  portfolioIntelligence,
-  biggestRisk,
-  bestOpportunity,
-  claimsChanging,
-  marketPulse,
-  liveIntelligenceCount,
-  sessionSummary,
-  isDemoData,
+  todaysBrief as fallbackBrief,
+  portfolioIntelligence as fallbackPortfolio,
+  biggestRisk as fallbackRisk,
+  bestOpportunity as fallbackOpportunity,
+  claimsChanging as fallbackClaimsChanging,
+  marketPulse as fallbackMarketPulse,
+  liveIntelligenceCount as fallbackFeedCount,
 } from "./missionControl/missionControlMockData";
 
 // Phase MISSION-CONTROL-001 — the first production-quality implementation
 // of IMPACTONE_DESIGN_BIBLE.md and MISSION_CONTROL_EXPERIENCE_MASTERPLAN.md.
-// This screen deliberately uses deterministic mock data (see
-// missionControlMockData.js) rather than live API calls — per this
-// phase's explicit mission, the goal is validating the experience itself,
-// not re-wiring backend integration (already real and tested in prior
-// phases; this file is the visual/UX foundation the next phase reconnects
-// to that real data). No backend was touched, and no new business logic
-// exists here: every derived value below is a plain, presentation-only
-// read of the mock fixtures.
 //
 // Structure follows the masterplan's three tiers exactly:
 //   Tier 1 — The Brief (hero + Today's Brief)
@@ -33,22 +25,35 @@ import {
 // screen — see components.css's `.mc-tier-1/2/3` rules — never a fourth,
 // per-section-specific rule.
 //
-// Phase MISSION-CONTROL-002 — release-readiness pass. Two fixes of note:
-// (1) Confidence, Probability, and Attention are three independent
-// metrics (see MetricArc.jsx) — every MetricArc instance below now
-// states its `metric` explicitly (Today's Brief/hero use "attention";
-// Biggest Risk/Best Opportunity/Market Pulse use "confidence"), and the
-// visible "Attention: {level}" badge wording is now consistent between
-// the hero and every other Brief row, never a bare, unlabeled level.
-// (2) This screen still runs entirely on deterministic demo data
-// (`isDemoData`, from missionControlMockData.js) — a persistent, quiet
-// Demo Mode indicator now discloses this at the top of the screen so no
-// user can mistake simulated values for a live read of their real
-// portfolio.
+// Phase MISSION-CONTROL-002 — Confidence, Probability, and Attention are
+// three independent metrics (see MetricArc.jsx) — every MetricArc
+// instance below states its `metric` explicitly.
+//
+// Phase LIVE-DATA-001 — this screen now fetches real data from six
+// already-real, already-tested canonical services:
+//   - Morning Brief    → morningBriefApi.getToday()
+//   - Claims           → claimsApi.listActive() / listOvernightChanges() / listPortfolioRelevant()
+//   - Attention Engine → attentionScore/attentionExplanation, already attached
+//                        server-side to every Claim and Brief item above
+//   - Portfolio Intelligence → portfolioEngineApi.getPerformanceDelta()
+//   - Risk Assessment  → the highest-confidence real BEARISH claim from Claims
+//   - Opportunity Assessment → the highest-confidence real BULLISH claim from Claims
+// Two further sections (Market Pulse, Live Intelligence count) are also
+// wired to their real services (Market Sentiment Engine, Daily Feed) so
+// no part of the screen is left permanently on demo data once real data
+// exists for it. Every fetch is independent and fault-isolated
+// (Promise.allSettled) — a failure in one never blocks another. Each
+// section falls back to missionControlMockData.js ONLY on a real fetch
+// failure, never merely because real data was empty (an honestly empty
+// real result is not "demo" — it renders its own real empty state). No
+// new intelligence is computed here: Risk/Opportunity Assessment is a
+// presentation-only filter/sort of the one real Claims fetch, exactly
+// the same pattern already established across every other screen in
+// this app (see UI_INTEGRATION_ARCHITECTURE.md).
 
-const INITIAL_LOAD_DELAY_MS = 300;
 const BRIEF_COLLAPSED_COUNT = 3;
 const STAGGER_STEP_MS = 60;
+const MARKET_SENTIMENT_MARKET = "US";
 
 function attentionLevelTone(level) {
   if (level === "High") return "warning";
@@ -74,6 +79,13 @@ function statusPlainLabel(status) {
   if (status === "WEAKENING") return "Getting less likely";
   if (status === "INVALIDATED") return "No longer holds up";
   return status;
+}
+
+function recommendedAttentionLevel(score) {
+  if (!Number.isFinite(score)) return "Low";
+  if (score >= 75) return "High";
+  if (score >= 45) return "Medium";
+  return "Low";
 }
 
 /**
@@ -153,18 +165,6 @@ function BriefRow({ item, index }) {
  * Tier 2 — one half of the paired Biggest Risk / Best Opportunity
  * signals. Deliberately identical structure for both halves (the
  * masterplan's one documented exception to "nothing is equal").
- *
- * Phase MISSION-CONTROL-002 — an independent implementation review
- * (MISSION_CONTROL_UI_GAPS.md, H1) found "Show more" was functionally
- * inert here: Card's generic `expandable` prop only toggles a height
- * clip around identical children, so on content short enough to already
- * fit collapsed, expanding changed nothing visible — confirmed live.
- * Fixed by managing expand state locally (same pattern as BriefRow
- * below) and only rendering `claim.portfolioImpact` — real data the mock
- * fixtures already carry, previously rendered nowhere at all — once
- * expanded, so the affordance always has real, additional content to
- * reveal, matching the masterplan's "expanded state adds real portfolio
- * impact magnitude" spec.
  */
 function SignalCard({ title, claim }) {
   const [expanded, setExpanded] = useState(false);
@@ -201,19 +201,226 @@ function SignalCard({ title, claim }) {
   );
 }
 
+const SECTION_LABELS = {
+  brief: "Today's Brief",
+  portfolio: "Portfolio Intelligence",
+  riskOpportunity: "Biggest Risk / Best Opportunity",
+  claimsChanging: "Claims Changing",
+  marketPulse: "Market Pulse",
+  feed: "Live Intelligence",
+};
+
 export default function MissionControlHomeScreen({ onNavigate }) {
   const { dir } = useI18n();
   const [isLoading, setIsLoading] = useState(true);
   const [briefExpanded, setBriefExpanded] = useState(false);
 
+  const [brief, setBrief] = useState(fallbackBrief);
+  const [portfolio, setPortfolio] = useState(fallbackPortfolio);
+  const [biggestRisk, setBiggestRisk] = useState(fallbackRisk);
+  const [bestOpportunity, setBestOpportunity] = useState(fallbackOpportunity);
+  const [claimsChanging, setClaimsChanging] = useState(fallbackClaimsChanging);
+  const [marketPulse, setMarketPulse] = useState(fallbackMarketPulse);
+  const [feedCount, setFeedCount] = useState(fallbackFeedCount);
+  // Phase LIVE-DATA-001 — per-section liveness. Starts `true` for every
+  // section; a fetch failure flips only the section(s) it belongs to.
+  // This is what the Demo Mode indicator (below) actually reads — never
+  // a single global flag, since a real, partial outage should say so
+  // honestly rather than either hiding it entirely or crying wolf about
+  // sections that loaded real data just fine.
+  const [liveSections, setLiveSections] = useState({
+    brief: true,
+    portfolio: true,
+    riskOpportunity: true,
+    claimsChanging: true,
+    marketPulse: true,
+    feed: true,
+  });
+
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), INITIAL_LOAD_DELAY_MS);
-    return () => clearTimeout(timer);
+    let cancelled = false;
+
+    async function load() {
+      const [briefResult, activeClaimsResult, deltaResult, portfolioClaimsResult, overnightResult, sentimentResult, feedResult] = await Promise.allSettled([
+        morningBriefApi.getToday(),
+        claimsApi.listActive({ limit: 100 }),
+        portfolioEngineApi.getPerformanceDelta(),
+        claimsApi.listPortfolioRelevant(),
+        claimsApi.listOvernightChanges({ limit: 10 }),
+        marketSentimentApi.getOverview(MARKET_SENTIMENT_MARKET),
+        intelligenceApi.liveFeed(),
+      ]);
+
+      if (cancelled) return;
+
+      const nextLive = {};
+      const connected = [];
+      const unavailable = [];
+
+      // Morning Brief — real Brief items (already ranked server-side by
+      // the Attention Engine). An honestly-empty real brief (no items
+      // yet today) is NOT a fallback condition — it renders its own
+      // empty state further down, same as every other honest-empty case
+      // in this app.
+      if (briefResult.status === "fulfilled") {
+        setBrief(briefResult.value?.items || []);
+        nextLive.brief = true;
+        connected.push("Morning Brief");
+      } else {
+        logError("mission control morning brief load failed", briefResult.reason);
+        setBrief(fallbackBrief);
+        nextLive.brief = false;
+        unavailable.push("Morning Brief");
+      }
+
+      // Claims + Attention Engine (shared fetch) — backs both the
+      // secondary Brief usage above is independent, and Risk/Opportunity
+      // Assessment below. Attention Engine's real attentionScore is
+      // already attached to every claim by the backend controller; nothing
+      // is recomputed here.
+      let activeClaims = null;
+      if (activeClaimsResult.status === "fulfilled") {
+        activeClaims = activeClaimsResult.value?.claims || [];
+        nextLive.riskOpportunity = true;
+        connected.push("Claims", "Attention Engine");
+      } else {
+        logError("mission control active claims load failed", activeClaimsResult.reason);
+        nextLive.riskOpportunity = false;
+        unavailable.push("Claims", "Attention Engine");
+      }
+
+      if (activeClaims) {
+        const byConfidenceDesc = (a, b) => (b.confidence ?? -1) - (a.confidence ?? -1);
+        const topRisk = [...activeClaims].filter((claim) => claim.expectedDirection === "BEARISH").sort(byConfidenceDesc)[0] || null;
+        const topOpportunity = [...activeClaims].filter((claim) => claim.expectedDirection === "BULLISH").sort(byConfidenceDesc)[0] || null;
+        // A real, honest "nothing rose to this level today" is different
+        // from "the fetch failed" — only fall back to demo content on a
+        // real failure (handled in the `else` above), never because the
+        // real list simply had no bearish/bullish claim right now.
+        setBiggestRisk(topRisk);
+        setBestOpportunity(topOpportunity);
+      } else {
+        setBiggestRisk(fallbackRisk);
+        setBestOpportunity(fallbackOpportunity);
+      }
+
+      // Portfolio Intelligence — requires both the real performance delta
+      // and the real portfolio-relevant claims count to be genuinely
+      // live; if either failed, the section falls back as one coherent
+      // unit rather than mixing one real half with one simulated half.
+      if (deltaResult.status === "fulfilled" && portfolioClaimsResult.status === "fulfilled") {
+        const delta = deltaResult.value;
+        const portfolioClaims = portfolioClaimsResult.value?.claims || [];
+        const topAffectedHoldings = [...new Set(portfolioClaims.flatMap((claim) => claim.symbols || []))].slice(0, 2);
+        setPortfolio({
+          hasComparison: delta.hasComparison,
+          totalValue: delta.totalValue,
+          valueChangePct: delta.valueChangePct,
+          summary: delta.summary,
+          changes: delta.changes || [],
+          claimsAffectingPortfolio: portfolioClaims.length,
+          topAffectedHoldings,
+        });
+        nextLive.portfolio = true;
+        connected.push("Portfolio Intelligence");
+      } else {
+        if (deltaResult.status === "rejected") logError("mission control portfolio delta load failed", deltaResult.reason);
+        if (portfolioClaimsResult.status === "rejected") logError("mission control portfolio-relevant claims load failed", portfolioClaimsResult.reason);
+        setPortfolio(fallbackPortfolio);
+        nextLive.portfolio = false;
+        unavailable.push("Portfolio Intelligence");
+      }
+
+      // Claims Changing — real overnight transitions. `reason` reuses the
+      // claim's own real plainLanguageStatement (no dedicated per-
+      // transition reason string exists yet on the Claim contract) —
+      // honest, real content, never fabricated.
+      if (overnightResult.status === "fulfilled") {
+        const changed = (overnightResult.value?.claims || []).map((claim) => ({
+          claimId: claim.claimId,
+          symbols: claim.symbols || [],
+          status: claim.status,
+          reason: claim.plainLanguageStatement || claim.statement || "No detailed explanation recorded for this Claim yet.",
+        }));
+        setClaimsChanging(changed);
+        nextLive.claimsChanging = true;
+        connected.push("Claims (overnight changes)");
+      } else {
+        logError("mission control overnight claims load failed", overnightResult.reason);
+        setClaimsChanging(fallbackClaimsChanging);
+        nextLive.claimsChanging = false;
+        unavailable.push("Claims (overnight changes)");
+      }
+
+      // Market Pulse — real Market Sentiment Engine overview. The
+      // one-sentence summary is a plain, presentation-only rendering of
+      // the real score/confidence numbers (same pattern already used on
+      // StockSidePanel) — never a fabricated qualitative judgment beyond
+      // what the real numbers say.
+      if (sentimentResult.status === "fulfilled") {
+        const overview = sentimentResult.value;
+        const summary =
+          Number.isFinite(overview.score) && Number.isFinite(overview.confidence)
+            ? `Market-wide (${overview.market}) sentiment — score ${overview.score}/100, confidence ${overview.confidence}/100.`
+            : "Market sentiment is not currently available.";
+        setMarketPulse({ market: overview.market, score: overview.score, confidence: overview.confidence, summary });
+        nextLive.marketPulse = true;
+        connected.push("Market Sentiment");
+      } else {
+        logError("mission control market sentiment load failed", sentimentResult.reason);
+        setMarketPulse(fallbackMarketPulse);
+        nextLive.marketPulse = false;
+        unavailable.push("Market Sentiment");
+      }
+
+      // Live Intelligence — the real Daily Feed's item count.
+      if (feedResult.status === "fulfilled") {
+        setFeedCount((feedResult.value?.feed || []).length);
+        nextLive.feed = true;
+        connected.push("Daily Feed");
+      } else {
+        logError("mission control live feed count load failed", feedResult.reason);
+        setFeedCount(fallbackFeedCount);
+        nextLive.feed = false;
+        unavailable.push("Daily Feed");
+      }
+
+      setLiveSections(nextLive);
+      setIsLoading(false);
+
+      // Phase LIVE-DATA-001 — required: log which services are connected
+      // and which remain unavailable, every load.
+      console.info("[MissionControl] service status", { connected, unavailable: [...new Set(unavailable)] });
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const [hero, ...restOfBrief] = todaysBrief;
+  const [hero, ...restOfBrief] = brief.length ? brief : [null];
   const visibleBriefRows = briefExpanded ? restOfBrief : restOfBrief.slice(0, BRIEF_COLLAPSED_COUNT - 1);
   const hiddenBriefCount = restOfBrief.length - visibleBriefRows.length;
+
+  const sessionSummary = useMemo(() => {
+    const counts = { High: 0, Medium: 0, Low: 0 };
+    for (const item of brief) {
+      const level = item.recommendedAttentionLevel || recommendedAttentionLevel(item.attentionScore);
+      counts[level] = (counts[level] || 0) + 1;
+    }
+    return { highAttentionCount: counts.High, mediumAttentionCount: counts.Medium, lowAttentionCount: counts.Low };
+  }, [brief]);
+
+  // Phase LIVE-DATA-001 — the Demo Mode indicator. Disappears entirely
+  // once every section is live; shows an accurate, honest message
+  // otherwise — naming exactly which sections are simulated when only
+  // some are, rather than either hiding a partial outage or crying wolf
+  // about sections that are genuinely live.
+  const demoSectionKeys = Object.keys(liveSections).filter((key) => !liveSections[key]);
+  const allSectionsCount = Object.keys(liveSections).length;
+  const isFullyDemo = demoSectionKeys.length === allSectionsCount;
+  const isFullyLive = demoSectionKeys.length === 0;
 
   if (isLoading) {
     return (
@@ -240,86 +447,122 @@ export default function MissionControlHomeScreen({ onNavigate }) {
           <p className="nova-heading-subtext">Everything that needs you, in one coherent briefing — not a wall of widgets.</p>
         </Stack>
 
-        {/* Phase MISSION-CONTROL-002 — Demo Mode indicator. Quiet and
-            persistent (not a dismissible toast) for as long as
-            isDemoData is true, so a user can never mistake this
-            screen's simulated values for a live read of their real
-            portfolio. Informative, not alarming: an InlineMessage, the
-            smallest/quietest real notification treatment this library
-            has, placed once at the top rather than repeated per card. */}
-        {isDemoData ? (
-          <div style={{ marginBlockEnd: "var(--nova-space-6)" }} role="status" aria-label="Demo mode: showing simulated intelligence, not live data.">
+        {/* Phase MISSION-CONTROL-002 — Demo Mode indicator, quiet and
+            persistent. Phase LIVE-DATA-001 — now automatically
+            disappears once every section is running on real, live data,
+            and gives an accurate, section-specific message when only
+            some of the screen fell back. */}
+        {!isFullyLive ? (
+          <div
+            style={{ marginBlockEnd: "var(--nova-space-6)" }}
+            role="status"
+            aria-label={isFullyDemo ? "Demo mode: showing simulated intelligence, not live data." : "Some sections are showing simulated data because a live service is unavailable."}
+          >
             <InlineMessage tone="info">
-              <strong>Demo</strong> — every value on this screen is simulated for demonstration. It does not reflect your real portfolio or live
-              market data.
+              {isFullyDemo ? (
+                <>
+                  <strong>Demo</strong> — every value on this screen is simulated for demonstration. It does not reflect your real portfolio or
+                  live market data.
+                </>
+              ) : (
+                <>
+                  <strong>Demo data</strong> — {demoSectionKeys.map((key) => SECTION_LABELS[key]).join(", ")} could not be loaded live right now
+                  and {demoSectionKeys.length === 1 ? "is" : "are"} showing simulated values. Everything else on this screen reflects real, live
+                  data.
+                </>
+              )}
             </InlineMessage>
           </div>
         ) : null}
 
         {/* Tier 1 — The Brief */}
         <Section aria-label="Today's Brief" className="mc-tier-1">
-          <HeroBriefItem item={hero} />
+          {hero ? (
+            <>
+              <HeroBriefItem item={hero} />
 
-          {visibleBriefRows.length ? (
-            <Card>
-              <Stack gap={1}>
-                {visibleBriefRows.map((item, index) => (
-                  <BriefRow key={item.claimId} item={item} index={index} />
-                ))}
-              </Stack>
-              {hiddenBriefCount > 0 ? (
-                <Button variant="ghost" onClick={() => setBriefExpanded(true)}>
-                  +{hiddenBriefCount} more
-                </Button>
-              ) : restOfBrief.length > BRIEF_COLLAPSED_COUNT - 1 ? (
-                <Button variant="ghost" onClick={() => setBriefExpanded(false)}>
-                  Show less
-                </Button>
+              {visibleBriefRows.length ? (
+                <Card>
+                  <Stack gap={1}>
+                    {visibleBriefRows.map((item, index) => (
+                      <BriefRow key={item.claimId || item.dimension} item={item} index={index} />
+                    ))}
+                  </Stack>
+                  {hiddenBriefCount > 0 ? (
+                    <Button variant="ghost" onClick={() => setBriefExpanded(true)}>
+                      +{hiddenBriefCount} more
+                    </Button>
+                  ) : restOfBrief.length > BRIEF_COLLAPSED_COUNT - 1 ? (
+                    <Button variant="ghost" onClick={() => setBriefExpanded(false)}>
+                      Show less
+                    </Button>
+                  ) : null}
+                </Card>
               ) : null}
+            </>
+          ) : (
+            <Card>
+              <EmptyState icon="◇" title="No meaningful intelligence to surface yet today." />
             </Card>
-          ) : null}
+          )}
         </Section>
 
         {/* Tier 2 — Your Signals */}
         <Section aria-label="Your Signals" className="mc-tier-2">
-          <Card title="Portfolio Intelligence" expandable>
+          {/* Phase LIVE-DATA-001 — `expandable` was previously set here
+              with no real additional content behind it, and its 60px
+              collapsed-height clip badly cut off the EmptyState shown
+              on a real, honestly-empty portfolio (confirmed live: only
+              a sliver of the icon rendered). Removed — same fix already
+              applied to SignalCard for the same underlying reason. */}
+          <Card title="Portfolio Intelligence">
             <Stack gap={3}>
-              {portfolioIntelligence.hasComparison ? (
+              {portfolio.hasComparison ? (
                 <>
                   <Stack direction="horizontal" gap={4} wrap align="center">
                     <div>
                       <span className="nova-heading-eyebrow">Total value</span>
                       <div className="nova-text-lg" style={{ fontWeight: "var(--nova-font-weight-semibold)" }}>
-                        ${portfolioIntelligence.totalValue.toLocaleString()}
+                        ${portfolio.totalValue.toLocaleString()}
                       </div>
                     </div>
-                    <Badge tone={portfolioIntelligence.valueChangePct >= 0 ? "positive" : "negative"}>
-                      {portfolioIntelligence.valueChangePct >= 0 ? "+" : ""}
-                      {portfolioIntelligence.valueChangePct}% since yesterday
+                    <Badge tone={portfolio.valueChangePct >= 0 ? "positive" : "negative"}>
+                      {portfolio.valueChangePct >= 0 ? "+" : ""}
+                      {portfolio.valueChangePct}% since yesterday
                     </Badge>
-                    <Badge tone="neutral">{portfolioIntelligence.claimsAffectingPortfolio} claims affecting your portfolio</Badge>
+                    <Badge tone="neutral">{portfolio.claimsAffectingPortfolio} claims affecting your portfolio</Badge>
                   </Stack>
                   <ul className="stack-list">
-                    {portfolioIntelligence.changes.map((change) => (
+                    {portfolio.changes.map((change) => (
                       <li key={change.dimension} className="nova-text-sm">
                         <strong>{change.label}</strong>: {change.beforeValue.toLocaleString()} → {change.afterValue.toLocaleString()}
                         {change.changePct !== null ? ` (${change.changePct >= 0 ? "+" : ""}${change.changePct}%)` : ""}
                       </li>
                     ))}
                   </ul>
-                  <p className="nova-text-xs" style={{ color: "var(--nova-color-text-tertiary)" }}>
-                    Top affected holdings: {portfolioIntelligence.topAffectedHoldings.join(", ")}
-                  </p>
+                  {portfolio.topAffectedHoldings.length ? (
+                    <p className="nova-text-xs" style={{ color: "var(--nova-color-text-tertiary)" }}>
+                      Top affected holdings: {portfolio.topAffectedHoldings.join(", ")}
+                    </p>
+                  ) : null}
                 </>
               ) : (
-                <EmptyState icon="◇" title="No prior-day snapshot yet — this is the first day being tracked." />
+                <EmptyState icon="◇" title={portfolio.summary || "No prior-day snapshot yet — this is the first day being tracked."} />
               )}
             </Stack>
           </Card>
 
           <div className="mc-signal-pair">
-            <SignalCard title="Biggest Risk" claim={biggestRisk} />
-            <SignalCard title="Best Opportunity" claim={bestOpportunity} />
+            {biggestRisk ? <SignalCard title="Biggest Risk" claim={biggestRisk} /> : (
+              <Card title="Biggest Risk">
+                <EmptyState icon="◇" title="No bearish claims right now." />
+              </Card>
+            )}
+            {bestOpportunity ? <SignalCard title="Best Opportunity" claim={bestOpportunity} /> : (
+              <Card title="Best Opportunity">
+                <EmptyState icon="◇" title="No bullish claims right now." />
+              </Card>
+            )}
           </div>
         </Section>
 
@@ -361,7 +604,7 @@ export default function MissionControlHomeScreen({ onNavigate }) {
 
           <Stack direction="horizontal" gap={2} align="center" justify="between">
             <span className="nova-text-sm" style={{ color: "var(--nova-color-text-tertiary)" }}>
-              {liveIntelligenceCount} more items in today's feed
+              {feedCount} more items in today's feed
             </span>
             <Button variant="ghost" onClick={() => onNavigate?.("Daily Feed")}>
               Open Daily Feed

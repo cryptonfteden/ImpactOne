@@ -1,27 +1,22 @@
-// Phase MISSION-CONTROL-001 — deterministic demo data for the first
-// production-quality Mission Control screen. Per the phase mission ("do
-// not wait for live APIs, use deterministic mock data — the goal is
-// validating the experience"), this module is the sole data source for
-// this screen: no network calls, no randomness, no wall-clock reads. The
-// same import always produces the exact same screen, so the experience
-// (layout, hierarchy, motion, Confidence Arc) can be reviewed and tested
-// without depending on a live backend or a seeded database.
+// Phase MISSION-CONTROL-001 — deterministic demo data for Mission
+// Control. Originally this module was the screen's SOLE data source.
+//
+// Phase LIVE-DATA-001 — Mission Control now fetches real data from the
+// Morning Brief, Claims, Attention Engine, Portfolio Intelligence, Market
+// Sentiment, and Daily Feed services (see MissionControlHomeScreen.jsx).
+// This module's role changed accordingly: every export here is now a
+// FALLBACK, used only for the specific section(s) whose real fetch
+// failed — never a default preferred over real data, and never blended
+// with real data within the same section. The screen tracks, per
+// section, whether it's currently showing this fallback content or real
+// data, and shows the Demo Mode indicator only for the sections actually
+// running on it (see `computeLiveStatus` in MissionControlHomeScreen.jsx).
 //
 // Every field mirrors the REAL shapes already established by prior
 // phases' canonical services (claimContract.js's Claim shape,
 // morningBriefService's Brief item shape, portfolioEngineService's
 // getPerformanceDelta shape) — this is demo content standing in for real
 // intelligence, not a new data model.
-//
-// Phase MISSION-CONTROL-002 — `isDemoData` is the one flag the screen
-// reads to decide whether to show the Demo Mode indicator (see
-// MissionControlHomeScreen.jsx). It is true for as long as this file
-// remains the screen's data source; the day this module is replaced by
-// real API calls, flipping this constant (or removing it in favor of a
-// real "is this real or simulated" signal from the backend) is the only
-// change needed to turn the indicator off — never a place where "demo"
-// and "live" data can be silently confused.
-export const isDemoData = true;
 
 export const heroBriefItem = {
   claimId: "demo-hero-1",
