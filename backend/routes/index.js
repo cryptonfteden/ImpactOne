@@ -46,6 +46,7 @@ const impactGraphRoutes = require("./impactGraphRoutes");
 const decisionCenterRoutes = require("./decisionCenterRoutes");
 const workspaceRoutes = require("./workspaceRoutes");
 const symbolIntelligenceRoutes = require("./symbolIntelligenceRoutes");
+const agentOrchestratorRoutes = require("./agentOrchestratorRoutes");
 const systemHealthRoutes = require("./systemHealthRoutes");
 const decisionTimelineRoutes = require("./decisionTimelineRoutes");
 const executiveDashboardRoutes = require("./executiveDashboardRoutes");
@@ -148,6 +149,12 @@ router.use("/v2/workspaces", workspaceRoutes);
 // aggregation system). Pure composition over already-real services — see
 // symbolIntelligenceService.js's header and MARKET_INTELLIGENCE_SPEC.md.
 router.use("/v2/symbol-intelligence", symbolIntelligenceRoutes);
+// Phase AGENT-ORCHESTRATOR-001 — the new, generic parallel-agent engine
+// (scheduling/timeout/retry/health/priority/confidence/conflict-
+// detection/evidence-merging). A separate, additive endpoint from
+// symbol-intelligence above — not wired to replace it in this phase, so
+// no existing consumer's behavior changes. See AGENT_ORCHESTRATOR.md.
+router.use("/v2/agent-orchestrator", agentOrchestratorRoutes);
 // Phase X6 — Part 5, Observability. Read-only structured health status
 // for the beta-only Health Dashboard (Part 4). No auth gate here (same
 // precedent as /v2/quality-dashboard) — visibility is gated on the
