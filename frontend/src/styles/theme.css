@@ -6,7 +6,7 @@
  * attribute on <html>, set by ThemeProvider.jsx (the JS half of the
  * engine — see THEME_ENGINE.md). This file never renders anything on its
  * own; it only redefines tokens.css's semantic layer per theme, so any
- * component that already references a --nova-color-*/--nova-surface-*
+ * component that already references a --nova-color-* / --nova-surface-*
  * semantic token repaints correctly on theme switch with zero component
  * changes.
  *
