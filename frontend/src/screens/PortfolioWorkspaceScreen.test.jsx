@@ -3,12 +3,16 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import PortfolioWorkspaceScreen from "./PortfolioWorkspaceScreen";
 import { portfolioEngineApi, claimsApi } from "../services/api";
 import { I18nProvider } from "../i18n/I18nProvider";
+import { PlatformProvider } from "../context/PlatformContext";
+import { clearRequestCache } from "../services/requestCache";
 import { fallbackSummary } from "./portfolioWorkspace/portfolioWorkspaceMockData";
 
 function renderScreen() {
   return render(
     <I18nProvider>
-      <PortfolioWorkspaceScreen />
+      <PlatformProvider navigate={() => {}}>
+        <PortfolioWorkspaceScreen />
+      </PlatformProvider>
     </I18nProvider>
   );
 }
@@ -67,6 +71,7 @@ const DELTA_WITH_COMPARISON = { hasComparison: true, previousCapturedAt: "2026-0
 
 beforeEach(() => {
   vi.clearAllMocks();
+  clearRequestCache();
   vi.spyOn(console, "info").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
   claimsApi.listPortfolioRelevant.mockResolvedValue({ claims: [] });

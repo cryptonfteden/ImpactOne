@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Page, Container, Section, Grid, Stack } from "../components/layout";
 import { Card, Badge, MetricArc, Table, EmptyState, Skeleton, HeroCard, DemoModeBanner, IntelligenceCard } from "../components/nova";
 import { portfolioEngineApi, claimsApi } from "../services/api";
+import { usePlatformContext } from "../context/PlatformContext";
 import { logError } from "../utils/errorHandling";
 import { useI18n } from "../i18n/I18nProvider";
 import { trackEvent } from "../utils/analytics";
@@ -76,6 +77,7 @@ const SECTION_LABELS = {
 
 export default function PortfolioWorkspaceScreen() {
   const { t, dir } = useI18n();
+  const { loadPortfolioContext, selectClaim } = usePlatformContext();
   const [summary, setSummary] = useState(null);
   const [delta, setDelta] = useState(null);
   const [portfolioClaims, setPortfolioClaims] = useState(null);
@@ -91,8 +93,13 @@ export default function PortfolioWorkspaceScreen() {
 
     async function load() {
       setIsLoading(true);
-      const [summaryResult, deltaResult, claimsResult] = await Promise.allSettled([
-        portfolioEngineApi.getSummary(),
+      // Phase PLATFORM-INTEGRATION-001 — the real portfolio summary now
+      // comes from the shared PlatformContext (loadPortfolioContext),
+      // which is itself backed by requestCache.js's de-dup/reuse cache —
+      // a concurrent or recent load from another integrated screen
+      // reuses the same real fetch instead of issuing a second one.
+      const [summaryValue, deltaResult, claimsResult] = await Promise.allSettled([
+        loadPortfolioContext(),
         portfolioEngineApi.getPerformanceDelta(),
         claimsApi.listPortfolioRelevant(),
       ]);
@@ -102,13 +109,14 @@ export default function PortfolioWorkspaceScreen() {
       const connected = [];
       const unavailable = [];
 
+      const summaryResult = summaryValue.status === "fulfilled" && summaryValue.value ? summaryValue : { status: "rejected" };
       if (summaryResult.status === "fulfilled" && deltaResult.status === "fulfilled") {
         setSummary(summaryResult.value);
         setDelta(deltaResult.value);
         nextLive.overview = true;
         connected.push("Portfolio Intelligence");
       } else {
-        if (summaryResult.status === "rejected") logError("portfolio workspace summary load failed", summaryResult.reason);
+        // A summary load failure is already logged inside loadPortfolioContext itself.
         if (deltaResult.status === "rejected") logError("portfolio workspace delta load failed", deltaResult.reason);
         setSummary(fallbackSummary);
         setDelta(fallbackDelta);
@@ -194,6 +202,16 @@ export default function PortfolioWorkspaceScreen() {
   // Control's hero exactly — largest scale, one-time entrance pulse, the
   // only object using the Emphasis surface material.
   const heroClaim = sortedPortfolioClaims[0] || null;
+
+  // Phase PLATFORM-INTEGRATION-001 — contribute this screen's own hero
+  // claim to the shared platform selection, so navigating to Mission
+  // Control or News Intelligence carries it forward.
+  useEffect(() => {
+    if (heroClaim) {
+      selectClaim(heroClaim);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heroClaim?.claimId]);
 
   if (isLoading && !summary) {
     return (

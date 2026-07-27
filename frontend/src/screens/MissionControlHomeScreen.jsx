@@ -3,6 +3,8 @@ import { Page, Container, Section, Grid, Stack } from "../components/layout";
 import { Card, Badge, MetricArc, EmptyState, Skeleton, Button, HeroCard, DemoModeBanner, IntelligenceCard, AttentionLevelBadge } from "../components/nova";
 import { useI18n } from "../i18n/I18nProvider";
 import { morningBriefApi, claimsApi, portfolioEngineApi, marketSentimentApi, intelligenceApi } from "../services/api";
+import { withRequestCache } from "../services/requestCache";
+import { usePlatformContext } from "../context/PlatformContext";
 import { logError } from "../utils/errorHandling";
 import {
   todaysBrief as fallbackBrief,
@@ -57,6 +59,12 @@ import {
 // presentation-only filter/sort of the one real Claims fetch, exactly
 // the same pattern already established across every other screen in
 // this app (see UI_INTEGRATION_ARCHITECTURE.md).
+
+// Phase PLATFORM-INTEGRATION-001 — same cache key News Intelligence uses
+// for the identical real call (claimsApi.listOvernightChanges({limit:10})),
+// so navigating between the two screens within the TTL window reuses the
+// one real fetch instead of issuing a second (see requestCache.js).
+const OVERNIGHT_CHANGES_CACHE_KEY = "claims:overnight-changes:10";
 
 const BRIEF_COLLAPSED_COUNT = 3;
 const STAGGER_STEP_MS = 60;
@@ -161,6 +169,7 @@ const SECTION_LABELS = {
 
 export default function MissionControlHomeScreen({ onNavigate }) {
   const { dir } = useI18n();
+  const { selectClaim } = usePlatformContext();
   const [isLoading, setIsLoading] = useState(true);
   const [briefExpanded, setBriefExpanded] = useState(false);
 
@@ -195,7 +204,7 @@ export default function MissionControlHomeScreen({ onNavigate }) {
         claimsApi.listActive({ limit: 100 }),
         portfolioEngineApi.getPerformanceDelta(),
         claimsApi.listPortfolioRelevant(),
-        claimsApi.listOvernightChanges({ limit: 10 }),
+        withRequestCache(OVERNIGHT_CHANGES_CACHE_KEY, () => claimsApi.listOvernightChanges({ limit: 10 })),
         marketSentimentApi.getOverview(MARKET_SENTIMENT_MARKET),
         intelligenceApi.liveFeed(),
       ]);
@@ -336,6 +345,15 @@ export default function MissionControlHomeScreen({ onNavigate }) {
 
       setLiveSections(nextLive);
       setIsLoading(false);
+
+      // Phase PLATFORM-INTEGRATION-001 — contribute today's hero item to
+      // the shared platform selection, so navigating from Mission Control
+      // to Portfolio Workspace or News Intelligence carries it forward
+      // instead of resetting to nothing.
+      const heroItem = (briefResult.status === "fulfilled" ? briefResult.value?.items : fallbackBrief)?.[0];
+      if (heroItem) {
+        selectClaim({ ...heroItem, symbols: heroItem.affectedAssets });
+      }
 
       // Phase LIVE-DATA-001 — required: log which services are connected
       // and which remain unavailable, every load.

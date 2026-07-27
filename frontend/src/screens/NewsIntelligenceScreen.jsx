@@ -3,9 +3,15 @@ import { Page, Container, Section, Stack } from "../components/layout";
 import { Card, Badge, MetricArc, EmptyState, Skeleton, HeroCard, DemoModeBanner, IntelligenceCard, AttentionLevelBadge } from "../components/nova";
 import { useI18n } from "../i18n/I18nProvider";
 import { intelligenceApi, claimsApi } from "../services/api";
+import { withRequestCache } from "../services/requestCache";
+import { usePlatformContext } from "../context/PlatformContext";
 import useWatchlist from "../hooks/useWatchlist";
 import { logError } from "../utils/errorHandling";
 import { fallbackFeed, fallbackOvernightChanges } from "./newsIntelligence/newsIntelligenceMockData";
+
+// Phase PLATFORM-INTEGRATION-001 — same cache key Mission Control uses
+// for the identical real call (claimsApi.listOvernightChanges({limit:10})).
+const OVERNIGHT_CHANGES_CACHE_KEY = "claims:overnight-changes:10";
 
 // Phase NEWS-INTELLIGENCE-001 — an intelligence layer over the same real
 // events the Daily Feed (MarketNewsScreen.jsx) already lists, not a
@@ -97,6 +103,7 @@ const SECTION_LABELS = {
 export default function NewsIntelligenceScreen() {
   const { dir } = useI18n();
   const { watchlist } = useWatchlist();
+  const { selectedSymbol, selectClaim } = usePlatformContext();
   const [isLoading, setIsLoading] = useState(true);
   const [feed, setFeed] = useState(fallbackFeed);
   const [overnightChanges, setOvernightChanges] = useState(fallbackOvernightChanges);
@@ -108,7 +115,7 @@ export default function NewsIntelligenceScreen() {
     async function load() {
       const [feedResult, overnightResult] = await Promise.allSettled([
         intelligenceApi.liveFeed({ watchlist }),
-        claimsApi.listOvernightChanges({ limit: 10 }),
+        withRequestCache(OVERNIGHT_CHANGES_CACHE_KEY, () => claimsApi.listOvernightChanges({ limit: 10 })),
       ]);
 
       if (cancelled) return;
@@ -151,6 +158,30 @@ export default function NewsIntelligenceScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchlist.join(",")]);
 
+  const ranked = [...feed].sort((a, b) => (b.attentionScore ?? -1) - (a.attentionScore ?? -1));
+  // Phase PLATFORM-INTEGRATION-001 — if another integrated screen (Mission
+  // Control or Portfolio Workspace) already put a symbol in shared focus,
+  // prefer the highest-attention real item that actually touches it as
+  // the hero, so the two screens feel continuous rather than resetting to
+  // an unrelated top story. Falls back to pure attention ranking when
+  // nothing in today's feed touches that symbol.
+  const symbolMatch = selectedSymbol ? ranked.find((item) => item.affectedAssets?.includes(selectedSymbol)) : null;
+  const hero = symbolMatch || ranked[0] || null;
+  const rest = ranked.filter((item) => item !== hero);
+  const coverage = rest.slice(0, MAX_COVERAGE_ITEMS);
+
+  // Phase PLATFORM-INTEGRATION-001 — contribute this screen's own hero
+  // item to the shared platform selection, once real data has actually
+  // loaded (never the transient initial fallback state, which would
+  // otherwise overwrite a symbol another integrated screen just set
+  // before this screen's own real fetch even resolves).
+  useEffect(() => {
+    if (!isLoading && hero) {
+      selectClaim(newsItemToClaim(hero));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, hero?.id]);
+
   if (isLoading) {
     return (
       <Page className="screen-page news-intelligence-screen" dir={dir}>
@@ -164,10 +195,6 @@ export default function NewsIntelligenceScreen() {
       </Page>
     );
   }
-
-  const ranked = [...feed].sort((a, b) => (b.attentionScore ?? -1) - (a.attentionScore ?? -1));
-  const [hero, ...rest] = ranked.length ? ranked : [null];
-  const coverage = rest.slice(0, MAX_COVERAGE_ITEMS);
 
   return (
     <Page className="screen-page news-intelligence-screen" dir={dir}>

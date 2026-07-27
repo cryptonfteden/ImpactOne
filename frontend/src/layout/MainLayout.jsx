@@ -15,6 +15,7 @@ import useWatchlist from "../hooks/useWatchlist";
 import { trackEvent } from "../utils/analytics";
 import FeedbackWidget from "../components/FeedbackWidget";
 import { performanceMetricsApi } from "../services/api";
+import { PlatformProvider } from "../context/PlatformContext";
 
 // Phase X9 — Part 1, Product Analytics. Every screen this app actually
 // navigates to fires the generic `screen_viewed` event (real, closed
@@ -102,6 +103,7 @@ export default function MainLayout() {
   }, []);
 
   return (
+    <PlatformProvider navigate={setActiveView}>
     <div className="app-shell">
       <WelcomeOverlay />
       <Sidebar activeView={activeView} onNavigate={setActiveView} favorites={watchlist} onSelectFavorite={handleSelectFavorite} />
@@ -134,5 +136,6 @@ export default function MainLayout() {
       {panelSymbol ? <StockSidePanel symbol={panelSymbol} onClose={() => setPanelSymbol(null)} /> : null}
       <FeedbackWidget currentScreen={activeView} />
     </div>
+    </PlatformProvider>
   );
 }

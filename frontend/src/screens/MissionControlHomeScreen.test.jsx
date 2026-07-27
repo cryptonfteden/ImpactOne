@@ -2,13 +2,17 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, within, fireEvent } from "@testing-library/react";
 import MissionControlHomeScreen from "./MissionControlHomeScreen";
 import { I18nProvider } from "../i18n/I18nProvider";
+import { PlatformProvider } from "../context/PlatformContext";
 import { morningBriefApi, claimsApi, portfolioEngineApi, marketSentimentApi, intelligenceApi } from "../services/api";
+import { clearRequestCache } from "../services/requestCache";
 import { todaysBrief as fallbackBrief } from "./missionControl/missionControlMockData";
 
 function renderScreen(props) {
   return render(
     <I18nProvider>
-      <MissionControlHomeScreen {...props} />
+      <PlatformProvider navigate={() => {}}>
+        <MissionControlHomeScreen {...props} />
+      </PlatformProvider>
     </I18nProvider>
   );
 }
@@ -119,6 +123,7 @@ function mockAllDown() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  clearRequestCache();
   vi.spyOn(console, "info").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 });

@@ -1,14 +1,28 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { useEffect } from "react";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import NewsIntelligenceScreen from "./NewsIntelligenceScreen";
 import { I18nProvider } from "../i18n/I18nProvider";
+import { PlatformProvider, usePlatformContext } from "../context/PlatformContext";
+import { clearRequestCache } from "../services/requestCache";
 import { intelligenceApi, claimsApi } from "../services/api";
 import { fallbackFeed } from "./newsIntelligence/newsIntelligenceMockData";
 
-function renderScreen() {
+function renderScreen({ initialSymbol } = {}) {
+  function Prime({ symbol }) {
+    const { selectSymbol } = usePlatformContext();
+    useEffect(() => {
+      selectSymbol(symbol);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    return null;
+  }
   return render(
     <I18nProvider>
-      <NewsIntelligenceScreen />
+      <PlatformProvider navigate={() => {}}>
+        {initialSymbol ? <Prime symbol={initialSymbol} /> : null}
+        <NewsIntelligenceScreen />
+      </PlatformProvider>
     </I18nProvider>
   );
 }
@@ -63,6 +77,7 @@ function mockAllDown() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  clearRequestCache();
   vi.spyOn(console, "info").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -195,5 +210,26 @@ describe("NewsIntelligenceScreen — Phase NEWS-INTELLIGENCE-001", () => {
     const { container } = renderScreen();
     await waitForLoaded();
     expect(container.querySelector(".news-intelligence-screen")).toHaveAttribute("dir", "ltr");
+  });
+
+  describe("Phase PLATFORM-INTEGRATION-001 — shared selectedSymbol", () => {
+    it("prefers the real item touching a symbol already selected on another integrated screen as the hero", async () => {
+      mockAllLive();
+      renderScreen({ initialSymbol: "MSFT" });
+      await waitForLoaded();
+
+      const topStory = screen.getByRole("region", { name: "Top Story" });
+      expect(within(topStory).getByText("Real second story headline")).toBeInTheDocument();
+      expect(within(topStory).queryByText("Real top story headline")).not.toBeInTheDocument();
+    });
+
+    it("falls back to pure attention ranking when the shared symbol isn't in today's feed", async () => {
+      mockAllLive();
+      renderScreen({ initialSymbol: "TSLA" });
+      await waitForLoaded();
+
+      const topStory = screen.getByRole("region", { name: "Top Story" });
+      expect(within(topStory).getByText("Real top story headline")).toBeInTheDocument();
+    });
   });
 });
