@@ -36,6 +36,7 @@ const ADVANCED_ITEMS = [
   { key: "News Intelligence", label: "News Intelligence" },
   { key: "Watchlist Workspace", label: "Watchlist Workspace" },
   { key: "AI Analysis Workspace", label: "AI Analysis Workspace" },
+  { key: "Market Intelligence Workspace", label: "Market Intelligence Workspace" },
   { key: "Decision Timeline", label: "Decision Timeline" },
   { key: "Market Positioning", label: "Market Positioning" },
   { key: "Global Intelligence", label: "Global Intelligence" },
