@@ -132,9 +132,17 @@ async function listFeedbackForRecommendation(recommendationId) {
 // Sprint 30 — Learning Loop (Priority 3) reads across every recommendation's
 // feedback, not just one at a time; includes the parent recommendation's
 // symbol so aggregation can group by it without a second round-trip.
-async function listAllFeedback({ limit = 500 } = {}) {
+// Phase PERSONALIZATION-PRIVACY-001 — betaUserId is optional and additive,
+// matching listActive/listAll's existing convention in this same file:
+// omitted, this stays the legitimate platform-wide aggregate
+// learningLoopService.js and qualityDashboardService.js both intentionally
+// rely on (internal/developer visibility, never per-user); passed, it
+// scopes to one real user's own feedback — the mode
+// investorMemoryService.js now always uses.
+async function listAllFeedback({ limit = 500, betaUserId } = {}) {
   const prisma = getPrismaClient();
   return prisma.recommendationFeedback.findMany({
+    where: betaUserId ? { betaUserId } : undefined,
     orderBy: { createdAt: "desc" },
     take: limit,
     include: { recommendation: { select: { symbol: true } } },

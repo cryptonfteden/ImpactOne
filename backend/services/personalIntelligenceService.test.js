@@ -6,6 +6,16 @@ const assert = require("node:assert/strict");
 const { truncateAll } = require("../test/dbHelpers");
 const userMemoryRepository = require("./userMemoryRepository");
 const personalIntelligenceService = require("./personalIntelligenceService");
+const betaUserRepository = require("./betaUserRepository");
+
+let USER;
+
+test.before(async () => {
+  const inviteCode = "TEST-PERSONAL-INTELLIGENCE-001";
+  const existing = await betaUserRepository.findByInviteCode(inviteCode);
+  const betaUser = existing || (await betaUserRepository.createBetaUser({ label: "Personal Intelligence Test User", inviteCode }));
+  USER = betaUser.id;
+});
 
 function rec(overrides = {}) {
   return {
@@ -35,15 +45,33 @@ test("rankByUserRelevance never mutates any field on the input recommendations, 
 });
 
 test("rankByUserRelevance boosts a recommendation whose sector the user has actually viewed before", async () => {
-  await userMemoryRepository.appendEvent({ eventType: "RECOMMENDATION_VIEWED", subject: "MSFT", sector: "Technology" });
-  await userMemoryRepository.appendEvent({ eventType: "RECOMMENDATION_VIEWED", subject: "MSFT", sector: "Technology" });
+  await userMemoryRepository.appendEvent({ eventType: "RECOMMENDATION_VIEWED", subject: "MSFT", sector: "Technology", betaUserId: USER });
+  await userMemoryRepository.appendEvent({ eventType: "RECOMMENDATION_VIEWED", subject: "MSFT", sector: "Technology", betaUserId: USER });
 
   const input = [
     rec({ symbol: "XOM", portfolioContext: { sector: "Energy" } }),
     rec({ symbol: "NVDA", portfolioContext: { sector: "Technology" } }),
   ];
-  const ranked = await personalIntelligenceService.rankByUserRelevance(input);
+  const ranked = await personalIntelligenceService.rankByUserRelevance(input, { betaUserId: USER });
   assert.equal(ranked[0].symbol, "NVDA", "the favorite-sector recommendation should rank first");
+});
+
+test("Phase PERSONALIZATION-PRIVACY-001 — rankByUserRelevance never boosts from another user's view history", async () => {
+  const inviteCode = "TEST-PERSONAL-INTELLIGENCE-001-USER-B";
+  const existing = await betaUserRepository.findByInviteCode(inviteCode);
+  const userB = existing || (await betaUserRepository.createBetaUser({ label: "User B", inviteCode }));
+
+  // User A views MSFT/Technology heavily.
+  await userMemoryRepository.appendEvent({ eventType: "RECOMMENDATION_VIEWED", subject: "MSFT", sector: "Technology", betaUserId: USER });
+  await userMemoryRepository.appendEvent({ eventType: "RECOMMENDATION_VIEWED", subject: "MSFT", sector: "Technology", betaUserId: USER });
+
+  const input = [
+    rec({ symbol: "XOM", portfolioContext: { sector: "Energy" } }),
+    rec({ symbol: "NVDA", portfolioContext: { sector: "Technology" } }),
+  ];
+  // Ranking for User B must not see User A's Technology-sector interest.
+  const ranked = await personalIntelligenceService.rankByUserRelevance(input, { betaUserId: userB.id });
+  assert.equal(ranked[0].symbol, "XOM", "User B's ranking must preserve original order — User A's sector interest must not leak in as a boost");
 });
 
 test("rankByUserRelevance never invents an ignored-sector penalty for a sector with no real candidates elsewhere", async () => {
@@ -54,12 +82,12 @@ test("rankByUserRelevance never invents an ignored-sector penalty for a sector w
 });
 
 test("rankByUserRelevance boosts previously-viewed symbols via real view counts, capped", async () => {
-  await userMemoryRepository.appendEvent({ eventType: "RECOMMENDATION_VIEWED", subject: "NVDA" });
-  await userMemoryRepository.appendEvent({ eventType: "RECOMMENDATION_VIEWED", subject: "NVDA" });
-  await userMemoryRepository.appendEvent({ eventType: "RECOMMENDATION_VIEWED", subject: "NVDA" });
+  await userMemoryRepository.appendEvent({ eventType: "RECOMMENDATION_VIEWED", subject: "NVDA", betaUserId: USER });
+  await userMemoryRepository.appendEvent({ eventType: "RECOMMENDATION_VIEWED", subject: "NVDA", betaUserId: USER });
+  await userMemoryRepository.appendEvent({ eventType: "RECOMMENDATION_VIEWED", subject: "NVDA", betaUserId: USER });
 
   const input = [rec({ symbol: "AAPL" }), rec({ symbol: "NVDA" })];
-  const ranked = await personalIntelligenceService.rankByUserRelevance(input);
+  const ranked = await personalIntelligenceService.rankByUserRelevance(input, { betaUserId: USER });
   assert.equal(ranked[0].symbol, "NVDA");
 });
 

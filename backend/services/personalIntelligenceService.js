@@ -46,15 +46,21 @@ function computeRelevanceScore(recommendation, { favoriteSectorSet, ignoredSecto
  * order (e.g. qualityScore rank) among recommendations with an equal
  * score. An empty or single-item list is returned as-is, no extra work.
  */
-async function rankByUserRelevance(recommendations, { investorProfile = null } = {}) {
+async function rankByUserRelevance(recommendations, { investorProfile = null, betaUserId = null } = {}) {
   if (!Array.isArray(recommendations) || recommendations.length <= 1) {
     return recommendations || [];
   }
 
+  // Phase PERSONALIZATION-PRIVACY-001 — userMemoryRepository now requires
+  // a real betaUserId per read (never a cross-user blend); without one,
+  // these two calls honestly return "no view/sector history" rather than
+  // erroring, so a caller that hasn't threaded an identity through yet
+  // (see PERSONALIZATION_PRIVACY_REPORT.md) still gets a safe, honest
+  // "no memory-based boost" result instead of a crash or a leak.
   const candidateSectors = recommendations.map((rec) => rec.portfolioContext?.sector).filter(Boolean);
   const [sectorSummary, viewCounts] = await Promise.all([
-    userMemoryRepository.getSectorInterestSummary({ candidateSectors }),
-    userMemoryRepository.getRecommendationViewCounts(),
+    userMemoryRepository.getSectorInterestSummary({ candidateSectors, betaUserId }),
+    userMemoryRepository.getRecommendationViewCounts({ betaUserId }),
   ]);
   const favoriteSectorSet = new Set(sectorSummary.favoriteSectors.map((entry) => entry.sector));
   const ignoredSectorSet = new Set(sectorSummary.ignoredSectors);

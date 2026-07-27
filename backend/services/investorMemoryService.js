@@ -11,6 +11,13 @@
 // aggregator) for reaction patterns, and personalProgressService (Sprint
 // 31) for learning progress. Nothing here writes anything; it only reads
 // and combines.
+//
+// Phase PERSONALIZATION-PRIVACY-001 — every exported function now
+// requires a real betaUserId (throws a 400-style error without one),
+// matching personalizationService.js's established `requireBetaUser`
+// convention. This is "the investor's" memory specifically — there is no
+// honest way to answer "what does THIS investor's memory say" without
+// knowing which investor is asking.
 const userMemoryRepository = require("./userMemoryRepository");
 const autonomousRecommendationRepository = require("./autonomousRecommendationRepository");
 const portfolioEngineService = require("./portfolioEngineService");
@@ -19,15 +26,25 @@ const personalProgressService = require("./personalProgressService");
 
 const MIN_SAMPLE = 3;
 
+function requireBetaUser(betaUserId) {
+  if (!betaUserId) {
+    const error = new Error("A beta user identity is required for investor memory.");
+    error.statusCode = 400;
+    throw error;
+  }
+}
+
 /**
  * "Reading depth": what fraction of viewed recommendations the investor
  * went on to give feedback about — a real, already-recorded signal of
  * engaging deeply enough to form a reaction, vs. just skimming the list.
  */
-async function computeReadingDepth() {
+async function computeReadingDepth(betaUserId) {
+  requireBetaUser(betaUserId);
+
   const [viewCounts, feedbackRows] = await Promise.all([
-    userMemoryRepository.getRecommendationViewCounts(),
-    autonomousRecommendationRepository.listAllFeedback(),
+    userMemoryRepository.getRecommendationViewCounts({ betaUserId }),
+    autonomousRecommendationRepository.listAllFeedback({ betaUserId }),
   ]);
 
   const totalViews = Array.from(viewCounts.values()).reduce((sum, count) => sum + count, 0);
@@ -54,8 +71,10 @@ async function computeReadingDepth() {
  * period. Never a fabricated trading-style label beyond what the actual
  * paired trades support.
  */
-async function computeHoldingBehavior() {
-  const trades = await portfolioEngineService.getTradeHistory({});
+async function computeHoldingBehavior(betaUserId) {
+  requireBetaUser(betaUserId);
+
+  const trades = await portfolioEngineService.getTradeHistory({ betaUserId });
   const bySymbol = new Map();
   for (const trade of trades.slice().sort((a, b) => new Date(a.executedAt) - new Date(b.executedAt))) {
     if (!bySymbol.has(trade.symbol)) bySymbol.set(trade.symbol, []);
@@ -86,13 +105,15 @@ async function computeHoldingBehavior() {
   };
 }
 
-async function getInvestorMemory() {
+async function getInvestorMemory(betaUserId) {
+  requireBetaUser(betaUserId);
+
   const [sectorSummary, themeSummary, readingDepth, holdingBehavior, feedbackRows, understanding] = await Promise.all([
-    userMemoryRepository.getSectorInterestSummary(),
-    userMemoryRepository.getThemeInterestSummary(),
-    computeReadingDepth(),
-    computeHoldingBehavior(),
-    autonomousRecommendationRepository.listAllFeedback(),
+    userMemoryRepository.getSectorInterestSummary({ betaUserId }),
+    userMemoryRepository.getThemeInterestSummary({ betaUserId }),
+    computeReadingDepth(betaUserId),
+    computeHoldingBehavior(betaUserId),
+    autonomousRecommendationRepository.listAllFeedback({ betaUserId }),
     personalProgressService.computeUnderstandingProgress(),
   ]);
 

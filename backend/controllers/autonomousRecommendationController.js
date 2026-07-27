@@ -139,6 +139,7 @@ async function recordRecommendationView(req, res, next) {
       subject: recommendation.symbol,
       sector: recommendation.portfolioContext?.sector || null,
       detail: { recommendationId: recommendation.id },
+      betaUserId: req.betaUserId,
     });
     // Sprint 42 — Recommendation Lifecycle. Best-effort: a view must still
     // succeed even if lifecycle logging has a transient failure.

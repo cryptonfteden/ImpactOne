@@ -40,7 +40,7 @@ async function recordThemeView(req, res, next) {
     if (!themeIntelligenceService.THEME_DEFINITIONS[req.params.themeKey]) {
       return res.status(404).json({ error: `Unknown theme: ${req.params.themeKey}` });
     }
-    const event = await userMemoryRepository.appendEvent({ eventType: "THEME_VIEWED", subject: req.params.themeKey });
+    const event = await userMemoryRepository.appendEvent({ eventType: "THEME_VIEWED", subject: req.params.themeKey, betaUserId: req.betaUserId });
     res.status(201).json(event);
   } catch (error) {
     handleKnownError(error, res, next);

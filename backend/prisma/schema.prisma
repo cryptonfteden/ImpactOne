@@ -527,16 +527,28 @@ model InvestorProfile {
 // redundantly. Feedback history is NOT duplicated here: it already has
 // its own append-only table (RecommendationFeedback, Sprint 29) which
 // this file's queries read directly rather than re-storing.
+// Phase PERSONALIZATION-PRIVACY-001 — betaUserId added (nullable,
+// unconstrained, same pattern as InvestorProfile/Portfolio/Recommendation
+// per the H2 rollout convention) after an audit found every read in
+// userMemoryRepository.js queried this table globally, across every user
+// — meaning "this investor's favorite sectors" was actually everyone's
+// combined. Unlike InvestorProfile's singleton-fallback convention, this
+// table has no legitimate "no identity" read path (an event stream has
+// no single meaningful row to fall back to) — every read now requires a
+// real betaUserId and returns an honest empty result without one, rather
+// than ever matching across users.
 model UserMemoryEvent {
-  id        String              @id @default(uuid())
-  eventType UserMemoryEventType
-  subject   String // a symbol (for RECOMMENDATION_VIEWED) or a themeKey (for THEME_VIEWED)
-  sector    String? // known only for RECOMMENDATION_VIEWED, when the recommendation's evidence carries one
-  detail    Json?
-  createdAt DateTime            @default(now())
+  id         String              @id @default(uuid())
+  eventType  UserMemoryEventType
+  subject    String // a symbol (for RECOMMENDATION_VIEWED) or a themeKey (for THEME_VIEWED)
+  sector     String? // known only for RECOMMENDATION_VIEWED, when the recommendation's evidence carries one
+  detail     Json?
+  createdAt  DateTime            @default(now())
+  betaUserId String?
 
   @@index([eventType, subject])
   @@index([createdAt])
+  @@index([betaUserId])
   @@map("user_memory_events")
 }
 

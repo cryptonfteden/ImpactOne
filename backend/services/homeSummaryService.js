@@ -362,7 +362,7 @@ function computeAdaptiveCardOrder({ whatChangedSinceYesterday, todayForYou, port
   return HOME_CARD_KEYS.slice().sort((a, b) => scores[b] - scores[a]);
 }
 
-async function buildHomeSummary({ watchlist = [] } = {}) {
+async function buildHomeSummary({ watchlist = [], betaUserId } = {}) {
   const normalizedWatchlist = normalizeSymbolList(watchlist);
   const portfolioSummary = await portfolioEngineService.getPortfolioSummary();
   const heldSymbols = portfolioSummary.positions.map((position) => position.symbol);
@@ -394,7 +394,12 @@ async function buildHomeSummary({ watchlist = [] } = {}) {
     buildWhatChangedInBeliefs(),
     buildTopRecommendations().catch(() => []),
     buildTodayForYou({ feed: overview.feed, heldSymbols, watchlistSymbols: normalizedWatchlist }).catch(() => []),
-    investorMemoryService.computeReadingDepth().catch(() => ({ hasEnoughData: false })),
+    // Phase PERSONALIZATION-PRIVACY-001 — computeReadingDepth now requires
+    // a real betaUserId; an anonymous/unidentified request honestly
+    // degrades to "not enough data" via this same existing catch, rather
+    // than the pre-fix behavior of silently blending every user's reading
+    // history together.
+    investorMemoryService.computeReadingDepth(betaUserId).catch(() => ({ hasEnoughData: false })),
   ]);
 
   const whatChangedSinceYesterday = whatChangedSinceYesterdayResult.items;

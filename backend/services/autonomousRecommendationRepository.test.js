@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 
 const { truncateAll } = require("../test/dbHelpers");
 const autonomousRecommendationRepository = require("./autonomousRecommendationRepository");
+const betaUserRepository = require("./betaUserRepository");
 
 function baseData(overrides = {}) {
   return {
@@ -184,4 +185,29 @@ test("Sprint 29 — a changed mind creates a new feedback row rather than editin
   const exportedNames = Object.keys(autonomousRecommendationRepository);
   const hasFeedbackUpdateMethod = exportedNames.some((name) => /feedback/i.test(name) && /update/i.test(name));
   assert.equal(hasFeedbackUpdateMethod, false, "no updateFeedback-style export should ever exist");
+});
+
+// Phase PERSONALIZATION-PRIVACY-001 — listAllFeedback's betaUserId is
+// intentionally optional (see the function's own code comment): omitted,
+// it must keep its legitimate platform-wide behavior (learningLoopService/
+// qualityDashboardService's internal, non-personal aggregate); passed, it
+// must scope strictly to that one real user's own feedback.
+test("Phase PERSONALIZATION-PRIVACY-001 — listAllFeedback stays a global aggregate when no betaUserId is given, and scopes strictly when one is", async () => {
+  const inviteCodeA = "TEST-AUTONOMOUS-RECOMMENDATION-REPOSITORY-001-A";
+  const inviteCodeB = "TEST-AUTONOMOUS-RECOMMENDATION-REPOSITORY-001-B";
+  const existingA = await betaUserRepository.findByInviteCode(inviteCodeA);
+  const userA = existingA || (await betaUserRepository.createBetaUser({ label: "User A", inviteCode: inviteCodeA }));
+  const existingB = await betaUserRepository.findByInviteCode(inviteCodeB);
+  const userB = existingB || (await betaUserRepository.createBetaUser({ label: "User B", inviteCode: inviteCodeB }));
+
+  const recommendation = await autonomousRecommendationRepository.createRecommendation(baseData());
+  await autonomousRecommendationRepository.createFeedback({ recommendationId: recommendation.id, feedbackType: "USEFUL", betaUserId: userA.id });
+  await autonomousRecommendationRepository.createFeedback({ recommendationId: recommendation.id, feedbackType: "TOO_EARLY", betaUserId: userB.id });
+
+  const global = await autonomousRecommendationRepository.listAllFeedback();
+  assert.equal(global.length, 2, "omitting betaUserId must still return every user's feedback (the legitimate internal/global use)");
+
+  const onlyUserA = await autonomousRecommendationRepository.listAllFeedback({ betaUserId: userA.id });
+  assert.equal(onlyUserA.length, 1);
+  assert.equal(onlyUserA[0].feedbackType, "USEFUL", "passing betaUserId must return only that user's own feedback, never User B's");
 });

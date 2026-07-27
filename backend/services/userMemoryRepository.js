@@ -8,18 +8,32 @@ const { getPrismaClient } = require("../db/prismaClient");
 // query time, from this one real event stream (see getSectorInterestSummary
 // below), so there is never a second, competing source of truth to keep
 // in sync.
+//
+// Phase PERSONALIZATION-PRIVACY-001 — every read below now requires a
+// real betaUserId and filters strictly by it. Unlike InvestorProfile's
+// singleton-fallback convention (a sensible default for a one-row-per-
+// context model), an event stream has no legitimate "no identity" read:
+// there is no single row to fall back to, only every user's combined
+// history, which is exactly the cross-user leak an audit found here. A
+// missing betaUserId now returns the same honest "no data yet" shape
+// each function already returns for a real user with no activity —
+// never a global blend across users, and never a thrown error either
+// (this repository stays a safe, callable-from-anywhere primitive;
+// investorMemoryService.js is where a missing identity is treated as a
+// hard error for its own callers).
 
-async function appendEvent({ eventType, subject, sector = null, detail = null }) {
+async function appendEvent({ eventType, subject, sector = null, detail = null, betaUserId = null }) {
   const prisma = getPrismaClient();
   return prisma.userMemoryEvent.create({
-    data: { eventType, subject, sector, detail },
+    data: { eventType, subject, sector, detail, betaUserId },
   });
 }
 
-async function listEvents({ eventType, limit = 100 } = {}) {
+async function listEvents({ eventType, limit = 100, betaUserId } = {}) {
+  if (!betaUserId) return [];
   const prisma = getPrismaClient();
   return prisma.userMemoryEvent.findMany({
-    where: eventType ? { eventType } : undefined,
+    where: { ...(eventType ? { eventType } : {}), betaUserId },
     orderBy: { createdAt: "desc" },
     take: limit,
   });
@@ -34,10 +48,12 @@ async function listEvents({ eventType, limit = 100 } = {}) {
  * view events on record. Never fabricates an "ignored" sector the user
  * was never actually offered.
  */
-async function getSectorInterestSummary({ candidateSectors = [] } = {}) {
+async function getSectorInterestSummary({ candidateSectors = [], betaUserId } = {}) {
+  if (!betaUserId) return { favoriteSectors: [], ignoredSectors: [] };
+
   const prisma = getPrismaClient();
   const events = await prisma.userMemoryEvent.findMany({
-    where: { eventType: "RECOMMENDATION_VIEWED", sector: { not: null } },
+    where: { eventType: "RECOMMENDATION_VIEWED", sector: { not: null }, betaUserId },
     select: { sector: true },
   });
 
@@ -62,10 +78,12 @@ async function getSectorInterestSummary({ candidateSectors = [] } = {}) {
  * THEME_VIEWED events, ranked by how often, never a fabricated
  * preference.
  */
-async function getThemeInterestSummary() {
+async function getThemeInterestSummary({ betaUserId } = {}) {
+  if (!betaUserId) return { favoriteThemes: [] };
+
   const prisma = getPrismaClient();
   const events = await prisma.userMemoryEvent.findMany({
-    where: { eventType: "THEME_VIEWED" },
+    where: { eventType: "THEME_VIEWED", betaUserId },
     select: { subject: true },
   });
 
@@ -81,10 +99,12 @@ async function getThemeInterestSummary() {
   return { favoriteThemes };
 }
 
-async function getRecommendationViewCounts() {
+async function getRecommendationViewCounts({ betaUserId } = {}) {
+  if (!betaUserId) return new Map();
+
   const prisma = getPrismaClient();
   const events = await prisma.userMemoryEvent.findMany({
-    where: { eventType: "RECOMMENDATION_VIEWED" },
+    where: { eventType: "RECOMMENDATION_VIEWED", betaUserId },
     select: { subject: true },
   });
 
