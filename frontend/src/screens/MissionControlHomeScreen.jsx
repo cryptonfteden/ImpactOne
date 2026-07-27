@@ -6,6 +6,7 @@ import { morningBriefApi, claimsApi, portfolioEngineApi, marketSentimentApi, int
 import { withRequestCache } from "../services/requestCache";
 import { usePlatformContext } from "../context/PlatformContext";
 import { statusTone, statusPlainLabel, attentionLevel } from "../utils/claimPresentation";
+import { selectTopClaimByDirection } from "../services/intelligenceEngine";
 import { logError } from "../utils/errorHandling";
 import {
   todaysBrief as fallbackBrief,
@@ -228,9 +229,8 @@ export default function MissionControlHomeScreen({ onNavigate }) {
       }
 
       if (activeClaims) {
-        const byConfidenceDesc = (a, b) => (b.confidence ?? -1) - (a.confidence ?? -1);
-        const topRisk = [...activeClaims].filter((claim) => claim.expectedDirection === "BEARISH").sort(byConfidenceDesc)[0] || null;
-        const topOpportunity = [...activeClaims].filter((claim) => claim.expectedDirection === "BULLISH").sort(byConfidenceDesc)[0] || null;
+        const topRisk = selectTopClaimByDirection(activeClaims, "BEARISH");
+        const topOpportunity = selectTopClaimByDirection(activeClaims, "BULLISH");
         // A real, honest "nothing rose to this level today" is different
         // from "the fetch failed" — only fall back to demo content on a
         // real failure (handled in the `else` above), never because the

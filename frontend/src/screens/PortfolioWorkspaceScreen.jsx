@@ -3,6 +3,7 @@ import { Page, Container, Section, Grid, Stack } from "../components/layout";
 import { Card, Badge, MetricArc, Table, EmptyState, Skeleton, HeroCard, DemoModeBanner, IntelligenceCard } from "../components/nova";
 import { portfolioEngineApi, claimsApi } from "../services/api";
 import { usePlatformContext } from "../context/PlatformContext";
+import { rankBySymbolAttention, prioritizeClaimsByPortfolioImpact, summarizeEvidence } from "../services/intelligenceEngine";
 import { logError } from "../utils/errorHandling";
 import { useI18n } from "../i18n/I18nProvider";
 import { trackEvent } from "../utils/analytics";
@@ -153,20 +154,10 @@ export default function PortfolioWorkspaceScreen() {
   // then urgency (real days-to-expiry; a claim with no real expiresAt is
   // honestly the least urgent, never guessed) — mission's required sort
   // order, applied over the one real fetch above, never recomputed.
-  const daysUntilExpiry = (claim) => (claim.expiresAt ? (new Date(claim.expiresAt).getTime() - Date.now()) / 86400000 : Infinity);
-  const sortedPortfolioClaims = useMemo(
-    () =>
-      [...(portfolioClaims || [])].sort((claimA, claimB) => {
-        const impactA = claimA.portfolioImpact?.magnitude ?? 0;
-        const impactB = claimB.portfolioImpact?.magnitude ?? 0;
-        if (impactB !== impactA) return impactB - impactA;
-        const confidenceA = claimA.confidence ?? -1;
-        const confidenceB = claimB.confidence ?? -1;
-        if (confidenceB !== confidenceA) return confidenceB - confidenceA;
-        return daysUntilExpiry(claimA) - daysUntilExpiry(claimB);
-      }),
-    [portfolioClaims]
-  );
+  // Phase PLATFORM-INTELLIGENCE-001 — the sort itself now lives in the
+  // shared intelligenceEngine.js (claim prioritization), not reimplemented
+  // inline here.
+  const sortedPortfolioClaims = useMemo(() => prioritizeClaimsByPortfolioImpact(portfolioClaims), [portfolioClaims]);
 
   const positions = summary?.positions || [];
   const totalValue = summary?.totalValue || 0;
@@ -185,16 +176,10 @@ export default function PortfolioWorkspaceScreen() {
   // the Claims that actually name its symbol — never a new score. A
   // position with no Claims touching it honestly shows "No claims
   // affecting this position" rather than a fabricated score.
-  const positionAttention = useMemo(() => {
-    const claims = portfolioClaims || [];
-    return [...positions]
-      .map((position) => {
-        const claimsForSymbol = claims.filter((claim) => claim.symbols?.includes(position.symbol));
-        const attentionScore = claimsForSymbol.length ? claimsForSymbol.reduce((max, claim) => Math.max(max, claim.attentionScore ?? 0), 0) : null;
-        return { ...position, attentionScore };
-      })
-      .sort((a, b) => (b.attentionScore ?? -1) - (a.attentionScore ?? -1));
-  }, [positions, portfolioClaims]);
+  // Phase PLATFORM-INTELLIGENCE-001 — this ranking now lives in the
+  // shared intelligenceEngine.js (`rankBySymbolAttention`), not
+  // reimplemented inline here.
+  const positionAttention = useMemo(() => rankBySymbolAttention(positions, portfolioClaims, (position) => position.symbol), [positions, portfolioClaims]);
 
   // Phase PORTFOLIO-001 — the Tier 1 hero: "how am I doing" (real total
   // value/return) paired with "why" (the single highest-Attention-Score
@@ -328,11 +313,11 @@ export default function PortfolioWorkspaceScreen() {
                     { label: t("portfolioWorkspace.claims.why"), content: claim.plainLanguageStatement || claim.statement },
                     {
                       label: t("portfolioWorkspace.claims.evidence"),
-                      content: claim.evidence?.length ? claim.evidence.slice(0, 2).map((entry) => entry.observedFact).join(" ") : t("portfolioWorkspace.empty.whyThisAffectsYou"),
+                      content: summarizeEvidence(claim.evidence, t("portfolioWorkspace.empty.whyThisAffectsYou")),
                     },
                   ];
                   if (claim.counterEvidence?.length) {
-                    sections.push({ label: t("portfolioWorkspace.claims.counterEvidenceLabel"), content: claim.counterEvidence.slice(0, 2).map((entry) => entry.observedFact).join(" ") });
+                    sections.push({ label: t("portfolioWorkspace.claims.counterEvidenceLabel"), content: summarizeEvidence(claim.counterEvidence, "") });
                   }
                   sections.push({ label: t("portfolioWorkspace.claims.potentialScenarios"), content: t("portfolioWorkspace.claims.scenarioPreview") });
 

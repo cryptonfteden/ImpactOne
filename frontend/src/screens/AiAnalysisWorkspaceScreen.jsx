@@ -6,6 +6,7 @@ import { claimsApi } from "../services/api";
 import { withRequestCache } from "../services/requestCache";
 import { usePlatformContext } from "../context/PlatformContext";
 import { statusTone, statusPlainLabel, attentionLevel } from "../utils/claimPresentation";
+import { selectTopClaim, buildClaimReasoningSections } from "../services/intelligenceEngine";
 import { logError } from "../utils/errorHandling";
 import { fallbackClaim, fallbackTransitions, fallbackStrongestEvidence } from "./aiAnalysisWorkspace/aiAnalysisWorkspaceMockData";
 
@@ -26,30 +27,15 @@ const SECTION_LABELS = {
   reasoning: "Reasoning",
 };
 
-function joinOrFallback(list, fallbackText) {
-  return list?.length ? list.join(" ") : fallbackText;
-}
-
+// Phase PLATFORM-INTELLIGENCE-001 — the reasoning breakdown itself now
+// lives in the shared intelligenceEngine.js (`buildClaimReasoningSections`,
+// the platform's one reasoning pipeline), not reimplemented inline here.
+// `evidenceLimit: Infinity` preserves this screen's original behavior of
+// showing every recorded piece of evidence — this "explain everything"
+// Workspace is a deliberately different consumer than Portfolio
+// Workspace's own top-2 evidence preview.
 function buildReasoningSections(claim) {
-  const observed = claim.reasoning?.observed || [];
-  const inferred = claim.reasoning?.inferred || [];
-  return [
-    { label: "What is happening", content: claim.plainLanguageStatement || claim.statement },
-    {
-      label: "Why the platform believes it",
-      content: observed.length || inferred.length ? `${observed.join(" ")} ${inferred.length ? `Inferred: ${inferred.join(" ")}` : ""}`.trim() : "No detailed reasoning trace recorded for this Claim yet.",
-    },
-    {
-      label: "Evidence that supports it",
-      content: claim.evidence?.length ? claim.evidence.map((entry) => entry.observedFact).join(" ") : "No supporting evidence recorded yet.",
-    },
-    {
-      label: "Evidence that contradicts it",
-      content: claim.counterEvidence?.length ? claim.counterEvidence.map((entry) => entry.observedFact).join(" ") : "No contradicting evidence recorded — this thesis is currently uncontested.",
-    },
-    { label: "What could invalidate this thesis", content: joinOrFallback(claim.invalidationConditions, "No invalidation conditions recorded for this Claim yet.") },
-    { label: "What to monitor next", content: joinOrFallback(claim.confirmationConditions, "No specific confirmation conditions recorded for this Claim yet.") },
-  ];
+  return buildClaimReasoningSections(claim, { evidenceLimit: Infinity });
 }
 
 export default function AiAnalysisWorkspaceScreen() {
@@ -80,7 +66,7 @@ export default function AiAnalysisWorkspaceScreen() {
           ? await withRequestCache(`claims:by-symbol:${selectedSymbol}`, () => claimsApi.listBySymbol(selectedSymbol, { limit: 5 }))
           : await withRequestCache("claims:active:top", () => claimsApi.listActive({ limit: 5 }));
         const candidates = subjectResult?.claims || [];
-        const top = [...candidates].sort((a, b) => (b.confidence ?? -1) - (a.confidence ?? -1))[0] || null;
+        const top = selectTopClaim(candidates);
         if (top) {
           subjectClaimId = top.claimId;
           subjectAttentionScore = top.attentionScore ?? null;

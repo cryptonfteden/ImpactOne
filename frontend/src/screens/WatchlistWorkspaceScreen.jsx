@@ -6,6 +6,7 @@ import { intelligenceApi, claimsApi } from "../services/api";
 import { withRequestCache } from "../services/requestCache";
 import { usePlatformContext } from "../context/PlatformContext";
 import { statusTone, statusPlainLabel, attentionLevel, computeChangedClaimsText } from "../utils/claimPresentation";
+import { rankByScore, recommendNextAction } from "../services/intelligenceEngine";
 import useWatchlist from "../hooks/useWatchlist";
 import { logError } from "../utils/errorHandling";
 import { fallbackRankings, fallbackOvernightChanges } from "./watchlistWorkspace/watchlistWorkspaceMockData";
@@ -28,16 +29,6 @@ const OVERNIGHT_CHANGES_CACHE_KEY = "claims:overnight-changes:10";
 function directionForScores(opportunityScore, riskScore) {
   if (opportunityScore >= riskScore) return "BULLISH";
   return "BEARISH";
-}
-
-// "What is my next action?" — a presentation-only rule over this
-// symbol's own already-real, already-computed opportunity/risk scores
-// (see autonomousMarketService.js's buildWatchlistRanks) — never a new
-// score, never a fabricated recommendation.
-function nextActionFor(ranking) {
-  if (ranking.riskScore >= 70) return "Review risk exposure — this symbol's risk score is elevated.";
-  if (ranking.opportunityScore >= 70) return "Consider building or adding to this position.";
-  return "No action needed — keep monitoring.";
 }
 
 const SECTION_LABELS = {
@@ -122,7 +113,7 @@ export default function WatchlistWorkspaceScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchlist.join(","), hasWatchlist]);
 
-  const rankedList = [...rankings].sort((a, b) => (b.overallAiScore ?? -1) - (a.overallAiScore ?? -1));
+  const rankedList = rankByScore(rankings, "overallAiScore");
   const [hero, ...rest] = rankedList.length ? rankedList : [null];
 
   // "Which symbols became more important?" — real overnight Claim
@@ -239,7 +230,7 @@ export default function WatchlistWorkspaceScreen() {
                             </Stack>
                             <p className="nova-text-xs"><strong>Why:</strong> {ranking.explanation}</p>
                             <p className="nova-text-xs"><strong>What changed:</strong> {changedText}</p>
-                            <p className="nova-text-xs"><strong>Next action:</strong> {nextActionFor(ranking)}</p>
+                            <p className="nova-text-xs"><strong>Next action:</strong> {recommendNextAction(ranking)}</p>
                           </Stack>
                         </Card>
                       );

@@ -6,6 +6,7 @@ import { intelligenceApi, claimsApi } from "../services/api";
 import { withRequestCache } from "../services/requestCache";
 import { usePlatformContext } from "../context/PlatformContext";
 import { statusTone, statusPlainLabel, attentionLevel, computeChangedClaimsText } from "../utils/claimPresentation";
+import { rankByScore } from "../services/intelligenceEngine";
 import useWatchlist from "../hooks/useWatchlist";
 import { logError } from "../utils/errorHandling";
 import { fallbackFeed, fallbackOvernightChanges } from "./newsIntelligence/newsIntelligenceMockData";
@@ -124,7 +125,7 @@ export default function NewsIntelligenceScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchlist.join(",")]);
 
-  const ranked = [...feed].sort((a, b) => (b.attentionScore ?? -1) - (a.attentionScore ?? -1));
+  const ranked = rankByScore(feed, "attentionScore");
   // Phase PLATFORM-INTEGRATION-001 — if another integrated screen (Mission
   // Control or Portfolio Workspace) already put a symbol in shared focus,
   // prefer the highest-attention real item that actually touches it as
