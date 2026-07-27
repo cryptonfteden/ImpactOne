@@ -33,6 +33,7 @@ const ADVANCED_ITEMS = [
   { key: "Mission Control", label: "Mission Control" },
   { key: "Intelligence Workspace", label: "Intelligence Workspace" },
   { key: "Portfolio Workspace", label: "Portfolio Workspace" },
+  { key: "News Intelligence", label: "News Intelligence" },
   { key: "Decision Timeline", label: "Decision Timeline" },
   { key: "Market Positioning", label: "Market Positioning" },
   { key: "Global Intelligence", label: "Global Intelligence" },

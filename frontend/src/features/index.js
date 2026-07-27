@@ -11,6 +11,7 @@ export { default as HomeFeature } from "./home/HomeFeature";
 export { default as MissionControlHomeFeature } from "./missionControlHome/MissionControlHomeFeature";
 export { default as IntelligenceWorkspaceFeature } from "./intelligenceWorkspace/IntelligenceWorkspaceFeature";
 export { default as PortfolioWorkspaceFeature } from "./portfolioWorkspace/PortfolioWorkspaceFeature";
+export { default as NewsIntelligenceFeature } from "./newsIntelligence/NewsIntelligenceFeature";
 export { default as ThemesFeature } from "./themes/ThemesFeature";
 export { default as IntelligenceConsoleFeature } from "./console/IntelligenceConsoleFeature";
 export { default as WatchlistFoldersFeature } from "./watchlistFolders/WatchlistFoldersFeature";

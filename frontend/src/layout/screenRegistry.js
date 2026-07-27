@@ -26,6 +26,7 @@ import {
   MissionControlHomeFeature,
   IntelligenceWorkspaceFeature,
   PortfolioWorkspaceFeature,
+  NewsIntelligenceFeature,
 } from "../features";
 
 // Phase X6 — Part 1/4. Extracted from MainLayout.jsx into its own module
@@ -44,6 +45,7 @@ export const screenMap = {
   "Mission Control": MissionControlHomeFeature,
   "Intelligence Workspace": IntelligenceWorkspaceFeature,
   "Portfolio Workspace": PortfolioWorkspaceFeature,
+  "News Intelligence": NewsIntelligenceFeature,
   "Daily Feed": NewsFeature,
   "AI Analysis": AnalysisFeature,
   Watchlist: WatchlistFeature,
