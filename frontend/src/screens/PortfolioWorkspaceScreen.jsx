@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Page, Container, Section, Grid, Stack } from "../components/layout";
-import { Card, Badge, MetricArc, Table, EmptyState, Skeleton, InlineMessage } from "../components/nova";
+import { Card, Badge, MetricArc, Table, EmptyState, Skeleton, HeroCard, DemoModeBanner, IntelligenceCard } from "../components/nova";
 import { portfolioEngineApi, claimsApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 import { useI18n } from "../i18n/I18nProvider";
@@ -34,6 +34,11 @@ import { fallbackSummary, fallbackDelta, fallbackPortfolioClaims } from "./portf
  *   Tier 3 — Context: risk map, concentration, diversification, sector
  *     allocation, winners/losers, rebalance (honest not-available), cash
  *     — supporting detail, unchanged in substance from the prior build.
+ *
+ * Phase DESIGN-SYSTEM-001 — the hero, Demo Mode banner, and per-claim
+ * cards below are now the shared HeroCard/DemoModeBanner/IntelligenceCard
+ * components (extracted from this screen and MissionControlHomeScreen.jsx's
+ * near-identical duplicates) — see DESIGN_SYSTEM.md. No visual change.
  *
  * Concentration, diversification, and per-sector risk still have no
  * dedicated backend field (X12C.3 research stands) and are computed here
@@ -188,12 +193,7 @@ export default function PortfolioWorkspaceScreen() {
   // real claim affecting the portfolio, if one exists). Mirrors Mission
   // Control's hero exactly — largest scale, one-time entrance pulse, the
   // only object using the Emphasis surface material.
-  const [pulsing, setPulsing] = useState(true);
   const heroClaim = sortedPortfolioClaims[0] || null;
-
-  const demoSectionKeys = Object.keys(liveSections).filter((key) => !liveSections[key]);
-  const isFullyDemo = demoSectionKeys.length > 0 && demoSectionKeys.length === Object.keys(liveSections).length;
-  const isFullyLive = demoSectionKeys.length === 0;
 
   if (isLoading && !summary) {
     return (
@@ -222,33 +222,13 @@ export default function PortfolioWorkspaceScreen() {
 
         {/* Phase PORTFOLIO-001 — Demo Mode indicator, same pattern as
             Mission Control: absent entirely once every section is live,
-            accurate and section-specific when only some fell back. */}
-        {!isFullyLive ? (
-          <div
-            style={{ marginBlockEnd: "var(--nova-space-6)" }}
-            role="status"
-            aria-label={isFullyDemo ? "Demo mode: showing simulated intelligence, not live data." : "Some sections are showing simulated data because a live service is unavailable."}
-          >
-            <InlineMessage tone="info">
-              {isFullyDemo ? (
-                <>
-                  <strong>Demo</strong> — every value on this screen is simulated for demonstration. It does not reflect your real portfolio or
-                  live market data.
-                </>
-              ) : (
-                <>
-                  <strong>Demo data</strong> — {demoSectionKeys.map((key) => SECTION_LABELS[key]).join(", ")} could not be loaded live right now
-                  and {demoSectionKeys.length === 1 ? "is" : "are"} showing simulated values. Everything else on this screen reflects real, live
-                  data.
-                </>
-              )}
-            </InlineMessage>
-          </div>
-        ) : null}
+            accurate and section-specific when only some fell back.
+            Phase DESIGN-SYSTEM-001 — now the shared DemoModeBanner. */}
+        <DemoModeBanner liveSections={liveSections} sectionLabels={SECTION_LABELS} />
 
         {/* Tier 1 — The Brief: "How am I doing?" + "Why?" */}
         <Section aria-label="Portfolio Brief" className="mc-tier-1">
-          <Card className={`mc-hero${pulsing ? " mc-hero--enter" : ""}`} onAnimationEnd={() => setPulsing(false)} eyebrow="How am I doing?">
+          <HeroCard eyebrow="How am I doing?">
             <Stack direction="horizontal" gap={6} align="center" wrap>
               {heroClaim ? <MetricArc score={heroClaim.attentionScore} metric="attention" size="lg" /> : null}
               <Stack gap={2} style={{ flex: 1, minInlineSize: 240 }}>
@@ -275,7 +255,7 @@ export default function PortfolioWorkspaceScreen() {
                 )}
               </Stack>
             </Stack>
-          </Card>
+          </HeroCard>
 
           <Card title={t("portfolioWorkspace.sections.whatChanged")}>
             {delta?.hasComparison && delta.changes?.length ? (
@@ -325,39 +305,30 @@ export default function PortfolioWorkspaceScreen() {
               <Skeleton height={60} />
             ) : sortedPortfolioClaims.length ? (
               <Stack gap={4}>
-                {sortedPortfolioClaims.map((claim) => (
-                  <Card key={claim.claimId} eyebrow={(claim.symbols || []).join(", ") || t("portfolioWorkspace.empty.whyThisAffectsYou")}>
-                    <Stack gap={2}>
-                      <Stack direction="horizontal" gap={3} wrap align="center">
-                        <Stack gap={1} align="center">
-                          <MetricArc score={claim.confidence} metric="confidence" size="sm" showValue />
-                          <span className="nova-text-xs" style={{ color: "var(--nova-color-text-tertiary)" }}>
-                            Confidence
-                          </span>
-                        </Stack>
-                        {Number.isFinite(claim.probability) ? (
-                          <Stack gap={1} align="center">
-                            <MetricArc score={claim.probability} metric="probability" size="sm" showValue />
-                            <span className="nova-text-xs" style={{ color: "var(--nova-color-text-tertiary)" }}>
-                              Probability
-                            </span>
-                          </Stack>
-                        ) : null}
-                        <Badge tone={claim.expectedDirection === "BULLISH" ? "positive" : claim.expectedDirection === "BEARISH" ? "negative" : "neutral"}>{claim.expectedDirection}</Badge>
-                        <Badge tone="neutral">{claim.status}</Badge>
-                      </Stack>
-                      <p className="nova-text-xs"><strong>{t("portfolioWorkspace.claims.why")}:</strong> {claim.plainLanguageStatement || claim.statement}</p>
-                      <p className="nova-text-xs">
-                        <strong>{t("portfolioWorkspace.claims.evidence")}:</strong>{" "}
-                        {claim.evidence?.length ? claim.evidence.slice(0, 2).map((entry) => entry.observedFact).join(" ") : t("portfolioWorkspace.empty.whyThisAffectsYou")}
-                      </p>
-                      {claim.counterEvidence?.length ? (
-                        <p className="nova-text-xs"><strong>{t("portfolioWorkspace.claims.counterEvidenceLabel")}:</strong> {claim.counterEvidence.slice(0, 2).map((entry) => entry.observedFact).join(" ")}</p>
-                      ) : null}
-                      <p className="nova-text-xs"><strong>{t("portfolioWorkspace.claims.potentialScenarios")}:</strong> {t("portfolioWorkspace.claims.scenarioPreview")}</p>
-                    </Stack>
-                  </Card>
-                ))}
+                {sortedPortfolioClaims.map((claim) => {
+                  const sections = [
+                    { label: t("portfolioWorkspace.claims.why"), content: claim.plainLanguageStatement || claim.statement },
+                    {
+                      label: t("portfolioWorkspace.claims.evidence"),
+                      content: claim.evidence?.length ? claim.evidence.slice(0, 2).map((entry) => entry.observedFact).join(" ") : t("portfolioWorkspace.empty.whyThisAffectsYou"),
+                    },
+                  ];
+                  if (claim.counterEvidence?.length) {
+                    sections.push({ label: t("portfolioWorkspace.claims.counterEvidenceLabel"), content: claim.counterEvidence.slice(0, 2).map((entry) => entry.observedFact).join(" ") });
+                  }
+                  sections.push({ label: t("portfolioWorkspace.claims.potentialScenarios"), content: t("portfolioWorkspace.claims.scenarioPreview") });
+
+                  return (
+                    <IntelligenceCard
+                      key={claim.claimId}
+                      eyebrow={(claim.symbols || []).join(", ") || t("portfolioWorkspace.empty.whyThisAffectsYou")}
+                      claim={claim}
+                      showProbability
+                      showStatusBadge
+                      sections={sections}
+                    />
+                  );
+                })}
               </Stack>
             ) : (
               <EmptyState icon="◇" title={t("portfolioWorkspace.empty.whyThisAffectsYou")} />

@@ -263,6 +263,22 @@
   background-color: color-mix(in srgb, var(--nova-color-brand-violet) calc(var(--nova-opacity-badge-fill) * 100%), transparent);
   color: var(--nova-color-brand-violet);
 }
+/* Phase DESIGN-SYSTEM-001 — a dedicated, exclusive tone for Attention
+ * Level badges (PRODUCT_STYLE_GAPS.md, H1: attentionLevelTone() was
+ * mapping High to the same "warning" tone Confidence bands and claim
+ * status already use, so a High-Attention item, a Moderate-confidence
+ * item, and a Weakening claim all wore the identical amber badge on the
+ * same screen — the exact conflation MetricArc's fixed, non-banded
+ * Attention hue was already built to prevent one component away). This
+ * tone is the ONE fixed hue AttentionLevelBadge ever uses, regardless of
+ * level — High/Medium/Low are differentiated by their text alone, never
+ * by color, mirroring MetricArc's own "Attention is never banded" rule
+ * (Bible §5: the Attention hue is reserved exclusively for Attention,
+ * never reused, never itself reusing another concept's palette). */
+.nova-badge[data-tone="attention"] {
+  background-color: color-mix(in srgb, var(--nova-color-brand-signal) calc(var(--nova-opacity-badge-fill) * 100%), transparent);
+  color: var(--nova-color-brand-signal);
+}
 
 /* =============================================================================
  * Card / Panel variants (compose on top of layout.css's .nova-panel)

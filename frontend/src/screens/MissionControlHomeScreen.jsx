@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Page, Container, Section, Grid, Stack } from "../components/layout";
-import { Card, Badge, MetricArc, EmptyState, Skeleton, Button, InlineMessage } from "../components/nova";
+import { Card, Badge, MetricArc, EmptyState, Skeleton, Button, HeroCard, DemoModeBanner, IntelligenceCard, AttentionLevelBadge } from "../components/nova";
 import { useI18n } from "../i18n/I18nProvider";
 import { morningBriefApi, claimsApi, portfolioEngineApi, marketSentimentApi, intelligenceApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
@@ -29,6 +29,13 @@ import {
 // three independent metrics (see MetricArc.jsx) — every MetricArc
 // instance below states its `metric` explicitly.
 //
+// Phase DESIGN-SYSTEM-001 — the hero card, Demo Mode banner, and
+// Biggest Risk/Best Opportunity cards below are now the shared
+// HeroCard/DemoModeBanner/IntelligenceCard components (extracted from
+// this screen and PortfolioWorkspaceScreen.jsx's near-identical
+// duplicates) — see DESIGN_SYSTEM.md. No visual change from this
+// refactor.
+//
 // Phase LIVE-DATA-001 — this screen now fetches real data from six
 // already-real, already-tested canonical services:
 //   - Morning Brief    → morningBriefApi.getToday()
@@ -54,18 +61,6 @@ import {
 const BRIEF_COLLAPSED_COUNT = 3;
 const STAGGER_STEP_MS = 60;
 const MARKET_SENTIMENT_MARKET = "US";
-
-function attentionLevelTone(level) {
-  if (level === "High") return "warning";
-  if (level === "Medium") return "info";
-  return "neutral";
-}
-
-function directionTone(direction) {
-  if (direction === "BULLISH") return "positive";
-  if (direction === "BEARISH") return "negative";
-  return "neutral";
-}
 
 function statusTone(status) {
   if (status === "STRENGTHENING") return "positive";
@@ -94,14 +89,8 @@ function recommendedAttentionLevel(score) {
  * the Emphasis surface material + the one-time entrance pulse are used.
  */
 function HeroBriefItem({ item }) {
-  const [pulsing, setPulsing] = useState(true);
-
   return (
-    <Card
-      className={`mc-hero${pulsing ? " mc-hero--enter" : ""}`}
-      onAnimationEnd={() => setPulsing(false)}
-      eyebrow="Top Priority"
-    >
+    <HeroCard eyebrow="Top Priority">
       <Stack direction="horizontal" gap={6} align="center" wrap>
         <MetricArc score={item.attentionScore} metric="attention" size="lg" />
         <Stack gap={2} style={{ flex: 1, minInlineSize: 240 }}>
@@ -110,12 +99,12 @@ function HeroBriefItem({ item }) {
             {item.whyItMatters}
           </p>
           <Stack direction="horizontal" gap={2} wrap>
-            <Badge tone={attentionLevelTone(item.recommendedAttentionLevel)}>Attention: {item.recommendedAttentionLevel}</Badge>
+            <AttentionLevelBadge level={item.recommendedAttentionLevel} />
             {item.affectedAssets?.length ? <Badge tone="neutral">{item.affectedAssets.join(", ")}</Badge> : null}
           </Stack>
         </Stack>
       </Stack>
-    </Card>
+    </HeroCard>
   );
 }
 
@@ -156,48 +145,8 @@ function BriefRow({ item, index }) {
           </p>
         ) : null}
       </Stack>
-      <Badge tone={attentionLevelTone(item.recommendedAttentionLevel)}>Attention: {item.recommendedAttentionLevel}</Badge>
+      <AttentionLevelBadge level={item.recommendedAttentionLevel} />
     </button>
-  );
-}
-
-/**
- * Tier 2 — one half of the paired Biggest Risk / Best Opportunity
- * signals. Deliberately identical structure for both halves (the
- * masterplan's one documented exception to "nothing is equal").
- */
-function SignalCard({ title, claim }) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <Card title={title}>
-      <Stack gap={3}>
-        <Stack direction="horizontal" gap={2} wrap align="center">
-          <Stack gap={1} align="center">
-            <MetricArc score={claim.confidence} metric="confidence" size="sm" showValue />
-            <span className="nova-text-xs" style={{ color: "var(--nova-color-text-tertiary)" }}>
-              Confidence
-            </span>
-          </Stack>
-          <Badge tone={directionTone(claim.expectedDirection)}>{claim.expectedDirection}</Badge>
-          <Badge tone="neutral">{(claim.symbols || []).join(", ")}</Badge>
-        </Stack>
-        <p className="nova-text-sm">{claim.plainLanguageStatement}</p>
-        {claim.evidence?.length ? (
-          <p className="nova-text-xs" style={{ color: "var(--nova-color-text-tertiary)" }}>
-            {claim.evidence[0].observedFact}
-          </p>
-        ) : null}
-        {expanded && claim.portfolioImpact ? (
-          <p className="nova-text-xs" style={{ color: "var(--nova-color-text-tertiary)" }}>
-            Portfolio impact: {claim.portfolioImpact.magnitude}/100 ({claim.portfolioImpact.direction})
-          </p>
-        ) : null}
-        <Button variant="ghost" onClick={() => setExpanded((value) => !value)}>
-          {expanded ? "Show less" : "Show more"}
-        </Button>
-      </Stack>
-    </Card>
   );
 }
 
@@ -412,16 +361,6 @@ export default function MissionControlHomeScreen({ onNavigate }) {
     return { highAttentionCount: counts.High, mediumAttentionCount: counts.Medium, lowAttentionCount: counts.Low };
   }, [brief]);
 
-  // Phase LIVE-DATA-001 — the Demo Mode indicator. Disappears entirely
-  // once every section is live; shows an accurate, honest message
-  // otherwise — naming exactly which sections are simulated when only
-  // some are, rather than either hiding a partial outage or crying wolf
-  // about sections that are genuinely live.
-  const demoSectionKeys = Object.keys(liveSections).filter((key) => !liveSections[key]);
-  const allSectionsCount = Object.keys(liveSections).length;
-  const isFullyDemo = demoSectionKeys.length === allSectionsCount;
-  const isFullyLive = demoSectionKeys.length === 0;
-
   if (isLoading) {
     return (
       <Page className="screen-page mission-control-screen" dir={dir}>
@@ -451,29 +390,9 @@ export default function MissionControlHomeScreen({ onNavigate }) {
             persistent. Phase LIVE-DATA-001 — now automatically
             disappears once every section is running on real, live data,
             and gives an accurate, section-specific message when only
-            some of the screen fell back. */}
-        {!isFullyLive ? (
-          <div
-            style={{ marginBlockEnd: "var(--nova-space-6)" }}
-            role="status"
-            aria-label={isFullyDemo ? "Demo mode: showing simulated intelligence, not live data." : "Some sections are showing simulated data because a live service is unavailable."}
-          >
-            <InlineMessage tone="info">
-              {isFullyDemo ? (
-                <>
-                  <strong>Demo</strong> — every value on this screen is simulated for demonstration. It does not reflect your real portfolio or
-                  live market data.
-                </>
-              ) : (
-                <>
-                  <strong>Demo data</strong> — {demoSectionKeys.map((key) => SECTION_LABELS[key]).join(", ")} could not be loaded live right now
-                  and {demoSectionKeys.length === 1 ? "is" : "are"} showing simulated values. Everything else on this screen reflects real, live
-                  data.
-                </>
-              )}
-            </InlineMessage>
-          </div>
-        ) : null}
+            some of the screen fell back. Phase DESIGN-SYSTEM-001 — now
+            the shared DemoModeBanner component. */}
+        <DemoModeBanner liveSections={liveSections} sectionLabels={SECTION_LABELS} />
 
         {/* Tier 1 — The Brief */}
         <Section aria-label="Today's Brief" className="mc-tier-1">
@@ -553,12 +472,38 @@ export default function MissionControlHomeScreen({ onNavigate }) {
           </Card>
 
           <div className="mc-signal-pair">
-            {biggestRisk ? <SignalCard title="Biggest Risk" claim={biggestRisk} /> : (
+            {biggestRisk ? (
+              <IntelligenceCard
+                title="Biggest Risk"
+                claim={biggestRisk}
+                expandable
+                expandableContent={
+                  biggestRisk.portfolioImpact ? (
+                    <p className="nova-text-xs" style={{ color: "var(--nova-color-text-tertiary)" }}>
+                      Portfolio impact: {biggestRisk.portfolioImpact.magnitude}/100 ({biggestRisk.portfolioImpact.direction})
+                    </p>
+                  ) : null
+                }
+              />
+            ) : (
               <Card title="Biggest Risk">
                 <EmptyState icon="◇" title="No bearish claims right now." />
               </Card>
             )}
-            {bestOpportunity ? <SignalCard title="Best Opportunity" claim={bestOpportunity} /> : (
+            {bestOpportunity ? (
+              <IntelligenceCard
+                title="Best Opportunity"
+                claim={bestOpportunity}
+                expandable
+                expandableContent={
+                  bestOpportunity.portfolioImpact ? (
+                    <p className="nova-text-xs" style={{ color: "var(--nova-color-text-tertiary)" }}>
+                      Portfolio impact: {bestOpportunity.portfolioImpact.magnitude}/100 ({bestOpportunity.portfolioImpact.direction})
+                    </p>
+                  ) : null
+                }
+              />
+            ) : (
               <Card title="Best Opportunity">
                 <EmptyState icon="◇" title="No bullish claims right now." />
               </Card>
