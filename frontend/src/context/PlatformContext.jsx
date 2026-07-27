@@ -24,9 +24,14 @@ const PORTFOLIO_SUMMARY_CACHE_KEY = "platform:portfolio-summary";
 
 const PlatformContext = createContext(null);
 
-export function PlatformProvider({ navigate, children }) {
+export function PlatformProvider({ navigate, initialSelectedSymbol = null, children }) {
   const [selectedClaim, setSelectedClaimState] = useState(null);
-  const [selectedSymbol, setSelectedSymbolState] = useState(null);
+  // `initialSelectedSymbol` exists for tests that need to model a screen
+  // mounting after another integrated screen already contributed a
+  // symbol (the real MainLayout-level provider is always already
+  // populated by the time a user navigates between screens — nothing in
+  // production ever needs this prop).
+  const [selectedSymbol, setSelectedSymbolState] = useState(initialSelectedSymbol);
   const [portfolioContext, setPortfolioContext] = useState(null);
   const [portfolioContextStatus, setPortfolioContextStatus] = useState("idle");
 

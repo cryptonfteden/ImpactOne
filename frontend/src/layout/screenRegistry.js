@@ -28,6 +28,7 @@ import {
   PortfolioWorkspaceFeature,
   NewsIntelligenceFeature,
   WatchlistWorkspaceFeature,
+  AiAnalysisWorkspaceFeature,
 } from "../features";
 
 // Phase X6 — Part 1/4. Extracted from MainLayout.jsx into its own module
@@ -48,6 +49,7 @@ export const screenMap = {
   "Portfolio Workspace": PortfolioWorkspaceFeature,
   "News Intelligence": NewsIntelligenceFeature,
   "Watchlist Workspace": WatchlistWorkspaceFeature,
+  "AI Analysis Workspace": AiAnalysisWorkspaceFeature,
   "Daily Feed": NewsFeature,
   "AI Analysis": AnalysisFeature,
   Watchlist: WatchlistFeature,

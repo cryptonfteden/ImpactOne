@@ -13,6 +13,7 @@ export { default as IntelligenceWorkspaceFeature } from "./intelligenceWorkspace
 export { default as PortfolioWorkspaceFeature } from "./portfolioWorkspace/PortfolioWorkspaceFeature";
 export { default as NewsIntelligenceFeature } from "./newsIntelligence/NewsIntelligenceFeature";
 export { default as WatchlistWorkspaceFeature } from "./watchlistWorkspace/WatchlistWorkspaceFeature";
+export { default as AiAnalysisWorkspaceFeature } from "./aiAnalysisWorkspace/AiAnalysisWorkspaceFeature";
 export { default as ThemesFeature } from "./themes/ThemesFeature";
 export { default as IntelligenceConsoleFeature } from "./console/IntelligenceConsoleFeature";
 export { default as WatchlistFoldersFeature } from "./watchlistFolders/WatchlistFoldersFeature";
