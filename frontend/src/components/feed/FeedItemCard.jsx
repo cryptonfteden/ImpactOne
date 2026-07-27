@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { computeChangedClaimsText } from "../../utils/claimPresentation";
 
 function formatTimestamp(value) {
   if (!value) return null;
@@ -97,32 +98,15 @@ const ACTIONABILITY_PILL_CLASS = {
 // status/lastUpdatedAt — never a fabricated causal link, since News is
 // not itself a Claim-forming engine. A Claim only counts as "changed by
 // this news" when its symbols genuinely overlap AND it genuinely
-// transitioned within RECENT_TRANSITION_WINDOW_MS of this item's
-// publish time; anything else is disclosed as a same-symbol relation,
-// not a claimed cause.
-const RECENT_TRANSITION_WINDOW_MS = 48 * 60 * 60 * 1000;
-
-function computeChangedClaimsText(item, activeClaims) {
-  const symbols = item.affectedAssets || [];
-  if (!symbols.length || !activeClaims?.length) return "No active Claims affected.";
-
-  const overlapping = activeClaims.filter((claim) => claim.symbols?.some((symbol) => symbols.includes(symbol)));
-  if (!overlapping.length) return "No active Claims affected.";
-
-  const publishedAt = item.publishedAt ? new Date(item.publishedAt).getTime() : null;
-  const descriptions = overlapping.slice(0, 3).map((claim) => {
-    const label = claim.plainLanguageStatement || claim.statement || "an active Claim";
-    const updatedAt = claim.lastUpdatedAt ? new Date(claim.lastUpdatedAt).getTime() : null;
-    const isRecentTransition = Boolean(publishedAt && updatedAt && Math.abs(updatedAt - publishedAt) <= RECENT_TRANSITION_WINDOW_MS);
-
-    if (claim.status === "INVALIDATED" && isRecentTransition) return `This news invalidated a Claim: "${label}".`;
-    if (claim.status === "DRAFT" && isRecentTransition) return `This news created a Claim: "${label}".`;
-    if (claim.status === "STRENGTHENING" && isRecentTransition) return `This news strengthened a Claim: "${label}".`;
-    if (claim.status === "WEAKENING" && isRecentTransition) return `This news weakened a Claim: "${label}".`;
-    return `This news relates to an active Claim: "${label}" (same symbol, no confirmed recent transition).`;
-  });
-  return descriptions.join(" ");
-}
+// transitioned within a recent window of this item's publish time;
+// anything else is disclosed as a same-symbol relation, not a claimed
+// cause.
+//
+// Phase DEDUPLICATION-001 — this logic moved to
+// utils/claimPresentation.js (`computeChangedClaimsText`), the single
+// shared implementation News Intelligence now also uses
+// (PLATFORM_DUPLICATION_AUDIT.md, D3) — imported above, not
+// reimplemented here.
 
 function formatWhyItMatters(item) {
   const text = item.whyItMatters || "";

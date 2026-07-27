@@ -5,6 +5,7 @@ import { useI18n } from "../i18n/I18nProvider";
 import { intelligenceApi, claimsApi } from "../services/api";
 import { withRequestCache } from "../services/requestCache";
 import { usePlatformContext } from "../context/PlatformContext";
+import { statusTone, statusPlainLabel, attentionLevel, computeChangedClaimsText } from "../utils/claimPresentation";
 import useWatchlist from "../hooks/useWatchlist";
 import { logError } from "../utils/errorHandling";
 import { fallbackFeed, fallbackOvernightChanges } from "./newsIntelligence/newsIntelligenceMockData";
@@ -25,45 +26,10 @@ const OVERNIGHT_CHANGES_CACHE_KEY = "claims:overnight-changes:10";
 
 const MAX_COVERAGE_ITEMS = 5;
 
-function statusTone(status) {
-  if (status === "STRENGTHENING") return "positive";
-  if (status === "WEAKENING") return "warning";
-  if (status === "INVALIDATED") return "neutral";
-  return "info";
-}
-
-function statusPlainLabel(status) {
-  if (status === "STRENGTHENING") return "Getting more likely";
-  if (status === "WEAKENING") return "Getting less likely";
-  if (status === "INVALIDATED") return "No longer holds up";
-  return status;
-}
-
 function directionForImpactType(impactType) {
   if (impactType === "opportunity") return "BULLISH";
   if (impactType === "risk") return "BEARISH";
   return "NEUTRAL";
-}
-
-function attentionLevelForScore(score) {
-  if (!Number.isFinite(score)) return "Low";
-  if (score >= 75) return "High";
-  if (score >= 45) return "Medium";
-  return "Low";
-}
-
-// "What changed compared to yesterday?" — a real, disclosed relationship
-// between this item's real affected symbols and the real overnight Claim
-// transitions, never a fabricated causal link (same discipline as
-// FeedItemCard.jsx's computeChangedClaimsText).
-function describeOvernightChange(item, overnightChanges) {
-  const symbols = item.affectedAssets || [];
-  if (!symbols.length || !overnightChanges.length) return "No overnight Claim change recorded for this item's symbols.";
-  const overlapping = overnightChanges.filter((claim) => claim.symbols?.some((symbol) => symbols.includes(symbol)));
-  if (!overlapping.length) return "No overnight Claim change recorded for this item's symbols.";
-  return overlapping
-    .map((claim) => `${statusPlainLabel(claim.status)}: "${claim.plainLanguageStatement || claim.statement || claim.symbols.join(", ")}"`)
-    .join(" ");
 }
 
 function newsItemSections(item, overnightChanges) {
@@ -82,7 +48,7 @@ function newsItemSections(item, overnightChanges) {
       label: "Holdings affected",
       content: item.isHeld ? item.affectedAssets.join(", ") : item.affectedAssets?.length ? `${item.affectedAssets.join(", ")} (not held)` : "None identified.",
     },
-    { label: "Changed since yesterday", content: describeOvernightChange(item, overnightChanges) },
+    { label: "Changed since yesterday", content: computeChangedClaimsText(item, overnightChanges) },
   ];
 }
 
@@ -221,7 +187,7 @@ export default function NewsIntelligenceScreen() {
                     {hero.whyItMatters}
                   </p>
                   <Stack direction="horizontal" gap={2} wrap>
-                    <AttentionLevelBadge level={attentionLevelForScore(hero.attentionScore)} />
+                    <AttentionLevelBadge level={attentionLevel(hero.attentionScore)} />
                     {hero.affectedAssets?.length ? <Badge tone="neutral">{hero.affectedAssets.join(", ")}</Badge> : null}
                     {hero.isHeld ? <Badge tone="positive">Held in your portfolio</Badge> : null}
                   </Stack>

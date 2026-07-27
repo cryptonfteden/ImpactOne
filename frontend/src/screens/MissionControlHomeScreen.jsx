@@ -5,6 +5,7 @@ import { useI18n } from "../i18n/I18nProvider";
 import { morningBriefApi, claimsApi, portfolioEngineApi, marketSentimentApi, intelligenceApi } from "../services/api";
 import { withRequestCache } from "../services/requestCache";
 import { usePlatformContext } from "../context/PlatformContext";
+import { statusTone, statusPlainLabel, attentionLevel } from "../utils/claimPresentation";
 import { logError } from "../utils/errorHandling";
 import {
   todaysBrief as fallbackBrief,
@@ -69,27 +70,6 @@ const OVERNIGHT_CHANGES_CACHE_KEY = "claims:overnight-changes:10";
 const BRIEF_COLLAPSED_COUNT = 3;
 const STAGGER_STEP_MS = 60;
 const MARKET_SENTIMENT_MARKET = "US";
-
-function statusTone(status) {
-  if (status === "STRENGTHENING") return "positive";
-  if (status === "WEAKENING") return "warning";
-  if (status === "INVALIDATED") return "neutral";
-  return "info";
-}
-
-function statusPlainLabel(status) {
-  if (status === "STRENGTHENING") return "Getting more likely";
-  if (status === "WEAKENING") return "Getting less likely";
-  if (status === "INVALIDATED") return "No longer holds up";
-  return status;
-}
-
-function recommendedAttentionLevel(score) {
-  if (!Number.isFinite(score)) return "Low";
-  if (score >= 75) return "High";
-  if (score >= 45) return "Medium";
-  return "Low";
-}
 
 /**
  * Tier 1 — the hero Brief item. The single unmistakable visual starting
@@ -373,7 +353,7 @@ export default function MissionControlHomeScreen({ onNavigate }) {
   const sessionSummary = useMemo(() => {
     const counts = { High: 0, Medium: 0, Low: 0 };
     for (const item of brief) {
-      const level = item.recommendedAttentionLevel || recommendedAttentionLevel(item.attentionScore);
+      const level = item.recommendedAttentionLevel || attentionLevel(item.attentionScore);
       counts[level] = (counts[level] || 0) + 1;
     }
     return { highAttentionCount: counts.High, mediumAttentionCount: counts.Medium, lowAttentionCount: counts.Low };
