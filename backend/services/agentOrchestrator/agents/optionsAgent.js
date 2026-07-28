@@ -1,27 +1,34 @@
-// Phase AGENT-ORCHESTRATOR-001 — a real agent, not a stub. All of the
-// actual options-flow detection lives in optionsAgentService.js
-// (already real, already tested) — this file only adapts its existing
-// per-symbol view into the generic Agent interface.
+// Phase AGENT-ORCHESTRATOR-001 — a real agent, not a stub.
+// Phase OPTIONS-AGENT-001 — upgraded to the full Options Flow Domain
+// Intelligence Agent (backend/services/domainAgents/optionsFlowAgent/):
+// market bias, confidence, ranked unusual contracts, institutional-
+// activity/accumulation/volatility-regime signals, a risk summary, and a
+// 2-4 sentence (deterministic, template-based — not an LLM call) plain-
+// language summary. This file still only adapts that engine's already-
+// real report into the generic Agent interface; it invents no analysis
+// of its own, the same discipline every other real agent here follows.
+const optionsFlowAgent = require("../../domainAgents/optionsFlowAgent/optionsFlowAgent");
 const optionsAgentService = require("../../optionsAgent/optionsAgentService");
 
 async function execute(symbol) {
-  const view = await optionsAgentService.getSymbolView(symbol);
-  if (view.unavailable) {
-    return { summary: view.reason || "Options flow data is not available.", direction: null, evidence: [], raw: view };
-  }
+  const report = await optionsFlowAgent.generateReport(symbol);
 
   return {
-    summary: view.activeSignalCount
-      ? `${view.activeSignalCount} recent options-flow signal(s) detected.`
-      : "No recent options-flow signals for this symbol.",
-    direction: null, // this agent surfaces anomaly activity, not a directional call
-    evidence: view.recentSignals.slice(0, 5).map((signal) => ({ observedFact: signal.label || "Options-flow signal detected." })),
-    raw: view,
+    summary: report.aiSummary,
+    // The orchestrator only compares this string for equality with other
+    // agents' directions (structural conflict detection) — it never
+    // interprets it. NEUTRAL (or no data) reports no opinion, exactly
+    // like this agent's own prior, thinner implementation.
+    direction: report.marketBias === "NEUTRAL" ? null : report.marketBias,
+    evidence: report.signals.mostUnusualContracts.map((contract) => ({
+      observedFact: contract.explanation || `${contract.optionType} ${contract.strike} (${contract.signalType}), anomaly score ${contract.anomalyScore}.`,
+    })),
+    raw: report,
   };
 }
 
 function confidence(result) {
-  const score = result?.raw?.highestAnomalyScore;
+  const score = result?.raw?.confidence;
   return Number.isFinite(score) ? score : 0;
 }
 

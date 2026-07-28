@@ -52,6 +52,20 @@ async function findRecentPrints(symbol, sinceDate) {
   });
 }
 
+// Phase OPTIONS-AGENT-001 — the one read the new Options Flow Domain
+// Agent needs that no existing repository function provided: every OI
+// snapshot for a symbol at/after a given date, across every contract
+// (not one specific contract, per findOpenInterestSnapshot above).
+// Read-only; OptionsOpenInterestSnapshot's own write path (upsert) is
+// untouched.
+async function findRecentOpenInterestSnapshots(symbol, sinceDate) {
+  const prisma = getPrismaClient();
+  return prisma.optionsOpenInterestSnapshot.findMany({
+    where: { symbol, snapshotDate: { gte: sinceDate } },
+    orderBy: { snapshotDate: "desc" },
+  });
+}
+
 /**
  * Upserts one OI snapshot — @@unique([symbol, expiry, strike, optionType,
  * snapshotDate]) makes this naturally idempotent for a re-run of the same
@@ -148,6 +162,7 @@ async function listPendingSignalsBefore(sessionCutoff) {
 module.exports = {
   createPrints,
   findRecentPrints,
+  findRecentOpenInterestSnapshots,
   upsertOpenInterestSnapshot,
   findOpenInterestSnapshot,
   createSignal,
