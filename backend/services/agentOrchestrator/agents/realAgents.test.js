@@ -1,5 +1,6 @@
 // Phase AGENT-ORCHESTRATOR-001 — smoke tests for the real agents
-// (Technical, Options, Sentiment; Earnings added in EARNINGS-AGENT-001).
+// (Technical, Options, Sentiment; Earnings added in EARNINGS-AGENT-001;
+// Valuation added in VALUATION-AGENT-001).
 // This test environment has no live network/provider credentials for
 // most of these (the same "no network access in this test" constraint
 // every other test of these underlying services already documents), so
@@ -17,8 +18,9 @@ const technicalAgent = require("./technicalAgent");
 const optionsAgent = require("./optionsAgent");
 const sentimentAgent = require("./sentimentAgent");
 const earningsAgent = require("./earningsAgent");
+const valuationAgent = require("./valuationAgent");
 
-const REAL_AGENTS = [technicalAgent, optionsAgent, sentimentAgent, earningsAgent];
+const REAL_AGENTS = [technicalAgent, optionsAgent, sentimentAgent, earningsAgent, valuationAgent];
 
 test("every real agent conforms to the generic Agent interface", () => {
   for (const agent of REAL_AGENTS) {
@@ -92,5 +94,21 @@ test("earningsAgent.execute() returns a real, well-formed result (a live network
 
 test("earningsAgent.health() reports a real, valid health status and never throws", async () => {
   const health = await earningsAgent.health();
+  assert.ok(["healthy", "degraded", "unavailable"].includes(health.status));
+});
+
+test("valuationAgent.execute() returns a real, well-formed result (a live network call may succeed or gracefully degrade in this environment; either way the shape is honest)", async () => {
+  const result = await valuationAgent.execute("NVDA");
+  assert.equal(typeof result.summary, "string");
+  assert.ok(result.summary.length > 0);
+  assert.ok(Array.isArray(result.evidence));
+  assert.ok(result.direction === null || typeof result.direction === "string", "direction must be an opaque string or null, never an object");
+  const confidence = valuationAgent.confidence(result);
+  assert.ok(Number.isFinite(confidence));
+  assert.ok(confidence >= 0 && confidence <= 100);
+});
+
+test("valuationAgent.health() reports a real, valid health status and never throws", async () => {
+  const health = await valuationAgent.health();
   assert.ok(["healthy", "degraded", "unavailable"].includes(health.status));
 });
