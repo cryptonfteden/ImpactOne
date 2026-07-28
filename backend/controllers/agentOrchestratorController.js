@@ -1,5 +1,5 @@
-const agentOrchestrator = require("../services/agentOrchestrator/agentOrchestrator");
 const { registerAllAgents } = require("../services/agentOrchestrator/registry");
+const { runObserved } = require("../services/agentObservability/observableOrchestrator");
 
 registerAllAgents();
 
@@ -10,7 +10,12 @@ function handleKnownError(error, res, next) {
 
 async function getStockIntelligence(req, res, next) {
   try {
-    const report = await agentOrchestrator.run(req.params.symbol);
+    // Every real request now also records one execution per agent to the
+    // AgentExecutionLog (AGENT-OBSERVABILITY-001) — the report returned
+    // to the client is byte-identical to what agentOrchestrator.run()
+    // itself produces; observability is a side effect, never a change
+    // to the response shape.
+    const { report } = await runObserved(req.params.symbol);
     res.json(report);
   } catch (error) {
     handleKnownError(error, res, next);
