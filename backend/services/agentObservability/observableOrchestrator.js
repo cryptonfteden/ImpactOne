@@ -37,9 +37,17 @@ function extractDataSources(agentResult) {
  * additionally appends one execution record per agent to the shared
  * AgentExecutionLog. Returns the orchestrator's own report unmodified,
  * plus the correlationId this run was recorded under.
+ *
+ * Phase PLATFORM-HARDENING-001 — "Correlation ID propagation end-to-end":
+ * a caller may now pass in an already-known `correlationId` (e.g. one
+ * that arrived on an inbound request header) so every execution record
+ * this run produces is filed under the SAME id the caller already has,
+ * rather than a fresh one only this function knows about. When none is
+ * given, a new one is generated exactly as before — fully backward
+ * compatible with every existing caller.
  */
-async function runObserved(symbol, options = {}, { log = sharedLog } = {}) {
-  const correlationId = newCorrelationId();
+async function runObserved(symbol, options = {}, { log = sharedLog, correlationId: providedCorrelationId } = {}) {
+  const correlationId = providedCorrelationId || newCorrelationId();
   const runStartMs = Date.now();
 
   const report = await agentOrchestrator.run(symbol, options);

@@ -16,13 +16,8 @@ const { ExecutionQueue } = require("./executionQueue");
 const { CancellationToken } = require("./cancellationToken");
 const { computeBackoffDelayMs, abortableDelay } = require("./retryBackoff");
 const { createSchedulerMetrics } = require("./schedulerMetrics");
-const {
-  DEFAULT_CONCURRENCY,
-  DEFAULT_TIMEOUT_MS,
-  DEFAULT_MAX_RETRIES,
-  DEFAULT_BASE_DELAY_MS,
-  DEFAULT_MAX_DELAY_MS,
-} = require("./schedulerConfig");
+const { createSchedulerConfig } = require("./schedulerConfigObject");
+const { createHealthCache } = require("./healthCache");
 
 function withTimeout(promise, timeoutMs, signal) {
   let timer;
@@ -56,16 +51,27 @@ async function safeHealth(agent) {
   }
 }
 
-function createAgentScheduler({ concurrency = DEFAULT_CONCURRENCY, now = Date.now, random = Math.random } = {}) {
-  let concurrencyLimit = concurrency;
+function createAgentScheduler({
+  concurrency,
+  timeoutMs,
+  maxRetries,
+  baseDelayMs,
+  maxDelayMs,
+  agingFactorPerMs,
+  healthCacheTtlMs,
+  now = Date.now,
+  random = Math.random,
+} = {}) {
+  const config = createSchedulerConfig({ concurrency, timeoutMs, maxRetries, baseDelayMs, maxDelayMs, agingFactorPerMs, healthCacheTtlMs });
   let activeCount = 0;
-  const queue = new ExecutionQueue({ now });
+  const queue = new ExecutionQueue({ now, agingFactorPerMs: () => config.get().agingFactorPerMs });
   const metrics = createSchedulerMetrics();
+  const healthCache = createHealthCache({ now, getTtlMs: () => config.get().healthCacheTtlMs });
   const inFlight = new Map(); // dedup key -> shared Promise<record>
   const jobRegistry = new Map(); // jobId -> { symbol, controller, state: "queued"|"active" }
 
   function tryDispatch() {
-    while (activeCount < concurrencyLimit && !queue.isEmpty()) {
+    while (activeCount < config.get().concurrency && !queue.isEmpty()) {
       const job = queue.dequeue();
       if (!job) break;
       if (job.controller.isCancelled) {
@@ -139,11 +145,12 @@ function createAgentScheduler({ concurrency = DEFAULT_CONCURRENCY, now = Date.no
    * mid-flight via cancelJob()/cancelSymbol().
    */
   function runAgent(agent, symbol, options = {}) {
+    const live = config.get();
     const {
-      timeoutMs = DEFAULT_TIMEOUT_MS,
-      maxRetries = DEFAULT_MAX_RETRIES,
-      baseDelayMs = DEFAULT_BASE_DELAY_MS,
-      maxDelayMs = DEFAULT_MAX_DELAY_MS,
+      timeoutMs = live.timeoutMs,
+      maxRetries = live.maxRetries,
+      baseDelayMs = live.baseDelayMs,
+      maxDelayMs = live.maxDelayMs,
     } = options;
 
     const dedupKey = `${agent.metadata.id}::${symbol}`;
@@ -175,7 +182,7 @@ function createAgentScheduler({ concurrency = DEFAULT_CONCURRENCY, now = Date.no
 
       const execStart = now();
       try {
-        const health = await safeHealth(agent);
+        const health = await healthCache.getOrCompute(agent, () => safeHealth(agent));
         if (health.status === "unavailable") {
           metrics.recordCompleted({ waitMs, execMs: now() - execStart, outcome: "unavailable" });
           return { ...base, status: "unavailable", health, confidence: 0, evidence: [], direction: null, attempts: 0, tookMs: now() - execStart, waitMs };
@@ -244,17 +251,32 @@ function createAgentScheduler({ concurrency = DEFAULT_CONCURRENCY, now = Date.no
   }
 
   function setConcurrencyLimit(limit) {
-    if (!Number.isFinite(limit) || limit <= 0) throw new Error("Concurrency limit must be a positive finite number.");
-    concurrencyLimit = limit;
+    config.update({ concurrency: limit });
     tryDispatch();
   }
 
   function getConcurrencyLimit() {
-    return concurrencyLimit;
+    return config.get().concurrency;
+  }
+
+  /** The full scheduler configuration object (PLATFORM-HARDENING-001) — concurrency, timeout, retries, backoff bounds, aging factor, health-cache TTL. */
+  function getConfig() {
+    return config.get();
+  }
+
+  /** Validates and applies a partial config update; throws (applying nothing) on any unknown key or invalid value. Takes effect immediately, including for already-queued jobs. */
+  function updateConfig(partial) {
+    const next = config.update(partial);
+    tryDispatch();
+    return next;
+  }
+
+  function getHealthCacheStats() {
+    return healthCache.getStats();
   }
 
   function getMetrics() {
-    return metrics.snapshot({ activeCount, queueDepth: queue.size(), concurrencyLimit });
+    return metrics.snapshot({ activeCount, queueDepth: queue.size(), concurrencyLimit: config.get().concurrency });
   }
 
   function reset() {
@@ -262,10 +284,24 @@ function createAgentScheduler({ concurrency = DEFAULT_CONCURRENCY, now = Date.no
     inFlight.clear();
     jobRegistry.clear();
     metrics.reset();
+    healthCache.clear();
+    healthCache.resetStats();
     while (!queue.isEmpty()) queue.dequeue();
   }
 
-  return { runAgent, runAll, cancelJob, cancelSymbol, setConcurrencyLimit, getConcurrencyLimit, getMetrics, reset };
+  return {
+    runAgent,
+    runAll,
+    cancelJob,
+    cancelSymbol,
+    setConcurrencyLimit,
+    getConcurrencyLimit,
+    getConfig,
+    updateConfig,
+    getHealthCacheStats,
+    getMetrics,
+    reset,
+  };
 }
 
 // One process-wide scheduler instance — the actual shared concurrency

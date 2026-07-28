@@ -146,3 +146,21 @@ test("the orchestrator module itself is never modified by this layer — runObse
   const source = require("node:fs").readFileSync(require.resolve("../agentOrchestrator/agentOrchestrator.js"), "utf8");
   assert.ok(!/agentObservability/.test(source), "agentOrchestrator.js must have zero awareness of the observability layer");
 });
+
+test("PLATFORM-HARDENING-001: a caller-supplied correlationId is used verbatim instead of generating a new one", async () => {
+  agentOrchestrator.registerAgent(makeAgent({ id: "a" }));
+  const log = createAgentExecutionLog();
+
+  const { correlationId } = await runObserved("NVDA", {}, { log, correlationId: "corr_from_inbound_header" });
+  assert.equal(correlationId, "corr_from_inbound_header");
+  const records = log.getByCorrelationId("corr_from_inbound_header");
+  assert.equal(records.length, 1, "the execution record must be filed under the exact same id the caller supplied");
+});
+
+test("when no correlationId is supplied, runObserved still generates a fresh one exactly as before", async () => {
+  agentOrchestrator.registerAgent(makeAgent({ id: "a" }));
+  const log = createAgentExecutionLog();
+
+  const { correlationId } = await runObserved("NVDA", {}, { log });
+  assert.ok(correlationId.startsWith("corr_"));
+});

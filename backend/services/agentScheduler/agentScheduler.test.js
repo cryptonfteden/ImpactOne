@@ -296,3 +296,91 @@ test("runAll runs a whole agent list through the same scheduler and preserves pe
   );
   assert.deepEqual(results.map((r) => r.agentId).sort(), ["a", "b"]);
 });
+
+// --- PLATFORM-HARDENING-001: scheduler configuration object + health cache ---
+
+test("getConfig exposes every live scheduler config field, seeded from constructor overrides", () => {
+  const scheduler = createAgentScheduler({ concurrency: 3, timeoutMs: 999 });
+  const config = scheduler.getConfig();
+  assert.equal(config.concurrency, 3);
+  assert.equal(config.timeoutMs, 999);
+  assert.ok(Number.isFinite(config.healthCacheTtlMs));
+});
+
+test("updateConfig changes live behavior for subsequent calls without reconstructing the scheduler", async () => {
+  const scheduler = createAgentScheduler({ concurrency: 5, maxRetries: 0 });
+  let calls = 0;
+  const agent = makeAgent({
+    id: "flaky",
+    execute: () => {
+      calls += 1;
+      throw new Error("always fails");
+    },
+  });
+
+  await scheduler.runAgent(agent, "AAA");
+  assert.equal(calls, 1, "maxRetries:0 by default — a single attempt only");
+
+  scheduler.updateConfig({ maxRetries: 2, baseDelayMs: 1, maxDelayMs: 5 });
+  await scheduler.runAgent(agent, "BBB");
+  assert.equal(calls, 4, "1 initial + 2 retries after updateConfig raised maxRetries to 2, on top of the first call's 1 attempt");
+});
+
+test("updateConfig rejects an invalid value and leaves the live config untouched", () => {
+  const scheduler = createAgentScheduler({ concurrency: 5 });
+  assert.throws(() => scheduler.updateConfig({ concurrency: -1 }));
+  assert.equal(scheduler.getConfig().concurrency, 5);
+});
+
+test("getConcurrencyLimit/setConcurrencyLimit remain backward-compatible thin wrappers over the config object", () => {
+  const scheduler = createAgentScheduler({ concurrency: 4 });
+  assert.equal(scheduler.getConcurrencyLimit(), 4);
+  scheduler.setConcurrencyLimit(8);
+  assert.equal(scheduler.getConcurrencyLimit(), 8);
+  assert.equal(scheduler.getConfig().concurrency, 8, "setConcurrencyLimit must update the same underlying config the rest of the scheduler reads from");
+});
+
+test("a healthy agent's health() is cached across repeated executions against different symbols (real health-cache hit)", async () => {
+  const scheduler = createAgentScheduler({ concurrency: 5, healthCacheTtlMs: 10000 });
+  let healthCalls = 0;
+  const agent = makeAgent({
+    id: "cached",
+    health: async () => {
+      healthCalls += 1;
+      return { status: "healthy", reason: null };
+    },
+  });
+
+  await scheduler.runAgent(agent, "AAA");
+  await scheduler.runAgent(agent, "BBB");
+  assert.equal(healthCalls, 1, "the second call must be served from the health cache, not a fresh health() call");
+  assert.equal(scheduler.getHealthCacheStats().hits, 1);
+});
+
+test("setting healthCacheTtlMs to 0 via updateConfig disables health caching for subsequent calls", async () => {
+  const scheduler = createAgentScheduler({ concurrency: 5, healthCacheTtlMs: 10000 });
+  let healthCalls = 0;
+  const agent = makeAgent({
+    id: "uncached",
+    health: async () => {
+      healthCalls += 1;
+      return { status: "healthy", reason: null };
+    },
+  });
+
+  await scheduler.runAgent(agent, "AAA");
+  scheduler.updateConfig({ healthCacheTtlMs: 0 });
+  await scheduler.runAgent(agent, "BBB");
+  assert.equal(healthCalls, 2);
+});
+
+test("reset() also clears the health cache and its stats", async () => {
+  const scheduler = createAgentScheduler({ concurrency: 5, healthCacheTtlMs: 10000 });
+  const agent = makeAgent({ id: "a" });
+  await scheduler.runAgent(agent, "AAA");
+  await scheduler.runAgent(agent, "BBB");
+  assert.ok(scheduler.getHealthCacheStats().hits >= 1);
+
+  scheduler.reset();
+  assert.deepEqual(scheduler.getHealthCacheStats(), { hits: 0, misses: 0 });
+});

@@ -13,10 +13,21 @@
 const { DEFAULT_AGING_FACTOR_PER_MS } = require("./schedulerConfig");
 
 class ExecutionQueue {
+  /**
+   * @param {number|(() => number)} agingFactorPerMs - a plain number
+   *   (fixed for this queue's lifetime), or a function returning the
+   *   current value — used by AgentScheduler (PLATFORM-HARDENING-001)
+   *   so a live `updateConfig()` call is reflected immediately without
+   *   reconstructing the queue.
+   */
   constructor({ agingFactorPerMs = DEFAULT_AGING_FACTOR_PER_MS, now = Date.now } = {}) {
     this._agingFactorPerMs = agingFactorPerMs;
     this._now = now;
     this._jobs = [];
+  }
+
+  _resolvedAgingFactorPerMs() {
+    return typeof this._agingFactorPerMs === "function" ? this._agingFactorPerMs() : this._agingFactorPerMs;
   }
 
   size() {
@@ -33,7 +44,7 @@ class ExecutionQueue {
   }
 
   _effectivePriority(job, nowMs) {
-    return job.priority + (nowMs - job.enqueuedAtMs) * this._agingFactorPerMs;
+    return job.priority + (nowMs - job.enqueuedAtMs) * this._resolvedAgingFactorPerMs();
   }
 
   /**

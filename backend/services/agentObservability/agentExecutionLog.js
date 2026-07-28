@@ -1,98 +1,44 @@
 // Phase AGENT-OBSERVABILITY-001 — AgentExecutionLog: the one place every
 // agent execution record is stored. This is infrastructure only — it
 // stores whatever record shape it is given and never interprets agent
-// business content. In-memory, bounded (never unbounded growth), and
-// indexed for O(1)-ish lookup by symbol/correlationId/executionId so it
-// stays low-overhead at 100+ agents and high request volume.
+// business content.
 //
-// A future phase may swap this for a persisted store (e.g. a Prisma
-// model) without changing the shape callers depend on — append()/query
-// methods are the only contract this module promises.
+// Phase PLATFORM-HARDENING-001 — "Configurable observability storage"
+// and "configurable retention policies": the actual storage mechanics
+// now live in executionLogStore.js behind a small, swappable interface
+// (`store`), and the retention bound (maxRecords) can be read from an
+// environment variable at process start, or changed at runtime via
+// setMaxRecords() — no restart required, no caller-visible change.
+const { createInMemoryExecutionLogStore, DEFAULT_MAX_RECORDS } = require("./executionLogStore");
 
-const DEFAULT_MAX_RECORDS = 5000;
+function resolveDefaultMaxRecords() {
+  const raw = process.env.AGENT_OBSERVABILITY_MAX_RECORDS;
+  if (raw === undefined || raw === "") return DEFAULT_MAX_RECORDS;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_RECORDS;
+}
 
-function createAgentExecutionLog({ maxRecords = DEFAULT_MAX_RECORDS } = {}) {
-  /** @type {Array<object>} insertion-ordered, oldest first */
-  const records = [];
-  const bySymbol = new Map(); // symbol -> array of record refs
-  const byCorrelationId = new Map(); // correlationId -> array of record refs
-  const byExecutionId = new Map(); // executionId -> record ref
+/**
+ * @param {{ maxRecords?: number, store?: object }} options - `store` lets
+ *   a caller (or a future phase) supply an alternative backing store
+ *   implementing the same interface as executionLogStore.js's in-memory
+ *   one (e.g. a persisted store); defaults to a fresh in-memory store
+ *   sized by `maxRecords` (falling back to the env-configured default).
+ */
+function createAgentExecutionLog({ maxRecords = resolveDefaultMaxRecords(), store } = {}) {
+  const backingStore = store || createInMemoryExecutionLogStore({ maxRecords });
 
-  function indexRecord(record) {
-    const symbolKey = record.symbol;
-    if (symbolKey) {
-      if (!bySymbol.has(symbolKey)) bySymbol.set(symbolKey, []);
-      bySymbol.get(symbolKey).push(record);
-    }
-    if (record.correlationId) {
-      if (!byCorrelationId.has(record.correlationId)) byCorrelationId.set(record.correlationId, []);
-      byCorrelationId.get(record.correlationId).push(record);
-    }
-    if (record.executionId) {
-      byExecutionId.set(record.executionId, record);
-    }
-  }
-
-  function evictOldestIfNeeded() {
-    while (records.length > maxRecords) {
-      const evicted = records.shift();
-      if (!evicted) break;
-      const symbolList = bySymbol.get(evicted.symbol);
-      if (symbolList) {
-        const idx = symbolList.indexOf(evicted);
-        if (idx !== -1) symbolList.splice(idx, 1);
-        if (!symbolList.length) bySymbol.delete(evicted.symbol);
-      }
-      const corrList = byCorrelationId.get(evicted.correlationId);
-      if (corrList) {
-        const idx = corrList.indexOf(evicted);
-        if (idx !== -1) corrList.splice(idx, 1);
-        if (!corrList.length) byCorrelationId.delete(evicted.correlationId);
-      }
-      byExecutionId.delete(evicted.executionId);
-    }
-  }
-
-  /** Append one execution record. Returns the record unchanged (for chaining). */
-  function append(record) {
-    if (!record || typeof record !== "object") {
-      throw new Error("AgentExecutionLog.append requires a record object.");
-    }
-    records.push(record);
-    indexRecord(record);
-    evictOldestIfNeeded();
-    return record;
-  }
-
-  function getBySymbol(symbol, { limit } = {}) {
-    const list = bySymbol.get(String(symbol || "").toUpperCase()) || [];
-    return limit ? list.slice(-limit) : list.slice();
-  }
-
-  function getByCorrelationId(correlationId) {
-    return (byCorrelationId.get(correlationId) || []).slice();
-  }
-
-  function getByExecutionId(executionId) {
-    return byExecutionId.get(executionId) || null;
-  }
-
-  function recent({ limit = 100 } = {}) {
-    return records.slice(-limit);
-  }
-
-  function size() {
-    return records.length;
-  }
-
-  function clear() {
-    records.length = 0;
-    bySymbol.clear();
-    byCorrelationId.clear();
-    byExecutionId.clear();
-  }
-
-  return { append, getBySymbol, getByCorrelationId, getByExecutionId, recent, size, clear };
+  return {
+    append: (record) => backingStore.append(record),
+    getBySymbol: (symbol, options) => backingStore.getBySymbol(symbol, options),
+    getByCorrelationId: (correlationId) => backingStore.getByCorrelationId(correlationId),
+    getByExecutionId: (executionId) => backingStore.getByExecutionId(executionId),
+    recent: (options) => backingStore.recent(options),
+    size: () => backingStore.size(),
+    clear: () => backingStore.clear(),
+    setMaxRecords: (n) => backingStore.setMaxRecords(n),
+    getMaxRecords: () => backingStore.getMaxRecords(),
+  };
 }
 
 // A single shared, process-wide log instance — this is what every real

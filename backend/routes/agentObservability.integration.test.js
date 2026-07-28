@@ -6,9 +6,11 @@ const request = require("supertest");
 
 const app = require("../app");
 const { sharedLog } = require("../services/agentObservability/agentExecutionLog");
+const { sharedRequestFailureLog } = require("../services/agentObservability/requestFailureLog");
 
 test.beforeEach(() => {
   sharedLog.clear();
+  sharedRequestFailureLog.clear();
 });
 
 test("GET /api/v2/agent-observability/:symbol requires a symbol", async () => {
@@ -36,4 +38,31 @@ test("the trace endpoint returns an honest empty result for a symbol that was ne
   assert.equal(response.status, 200);
   assert.equal(response.body.recordCount, 0);
   assert.deepEqual(response.body.timeline.events, []);
+});
+
+test("PLATFORM-HARDENING-001: an inbound X-Correlation-Id is honored and echoed back verbatim, and the execution log is filed under it", async () => {
+  const response = await request(app).get("/api/v2/agent-orchestrator/NVDA").set("X-Correlation-Id", "corr_from_test_client");
+  assert.equal(response.status, 200);
+  assert.equal(response.headers["x-correlation-id"], "corr_from_test_client");
+
+  const filteredTrace = await request(app).get("/api/v2/agent-observability/NVDA").query({ correlationId: "corr_from_test_client" });
+  assert.ok(filteredTrace.body.recordCount > 0);
+});
+
+test("PLATFORM-HARDENING-001: with no inbound correlation id, one is generated and echoed back on every response", async () => {
+  const response = await request(app).get("/api/v2/agent-orchestrator/NVDA");
+  assert.match(response.headers["x-correlation-id"], /^corr_/);
+
+  const traceResponse = await request(app).get("/api/v2/agent-observability/NVDA");
+  assert.match(traceResponse.headers["x-correlation-id"], /^corr_/);
+});
+
+test("PLATFORM-HARDENING-001: a request-level failure (missing symbol) is logged with its correlation id", async () => {
+  const response = await request(app).get("/api/v2/agent-observability/%20").set("X-Correlation-Id", "corr_bad_request");
+  assert.equal(response.status, 400);
+
+  const failures = sharedRequestFailureLog.getByCorrelationId("corr_bad_request");
+  assert.equal(failures.length, 1);
+  assert.equal(failures[0].statusCode, 400);
+  assert.equal(failures[0].route, "GET /v2/agent-observability/:symbol");
 });
