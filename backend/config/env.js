@@ -25,6 +25,13 @@ module.exports = {
   POLYGON_API_KEY: process.env.POLYGON_API_KEY || "",
   NEWS_API_KEY: process.env.NEWS_API_KEY || "",
   ALPHA_VANTAGE_API_KEY: process.env.ALPHA_VANTAGE_API_KEY || "",
+  // Phase INSIDER-AGENT-001 — SEC EDGAR requires every requester to send
+  // a descriptive User-Agent identifying the requesting organization and
+  // a real contact (https://www.sec.gov/os/webmaster-faq#developers);
+  // requests without one are rejected. This disclosed default is a
+  // placeholder for local/dev use — a real deployment should set
+  // SEC_EDGAR_USER_AGENT to its own organization/contact string.
+  SEC_EDGAR_USER_AGENT: process.env.SEC_EDGAR_USER_AGENT || "ImpactOne InsiderIntelligenceAgent contact@impactone.example",
   DATABASE_URL: process.env.DATABASE_URL || "",
   DATABASE_URL_TEST: process.env.DATABASE_URL_TEST || "",
   AUTONOMOUS_ENGINE_ENABLED: process.env.AUTONOMOUS_ENGINE_ENABLED !== "false",

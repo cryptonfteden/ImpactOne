@@ -26,9 +26,10 @@ const NEUTRAL_BAND = 0.1; // +/-10% of the total possible weighted score counts 
 // Disclosed, hand-set — more independent agreement = more confidence.
 // Phase SENTIMENT-AGENT-001 added the `4` entry when the evidence set
 // grew from 3 agents (Options/Earnings/Valuation) to 4
-// (+ symbol-sentiment) — a fallback of 30 still covers any further
-// growth honestly rather than silently under-crediting it.
-const CORROBORATION_BONUS = { 1: 0, 2: 15, 3: 30, 4: 40 };
+// (+ symbol-sentiment); Phase INSIDER-AGENT-001 added `5` (+ insider).
+// A fallback of 30 still covers any further growth honestly rather
+// than silently under-crediting it.
+const CORROBORATION_BONUS = { 1: 0, 2: 15, 3: 30, 4: 40, 5: 48 };
 const CONFLICT_PENALTY = 25; // a real, disclosed penalty applied whenever ANY genuine conflict exists
 const UNAVAILABLE_AGENT_PENALTY = 10; // per missing/unavailable agent, out of the full evidence set
 

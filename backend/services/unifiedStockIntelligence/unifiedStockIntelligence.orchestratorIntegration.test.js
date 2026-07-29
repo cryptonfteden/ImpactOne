@@ -18,12 +18,12 @@ test.beforeEach(() => {
   registerAllAgents();
 });
 
-test("generateUnifiedIntelligence resolves its 4 target agents from the real, live Agent Registry — never a hardcoded import", async () => {
+test("generateUnifiedIntelligence resolves its 5 target agents from the real, live Agent Registry — never a hardcoded import", async () => {
   const report = await generateUnifiedIntelligence("NVDA");
-  assert.equal(report.totalAgentCount, 4, "options, earnings, valuation, and symbol-sentiment must all be found in the real registry");
+  assert.equal(report.totalAgentCount, 5, "options, earnings, valuation, symbol-sentiment, and insider must all be found in the real registry");
   assert.deepEqual(
     report.agentContributions.map((a) => a.agentId).sort(),
-    ["earnings", "options", "symbol-sentiment", "valuation"]
+    ["earnings", "insider", "options", "symbol-sentiment", "valuation"]
   );
 });
 
@@ -53,12 +53,12 @@ test("running through a real, injected AgentExecutionLog records one real execut
   // since no override was passed above.
   const { sharedLog } = require("../agentObservability/agentExecutionLog");
   const records = sharedLog.getByCorrelationId(report.correlationId);
-  assert.equal(records.length, 4);
-  assert.deepEqual(records.map((r) => r.agentId).sort(), ["earnings", "options", "symbol-sentiment", "valuation"]);
+  assert.equal(records.length, 5);
+  assert.deepEqual(records.map((r) => r.agentId).sort(), ["earnings", "insider", "options", "symbol-sentiment", "valuation"]);
   void log;
 });
 
-test("the report never emits a forbidden governance key (action/decision/verdict/recommendation) anywhere, even after aggregating 4 real domain reports", async () => {
+test("the report never emits a forbidden governance key (action/decision/verdict/recommendation) anywhere, even after aggregating 5 real domain reports", async () => {
   const report = await generateUnifiedIntelligence("NVDA");
   const serialized = JSON.stringify(report);
   for (const forbiddenKey of ["\"action\"", "\"decision\"", "\"verdict\"", "\"finalDecision\""]) {

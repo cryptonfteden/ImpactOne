@@ -35,6 +35,19 @@ test("extractRisksAndOpportunities for symbol-sentiment maps bullishFactors to o
   assert.deepEqual(result.opportunities, ["sentiment improving"]);
 });
 
+test("toPolarity maps insider's insiderActivity (BULLISH/BEARISH/other)", () => {
+  assert.equal(toPolarity("insider", { insiderActivity: "BULLISH" }), "BULLISH");
+  assert.equal(toPolarity("insider", { insiderActivity: "BEARISH" }), "BEARISH");
+  assert.equal(toPolarity("insider", { insiderActivity: "NEUTRAL" }), "NEUTRAL");
+});
+
+test("extractRisksAndOpportunities for insider maps bullishFactors to opportunities and risks+bearishFactors to risks", () => {
+  const raw = { risks: ["few real filings"], bearishFactors: ["cluster selling detected"], bullishFactors: ["CEO purchase detected"] };
+  const result = extractRisksAndOpportunities("insider", raw);
+  assert.deepEqual(result.risks, ["few real filings", "cluster selling detected"]);
+  assert.deepEqual(result.opportunities, ["CEO purchase detected"]);
+});
+
 test("extractRisksAndOpportunities for earnings reuses its own real risks/opportunities arrays directly", () => {
   const raw = { risks: ["risk one"], opportunities: ["opportunity one"] };
   assert.deepEqual(extractRisksAndOpportunities("earnings", raw), { risks: ["risk one"], opportunities: ["opportunity one"] });

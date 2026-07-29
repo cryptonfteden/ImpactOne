@@ -9,7 +9,10 @@
 // `symbol-sentiment` (the new, real per-symbol Sentiment Intelligence
 // Agent) — deliberately not the original `sentiment` id, which stays a
 // market-wide reading and is not part of this per-symbol aggregation.
-const TARGET_AGENT_IDS = ["options", "earnings", "valuation", "symbol-sentiment"];
+// Phase INSIDER-AGENT-001 added a 5th, `insider` (real SEC EDGAR Form 4
+// insider-trading intelligence), upgraded in place from its prior stub
+// registration — same id, no new id conflict to resolve.
+const TARGET_AGENT_IDS = ["options", "earnings", "valuation", "symbol-sentiment", "insider"];
 
 /**
  * @param {{ getRegisteredAgents: () => Array<object> }} orchestrator

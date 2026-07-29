@@ -48,6 +48,13 @@ function toPolarity(agentId, raw) {
       if (raw.sentimentState === "NEGATIVE") return "BEARISH";
       return "NEUTRAL";
     }
+    case "insider": {
+      // INSIDER-AGENT-001 — real insider activity classification maps
+      // directly onto this shared scale.
+      if (raw.insiderActivity === "BULLISH") return "BULLISH";
+      if (raw.insiderActivity === "BEARISH") return "BEARISH";
+      return "NEUTRAL";
+    }
     default:
       return "NEUTRAL";
   }
@@ -81,6 +88,12 @@ function extractRisksAndOpportunities(agentId, raw) {
     // and `bearishFactors` (real negative sentiment content) both read
     // as "risks" for this shared vocabulary; `bullishFactors` are this
     // agent's opportunities, the same mapping this file uses elsewhere.
+    return { risks: [...raw.risks, ...raw.bearishFactors], opportunities: [...raw.bullishFactors] };
+  }
+  if (agentId === "insider") {
+    // INSIDER-AGENT-001 — same shared-vocabulary mapping as
+    // symbol-sentiment: `risks` + `bearishFactors` are risks,
+    // `bullishFactors` are opportunities.
     return { risks: [...raw.risks, ...raw.bearishFactors], opportunities: [...raw.bullishFactors] };
   }
   return { risks: [], opportunities: [] };
