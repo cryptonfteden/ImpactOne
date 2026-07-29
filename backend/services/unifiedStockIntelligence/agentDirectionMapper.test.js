@@ -48,6 +48,18 @@ test("extractRisksAndOpportunities for insider maps bullishFactors to opportunit
   assert.deepEqual(result.opportunities, ["CEO purchase detected"]);
 });
 
+test("toPolarity maps etf-flow's etfFlowBias (BULLISH/BEARISH/other)", () => {
+  assert.equal(toPolarity("etf-flow", { etfFlowBias: "BULLISH" }), "BULLISH");
+  assert.equal(toPolarity("etf-flow", { etfFlowBias: "BEARISH" }), "BEARISH");
+  assert.equal(toPolarity("etf-flow", { etfFlowBias: "NEUTRAL" }), "NEUTRAL");
+});
+
+test("extractRisksAndOpportunities for etf-flow passes through its own real risks/opportunities arrays directly", () => {
+  const raw = { risks: ["indirect sector-ETF proxy"], opportunities: ["net flow proxy is bullish"] };
+  const result = extractRisksAndOpportunities("etf-flow", raw);
+  assert.deepEqual(result, { risks: ["indirect sector-ETF proxy"], opportunities: ["net flow proxy is bullish"] });
+});
+
 test("extractRisksAndOpportunities for earnings reuses its own real risks/opportunities arrays directly", () => {
   const raw = { risks: ["risk one"], opportunities: ["opportunity one"] };
   assert.deepEqual(extractRisksAndOpportunities("earnings", raw), { risks: ["risk one"], opportunities: ["opportunity one"] });

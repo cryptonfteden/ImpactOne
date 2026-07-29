@@ -21,8 +21,9 @@ const earningsAgent = require("./earningsAgent");
 const valuationAgent = require("./valuationAgent");
 const symbolSentimentAgent = require("./symbolSentimentAgent");
 const insiderAgent = require("./insiderAgent");
+const etfFlowAgent = require("./etfFlowAgent");
 
-const REAL_AGENTS = [technicalAgent, optionsAgent, sentimentAgent, earningsAgent, valuationAgent, symbolSentimentAgent, insiderAgent];
+const REAL_AGENTS = [technicalAgent, optionsAgent, sentimentAgent, earningsAgent, valuationAgent, symbolSentimentAgent, insiderAgent, etfFlowAgent];
 
 test("every real agent conforms to the generic Agent interface", () => {
   for (const agent of REAL_AGENTS) {
@@ -144,5 +145,21 @@ test("insiderAgent.execute() returns a real, well-formed result (a live SEC EDGA
 
 test("insiderAgent.health() reports a real, valid health status and never throws", async () => {
   const health = await insiderAgent.health();
+  assert.ok(["healthy", "degraded", "unavailable"].includes(health.status));
+});
+
+test("etfFlowAgent.execute() returns a real, well-formed result (a live price-history/Finnhub call may succeed or gracefully degrade in this environment; either way the shape is honest)", async () => {
+  const result = await etfFlowAgent.execute("NVDA");
+  assert.equal(typeof result.summary, "string");
+  assert.ok(result.summary.length > 0);
+  assert.ok(Array.isArray(result.evidence));
+  assert.ok(result.direction === null || typeof result.direction === "string", "direction must be an opaque string or null, never an object");
+  const confidence = etfFlowAgent.confidence(result);
+  assert.ok(Number.isFinite(confidence));
+  assert.ok(confidence >= 0 && confidence <= 100);
+});
+
+test("etfFlowAgent.health() reports a real, valid health status and never throws", async () => {
+  const health = await etfFlowAgent.health();
   assert.ok(["healthy", "degraded", "unavailable"].includes(health.status));
 });

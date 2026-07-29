@@ -55,6 +55,13 @@ function toPolarity(agentId, raw) {
       if (raw.insiderActivity === "BEARISH") return "BEARISH";
       return "NEUTRAL";
     }
+    case "etf-flow": {
+      // ETF-FLOW-AGENT-001 — real ETF flow bias classification maps
+      // directly onto this shared scale.
+      if (raw.etfFlowBias === "BULLISH") return "BULLISH";
+      if (raw.etfFlowBias === "BEARISH") return "BEARISH";
+      return "NEUTRAL";
+    }
     default:
       return "NEUTRAL";
   }
@@ -95,6 +102,12 @@ function extractRisksAndOpportunities(agentId, raw) {
     // symbol-sentiment: `risks` + `bearishFactors` are risks,
     // `bullishFactors` are opportunities.
     return { risks: [...raw.risks, ...raw.bearishFactors], opportunities: [...raw.bullishFactors] };
+  }
+  if (agentId === "etf-flow") {
+    // ETF-FLOW-AGENT-001 — this agent's own report already names its
+    // fields `risks`/`opportunities` directly (no bullish/bearish-
+    // factors split), so they pass straight through.
+    return { risks: [...raw.risks], opportunities: [...raw.opportunities] };
   }
   return { risks: [], opportunities: [] };
 }

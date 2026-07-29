@@ -12,7 +12,10 @@
 // Phase INSIDER-AGENT-001 added a 5th, `insider` (real SEC EDGAR Form 4
 // insider-trading intelligence), upgraded in place from its prior stub
 // registration — same id, no new id conflict to resolve.
-const TARGET_AGENT_IDS = ["options", "earnings", "valuation", "symbol-sentiment", "insider"];
+// Phase ETF-FLOW-AGENT-001 added a 6th, `etf-flow` (real trading-
+// activity-based ETF flow proxy), also upgraded in place from its
+// prior stub registration.
+const TARGET_AGENT_IDS = ["options", "earnings", "valuation", "symbol-sentiment", "insider", "etf-flow"];
 
 /**
  * @param {{ getRegisteredAgents: () => Array<object> }} orchestrator

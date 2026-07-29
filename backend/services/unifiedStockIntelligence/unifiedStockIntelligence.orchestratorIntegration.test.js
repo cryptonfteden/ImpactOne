@@ -18,12 +18,12 @@ test.beforeEach(() => {
   registerAllAgents();
 });
 
-test("generateUnifiedIntelligence resolves its 5 target agents from the real, live Agent Registry — never a hardcoded import", async () => {
+test("generateUnifiedIntelligence resolves its 6 target agents from the real, live Agent Registry — never a hardcoded import", async () => {
   const report = await generateUnifiedIntelligence("NVDA");
-  assert.equal(report.totalAgentCount, 5, "options, earnings, valuation, symbol-sentiment, and insider must all be found in the real registry");
+  assert.equal(report.totalAgentCount, 6, "options, earnings, valuation, symbol-sentiment, insider, and etf-flow must all be found in the real registry");
   assert.deepEqual(
     report.agentContributions.map((a) => a.agentId).sort(),
-    ["earnings", "insider", "options", "symbol-sentiment", "valuation"]
+    ["earnings", "etf-flow", "insider", "options", "symbol-sentiment", "valuation"]
   );
 });
 
@@ -53,12 +53,12 @@ test("running through a real, injected AgentExecutionLog records one real execut
   // since no override was passed above.
   const { sharedLog } = require("../agentObservability/agentExecutionLog");
   const records = sharedLog.getByCorrelationId(report.correlationId);
-  assert.equal(records.length, 5);
-  assert.deepEqual(records.map((r) => r.agentId).sort(), ["earnings", "insider", "options", "symbol-sentiment", "valuation"]);
+  assert.equal(records.length, 6);
+  assert.deepEqual(records.map((r) => r.agentId).sort(), ["earnings", "etf-flow", "insider", "options", "symbol-sentiment", "valuation"]);
   void log;
 });
 
-test("the report never emits a forbidden governance key (action/decision/verdict/recommendation) anywhere, even after aggregating 5 real domain reports", async () => {
+test("the report never emits a forbidden governance key (action/decision/verdict/recommendation) anywhere, even after aggregating 6 real domain reports", async () => {
   const report = await generateUnifiedIntelligence("NVDA");
   const serialized = JSON.stringify(report);
   for (const forbiddenKey of ["\"action\"", "\"decision\"", "\"verdict\"", "\"finalDecision\""]) {
