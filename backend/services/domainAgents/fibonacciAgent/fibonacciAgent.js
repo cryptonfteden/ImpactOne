@@ -19,6 +19,7 @@ const { determineZones } = require("./entryRiskZoneAnalyzer");
 const { analyzeTrendContext } = require("./trendContextAnalyzer");
 const { computeConfidence } = require("./confidenceModel");
 const { generateAiSummary } = require("./aiSummary");
+const { DEFAULT_DISPLAY_CONFIG } = require("./fibonacciDisplayConfig");
 
 const defaultProvider = createFibonacciDataProvider();
 const WEEKLY_SWING_LOOKBACK = 52;
@@ -39,6 +40,10 @@ function buildUnavailableReport(symbol, asOf, reason, inputs) {
     riskZone: null,
     timeframeAgreement: "UNKNOWN",
     confidence: { confidence: 0, components: { base: 0, confluenceBonus: 0, agreementDelta: 0, reactionBonus: 0 } },
+    // Static, disclosed display defaults (Phase FIBONACCI-DEFAULTS-001) —
+    // present even when data is unavailable, since it describes how a
+    // future chart UI would render levels, not a computed result.
+    displayConfig: DEFAULT_DISPLAY_CONFIG,
     inputs,
   };
   report.aiSummary = generateAiSummary(report);
@@ -115,6 +120,10 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
     riskZone,
     timeframeAgreement: timeframe.agreement,
     confidence,
+    // Static, disclosed display defaults (Phase FIBONACCI-DEFAULTS-001) —
+    // metadata only, never used in any scoring/confluence/confidence
+    // computation above.
+    displayConfig: DEFAULT_DISPLAY_CONFIG,
     // Retained for auditability/debugging — every number above traces
     // back to these real, already-fetched inputs.
     inputs: metrics,

@@ -134,8 +134,12 @@ function bollingerBands(values, period = 20, stdDevMultiplier = 2) {
 
 // Standard retracement levels between a real high and low — the caller
 // supplies which is which (retracement direction depends on trend
-// direction, which this pure function has no opinion about).
-const FIBONACCI_RATIOS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+// direction, which this pure function has no opinion about). Every
+// supported ratio is always computed here regardless of which ones a
+// caller enables by default (Phase FIBONACCI-DEFAULTS-001) — that
+// enable/disable choice lives one layer up, in fibonacciLevelConfig.js,
+// never in this pure math.
+const FIBONACCI_RATIOS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 0.886, 1];
 
 function fibonacciRetracement(high, low) {
   if (!Number.isFinite(high) || !Number.isFinite(low) || high <= low) return null;

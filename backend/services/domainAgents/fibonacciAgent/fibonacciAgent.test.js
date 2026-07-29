@@ -2,6 +2,8 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { generateReport } = require("./fibonacciAgent");
 const canonicalVerdict = require("../../canonicalVerdict");
+const { DEFAULT_DISPLAY_CONFIG } = require("./fibonacciDisplayConfig");
+const { DEFAULT_ACTIVE_RETRACEMENT_RATIOS } = require("./fibonacciLevelConfig");
 
 function makeBars(count, { startPrice = 100, dailyMove = 1, volatility = 0.5, volume = 1000, startDate = "2024-01-01" } = {}) {
   const bars = [];
@@ -28,6 +30,7 @@ test("generateReport: unavailable data produces an honest, fully-populated unava
   assert.equal(report.confidence.confidence, 0);
   assert.deepEqual(report.highProbabilityZones, []);
   assert.ok(typeof report.aiSummary === "string" && report.aiSummary.length > 0);
+  assert.deepEqual(report.displayConfig, DEFAULT_DISPLAY_CONFIG);
 });
 
 test("generateReport: composes every mission-required output field from real, available data (real uptrending bars)", async () => {
@@ -55,12 +58,19 @@ test("generateReport: composes every mission-required output field from real, av
   assert.ok(report.primarySwing);
   assert.equal(report.primarySwing.direction, "UP");
   assert.ok(Array.isArray(report.retracementLevels));
+  // Phase FIBONACCI-DEFAULTS-001: by default only the approved active
+  // ratios (0, 0.886, 1) are surfaced in the composed report.
+  assert.deepEqual(
+    report.retracementLevels.map((level) => level.ratio).sort((a, b) => a - b),
+    [...DEFAULT_ACTIVE_RETRACEMENT_RATIOS].sort((a, b) => a - b)
+  );
   assert.ok(Array.isArray(report.extensionTargets));
   assert.ok(Array.isArray(report.confluenceZones));
   assert.ok(Array.isArray(report.highProbabilityZones));
   assert.ok(["AGREE", "CONFLICT", "SINGLE_TIMEFRAME_ONLY", "UNKNOWN"].includes(report.timeframeAgreement));
   assert.ok(Number.isFinite(report.confidence.confidence));
   assert.ok(typeof report.aiSummary === "string" && report.aiSummary.length > 0);
+  assert.deepEqual(report.displayConfig, DEFAULT_DISPLAY_CONFIG);
   assert.ok(report.inputs);
 });
 

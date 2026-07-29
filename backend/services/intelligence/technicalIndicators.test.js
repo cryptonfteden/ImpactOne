@@ -105,6 +105,12 @@ test("fibonacciRetracement returns null for an invalid (non-positive) range", ()
   assert.equal(indicators.fibonacciRetracement(50, 100), null);
 });
 
+test("fibonacciRetracement always computes the real 0.886 level too (Phase FIBONACCI-DEFAULTS-001), regardless of which levels a caller enables by default", () => {
+  const levels = indicators.fibonacciRetracement(100, 50);
+  const byRatio = Object.fromEntries(levels.map((level) => [level.ratio, level.price]));
+  closeAlmostEqual(byRatio[0.886], 100 - 50 * 0.886, 0.001);
+});
+
 test("fibonacciExtension projects real UP targets beyond the swing high", () => {
   const levels = indicators.fibonacciExtension(50, 100, "UP");
   const byRatio = Object.fromEntries(levels.map((level) => [level.ratio, level.price]));
