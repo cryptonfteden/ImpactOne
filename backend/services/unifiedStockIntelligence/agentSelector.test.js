@@ -6,20 +6,20 @@ function fakeOrchestrator(agentIds) {
   return { getRegisteredAgents: () => agentIds.map((id) => ({ metadata: { id } })) };
 }
 
-test("TARGET_AGENT_IDS is exactly options/earnings/valuation/symbol-sentiment/insider/etf-flow/institutional, per this mission's own scope (INSTITUTIONAL-AGENT-001 added the 7th)", () => {
-  assert.deepEqual(TARGET_AGENT_IDS, ["options", "earnings", "valuation", "symbol-sentiment", "insider", "etf-flow", "institutional"]);
+test("TARGET_AGENT_IDS is exactly options/earnings/valuation/symbol-sentiment/insider/etf-flow/institutional/short-interest, per this mission's own scope (SHORT-INTEREST-AGENT-001 added the 8th)", () => {
+  assert.deepEqual(TARGET_AGENT_IDS, ["options", "earnings", "valuation", "symbol-sentiment", "insider", "etf-flow", "institutional", "short-interest"]);
 });
 
-test("selects only the 7 target agents from a real registry that has many more registered", () => {
-  const orchestrator = fakeOrchestrator(["technical", "options", "sentiment", "earnings", "news", "valuation", "macro", "symbol-sentiment", "insider", "etf-flow", "institutional"]);
+test("selects only the 8 target agents from a real registry that has many more registered", () => {
+  const orchestrator = fakeOrchestrator(["technical", "options", "sentiment", "earnings", "news", "valuation", "macro", "symbol-sentiment", "insider", "etf-flow", "institutional", "short-interest"]);
   const selected = selectUnifiedIntelligenceAgents(orchestrator);
   assert.deepEqual(
     selected.map((a) => a.metadata.id).sort(),
-    ["earnings", "etf-flow", "insider", "institutional", "options", "symbol-sentiment", "valuation"]
+    ["earnings", "etf-flow", "insider", "institutional", "options", "short-interest", "symbol-sentiment", "valuation"]
   );
 });
 
-test("honestly returns fewer than 7 if some target agents are missing from the registry — never fabricates a placeholder", () => {
+test("honestly returns fewer than 8 if some target agents are missing from the registry — never fabricates a placeholder", () => {
   const orchestrator = fakeOrchestrator(["options", "valuation"]);
   const selected = selectUnifiedIntelligenceAgents(orchestrator);
   assert.equal(selected.length, 2);

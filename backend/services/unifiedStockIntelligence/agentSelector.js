@@ -18,7 +18,10 @@
 // Phase INSTITUTIONAL-AGENT-001 added a 7th, `institutional` (real SEC
 // EDGAR 13F-HR institutional-ownership intelligence), also upgraded in
 // place from its prior stub registration.
-const TARGET_AGENT_IDS = ["options", "earnings", "valuation", "symbol-sentiment", "insider", "etf-flow", "institutional"];
+// Phase SHORT-INTEREST-AGENT-001 added an 8th, `short-interest` (real
+// FINRA daily short-volume intelligence), also upgraded in place from
+// its prior stub registration.
+const TARGET_AGENT_IDS = ["options", "earnings", "valuation", "symbol-sentiment", "insider", "etf-flow", "institutional", "short-interest"];
 
 /**
  * @param {{ getRegisteredAgents: () => Array<object> }} orchestrator

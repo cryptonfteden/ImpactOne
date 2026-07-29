@@ -69,6 +69,13 @@ function toPolarity(agentId, raw) {
       if (raw.institutionalBias === "BEARISH") return "BEARISH";
       return "NEUTRAL";
     }
+    case "short-interest": {
+      // SHORT-INTEREST-AGENT-001 — real short interest bias classification
+      // maps directly onto this shared scale.
+      if (raw.shortInterestBias === "BULLISH") return "BULLISH";
+      if (raw.shortInterestBias === "BEARISH") return "BEARISH";
+      return "NEUTRAL";
+    }
     default:
       return "NEUTRAL";
   }
@@ -120,6 +127,11 @@ function extractRisksAndOpportunities(agentId, raw) {
     // INSTITUTIONAL-AGENT-001 — same direct pass-through as etf-flow:
     // this agent's own report already names its fields
     // `risks`/`opportunities` directly.
+    return { risks: [...raw.risks], opportunities: [...raw.opportunities] };
+  }
+  if (agentId === "short-interest") {
+    // SHORT-INTEREST-AGENT-001 — same direct pass-through: this agent's
+    // own report already names its fields `risks`/`opportunities` directly.
     return { risks: [...raw.risks], opportunities: [...raw.opportunities] };
   }
   return { risks: [], opportunities: [] };

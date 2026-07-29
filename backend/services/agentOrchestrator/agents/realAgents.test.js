@@ -23,8 +23,9 @@ const symbolSentimentAgent = require("./symbolSentimentAgent");
 const insiderAgent = require("./insiderAgent");
 const etfFlowAgent = require("./etfFlowAgent");
 const institutionalAgent = require("./institutionalAgent");
+const shortInterestAgent = require("./shortInterestAgent");
 
-const REAL_AGENTS = [technicalAgent, optionsAgent, sentimentAgent, earningsAgent, valuationAgent, symbolSentimentAgent, insiderAgent, etfFlowAgent, institutionalAgent];
+const REAL_AGENTS = [technicalAgent, optionsAgent, sentimentAgent, earningsAgent, valuationAgent, symbolSentimentAgent, insiderAgent, etfFlowAgent, institutionalAgent, shortInterestAgent];
 
 test("every real agent conforms to the generic Agent interface", () => {
   for (const agent of REAL_AGENTS) {
@@ -178,5 +179,21 @@ test("institutionalAgent.execute() returns a real, well-formed result (a live SE
 
 test("institutionalAgent.health() reports a real, valid health status and never throws", async () => {
   const health = await institutionalAgent.health();
+  assert.ok(["healthy", "degraded", "unavailable"].includes(health.status));
+});
+
+test("shortInterestAgent.execute() returns a real, well-formed result (a live FINRA/price-history call may succeed or gracefully degrade in this environment; either way the shape is honest)", async () => {
+  const result = await shortInterestAgent.execute("NVDA");
+  assert.equal(typeof result.summary, "string");
+  assert.ok(result.summary.length > 0);
+  assert.ok(Array.isArray(result.evidence));
+  assert.ok(result.direction === null || typeof result.direction === "string", "direction must be an opaque string or null, never an object");
+  const confidence = shortInterestAgent.confidence(result);
+  assert.ok(Number.isFinite(confidence));
+  assert.ok(confidence >= 0 && confidence <= 100);
+});
+
+test("shortInterestAgent.health() reports a real, valid health status and never throws", async () => {
+  const health = await shortInterestAgent.health();
   assert.ok(["healthy", "degraded", "unavailable"].includes(health.status));
 });

@@ -72,6 +72,18 @@ test("extractRisksAndOpportunities for institutional passes through its own real
   assert.deepEqual(result, { risks: ["curated cohort, not the full universe"], opportunities: ["real accumulation outweighs distribution"] });
 });
 
+test("toPolarity maps short-interest's shortInterestBias (BULLISH/BEARISH/other)", () => {
+  assert.equal(toPolarity("short-interest", { shortInterestBias: "BULLISH" }), "BULLISH");
+  assert.equal(toPolarity("short-interest", { shortInterestBias: "BEARISH" }), "BEARISH");
+  assert.equal(toPolarity("short-interest", { shortInterestBias: "NEUTRAL" }), "NEUTRAL");
+});
+
+test("extractRisksAndOpportunities for short-interest passes through its own real risks/opportunities arrays directly", () => {
+  const raw = { risks: ["real short-volume proxy, not the official bi-monthly figure"], opportunities: ["squeeze probability is elevated"] };
+  const result = extractRisksAndOpportunities("short-interest", raw);
+  assert.deepEqual(result, { risks: ["real short-volume proxy, not the official bi-monthly figure"], opportunities: ["squeeze probability is elevated"] });
+});
+
 test("extractRisksAndOpportunities for earnings reuses its own real risks/opportunities arrays directly", () => {
   const raw = { risks: ["risk one"], opportunities: ["opportunity one"] };
   assert.deepEqual(extractRisksAndOpportunities("earnings", raw), { risks: ["risk one"], opportunities: ["opportunity one"] });

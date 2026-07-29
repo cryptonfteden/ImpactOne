@@ -18,12 +18,12 @@ test.beforeEach(() => {
   registerAllAgents();
 });
 
-test("generateUnifiedIntelligence resolves its 7 target agents from the real, live Agent Registry — never a hardcoded import", async () => {
+test("generateUnifiedIntelligence resolves its 8 target agents from the real, live Agent Registry — never a hardcoded import", async () => {
   const report = await generateUnifiedIntelligence("NVDA");
-  assert.equal(report.totalAgentCount, 7, "options, earnings, valuation, symbol-sentiment, insider, etf-flow, and institutional must all be found in the real registry");
+  assert.equal(report.totalAgentCount, 8, "options, earnings, valuation, symbol-sentiment, insider, etf-flow, institutional, and short-interest must all be found in the real registry");
   assert.deepEqual(
     report.agentContributions.map((a) => a.agentId).sort(),
-    ["earnings", "etf-flow", "insider", "institutional", "options", "symbol-sentiment", "valuation"]
+    ["earnings", "etf-flow", "insider", "institutional", "options", "short-interest", "symbol-sentiment", "valuation"]
   );
 });
 
@@ -53,12 +53,12 @@ test("running through a real, injected AgentExecutionLog records one real execut
   // since no override was passed above.
   const { sharedLog } = require("../agentObservability/agentExecutionLog");
   const records = sharedLog.getByCorrelationId(report.correlationId);
-  assert.equal(records.length, 7);
-  assert.deepEqual(records.map((r) => r.agentId).sort(), ["earnings", "etf-flow", "insider", "institutional", "options", "symbol-sentiment", "valuation"]);
+  assert.equal(records.length, 8);
+  assert.deepEqual(records.map((r) => r.agentId).sort(), ["earnings", "etf-flow", "insider", "institutional", "options", "short-interest", "symbol-sentiment", "valuation"]);
   void log;
 });
 
-test("the report never emits a forbidden governance key (action/decision/verdict/recommendation) anywhere, even after aggregating 7 real domain reports", async () => {
+test("the report never emits a forbidden governance key (action/decision/verdict/recommendation) anywhere, even after aggregating 8 real domain reports", async () => {
   const report = await generateUnifiedIntelligence("NVDA");
   const serialized = JSON.stringify(report);
   for (const forbiddenKey of ["\"action\"", "\"decision\"", "\"verdict\"", "\"finalDecision\""]) {
