@@ -19,8 +19,9 @@ const optionsAgent = require("./optionsAgent");
 const sentimentAgent = require("./sentimentAgent");
 const earningsAgent = require("./earningsAgent");
 const valuationAgent = require("./valuationAgent");
+const symbolSentimentAgent = require("./symbolSentimentAgent");
 
-const REAL_AGENTS = [technicalAgent, optionsAgent, sentimentAgent, earningsAgent, valuationAgent];
+const REAL_AGENTS = [technicalAgent, optionsAgent, sentimentAgent, earningsAgent, valuationAgent, symbolSentimentAgent];
 
 test("every real agent conforms to the generic Agent interface", () => {
   for (const agent of REAL_AGENTS) {
@@ -110,5 +111,21 @@ test("valuationAgent.execute() returns a real, well-formed result (a live networ
 
 test("valuationAgent.health() reports a real, valid health status and never throws", async () => {
   const health = await valuationAgent.health();
+  assert.ok(["healthy", "degraded", "unavailable"].includes(health.status));
+});
+
+test("symbolSentimentAgent.execute() honestly reports unavailable with no NEWS_API_KEY configured, never a fabricated sentiment read", async () => {
+  const result = await symbolSentimentAgent.execute("NVDA");
+  assert.equal(typeof result.summary, "string");
+  assert.ok(result.summary.length > 0);
+  assert.deepEqual(result.evidence, []);
+  assert.ok(result.direction === null || typeof result.direction === "string", "direction must be an opaque string or null, never an object");
+  const confidence = symbolSentimentAgent.confidence(result);
+  assert.ok(Number.isFinite(confidence));
+  assert.ok(confidence >= 0 && confidence <= 100);
+});
+
+test("symbolSentimentAgent.health() reports a real, valid health status and never throws", async () => {
+  const health = await symbolSentimentAgent.health();
   assert.ok(["healthy", "degraded", "unavailable"].includes(health.status));
 });

@@ -23,9 +23,14 @@
 //      for missing/unavailable agents — conflicting evidence can never
 //      produce an artificially high blended confidence.
 const NEUTRAL_BAND = 0.1; // +/-10% of the total possible weighted score counts as "no real lean"
-const CORROBORATION_BONUS = { 1: 0, 2: 15, 3: 30 }; // disclosed, hand-set — more independent agreement = more confidence
+// Disclosed, hand-set — more independent agreement = more confidence.
+// Phase SENTIMENT-AGENT-001 added the `4` entry when the evidence set
+// grew from 3 agents (Options/Earnings/Valuation) to 4
+// (+ symbol-sentiment) — a fallback of 30 still covers any further
+// growth honestly rather than silently under-crediting it.
+const CORROBORATION_BONUS = { 1: 0, 2: 15, 3: 30, 4: 40 };
 const CONFLICT_PENALTY = 25; // a real, disclosed penalty applied whenever ANY genuine conflict exists
-const UNAVAILABLE_AGENT_PENALTY = 10; // per missing/unavailable agent, out of the full 3-agent evidence set
+const UNAVAILABLE_AGENT_PENALTY = 10; // per missing/unavailable agent, out of the full evidence set
 
 function directionSign(direction) {
   if (direction === "BULLISH") return 1;
@@ -81,7 +86,12 @@ function aggregate(normalizedAgents, conflicts) {
 
     const bonus = CORROBORATION_BONUS[agreeing.length] ?? 30;
     const conflictPenalty = conflicts.length > 0 ? CONFLICT_PENALTY : 0;
-    const unavailablePenalty = (3 - available.length) * UNAVAILABLE_AGENT_PENALTY;
+    // `normalizedAgents.length` is the real, full evidence-set size for
+    // THIS run (whatever agents were actually selected), never a
+    // hardcoded agent count — this scales honestly as the evidence set
+    // grows (3 agents at UNIFIED-STOCK-INTELLIGENCE-001, 4 as of
+    // SENTIMENT-AGENT-001) without needing another edit here.
+    const unavailablePenalty = (normalizedAgents.length - available.length) * UNAVAILABLE_AGENT_PENALTY;
 
     overallConfidence = clamp(Math.round(weightedBaseConfidence + bonus - conflictPenalty - unavailablePenalty), 0, 100);
   }
@@ -95,7 +105,7 @@ function aggregate(normalizedAgents, conflicts) {
   // confidence above.
   let recommendationConfidence = overallConfidence;
   if (conflicts.length > 0) recommendationConfidence = Math.min(recommendationConfidence, 40);
-  recommendationConfidence = Math.round(recommendationConfidence * (available.length / 3));
+  recommendationConfidence = Math.round(recommendationConfidence * (normalizedAgents.length > 0 ? available.length / normalizedAgents.length : 0));
   recommendationConfidence = clamp(recommendationConfidence, 0, 100);
 
   return { overallIntelligence, overallConfidence, recommendationConfidence, normalizedScore, contributions };

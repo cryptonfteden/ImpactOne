@@ -5,6 +5,7 @@ const { validateAgent } = require("./agentInterface");
 const { ALL_AGENTS, registerAllAgents } = require("./registry");
 const agentOrchestrator = require("./agentOrchestrator");
 
+// The original 13 named future-agent domains from AGENT-ORCHESTRATOR-001...
 const EXPECTED_AGENT_IDS = [
   "technical",
   "options",
@@ -19,9 +20,15 @@ const EXPECTED_AGENT_IDS = [
   "institutional",
   "macro",
   "analyst-consensus",
+  // ...plus SENTIMENT-AGENT-001's genuinely new 14th agent,
+  // `symbol-sentiment` — real per-symbol news sentiment, deliberately
+  // registered alongside (not replacing) the market-wide `sentiment`
+  // agent above. This list is intentionally updated here, not silently
+  // outgrown, since it's the closed set this test guards.
+  "symbol-sentiment",
 ];
 
-test("every one of the 13 named future-agent domains has exactly one registration", () => {
+test("every one of the 14 named agent domains has exactly one registration", () => {
   assert.deepEqual(ALL_AGENTS.map((agent) => agent.metadata.id).sort(), [...EXPECTED_AGENT_IDS].sort());
 });
 

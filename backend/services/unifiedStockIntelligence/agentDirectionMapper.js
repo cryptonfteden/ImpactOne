@@ -40,6 +40,14 @@ function toPolarity(agentId, raw) {
       if (raw.valuationStatus === "OVERVALUED") return "BEARISH";
       return "NEUTRAL"; // FAIRLY_VALUED or UNKNOWN
     }
+    case "symbol-sentiment": {
+      // SENTIMENT-AGENT-001 — real per-symbol news sentiment state maps
+      // directly onto this shared scale; NEGATIVE sentiment is the
+      // bearish setup, POSITIVE the bullish one.
+      if (raw.sentimentState === "POSITIVE") return "BULLISH";
+      if (raw.sentimentState === "NEGATIVE") return "BEARISH";
+      return "NEUTRAL";
+    }
     default:
       return "NEUTRAL";
   }
@@ -67,6 +75,13 @@ function extractRisksAndOpportunities(agentId, raw) {
       opportunities.push(`Trades at a real discount to its estimated fair value (${Math.round((raw.discountToFairValue || 0) * 100)}%).`);
     }
     return { risks, opportunities };
+  }
+  if (agentId === "symbol-sentiment") {
+    // SENTIMENT-AGENT-001 — `risks` (data-quality/methodology caveats)
+    // and `bearishFactors` (real negative sentiment content) both read
+    // as "risks" for this shared vocabulary; `bullishFactors` are this
+    // agent's opportunities, the same mapping this file uses elsewhere.
+    return { risks: [...raw.risks, ...raw.bearishFactors], opportunities: [...raw.bullishFactors] };
   }
   return { risks: [], opportunities: [] };
 }

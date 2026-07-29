@@ -1,15 +1,25 @@
 // Phase AGENT-ORCHESTRATOR-001 — the one place every agent is
-// registered. Three real agents today (Technical, Options, Sentiment),
-// each adapting an already-real, already-tested service; ten prepared,
-// honestly-inert stub registrations for the remaining named domains
-// (News, Short Interest, Earnings, Valuation, Fibonacci, Insider, ETF
-// Flow, Institutional, Macro, Analyst Consensus) — see each stub file's
-// own comment for exactly why it isn't real yet.
+// registered. Three real agents originally (Technical, Options,
+// Sentiment), each adapting an already-real, already-tested service;
+// ten prepared, honestly-inert stub registrations for the remaining
+// named domains (News, Short Interest, Earnings, Valuation, Fibonacci,
+// Insider, ETF Flow, Institutional, Macro, Analyst Consensus) — see
+// each stub file's own comment for exactly why it isn't real yet.
+// Several of those stubs have since been upgraded in place (Earnings,
+// Valuation, Fibonacci — same id, same slot, per their own phase docs).
+//
+// Phase SENTIMENT-AGENT-001 added a genuinely NEW 14th agent,
+// `symbol-sentiment` — not one of the original 13 named domains, and
+// deliberately not a replacement for the existing `sentiment` id (that
+// one is honestly market-wide; this one is real per-symbol news
+// sentiment). See symbolSentimentAgent.js's own header for why the two
+// coexist under separate ids.
 const { registerAgent, getRegisteredAgents } = require("./agentOrchestrator");
 
 const technicalAgent = require("./agents/technicalAgent");
 const optionsAgent = require("./agents/optionsAgent");
 const sentimentAgent = require("./agents/sentimentAgent");
+const symbolSentimentAgent = require("./agents/symbolSentimentAgent");
 const newsAgent = require("./agents/newsAgent");
 const shortInterestAgent = require("./agents/shortInterestAgent");
 const earningsAgent = require("./agents/earningsAgent");
@@ -25,6 +35,7 @@ const ALL_AGENTS = [
   technicalAgent,
   optionsAgent,
   sentimentAgent,
+  symbolSentimentAgent,
   newsAgent,
   shortInterestAgent,
   earningsAgent,

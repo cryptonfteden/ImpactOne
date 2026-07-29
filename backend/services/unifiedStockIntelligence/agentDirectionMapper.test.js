@@ -22,6 +22,19 @@ test("toPolarity maps valuation's valuationStatus (undervalued = bullish setup, 
   assert.equal(toPolarity("valuation", { valuationStatus: "UNKNOWN" }), "NEUTRAL");
 });
 
+test("toPolarity maps symbol-sentiment's sentimentState (POSITIVE/NEGATIVE/other)", () => {
+  assert.equal(toPolarity("symbol-sentiment", { sentimentState: "POSITIVE" }), "BULLISH");
+  assert.equal(toPolarity("symbol-sentiment", { sentimentState: "NEGATIVE" }), "BEARISH");
+  assert.equal(toPolarity("symbol-sentiment", { sentimentState: "NEUTRAL" }), "NEUTRAL");
+});
+
+test("extractRisksAndOpportunities for symbol-sentiment maps bullishFactors to opportunities and risks+bearishFactors to risks", () => {
+  const raw = { risks: ["low source diversity"], bearishFactors: ["sentiment deteriorating"], bullishFactors: ["sentiment improving"] };
+  const result = extractRisksAndOpportunities("symbol-sentiment", raw);
+  assert.deepEqual(result.risks, ["low source diversity", "sentiment deteriorating"]);
+  assert.deepEqual(result.opportunities, ["sentiment improving"]);
+});
+
 test("extractRisksAndOpportunities for earnings reuses its own real risks/opportunities arrays directly", () => {
   const raw = { risks: ["risk one"], opportunities: ["opportunity one"] };
   assert.deepEqual(extractRisksAndOpportunities("earnings", raw), { risks: ["risk one"], opportunities: ["opportunity one"] });

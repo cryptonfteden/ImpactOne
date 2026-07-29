@@ -8,6 +8,12 @@ function baseReport(overrides = {}) {
     overallIntelligence: "BULLISH",
     overallConfidence: 70,
     contributingAgentCount: 3,
+    totalAgentCount: 3,
+    agentContributions: [
+      { agentId: "options", agentName: "Options Flow Agent" },
+      { agentId: "earnings", agentName: "Earnings Intelligence Agent" },
+      { agentId: "valuation", agentName: "Valuation Intelligence Agent" },
+    ],
     keyDrivers: [{ agentId: "options", explanation: "options contributed a bullish signal at 80% confidence, weighted by its priority (7)." }],
     conflictingSignals: [],
     ...overrides,
