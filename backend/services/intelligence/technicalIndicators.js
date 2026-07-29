@@ -172,6 +172,78 @@ function detectSupportResistance(bars, lookback = 60) {
   };
 }
 
+// Phase TECHNICAL-AGENT-001 — Wilder's ADX (Average Directional Index),
+// the standard trend-STRENGTH measure (distinct from trend DIRECTION,
+// which the moving-average/trend signals above already cover) —
+// requires the +DI/-DI/DX intermediate series, each Wilder-smoothed the
+// same way averageTrueRange already smooths TR above. Returns null
+// (never a fabricated value) with fewer than 2*period+1 bars, the
+// minimum needed for both smoothing passes.
+function averageDirectionalIndex(bars, period = 14) {
+  if (bars.length < period * 2 + 1) return null;
+
+  const trueRanges = [];
+  const plusDMs = [];
+  const minusDMs = [];
+  for (let i = 1; i < bars.length; i++) {
+    const upMove = bars[i].high - bars[i - 1].high;
+    const downMove = bars[i - 1].low - bars[i].low;
+    plusDMs.push(upMove > downMove && upMove > 0 ? upMove : 0);
+    minusDMs.push(downMove > upMove && downMove > 0 ? downMove : 0);
+
+    const highLow = bars[i].high - bars[i].low;
+    const highPrevClose = Math.abs(bars[i].high - bars[i - 1].close);
+    const lowPrevClose = Math.abs(bars[i].low - bars[i - 1].close);
+    trueRanges.push(Math.max(highLow, highPrevClose, lowPrevClose));
+  }
+
+  let smoothedTR = trueRanges.slice(0, period).reduce((sum, value) => sum + value, 0);
+  let smoothedPlusDM = plusDMs.slice(0, period).reduce((sum, value) => sum + value, 0);
+  let smoothedMinusDM = minusDMs.slice(0, period).reduce((sum, value) => sum + value, 0);
+
+  const dxSeries = [];
+  for (let i = period; i < trueRanges.length; i++) {
+    smoothedTR = smoothedTR - smoothedTR / period + trueRanges[i];
+    smoothedPlusDM = smoothedPlusDM - smoothedPlusDM / period + plusDMs[i];
+    smoothedMinusDM = smoothedMinusDM - smoothedMinusDM / period + minusDMs[i];
+
+    const plusDI = smoothedTR > 0 ? (100 * smoothedPlusDM) / smoothedTR : 0;
+    const minusDI = smoothedTR > 0 ? (100 * smoothedMinusDM) / smoothedTR : 0;
+    const diSum = plusDI + minusDI;
+    dxSeries.push(diSum > 0 ? (100 * Math.abs(plusDI - minusDI)) / diSum : 0);
+  }
+
+  if (dxSeries.length < period) return null;
+
+  let adx = dxSeries.slice(0, period).reduce((sum, value) => sum + value, 0) / period;
+  for (let i = period; i < dxSeries.length; i++) {
+    adx = (adx * (period - 1) + dxSeries[i]) / period;
+  }
+  return adx;
+}
+
+// Phase TECHNICAL-AGENT-001 — a real, simple volume-trend measure:
+// average volume over a recent window vs. the window immediately prior
+// to it, expressed as a real percent change. Classification
+// (increasing/decreasing/stable) is deliberately left to the caller —
+// this function only returns real numbers, the same separation of
+// concerns bollingerBands/detectSupportResistance already use.
+function volumeTrend(bars, { recentPeriod = 10, priorPeriod = 20 } = {}) {
+  if (bars.length < recentPeriod + priorPeriod) return null;
+
+  const recent = bars.slice(-recentPeriod);
+  const prior = bars.slice(-(recentPeriod + priorPeriod), -recentPeriod);
+  const recentAvgVolume = recent.reduce((sum, bar) => sum + (bar.volume || 0), 0) / recentPeriod;
+  const priorAvgVolume = prior.reduce((sum, bar) => sum + (bar.volume || 0), 0) / priorPeriod;
+
+  if (priorAvgVolume <= 0) return null;
+  return {
+    recentAvgVolume,
+    priorAvgVolume,
+    percentChange: ((recentAvgVolume - priorAvgVolume) / priorAvgVolume) * 100,
+  };
+}
+
 module.exports = {
   closesOf,
   simpleMovingAverage,
@@ -185,4 +257,6 @@ module.exports = {
   bollingerBands,
   fibonacciRetracement,
   detectSupportResistance,
+  averageDirectionalIndex,
+  volumeTrend,
 };

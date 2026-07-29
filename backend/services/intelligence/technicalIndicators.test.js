@@ -121,3 +121,59 @@ test("detectSupportResistance finds the real max high and min low over the lookb
 test("detectSupportResistance returns null with too few bars", () => {
   assert.equal(indicators.detectSupportResistance([{ high: 1, low: 1 }], 60), null);
 });
+
+// Phase TECHNICAL-AGENT-001 additions below.
+
+function makeTrendingBars(count, { startPrice = 100, dailyMove = 1, volatility = 0.5, volume = 1000 } = {}) {
+  const bars = [];
+  let price = startPrice;
+  for (let i = 0; i < count; i++) {
+    const close = price + dailyMove * i;
+    bars.push({ date: `2026-01-${String((i % 28) + 1).padStart(2, "0")}`, open: close - dailyMove, high: close + volatility, low: close - dailyMove - volatility, close, volume });
+  }
+  return bars;
+}
+
+test("averageDirectionalIndex returns null with fewer than 2*period+1 bars", () => {
+  assert.equal(indicators.averageDirectionalIndex(makeTrendingBars(20), 14), null);
+});
+
+test("averageDirectionalIndex is high (strong trend) for a real, strictly monotonic uptrend", () => {
+  const bars = makeTrendingBars(60, { dailyMove: 2, volatility: 0.2 });
+  const adx = indicators.averageDirectionalIndex(bars, 14);
+  assert.ok(Number.isFinite(adx));
+  assert.ok(adx > 40, `expected a strong-trend ADX reading, got ${adx}`);
+});
+
+test("averageDirectionalIndex is low for a real, flat/sideways series with no directional movement", () => {
+  const bars = makeTrendingBars(60, { dailyMove: 0, volatility: 0.3 });
+  const adx = indicators.averageDirectionalIndex(bars, 14);
+  assert.ok(Number.isFinite(adx));
+  assert.ok(adx < 30, `expected a weak/no-trend ADX reading, got ${adx}`);
+});
+
+test("volumeTrend returns null with too few bars for both windows", () => {
+  assert.equal(indicators.volumeTrend(makeTrendingBars(10), { recentPeriod: 10, priorPeriod: 20 }), null);
+});
+
+test("volumeTrend reports a real positive percentChange when recent volume genuinely rose vs. the prior window", () => {
+  const priorBars = makeTrendingBars(20, { volume: 1000 });
+  const recentBars = makeTrendingBars(10, { volume: 2000 });
+  const result = indicators.volumeTrend([...priorBars, ...recentBars], { recentPeriod: 10, priorPeriod: 20 });
+  assert.equal(result.recentAvgVolume, 2000);
+  assert.equal(result.priorAvgVolume, 1000);
+  assert.equal(result.percentChange, 100);
+});
+
+test("volumeTrend reports a real negative percentChange when recent volume genuinely fell", () => {
+  const priorBars = makeTrendingBars(20, { volume: 2000 });
+  const recentBars = makeTrendingBars(10, { volume: 1000 });
+  const result = indicators.volumeTrend([...priorBars, ...recentBars], { recentPeriod: 10, priorPeriod: 20 });
+  assert.equal(result.percentChange, -50);
+});
+
+test("volumeTrend returns null (never a division-by-zero artifact) when the prior window's average volume is zero", () => {
+  const priorBars = makeTrendingBars(20, { volume: 0 });
+  const recentBars = makeTrendingBars(10, { volume: 1000 });
+  assert.equal(indicators.volumeTrend([...priorBars, ...recentBars], { recentPeriod: 10, priorPeriod: 20 }), null);
+});
