@@ -62,6 +62,13 @@ function toPolarity(agentId, raw) {
       if (raw.etfFlowBias === "BEARISH") return "BEARISH";
       return "NEUTRAL";
     }
+    case "institutional": {
+      // INSTITUTIONAL-AGENT-001 — real institutional bias classification
+      // maps directly onto this shared scale.
+      if (raw.institutionalBias === "BULLISH") return "BULLISH";
+      if (raw.institutionalBias === "BEARISH") return "BEARISH";
+      return "NEUTRAL";
+    }
     default:
       return "NEUTRAL";
   }
@@ -107,6 +114,12 @@ function extractRisksAndOpportunities(agentId, raw) {
     // ETF-FLOW-AGENT-001 — this agent's own report already names its
     // fields `risks`/`opportunities` directly (no bullish/bearish-
     // factors split), so they pass straight through.
+    return { risks: [...raw.risks], opportunities: [...raw.opportunities] };
+  }
+  if (agentId === "institutional") {
+    // INSTITUTIONAL-AGENT-001 — same direct pass-through as etf-flow:
+    // this agent's own report already names its fields
+    // `risks`/`opportunities` directly.
     return { risks: [...raw.risks], opportunities: [...raw.opportunities] };
   }
   return { risks: [], opportunities: [] };

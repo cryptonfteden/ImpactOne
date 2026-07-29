@@ -15,7 +15,10 @@
 // Phase ETF-FLOW-AGENT-001 added a 6th, `etf-flow` (real trading-
 // activity-based ETF flow proxy), also upgraded in place from its
 // prior stub registration.
-const TARGET_AGENT_IDS = ["options", "earnings", "valuation", "symbol-sentiment", "insider", "etf-flow"];
+// Phase INSTITUTIONAL-AGENT-001 added a 7th, `institutional` (real SEC
+// EDGAR 13F-HR institutional-ownership intelligence), also upgraded in
+// place from its prior stub registration.
+const TARGET_AGENT_IDS = ["options", "earnings", "valuation", "symbol-sentiment", "insider", "etf-flow", "institutional"];
 
 /**
  * @param {{ getRegisteredAgents: () => Array<object> }} orchestrator

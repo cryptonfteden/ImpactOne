@@ -60,6 +60,18 @@ test("extractRisksAndOpportunities for etf-flow passes through its own real risk
   assert.deepEqual(result, { risks: ["indirect sector-ETF proxy"], opportunities: ["net flow proxy is bullish"] });
 });
 
+test("toPolarity maps institutional's institutionalBias (BULLISH/BEARISH/other)", () => {
+  assert.equal(toPolarity("institutional", { institutionalBias: "BULLISH" }), "BULLISH");
+  assert.equal(toPolarity("institutional", { institutionalBias: "BEARISH" }), "BEARISH");
+  assert.equal(toPolarity("institutional", { institutionalBias: "NEUTRAL" }), "NEUTRAL");
+});
+
+test("extractRisksAndOpportunities for institutional passes through its own real risks/opportunities arrays directly", () => {
+  const raw = { risks: ["curated cohort, not the full universe"], opportunities: ["real accumulation outweighs distribution"] };
+  const result = extractRisksAndOpportunities("institutional", raw);
+  assert.deepEqual(result, { risks: ["curated cohort, not the full universe"], opportunities: ["real accumulation outweighs distribution"] });
+});
+
 test("extractRisksAndOpportunities for earnings reuses its own real risks/opportunities arrays directly", () => {
   const raw = { risks: ["risk one"], opportunities: ["opportunity one"] };
   assert.deepEqual(extractRisksAndOpportunities("earnings", raw), { risks: ["risk one"], opportunities: ["opportunity one"] });
