@@ -105,6 +105,27 @@ test("fibonacciRetracement returns null for an invalid (non-positive) range", ()
   assert.equal(indicators.fibonacciRetracement(50, 100), null);
 });
 
+test("fibonacciExtension projects real UP targets beyond the swing high", () => {
+  const levels = indicators.fibonacciExtension(50, 100, "UP");
+  const byRatio = Object.fromEntries(levels.map((level) => [level.ratio, level.price]));
+  assert.equal(byRatio[1], 150); // one full swing-length (50) beyond the high (100)
+  closeAlmostEqual(byRatio[0.618], 100 + 50 * 0.618, 0.001);
+  closeAlmostEqual(byRatio[1.618], 100 + 50 * 1.618, 0.001);
+});
+
+test("fibonacciExtension projects real DOWN targets beyond the swing low", () => {
+  const levels = indicators.fibonacciExtension(50, 100, "DOWN");
+  const byRatio = Object.fromEntries(levels.map((level) => [level.ratio, level.price]));
+  assert.equal(byRatio[1], 0); // one full swing-length (50) beyond the low (50)
+  closeAlmostEqual(byRatio[0.618], 50 - 50 * 0.618, 0.001);
+});
+
+test("fibonacciExtension returns null for an invalid range or direction", () => {
+  assert.equal(indicators.fibonacciExtension(100, 50, "UP"), null);
+  assert.equal(indicators.fibonacciExtension(50, 100, "SIDEWAYS"), null);
+  assert.equal(indicators.fibonacciExtension(50, 100, null), null);
+});
+
 test("detectSupportResistance finds the real max high and min low over the lookback window", () => {
   const bars = [
     { high: 10, low: 8 },

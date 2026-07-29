@@ -143,6 +143,29 @@ function fibonacciRetracement(high, low) {
   return FIBONACCI_RATIOS.map((ratio) => ({ ratio, price: high - range * ratio }));
 }
 
+// Phase FIBONACCI-AGENT-001 — Fibonacci EXTENSION targets, projecting
+// beyond the swing range (continuation targets) rather than retracing
+// within it. Disclosed convention (one of several in real-world use,
+// chosen for transparency): each target is the swing's END point
+// (swingHigh for an up-swing, swingLow for a down-swing) plus
+// `ratio * range` projected further in the swing's own direction — so
+// `ratio=1.0` (the "100% extension") means "one full swing-length
+// beyond the swing's end," not a reproduction of either swing point
+// itself. `direction` is "UP" (swing ran low -> high; targets project
+// above swingHigh) or "DOWN" (swing ran high -> low; targets project
+// below swingLow).
+const FIBONACCI_EXTENSION_RATIOS = [0.272, 0.618, 1, 1.272, 1.618, 2, 2.618];
+
+function fibonacciExtension(swingLow, swingHigh, direction) {
+  if (!Number.isFinite(swingLow) || !Number.isFinite(swingHigh) || swingHigh <= swingLow) return null;
+  if (direction !== "UP" && direction !== "DOWN") return null;
+  const range = swingHigh - swingLow;
+  return FIBONACCI_EXTENSION_RATIOS.map((ratio) => ({
+    ratio,
+    price: direction === "UP" ? swingHigh + range * ratio : swingLow - range * ratio,
+  }));
+}
+
 // Deliberately simple, transparent pivot-based support/resistance: the
 // highest high and lowest low over the lookback window, plus the most
 // recent local pivot points (a bar whose high/low is a local extreme
@@ -256,6 +279,7 @@ module.exports = {
   volumeWeightedAveragePrice,
   bollingerBands,
   fibonacciRetracement,
+  fibonacciExtension,
   detectSupportResistance,
   averageDirectionalIndex,
   volumeTrend,
