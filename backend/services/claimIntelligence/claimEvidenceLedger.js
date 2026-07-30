@@ -24,6 +24,18 @@ function inferEvidenceDirection(engineId, payload = {}) {
     }
     return "NEUTRAL";
   }
+  // Phase CLAIM-INTELLIGENCE-INTEGRATION-001 — the generic path for
+  // every one of the 14 real Domain Intelligence Agents newly
+  // integrated this phase (agentClaimBridge always publishes its own
+  // already-computed, opaque `direction` string onto `payload.direction`
+  // — see agentClaimBridge/agentClaimPublisher.js). Reading a real,
+  // already-normalized field here is not "duplicated confidence/
+  // direction logic" — it is the one place this module accepts a
+  // pre-normalized direction instead of re-deriving one from
+  // engine-specific raw fields, exactly the same real value the
+  // orchestrator's own conflict detection already compares by equality.
+  if (payload.direction === "BULLISH") return "BULLISH";
+  if (payload.direction === "BEARISH") return "BEARISH";
   return "NEUTRAL";
 }
 
@@ -33,10 +45,30 @@ function inferEvidenceDirection(engineId, payload = {}) {
 // here, not hidden): options signals are intraday/next-few-sessions
 // (closest real bucket: D1); sentiment is a daily-cadence composite read
 // best treated as a near-term (closest real bucket: W1) outlook.
+// Phase CLAIM-INTELLIGENCE-INTEGRATION-001 — real, disclosed,
+// approximate horizon buckets for the 12 newly-integrated agents, same
+// honest-simplification discipline as the original options/sentiment
+// mapping above (no agent's real native horizon lines up exactly with
+// the reused TimeWindow enum either).
+const AGENT_TIME_HORIZONS = {
+  technical: "D1",
+  "symbol-sentiment": "W1",
+  news: "D1",
+  "short-interest": "M1", // FINRA's real short-volume data is daily, but short-interest theses play out over weeks
+  earnings: "M3", // the next real reporting quarter
+  valuation: "M3", // valuation theses are medium-term, not intraday
+  fibonacci: "D1",
+  insider: "M1", // real Form 4 filings lag and the resulting thesis plays out over weeks
+  "etf-flow": "W1",
+  institutional: "M3", // real 13F-HR filings are quarterly
+  macro: "M1", // macro conditions move slowly
+  "analyst-consensus": "M1",
+};
+
 function inferTimeHorizon(engineId) {
   if (engineId === "options") return "D1";
   if (engineId === "sentiment") return "W1";
-  return "D1";
+  return AGENT_TIME_HORIZONS[engineId] || "D1";
 }
 
 function buildObservedFact(engineId, payload = {}) {

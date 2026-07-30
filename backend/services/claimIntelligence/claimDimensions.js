@@ -2,10 +2,32 @@
 // constants — all real, disclosed decisions, not arbitrary magic numbers
 // hidden inline.
 
-// Only these two engines are integrated this phase (mission §11) — a
-// Bus event from any other engineId is ignored by claimFormationService,
+// Originally scoped to just these two engines (mission §11) — a Bus
+// event from any other engineId was ignored by claimFormationService,
 // not silently absorbed into a claim it was never vetted to feed.
-const INTEGRATED_ENGINES = ["options", "sentiment"];
+// Phase CLAIM-INTELLIGENCE-INTEGRATION-001 extends this to every real
+// Domain Intelligence Agent (agentOrchestrator/registry.js's
+// ALL_AGENTS, 14 real agents) — the mission's own "Connect every
+// Intelligence Agent to the Claim Intelligence pipeline." This is an
+// additive extension of the existing allowlist, not a redesign: the
+// same ingestBusEvent()/buildEvidenceCandidateFromBusEvent() logic
+// below is reused unchanged for every engine now in this list.
+const INTEGRATED_ENGINES = [
+  "options",
+  "sentiment",
+  "technical",
+  "symbol-sentiment",
+  "news",
+  "short-interest",
+  "earnings",
+  "valuation",
+  "fibonacci",
+  "insider",
+  "etf-flow",
+  "institutional",
+  "macro",
+  "analyst-consensus",
+];
 
 // A claim newly created from a single evidence entry must never start
 // above DRAFT (mission §3: "never converts a single raw signal directly

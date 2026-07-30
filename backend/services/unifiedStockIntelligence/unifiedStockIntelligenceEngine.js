@@ -37,7 +37,15 @@ registerAllAgents();
  */
 async function generateUnifiedIntelligence(symbol, { orchestrator = agentOrchestrator, runObservedFn = runObserved, correlationId } = {}) {
   const agents = selectUnifiedIntelligenceAgents(orchestrator);
-  const { report: orchestratorReport, correlationId: usedCorrelationId } = await runObservedFn(symbol, { agents }, { correlationId });
+  // Phase CLAIM-INTELLIGENCE-INTEGRATION-001 — this is the one real
+  // production surface that already exercises every Domain Intelligence
+  // Agent together, so it's the natural place to turn on
+  // `publishClaims`. This only ADDS a best-effort, additive Bus/Claim
+  // publish per agent inside `runObserved` (see its own header) — it
+  // never changes `orchestratorReport` or anything computed from it
+  // below, so this engine's own scoring/aggregation is provably
+  // untouched by this flag.
+  const { report: orchestratorReport, correlationId: usedCorrelationId } = await runObservedFn(symbol, { agents }, { correlationId, publishClaims: true });
 
   const normalizedAgents = orchestratorReport.agents.map(mapAgentResult);
   const conflictingSignals = detectConflicts(normalizedAgents);

@@ -19,6 +19,23 @@ const KNOWN_ENGINES = {
   shortInterest: { label: "Short Interest Engine", staleAfterMs: 14 * 24 * 60 * 60 * 1000 }, // FINRA short-interest data is real but only published twice monthly
   correlation: { label: "Correlation Engine", staleAfterMs: 24 * 60 * 60 * 1000 },
   news: { label: "News Engine", staleAfterMs: 60 * 60 * 1000 }, // wire news is time-sensitive
+  // Phase CLAIM-INTELLIGENCE-INTEGRATION-001 — additive entries only
+  // (nothing above this line is renamed or removed) so every one of the
+  // 14 real Domain Intelligence Agents (agentOrchestrator/registry.js's
+  // ALL_AGENTS) can publish through the Bus under its own real
+  // `metadata.id`. Kept in the agents' own kebab-case (not remapped onto
+  // the pre-existing camelCase entries above, which stay exactly as they
+  // were for their own, unrelated callers) — a deliberate, additive
+  // extension of a soft registry, not a redesign of it.
+  technical: { label: "Technical Intelligence Agent", staleAfterMs: 4 * 60 * 60 * 1000 }, // intraday indicator reads
+  "symbol-sentiment": { label: "Sentiment Intelligence Agent", staleAfterMs: 24 * 60 * 60 * 1000 }, // real per-symbol news sentiment, daily-cadence like the market-wide entry above
+  "short-interest": { label: "Short Interest Intelligence Agent", staleAfterMs: 24 * 60 * 60 * 1000 }, // this agent's own real FINRA daily short-volume proxy, refreshed daily (distinct from the bi-monthly `shortInterest` entry above)
+  valuation: { label: "Valuation Intelligence Agent", staleAfterMs: 24 * 60 * 60 * 1000 },
+  fibonacci: { label: "Fibonacci Intelligence Agent", staleAfterMs: 24 * 60 * 60 * 1000 },
+  insider: { label: "Insider Intelligence Agent", staleAfterMs: 7 * 24 * 60 * 60 * 1000 }, // real SEC Form 4 filings lag and arrive irregularly
+  "etf-flow": { label: "ETF Flow Intelligence Agent", staleAfterMs: 24 * 60 * 60 * 1000 },
+  institutional: { label: "Institutional Intelligence Agent", staleAfterMs: 7 * 24 * 60 * 60 * 1000 }, // real SEC 13F-HR filings are quarterly
+  "analyst-consensus": { label: "Analyst Consensus Intelligence Agent", staleAfterMs: 24 * 60 * 60 * 1000 },
 };
 
 const DEFAULT_STALE_AFTER_MS = 24 * 60 * 60 * 1000; // used for any future engine not yet named above

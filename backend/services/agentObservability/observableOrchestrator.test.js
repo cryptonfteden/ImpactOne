@@ -5,6 +5,7 @@ const agentOrchestrator = require("../agentOrchestrator/agentOrchestrator");
 const { runObserved } = require("./observableOrchestrator");
 const { createAgentExecutionLog } = require("./agentExecutionLog");
 const { FAILURE_CODES } = require("./failureTaxonomy");
+const agentClaimPublisher = require("../agentClaimBridge/agentClaimPublisher");
 
 function makeAgent({ id, priority = 5, execute, confidence, health, delayMs = 0, raw }) {
   return {
@@ -163,4 +164,50 @@ test("when no correlationId is supplied, runObserved still generates a fresh one
 
   const { correlationId } = await runObserved("NVDA", {}, { log });
   assert.ok(correlationId.startsWith("corr_"));
+});
+
+// Phase CLAIM-INTELLIGENCE-INTEGRATION-001
+test("publishClaims defaults to false — no Claim-pipeline publish call happens unless explicitly opted in, preserving every pre-existing caller's behavior", async () => {
+  agentOrchestrator.registerAgent(makeAgent({ id: "a" }));
+  const log = createAgentExecutionLog();
+  let called = false;
+  const original = agentClaimPublisher.publishAgentClaim;
+  agentClaimPublisher.publishAgentClaim = async () => { called = true; };
+  try {
+    await runObserved("NVDA", {}, { log });
+    assert.equal(called, false);
+  } finally {
+    agentClaimPublisher.publishAgentClaim = original;
+  }
+});
+
+test("publishClaims: true calls publishAgentClaim once per agent, after its execution-log record is already appended", async () => {
+  agentOrchestrator.registerAgent(makeAgent({ id: "a" }));
+  agentOrchestrator.registerAgent(makeAgent({ id: "b" }));
+  const log = createAgentExecutionLog();
+  const calls = [];
+  const original = agentClaimPublisher.publishAgentClaim;
+  agentClaimPublisher.publishAgentClaim = async (symbol, agentResult) => { calls.push({ symbol, agentId: agentResult.agentId }); };
+  try {
+    await runObserved("NVDA", {}, { log, publishClaims: true });
+    assert.equal(calls.length, 2);
+    assert.deepEqual(calls.map((c) => c.agentId).sort(), ["a", "b"]);
+    assert.ok(calls.every((c) => c.symbol === "NVDA"));
+  } finally {
+    agentClaimPublisher.publishAgentClaim = original;
+  }
+});
+
+test("publishClaims: true — a real publish failure never changes runObserved's own return value (best-effort, additive only)", async () => {
+  agentOrchestrator.registerAgent(makeAgent({ id: "a" }));
+  const log = createAgentExecutionLog();
+  const original = agentClaimPublisher.publishAgentClaim;
+  agentClaimPublisher.publishAgentClaim = async () => { throw new Error("simulated publish failure"); };
+  try {
+    const { report, correlationId } = await runObserved("NVDA", {}, { log, publishClaims: true });
+    assert.equal(report.symbol, "NVDA");
+    assert.ok(correlationId.startsWith("corr_"));
+  } finally {
+    agentClaimPublisher.publishAgentClaim = original;
+  }
 });

@@ -184,7 +184,13 @@ test("governance field prohibition: a real, fully-formed claim never carries a f
 
 test("source failure isolation: an event from a non-integrated engine is ignored and never contaminates or blocks real claim formation", async () => {
   const now = new Date("2026-07-26T15:00:00.000Z");
-  const ignored = await claimFormationService.ingestBusEvent({ id: "evt_x", engineId: "macro", symbols: ["NVDA"], payload: {}, provenance: { sourceEngine: "macro" }, publishedAt: now.toISOString(), confidence: 90 }, { now });
+  // Phase CLAIM-INTELLIGENCE-INTEGRATION-001 extended INTEGRATED_ENGINES
+  // to include every one of the 14 real Domain Intelligence Agents
+  // (including "macro"), so this test now targets a genuinely
+  // non-integrated Bus-only engine id ("ownership" — present in
+  // intelligenceBusRegistry.KNOWN_ENGINES but with no corresponding
+  // real agent, still correctly excluded here).
+  const ignored = await claimFormationService.ingestBusEvent({ id: "evt_x", engineId: "ownership", symbols: ["NVDA"], payload: {}, provenance: { sourceEngine: "ownership" }, publishedAt: now.toISOString(), confidence: 90 }, { now });
   assert.equal(ignored, null);
 
   const created = await claimFormationService.ingestBusEvent(optionsBusEvent({ symbol: "NVDA" }), { now });

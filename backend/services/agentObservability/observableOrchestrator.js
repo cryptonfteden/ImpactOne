@@ -11,6 +11,7 @@ const agentOrchestrator = require("../agentOrchestrator/agentOrchestrator");
 const { newCorrelationId, newExecutionId } = require("./correlationModel");
 const { classify } = require("./failureTaxonomy");
 const { sharedLog } = require("./agentExecutionLog");
+const agentClaimPublisher = require("../agentClaimBridge/agentClaimPublisher");
 
 /**
  * Best-effort, forward-compatible extraction of cache/data-source
@@ -45,8 +46,21 @@ function extractDataSources(agentResult) {
  * rather than a fresh one only this function knows about. When none is
  * given, a new one is generated exactly as before — fully backward
  * compatible with every existing caller.
+ *
+ * Phase CLAIM-INTELLIGENCE-INTEGRATION-001 — "Connect every Intelligence
+ * Agent to the Claim Intelligence pipeline." An opt-in `publishClaims`
+ * flag (default `false`, so every pre-existing caller/test keeps its
+ * exact current behavior with zero new side effects) additionally
+ * routes each real, fulfilled agent result into the Intelligence Bus and
+ * Claim Intelligence layer via `agentClaimBridge.publishAgentClaim` —
+ * strictly additive to this per-agent loop, which already has
+ * everything the bridge needs (`agentResult.agentId`, `.result`,
+ * `.confidence`, `.status`) with no new computation. Publishing is
+ * best-effort and never throws (see `publishAgentClaim`'s own header),
+ * so it can never change `report`, `correlationId`, or any existing
+ * return value — this function still returns exactly what it always has.
  */
-async function runObserved(symbol, options = {}, { log = sharedLog, correlationId: providedCorrelationId } = {}) {
+async function runObserved(symbol, options = {}, { log = sharedLog, correlationId: providedCorrelationId, publishClaims = false } = {}) {
   const correlationId = providedCorrelationId || newCorrelationId();
   const runStartMs = Date.now();
 
@@ -81,6 +95,19 @@ async function runObserved(symbol, options = {}, { log = sharedLog, correlationI
       failureCode,
       error: agentResult.error ?? null,
     });
+
+    if (publishClaims) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await agentClaimPublisher.publishAgentClaim(report.symbol, agentResult);
+      } catch {
+        // Defense in depth — publishAgentClaim itself is already
+        // best-effort and should never throw (see its own header), but
+        // this run must never fail because of a Claim-pipeline problem
+        // regardless, so a real exception here is swallowed rather than
+        // propagated to this function's own caller.
+      }
+    }
   }
 
   return { report, correlationId, runStartMs, runEndMs };
