@@ -90,6 +90,13 @@ function toPolarity(agentId, raw) {
       if (raw.analystBias === "BEARISH") return "BEARISH";
       return "NEUTRAL";
     }
+    case "news": {
+      // NEWS-AGENT-001 — real news bias classification maps directly
+      // onto this shared scale.
+      if (raw.newsBias === "BULLISH") return "BULLISH";
+      if (raw.newsBias === "BEARISH") return "BEARISH";
+      return "NEUTRAL";
+    }
     default:
       return "NEUTRAL";
   }
@@ -161,6 +168,12 @@ function extractRisksAndOpportunities(agentId, raw) {
     // pattern, same as etf-flow/institutional/short-interest), so they
     // pass straight through.
     return { risks: [...raw.risks], opportunities: [...raw.opportunities] };
+  }
+  if (agentId === "news") {
+    // NEWS-AGENT-001 — this mission's own 3-array shape (same pattern
+    // as insider/symbol-sentiment/macro): `risks` + `bearishFactors`
+    // are risks, `bullishFactors` are opportunities.
+    return { risks: [...raw.risks, ...raw.bearishFactors], opportunities: [...raw.bullishFactors] };
   }
   return { risks: [], opportunities: [] };
 }

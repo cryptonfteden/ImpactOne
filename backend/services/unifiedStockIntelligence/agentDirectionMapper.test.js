@@ -182,3 +182,16 @@ test("extractRisksAndOpportunities for analyst-consensus passes through its own 
   const result = extractRisksAndOpportunities("analyst-consensus", raw);
   assert.deepEqual(result, { risks: ["price targets are unavailable"], opportunities: ["analyst consensus is bullish"] });
 });
+
+test("toPolarity maps news's newsBias (BULLISH/BEARISH/other)", () => {
+  assert.equal(toPolarity("news", { newsBias: "BULLISH" }), "BULLISH");
+  assert.equal(toPolarity("news", { newsBias: "BEARISH" }), "BEARISH");
+  assert.equal(toPolarity("news", { newsBias: "NEUTRAL" }), "NEUTRAL");
+  assert.equal(toPolarity("news", { newsBias: "UNKNOWN" }), "NEUTRAL");
+});
+
+test("extractRisksAndOpportunities for news combines risks+bearishFactors as risks and bullishFactors as opportunities", () => {
+  const raw = { risks: ["confidence is limited"], bearishFactors: ["news bias is bearish"], bullishFactors: ["news bias is bullish"] };
+  const result = extractRisksAndOpportunities("news", raw);
+  assert.deepEqual(result, { risks: ["confidence is limited", "news bias is bearish"], opportunities: ["news bias is bullish"] });
+});

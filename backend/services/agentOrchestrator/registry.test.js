@@ -50,15 +50,22 @@ test("registerAllAgents is idempotent — calling it twice never throws a duplic
   assert.equal(agentOrchestrator.getRegisteredAgents().length, EXPECTED_AGENT_IDS.length);
 });
 
-test("the not-yet-implemented stub agents honestly report 'unavailable' health and are never executed by a real run", async () => {
+// "news" was the last remaining genuine stub and was upgraded to real
+// at NEWS-AGENT-001 (following short-interest, macro, and
+// analyst-consensus in earlier phases) — every one of the 14 named
+// agent domains is now a real Domain Intelligence Agent, and
+// `createStubAgent` (stubAgentFactory.js) has zero remaining call
+// sites. The old "not-yet-implemented stub agents honestly report
+// 'unavailable' health" test is retired rather than retargeted at a
+// fake stand-in, since asserting stub behavior against a real agent
+// would be dishonest test coverage. `createStubAgent` itself remains
+// available (and still exercised by its own module, if any) for any
+// future new agent domain this codebase adds.
+test("no stub agents remain in the registry — every named agent domain reports real health, never the stub's fixed 'not yet implemented' reason", async () => {
   agentOrchestrator.clearRegistry();
   registerAllAgents();
-  // "short-interest" was upgraded to real at SHORT-INTEREST-AGENT-001,
-  // "macro" was upgraded to real at MACRO-AGENT-001, and
-  // "analyst-consensus" was upgraded to real at
-  // ANALYST-CONSENSUS-AGENT-001 — "news" remains a genuine,
-  // not-yet-implemented stub, so this test now targets that id instead.
-  const report = await agentOrchestrator.run("NVDA", { agents: agentOrchestrator.getRegisteredAgents().filter((a) => a.metadata.id === "news") });
-  assert.equal(report.agents[0].status, "unavailable");
-  assert.match(report.agents[0].health.reason, /not yet implemented/);
+  for (const agent of agentOrchestrator.getRegisteredAgents()) {
+    const health = await agent.health();
+    assert.notEqual(health.reason, `${agent.metadata.name} is not yet implemented.`, `agent "${agent.metadata.id}" must not still be a stub`);
+  }
 });

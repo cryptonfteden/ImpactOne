@@ -18,12 +18,12 @@ test.beforeEach(() => {
   registerAllAgents();
 });
 
-test("generateUnifiedIntelligence resolves its 10 target agents from the real, live Agent Registry — never a hardcoded import", async () => {
+test("generateUnifiedIntelligence resolves its 11 target agents from the real, live Agent Registry — never a hardcoded import", async () => {
   const report = await generateUnifiedIntelligence("NVDA");
-  assert.equal(report.totalAgentCount, 10, "options, earnings, valuation, symbol-sentiment, insider, etf-flow, institutional, short-interest, macro, and analyst-consensus must all be found in the real registry");
+  assert.equal(report.totalAgentCount, 11, "options, earnings, valuation, symbol-sentiment, insider, etf-flow, institutional, short-interest, macro, analyst-consensus, and news must all be found in the real registry");
   assert.deepEqual(
     report.agentContributions.map((a) => a.agentId).sort(),
-    ["analyst-consensus", "earnings", "etf-flow", "insider", "institutional", "macro", "options", "short-interest", "symbol-sentiment", "valuation"]
+    ["analyst-consensus", "earnings", "etf-flow", "insider", "institutional", "macro", "news", "options", "short-interest", "symbol-sentiment", "valuation"]
   );
 });
 
@@ -53,12 +53,12 @@ test("running through a real, injected AgentExecutionLog records one real execut
   // since no override was passed above.
   const { sharedLog } = require("../agentObservability/agentExecutionLog");
   const records = sharedLog.getByCorrelationId(report.correlationId);
-  assert.equal(records.length, 10);
-  assert.deepEqual(records.map((r) => r.agentId).sort(), ["analyst-consensus", "earnings", "etf-flow", "insider", "institutional", "macro", "options", "short-interest", "symbol-sentiment", "valuation"]);
+  assert.equal(records.length, 11);
+  assert.deepEqual(records.map((r) => r.agentId).sort(), ["analyst-consensus", "earnings", "etf-flow", "insider", "institutional", "macro", "news", "options", "short-interest", "symbol-sentiment", "valuation"]);
   void log;
 });
 
-test("the report never emits a forbidden governance key (action/decision/verdict/recommendation) anywhere, even after aggregating 10 real domain reports", async () => {
+test("the report never emits a forbidden governance key (action/decision/verdict/recommendation) anywhere, even after aggregating 11 real domain reports", async () => {
   const report = await generateUnifiedIntelligence("NVDA");
   const serialized = JSON.stringify(report);
   for (const forbiddenKey of ["\"action\"", "\"decision\"", "\"verdict\"", "\"finalDecision\""]) {

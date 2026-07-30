@@ -32,7 +32,10 @@
 // Phase ANALYST-CONSENSUS-AGENT-001 added a 10th, `analyst-consensus`
 // (real Finnhub analyst-rating-trend intelligence), also upgraded in
 // place from its prior stub registration.
-const TARGET_AGENT_IDS = ["options", "earnings", "valuation", "symbol-sentiment", "insider", "etf-flow", "institutional", "short-interest", "macro", "analyst-consensus"];
+// Phase NEWS-AGENT-001 added an 11th, `news` (real per-symbol news
+// intelligence, reusing SENTIMENT-AGENT-001's own NewsAPI provider),
+// also upgraded in place from its prior stub registration.
+const TARGET_AGENT_IDS = ["options", "earnings", "valuation", "symbol-sentiment", "insider", "etf-flow", "institutional", "short-interest", "macro", "analyst-consensus", "news"];
 
 /**
  * @param {{ getRegisteredAgents: () => Array<object> }} orchestrator

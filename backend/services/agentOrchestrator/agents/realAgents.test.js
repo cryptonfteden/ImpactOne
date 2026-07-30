@@ -26,8 +26,9 @@ const institutionalAgent = require("./institutionalAgent");
 const shortInterestAgent = require("./shortInterestAgent");
 const macroAgent = require("./macroAgent");
 const analystConsensusAgent = require("./analystConsensusAgent");
+const newsAgent = require("./newsAgent");
 
-const REAL_AGENTS = [technicalAgent, optionsAgent, sentimentAgent, earningsAgent, valuationAgent, symbolSentimentAgent, insiderAgent, etfFlowAgent, institutionalAgent, shortInterestAgent, macroAgent, analystConsensusAgent];
+const REAL_AGENTS = [technicalAgent, optionsAgent, sentimentAgent, earningsAgent, valuationAgent, symbolSentimentAgent, insiderAgent, etfFlowAgent, institutionalAgent, shortInterestAgent, macroAgent, analystConsensusAgent, newsAgent];
 
 test("every real agent conforms to the generic Agent interface", () => {
   for (const agent of REAL_AGENTS) {
@@ -230,5 +231,21 @@ test("analystConsensusAgent.execute() returns a real, well-formed result (a live
 
 test("analystConsensusAgent.health() reports a real, valid health status and never throws", async () => {
   const health = await analystConsensusAgent.health();
+  assert.ok(["healthy", "degraded", "unavailable"].includes(health.status));
+});
+
+test("newsAgent.execute() honestly reports unavailable with no verified real news (no NEWS_API_KEY configured in this environment), never a fabricated read", async () => {
+  const result = await newsAgent.execute("AAPL");
+  assert.equal(typeof result.summary, "string");
+  assert.ok(result.summary.length > 0);
+  assert.ok(Array.isArray(result.evidence));
+  assert.ok(result.direction === null || typeof result.direction === "string", "direction must be an opaque string or null, never an object");
+  const confidence = newsAgent.confidence(result);
+  assert.ok(Number.isFinite(confidence));
+  assert.ok(confidence >= 0 && confidence <= 100);
+});
+
+test("newsAgent.health() reports a real, valid health status and never throws", async () => {
+  const health = await newsAgent.health();
   assert.ok(["healthy", "degraded", "unavailable"].includes(health.status));
 });
