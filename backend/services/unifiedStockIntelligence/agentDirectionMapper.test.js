@@ -156,3 +156,16 @@ test("mapAgentResult for a real fulfilled, data-available agent carries through 
   assert.equal(mapped.priority, 7);
   assert.equal(mapped.summary, "bullish options flow");
 });
+
+test("toPolarity maps macro's macroBias (BULLISH/BEARISH/other)", () => {
+  assert.equal(toPolarity("macro", { macroBias: "BULLISH" }), "BULLISH");
+  assert.equal(toPolarity("macro", { macroBias: "BEARISH" }), "BEARISH");
+  assert.equal(toPolarity("macro", { macroBias: "NEUTRAL" }), "NEUTRAL");
+  assert.equal(toPolarity("macro", { macroBias: "UNKNOWN" }), "NEUTRAL");
+});
+
+test("extractRisksAndOpportunities for macro combines risks+bearishFactors as risks and bullishFactors as opportunities", () => {
+  const raw = { risks: ["confidence is limited"], bearishFactors: ["market stress is elevated"], bullishFactors: ["yield curve is normal"] };
+  const result = extractRisksAndOpportunities("macro", raw);
+  assert.deepEqual(result, { risks: ["confidence is limited", "market stress is elevated"], opportunities: ["yield curve is normal"] });
+});

@@ -53,10 +53,11 @@ test("registerAllAgents is idempotent — calling it twice never throws a duplic
 test("the not-yet-implemented stub agents honestly report 'unavailable' health and are never executed by a real run", async () => {
   agentOrchestrator.clearRegistry();
   registerAllAgents();
-  // "short-interest" was upgraded to real at SHORT-INTEREST-AGENT-001 —
-  // "macro" remains a genuine, not-yet-implemented stub, so this test
-  // now targets that id instead.
-  const report = await agentOrchestrator.run("NVDA", { agents: agentOrchestrator.getRegisteredAgents().filter((a) => a.metadata.id === "macro") });
+  // "short-interest" was upgraded to real at SHORT-INTEREST-AGENT-001,
+  // and "macro" was upgraded to real at MACRO-AGENT-001 —
+  // "analyst-consensus" remains a genuine, not-yet-implemented stub, so
+  // this test now targets that id instead.
+  const report = await agentOrchestrator.run("NVDA", { agents: agentOrchestrator.getRegisteredAgents().filter((a) => a.metadata.id === "analyst-consensus") });
   assert.equal(report.agents[0].status, "unavailable");
   assert.match(report.agents[0].health.reason, /not yet implemented/);
 });

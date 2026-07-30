@@ -24,8 +24,9 @@ const insiderAgent = require("./insiderAgent");
 const etfFlowAgent = require("./etfFlowAgent");
 const institutionalAgent = require("./institutionalAgent");
 const shortInterestAgent = require("./shortInterestAgent");
+const macroAgent = require("./macroAgent");
 
-const REAL_AGENTS = [technicalAgent, optionsAgent, sentimentAgent, earningsAgent, valuationAgent, symbolSentimentAgent, insiderAgent, etfFlowAgent, institutionalAgent, shortInterestAgent];
+const REAL_AGENTS = [technicalAgent, optionsAgent, sentimentAgent, earningsAgent, valuationAgent, symbolSentimentAgent, insiderAgent, etfFlowAgent, institutionalAgent, shortInterestAgent, macroAgent];
 
 test("every real agent conforms to the generic Agent interface", () => {
   for (const agent of REAL_AGENTS) {
@@ -195,5 +196,22 @@ test("shortInterestAgent.execute() returns a real, well-formed result (a live FI
 
 test("shortInterestAgent.health() reports a real, valid health status and never throws", async () => {
   const health = await shortInterestAgent.health();
+  assert.ok(["healthy", "degraded", "unavailable"].includes(health.status));
+});
+
+test("macroAgent.execute() discloses it is a market-wide reading, never claims to be symbol-specific, and returns a real well-formed result", async () => {
+  const result = await macroAgent.execute("NVDA");
+  assert.equal(typeof result.summary, "string");
+  assert.ok(result.summary.length > 0);
+  assert.match(result.summary, /market-wide/i);
+  assert.ok(Array.isArray(result.evidence));
+  assert.ok(result.direction === null || typeof result.direction === "string", "direction must be an opaque string or null, never an object");
+  const confidence = macroAgent.confidence(result);
+  assert.ok(Number.isFinite(confidence));
+  assert.ok(confidence >= 0 && confidence <= 100);
+});
+
+test("macroAgent.health() reports a real, valid health status and never throws", async () => {
+  const health = await macroAgent.health();
   assert.ok(["healthy", "degraded", "unavailable"].includes(health.status));
 });

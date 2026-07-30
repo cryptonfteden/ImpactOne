@@ -21,7 +21,15 @@
 // Phase SHORT-INTEREST-AGENT-001 added an 8th, `short-interest` (real
 // FINRA daily short-volume intelligence), also upgraded in place from
 // its prior stub registration.
-const TARGET_AGENT_IDS = ["options", "earnings", "valuation", "symbol-sentiment", "insider", "etf-flow", "institutional", "short-interest"];
+// Phase MACRO-AGENT-001 added a 9th, `macro` (real FRED + real
+// market-proxy macroeconomic intelligence), also upgraded in place from
+// its prior stub registration. Unlike the market-wide `sentiment` id
+// (deliberately excluded from this per-symbol list), this mission's own
+// text explicitly requires Unified Stock Intelligence integration for
+// macro, so it is included here even though its reading is market-wide
+// rather than symbol-specific — every consuming symbol shares the same
+// real macro backdrop.
+const TARGET_AGENT_IDS = ["options", "earnings", "valuation", "symbol-sentiment", "insider", "etf-flow", "institutional", "short-interest", "macro"];
 
 /**
  * @param {{ getRegisteredAgents: () => Array<object> }} orchestrator

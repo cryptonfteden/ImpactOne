@@ -76,6 +76,13 @@ function toPolarity(agentId, raw) {
       if (raw.shortInterestBias === "BEARISH") return "BEARISH";
       return "NEUTRAL";
     }
+    case "macro": {
+      // MACRO-AGENT-001 — real macro bias classification maps directly
+      // onto this shared scale.
+      if (raw.macroBias === "BULLISH") return "BULLISH";
+      if (raw.macroBias === "BEARISH") return "BEARISH";
+      return "NEUTRAL";
+    }
     default:
       return "NEUTRAL";
   }
@@ -133,6 +140,13 @@ function extractRisksAndOpportunities(agentId, raw) {
     // SHORT-INTEREST-AGENT-001 — same direct pass-through: this agent's
     // own report already names its fields `risks`/`opportunities` directly.
     return { risks: [...raw.risks], opportunities: [...raw.opportunities] };
+  }
+  if (agentId === "macro") {
+    // MACRO-AGENT-001 — this mission's own output list uses a 3-array
+    // shape (Bullish Factors / Bearish Factors / Risks), the same
+    // pattern as symbol-sentiment/insider: `risks` + `bearishFactors`
+    // are risks, `bullishFactors` are opportunities.
+    return { risks: [...raw.risks, ...raw.bearishFactors], opportunities: [...raw.bullishFactors] };
   }
   return { risks: [], opportunities: [] };
 }
