@@ -156,6 +156,18 @@ async function listEvidenceForClaim(claimId) {
   return rows.map(toPlainEvidence);
 }
 
+// Phase OUTCOME-CALIBRATION-001 — a real, additive read query: every
+// real evidence entry a given Domain Intelligence Agent (its own real
+// `sourceEngine`/`agentId`) has ever contributed, oldest-first. This is
+// the one new query the Outcome Calibration Engine needs to build a
+// real per-agent reliability history — no existing function is
+// changed, and nothing here writes anything.
+async function listEvidenceBySourceEngine(sourceEngine, { limit = 500 } = {}) {
+  const prisma = getPrismaClient();
+  const rows = await prisma.claimEvidence.findMany({ where: { sourceEngine }, orderBy: [{ addedAt: "asc" }], take: limit });
+  return rows.map(toPlainEvidence);
+}
+
 // --- Transitions (append-only audit log) ---
 
 async function createTransition(data) {
@@ -182,6 +194,20 @@ async function getOutcomeForClaim(claimId, methodologyVersion) {
   return toPlainOutcome(row);
 }
 
+// Phase OUTCOME-CALIBRATION-001 — a real, additive batch read: every
+// real, already-graded ClaimOutcome row for a given set of claim ids,
+// regardless of methodologyVersion (a claim could in principle be
+// re-graded under a newer version) — used to join a real agent's
+// evidence contributions back to their real, already-computed
+// directionCorrect/calibrationError ground truth without re-querying
+// one claim at a time.
+async function listOutcomesForClaimIds(claimIds = []) {
+  if (!claimIds.length) return [];
+  const prisma = getPrismaClient();
+  const rows = await prisma.claimOutcome.findMany({ where: { claimId: { in: claimIds } }, orderBy: [{ gradedAt: "asc" }] });
+  return rows.map(toPlainOutcome);
+}
+
 module.exports = {
   createClaim,
   findByIdentityKey,
@@ -197,8 +223,10 @@ module.exports = {
   listOpenPastExpiry,
   createEvidence,
   listEvidenceForClaim,
+  listEvidenceBySourceEngine,
   createTransition,
   listTransitionsForClaim,
   createOutcome,
   getOutcomeForClaim,
+  listOutcomesForClaimIds,
 };
