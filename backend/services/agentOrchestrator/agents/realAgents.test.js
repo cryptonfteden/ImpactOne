@@ -25,8 +25,9 @@ const etfFlowAgent = require("./etfFlowAgent");
 const institutionalAgent = require("./institutionalAgent");
 const shortInterestAgent = require("./shortInterestAgent");
 const macroAgent = require("./macroAgent");
+const analystConsensusAgent = require("./analystConsensusAgent");
 
-const REAL_AGENTS = [technicalAgent, optionsAgent, sentimentAgent, earningsAgent, valuationAgent, symbolSentimentAgent, insiderAgent, etfFlowAgent, institutionalAgent, shortInterestAgent, macroAgent];
+const REAL_AGENTS = [technicalAgent, optionsAgent, sentimentAgent, earningsAgent, valuationAgent, symbolSentimentAgent, insiderAgent, etfFlowAgent, institutionalAgent, shortInterestAgent, macroAgent, analystConsensusAgent];
 
 test("every real agent conforms to the generic Agent interface", () => {
   for (const agent of REAL_AGENTS) {
@@ -213,5 +214,21 @@ test("macroAgent.execute() discloses it is a market-wide reading, never claims t
 
 test("macroAgent.health() reports a real, valid health status and never throws", async () => {
   const health = await macroAgent.health();
+  assert.ok(["healthy", "degraded", "unavailable"].includes(health.status));
+});
+
+test("analystConsensusAgent.execute() returns a real, well-formed result (a live Finnhub call may succeed or gracefully degrade in this environment; either way the shape is honest)", async () => {
+  const result = await analystConsensusAgent.execute("AAPL");
+  assert.equal(typeof result.summary, "string");
+  assert.ok(result.summary.length > 0);
+  assert.ok(Array.isArray(result.evidence));
+  assert.ok(result.direction === null || typeof result.direction === "string", "direction must be an opaque string or null, never an object");
+  const confidence = analystConsensusAgent.confidence(result);
+  assert.ok(Number.isFinite(confidence));
+  assert.ok(confidence >= 0 && confidence <= 100);
+});
+
+test("analystConsensusAgent.health() reports a real, valid health status and never throws", async () => {
+  const health = await analystConsensusAgent.health();
   assert.ok(["healthy", "degraded", "unavailable"].includes(health.status));
 });

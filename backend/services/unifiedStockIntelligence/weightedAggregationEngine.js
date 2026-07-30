@@ -32,7 +32,7 @@ const NEUTRAL_BAND = 0.1; // +/-10% of the total possible weighted score counts 
 // SHORT-INTEREST-AGENT-001 added `8` (+ short-interest). A fallback of
 // 30 still covers any further growth honestly rather than silently
 // under-crediting it.
-const CORROBORATION_BONUS = { 1: 0, 2: 15, 3: 30, 4: 40, 5: 48, 6: 54, 7: 58, 8: 61, 9: 63 };
+const CORROBORATION_BONUS = { 1: 0, 2: 15, 3: 30, 4: 40, 5: 48, 6: 54, 7: 58, 8: 61, 9: 63, 10: 64 };
 const CONFLICT_PENALTY = 25; // a real, disclosed penalty applied whenever ANY genuine conflict exists
 const UNAVAILABLE_AGENT_PENALTY = 10; // per missing/unavailable agent, out of the full evidence set
 

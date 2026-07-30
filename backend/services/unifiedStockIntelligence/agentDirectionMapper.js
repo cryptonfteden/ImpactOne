@@ -83,6 +83,13 @@ function toPolarity(agentId, raw) {
       if (raw.macroBias === "BEARISH") return "BEARISH";
       return "NEUTRAL";
     }
+    case "analyst-consensus": {
+      // ANALYST-CONSENSUS-AGENT-001 — real analyst bias classification
+      // maps directly onto this shared scale.
+      if (raw.analystBias === "BULLISH") return "BULLISH";
+      if (raw.analystBias === "BEARISH") return "BEARISH";
+      return "NEUTRAL";
+    }
     default:
       return "NEUTRAL";
   }
@@ -147,6 +154,13 @@ function extractRisksAndOpportunities(agentId, raw) {
     // pattern as symbol-sentiment/insider: `risks` + `bearishFactors`
     // are risks, `bullishFactors` are opportunities.
     return { risks: [...raw.risks, ...raw.bearishFactors], opportunities: [...raw.bullishFactors] };
+  }
+  if (agentId === "analyst-consensus") {
+    // ANALYST-CONSENSUS-AGENT-001 — this agent's own report already
+    // names its fields `risks`/`opportunities` directly (the 2-array
+    // pattern, same as etf-flow/institutional/short-interest), so they
+    // pass straight through.
+    return { risks: [...raw.risks], opportunities: [...raw.opportunities] };
   }
   return { risks: [], opportunities: [] };
 }

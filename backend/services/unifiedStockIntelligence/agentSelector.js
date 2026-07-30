@@ -29,7 +29,10 @@
 // macro, so it is included here even though its reading is market-wide
 // rather than symbol-specific — every consuming symbol shares the same
 // real macro backdrop.
-const TARGET_AGENT_IDS = ["options", "earnings", "valuation", "symbol-sentiment", "insider", "etf-flow", "institutional", "short-interest", "macro"];
+// Phase ANALYST-CONSENSUS-AGENT-001 added a 10th, `analyst-consensus`
+// (real Finnhub analyst-rating-trend intelligence), also upgraded in
+// place from its prior stub registration.
+const TARGET_AGENT_IDS = ["options", "earnings", "valuation", "symbol-sentiment", "insider", "etf-flow", "institutional", "short-interest", "macro", "analyst-consensus"];
 
 /**
  * @param {{ getRegisteredAgents: () => Array<object> }} orchestrator

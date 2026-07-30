@@ -54,10 +54,11 @@ test("the not-yet-implemented stub agents honestly report 'unavailable' health a
   agentOrchestrator.clearRegistry();
   registerAllAgents();
   // "short-interest" was upgraded to real at SHORT-INTEREST-AGENT-001,
-  // and "macro" was upgraded to real at MACRO-AGENT-001 —
-  // "analyst-consensus" remains a genuine, not-yet-implemented stub, so
-  // this test now targets that id instead.
-  const report = await agentOrchestrator.run("NVDA", { agents: agentOrchestrator.getRegisteredAgents().filter((a) => a.metadata.id === "analyst-consensus") });
+  // "macro" was upgraded to real at MACRO-AGENT-001, and
+  // "analyst-consensus" was upgraded to real at
+  // ANALYST-CONSENSUS-AGENT-001 — "news" remains a genuine,
+  // not-yet-implemented stub, so this test now targets that id instead.
+  const report = await agentOrchestrator.run("NVDA", { agents: agentOrchestrator.getRegisteredAgents().filter((a) => a.metadata.id === "news") });
   assert.equal(report.agents[0].status, "unavailable");
   assert.match(report.agents[0].health.reason, /not yet implemented/);
 });

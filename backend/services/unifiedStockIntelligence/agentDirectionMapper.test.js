@@ -169,3 +169,16 @@ test("extractRisksAndOpportunities for macro combines risks+bearishFactors as ri
   const result = extractRisksAndOpportunities("macro", raw);
   assert.deepEqual(result, { risks: ["confidence is limited", "market stress is elevated"], opportunities: ["yield curve is normal"] });
 });
+
+test("toPolarity maps analyst-consensus's analystBias (BULLISH/BEARISH/other)", () => {
+  assert.equal(toPolarity("analyst-consensus", { analystBias: "BULLISH" }), "BULLISH");
+  assert.equal(toPolarity("analyst-consensus", { analystBias: "BEARISH" }), "BEARISH");
+  assert.equal(toPolarity("analyst-consensus", { analystBias: "NEUTRAL" }), "NEUTRAL");
+  assert.equal(toPolarity("analyst-consensus", { analystBias: "UNKNOWN" }), "NEUTRAL");
+});
+
+test("extractRisksAndOpportunities for analyst-consensus passes through its own real risks/opportunities arrays directly", () => {
+  const raw = { risks: ["price targets are unavailable"], opportunities: ["analyst consensus is bullish"] };
+  const result = extractRisksAndOpportunities("analyst-consensus", raw);
+  assert.deepEqual(result, { risks: ["price targets are unavailable"], opportunities: ["analyst consensus is bullish"] });
+});
