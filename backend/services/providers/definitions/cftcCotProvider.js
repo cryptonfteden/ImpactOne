@@ -4,8 +4,16 @@
 // data, honestly weekly (never mislabeled daily) — see
 // services/intelligence/cotIntelligenceService.js for the full
 // normalization this reuses rather than duplicates.
-const { createProvider } = require("../providerFactory");
+const { createUnifiedProvider } = require("../providerAbstraction");
 const cotIntelligenceService = require("../../intelligence/cotIntelligenceService");
+
+// Phase PROVIDER-ABSTRACTION-002 — migrated to `createUnifiedProvider`
+// (from `createProvider`). `fetchCotEvents` itself is completely
+// unchanged; this only adds a shared 10s timeout safety net and the
+// uniform getHealth()/getMetrics()/getDiagnostics()/getCacheStats()
+// accessors. Caching is NOT enabled here either — disclosed as a real,
+// deliberate choice pending a future phase's own decision, not an
+// oversight.
 
 // A small, real default watchlist of liquid futures markets — not
 // exhaustive, but each name is a genuine CFTC market_and_exchange_names
@@ -38,7 +46,7 @@ async function fetchCotEvents() {
     });
 }
 
-module.exports = createProvider(
+module.exports = createUnifiedProvider(
   {
     providerId: "cftcCot",
     label: "CFTC Commitments of Traders",

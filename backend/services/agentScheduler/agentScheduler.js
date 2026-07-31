@@ -309,4 +309,10 @@ function createAgentScheduler({
 // should construct their own via createAgentScheduler().
 const sharedScheduler = createAgentScheduler();
 
-module.exports = { createAgentScheduler, sharedScheduler };
+// Phase PROVIDER-ABSTRACTION-002 — `withTimeout` additively exported
+// (nothing removed or changed about it) so the new Provider
+// Abstraction layer's own shared timeout policy can reuse this exact,
+// already-tested implementation rather than re-implementing an
+// equivalent promise-timeout race — this module's own scheduling
+// mechanics are completely untouched.
+module.exports = { createAgentScheduler, sharedScheduler, withTimeout };
