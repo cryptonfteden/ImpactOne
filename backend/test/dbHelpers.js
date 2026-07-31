@@ -93,6 +93,17 @@ async function truncateAll() {
   await prisma.claimTransition.deleteMany();
   await prisma.claimOutcome.deleteMany();
   await prisma.claim.deleteMany();
+
+  // Phase COMMERCIAL-MVP-001 — Commercial Infrastructure. Usage/
+  // subscription/session rows before the User they reference (plain
+  // string reference columns, same convention as the rest of this
+  // file); Plan has no dependents cleaned here (Subscription only
+  // references it by planId, a loose string), so it can go in any order.
+  await prisma.usageCounter.deleteMany();
+  await prisma.subscription.deleteMany();
+  await prisma.session.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.plan.deleteMany();
 }
 
 module.exports = { truncateAll };

@@ -1567,3 +1567,108 @@ model ClaimOutcome {
   @@index([claimId])
   @@map("claim_outcomes")
 }
+
+// Phase COMMERCIAL-MVP-001 — Commercial Infrastructure. A real,
+// credentialed account — deliberately NOT built on top of `BetaUser`,
+// which was explicitly designed to be credential-less ("an invite code
+// is an identifier, not a secret," see betaUserRepository.js's own
+// header) and appropriate only for a small, trusted closed beta. `User`
+// coexists with `BetaUser` rather than replacing it: a real paying
+// customer is a `User`; the existing beta cohort's own invite-code flow
+// is completely untouched. `betaUserId` is a real, deliberate, loose
+// (non-FK) string link — same "no relation, honestly null forever for
+// anything that predates it" convention every other `betaUserId`
+// column in this schema already uses — for the case where a beta
+// participant later creates a real paying account.
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  betaUserId   String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([email])
+  @@map("users")
+}
+
+// A real, revocable server-side session record — issued alongside a
+// signed JWT access token (see authService.js) so login state can
+// actually be listed/revoked (real "session management," not merely a
+// stateless, unrevokable token). `tokenHash` stores a real SHA-256
+// hash of the issued token, never the raw token itself.
+model Session {
+  id         String    @id @default(uuid())
+  userId     String
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// The one, real, internal source of truth for what a plan actually
+// includes — deliberately NOT fetched from a billing vendor at
+// runtime, so entitlement/feature-gating logic never depends on
+// which payment provider is configured (mission: "Design the billing
+// layer so Stripe is only one provider implementation").
+// `features` is a real, disclosed JSON object of limits/capabilities,
+// e.g. `{ "maxAiAnalysesPerMonth": 5, "unifiedStockIntelligence": true }` —
+// a `null` numeric limit means genuinely unlimited, never inferred.
+model Plan {
+  id            String   @id @default(uuid())
+  key           String   @unique
+  name          String
+  priceCents    Int
+  billingPeriod String
+  features      Json
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("plans")
+}
+
+// A real user's real subscription state. `billingProvider` +
+// `externalSubscriptionId` are the ONE place a specific payment
+// vendor's own identifier is stored — every other commercial service
+// in this codebase (entitlementService, accountService, the upgrade
+// API) only ever reads `planId`/`status`, never `billingProvider`
+// directly, so swapping the configured vendor never touches anything
+// beyond `services/billing/`.
+model Subscription {
+  id                     String    @id @default(uuid())
+  userId                 String    @unique
+  planId                 String
+  status                 String
+  billingProvider        String
+  externalCustomerId     String?
+  externalSubscriptionId String?
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean   @default(false)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("subscriptions")
+}
+
+// Real, per-user, per-feature, per-period usage tracking — the durable
+// ground truth `entitlementService.checkUsageLimit()` reads/increments
+// to enforce "Usage limits" honestly (never a fabricated remaining
+// count). `periodStart` is the real, disclosed start of the current
+// counting window (see usageLimitService.js for the exact, disclosed
+// window-computation rule).
+model UsageCounter {
+  id          String   @id @default(uuid())
+  userId      String
+  featureKey  String
+  periodStart DateTime
+  count       Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, featureKey, periodStart])
+  @@index([userId])
+  @@map("usage_counters")
+}

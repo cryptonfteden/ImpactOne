@@ -48,4 +48,19 @@ module.exports = {
   // real-call-through whenever this is unset — see redisClient.js.
   REDIS_URL: process.env.REDIS_URL || "",
   REDIS_CACHE_DEFAULT_TTL_MS: Number(process.env.REDIS_CACHE_DEFAULT_TTL_MS) || 5 * 60 * 1000,
+  // Phase COMMERCIAL-MVP-001 — Commercial Infrastructure.
+  // JWT_SECRET signs real session access tokens (authService.js). A
+  // real deployment MUST override this — the fallback below is a
+  // disclosed, insecure dev/test-only default (documented as such),
+  // never silently used to protect real production credentials.
+  JWT_SECRET: process.env.JWT_SECRET || "dev-only-insecure-default-jwt-secret-do-not-use-in-production",
+  JWT_EXPIRES_IN_SECONDS: Number(process.env.JWT_EXPIRES_IN_SECONDS) || 60 * 60 * 24 * 7, // 7 real days
+  // Billing is provider-agnostic by design (services/billing/). This
+  // selects which real implementation billingService.js delegates to;
+  // "manual" (the honest, no-vendor default — every environment today)
+  // never calls out to any real payment network. Never hardcode a
+  // vendor elsewhere in the codebase — this is the one switch.
+  BILLING_PROVIDER: process.env.BILLING_PROVIDER || "manual",
+  STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || "",
+  STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || "",
 };

@@ -24,6 +24,9 @@ const autonomousRecommendationRoutes = require("./autonomousRecommendationRoutes
 const investorProfileRoutes = require("./investorProfileRoutes");
 const themeRoutes = require("./themeRoutes");
 const providerRoutes = require("./providerRoutes");
+const authRoutes = require("./authRoutes");
+const billingRoutes = require("./billingRoutes");
+const accountRoutes = require("./accountRoutes");
 const qualityDashboardRoutes = require("./qualityDashboardRoutes");
 const outcomeIntelligenceRoutes = require("./outcomeIntelligenceRoutes");
 const calibrationReportRoutes = require("./calibrationReportRoutes");
@@ -237,5 +240,16 @@ router.use("/v2/market-sentiment", marketSentimentRoutes);
 // Brief, backed entirely by the Attention Engine + existing Claim/
 // Portfolio services above. No new business logic in the route itself.
 router.use("/v2/morning-brief", morningBriefRoutes);
+
+// Phase COMMERCIAL-MVP-001 — Commercial Infrastructure. Real
+// registration/login/session management, vendor-agnostic billing, and
+// account management (upgrade/cancel). `/v2/account` requires a real,
+// verified session for every route (gated inside accountRoutes.js
+// itself); `/v2/auth` and `/v2/billing` are intentionally open (a
+// caller needs to register/login before it has a token, and a billing
+// webhook comes from the vendor, not a logged-in user).
+router.use("/v2/auth", authRoutes);
+router.use("/v2/billing", billingRoutes);
+router.use("/v2/account", accountRoutes);
 
 module.exports = router;
