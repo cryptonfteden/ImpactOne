@@ -27,6 +27,16 @@ import useParallax from "./useParallax";
 const PARALLAX_MAX_OFFSET = 0.6;
 const PARALLAX_EASE_RATE = 3;
 
+// Phase LIVING-WORLD-001 — "camera energy": the real, shared world-state
+// intensity (0..1, defaulting to a neutral 0.5 for any caller with no
+// live-data signal to give it, e.g. the 3D Workspace screen) scales how
+// pronounced the parallax nudge above feels — a busier real world reads
+// as a slightly more responsive, alive camera. Never affects the
+// scripted transition itself (still always lands exactly on the real
+// destination) — only the magnitude of the parallax layered on top.
+const MIN_ENERGY_SCALE = 0.5;
+const MAX_ENERGY_SCALE = 1.3;
+
 // Phase IMPACTONE-3D-WORKSPACE-001 — "the camera moves, the workspace
 // transforms" (mission's own words for navigation). Every real
 // transition eases smoothly from wherever the camera currently is to
@@ -34,7 +44,7 @@ const PARALLAX_EASE_RATE = 3;
 // reload feeling. Runs once per frame via useFrame, so it composes with
 // React state changes (clicking a module just updates the target prop;
 // this component does the actual animating).
-export default function CameraRig({ target }) {
+export default function CameraRig({ target, energy = 0.5 }) {
   const { camera } = useThree();
   const startPosition = useRef(new Vector3(...OVERVIEW_CAMERA.position));
   const startLookAt = useRef(new Vector3(...OVERVIEW_CAMERA.target));
@@ -77,8 +87,9 @@ export default function CameraRig({ target }) {
     currentParallax.current.x += (parallax.current.x - currentParallax.current.x) * t;
     currentParallax.current.y += (parallax.current.y - currentParallax.current.y) * t;
 
-    camera.position.x += currentParallax.current.x * PARALLAX_MAX_OFFSET;
-    camera.position.y += -currentParallax.current.y * PARALLAX_MAX_OFFSET * 0.6;
+    const energyScale = MIN_ENERGY_SCALE + Math.min(Math.max(energy, 0), 1) * (MAX_ENERGY_SCALE - MIN_ENERGY_SCALE);
+    camera.position.x += currentParallax.current.x * PARALLAX_MAX_OFFSET * energyScale;
+    camera.position.y += -currentParallax.current.y * PARALLAX_MAX_OFFSET * 0.6 * energyScale;
 
     camera.lookAt(currentLookAt.current);
   });

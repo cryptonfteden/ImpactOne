@@ -2,7 +2,7 @@ import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Line, Html } from "@react-three/drei";
 import { Vector3 } from "three";
-import { confidenceToIntensity, memberRole, recommendationActionColor, localRingPosition } from "./visualizationMappings";
+import { memberRole, recommendationActionColor, localRingPosition } from "./visualizationMappings";
 
 const CLUSTER_RADIUS = 1.4;
 const MAX_CLUSTER_ITEMS = 6;
@@ -112,11 +112,14 @@ export function AgentConstellation({ committee, anchorPosition }) {
 
 // Phase DATA-VISUALIZATION-001 — "Confidence halo": a real ring around
 // the Agent Consensus node whose scale/opacity is driven entirely by
-// the real cio.confidence category (see visualizationMappings.js) —
-// wider and brighter for a real, unanimous committee, thin and faint
-// for a real, low-signal one.
-export function ConfidenceHalo({ confidenceLabel, anchorPosition }) {
-  const intensity = confidenceToIntensity(confidenceLabel);
+// the real cio.confidence category — wider and brighter for a real,
+// unanimous committee, thin and faint for a real, low-signal one.
+//
+// Phase LIVING-WORLD-001 — takes the already-computed real
+// `confidenceIntensity` directly (from the shared worldState — see
+// worldState.js) rather than re-deriving it from a raw label a second
+// time; that one mapping now lives in exactly one place.
+export function ConfidenceHalo({ intensity, anchorPosition }) {
   return (
     <mesh position={anchorPosition} rotation={[-Math.PI / 2, 0, 0]}>
       <ringGeometry args={[1.6 + intensity * 0.4, 1.75 + intensity * 0.4, 32]} />

@@ -10,7 +10,7 @@ import WorldAtmosphere from "../workspace3d/WorldAtmosphere";
 import LightShaft from "../workspace3d/LightShaft";
 import { OVERVIEW_CAMERA } from "../workspace3d/orbitalConfig";
 import { FLAGSHIP_PANELS, flagshipPanelPosition, flagshipFocusedCamera } from "./panelConfig";
-import { NEUTRAL_AMBIENT_STATE } from "./ambientState";
+import { NEUTRAL_WORLD_STATE } from "./worldState";
 import ActivityWaves from "./ActivityWaves";
 import { CapitalFlowLines, CompanyClusters, AgentConstellation, ConfidenceHalo, ClaimNetwork, HistoricalTimeline, ImportancePulse } from "./DataVisualizationLayer";
 
@@ -66,10 +66,16 @@ function panelLineOpacity(status) {
 // its normal rate, a loading one is nearly still (nothing to report
 // yet), and an errored one pulses more noticeably — a real, legible
 // signal, not decoration.
-function panelPulseAmplitude(status) {
-  if (status === "live") return 0.08;
-  if (status === "error") return 0.14;
-  return 0.03;
+//
+// Phase LIVING-WORLD-001 — "orbital activity" (one of the mission's
+// named Drive targets) is now also scaled by the one shared
+// `worldIntensity` value: the same per-panel base above still applies
+// (a loading panel is always calmer than a live one, regardless of how
+// busy the world is), multiplied by how much real activity is
+// happening world-wide right now.
+function panelPulseAmplitude(status, worldIntensity) {
+  const base = status === "live" ? 0.08 : status === "error" ? 0.14 : 0.03;
+  return base * (0.6 + worldIntensity * 0.8);
 }
 
 // Phase FLAGSHIP-SCREEN-001 — the real <Canvas> for the flagship screen.
@@ -91,13 +97,11 @@ export default function FlagshipEarthScene({
   affectedHoldingsCount,
   holdingMagnitude = 0,
   recommendationCount = 0,
-  eventCount = 0,
   panelStatuses = {},
-  ambientState = NEUTRAL_AMBIENT_STATE,
+  worldState = NEUTRAL_WORLD_STATE,
   shockwaveTriggers = [],
   recommendations = [],
   committee = null,
-  cioConfidence = undefined,
   claims = [],
   breakingNewsItems = [],
 }) {
@@ -129,30 +133,37 @@ export default function FlagshipEarthScene({
       gl={{ antialias: true, powerPreference: "high-performance" }}
     >
       <Suspense fallback={null}>
-        {/* Phase IMMERSIVE-INTERACTIONS-001 — ambient/key light intensity
-            now scales with the real, live-data-derived activity level
-            (ambientState.intensity) — a quieter market genuinely reads
-            as a quieter scene, a busier one genuinely reads brighter. */}
-        <ambientLight intensity={0.25 + ambientState.intensity * 0.25} />
-        <directionalLight position={KEY_LIGHT_POSITION} intensity={1.2 + ambientState.intensity * 0.5} castShadow shadow-mapSize={[1024, 1024]} />
-        <pointLight position={[-8, -4, -6]} intensity={0.2 + ambientState.intensity * 0.3} color={ambientState.color} />
+        {/* Phase LIVING-WORLD-001 — every light/atmosphere/camera/particle
+            parameter below reads the one shared `worldState` object (see
+            worldState.js) — a single real computation, many real,
+            disclosed per-site mappings from it. No parameter here is
+            computed a second time anywhere else in the scene. */}
+        <ambientLight intensity={0.25 + worldState.intensity * 0.25} />
+        <directionalLight position={KEY_LIGHT_POSITION} intensity={1.2 + worldState.intensity * 0.5} castShadow shadow-mapSize={[1024, 1024]} />
+        <pointLight position={[-8, -4, -6]} intensity={0.2 + worldState.intensity * 0.3} color={worldState.color} />
         <Stars radius={90} depth={35} count={1500} factor={2} fade speed={0.4} />
-        <WorldAtmosphere color="#0b1230" intensity={ambientState.intensity} />
+        <WorldAtmosphere color="#0b1230" intensity={worldState.intensity} />
         <LightShaft from={KEY_LIGHT_POSITION} />
-        <Earth ambientColor={ambientState.color} ambientIntensity={0.18 + ambientState.intensity * 0.18} />
+        <Earth ambientColor={worldState.color} ambientIntensity={0.18 + worldState.intensity * 0.18} />
         {FLAGSHIP_PANELS.map((panel, index) => {
           const position = PANEL_POSITIONS[index];
           const status = panelStatuses[panel.key] || "loading";
           return (
             <group key={panel.key}>
-              <Line points={[[0, 0, 0], position]} color={panel.color} lineWidth={0.75} transparent opacity={panelLineOpacity(status)} />
+              <Line
+                points={[[0, 0, 0], position]}
+                color={panel.color}
+                lineWidth={0.75}
+                transparent
+                opacity={panelLineOpacity(status) * (0.7 + worldState.intensity * 0.6)}
+              />
               <OrbitalNode
                 module={panel}
                 position={position}
                 isFocused={focusedPanelKey === panel.key}
                 isDimmed={Boolean(focusedPanelKey) && focusedPanelKey !== panel.key}
                 onSelect={onSelectPanel}
-                pulseAmplitude={panelPulseAmplitude(status)}
+                pulseAmplitude={panelPulseAmplitude(status, worldState.intensity)}
               />
             </group>
           );
@@ -163,7 +174,7 @@ export default function FlagshipEarthScene({
             targetPosition={portfolioPosition}
             offset={index * 1.3}
             speed={holdingPulseSpeed}
-            color={ambientState.color}
+            color={worldState.color}
           />
         ))}
         {/* Phase CINEMATIC-EXPERIENCE-002 — "AI recommendation beam
@@ -180,8 +191,8 @@ export default function FlagshipEarthScene({
           />
         ))}
         <ActivityWaves
-          eventCount={eventCount}
-          sectorColor={ambientState.color}
+          eventCount={worldState.claimCount}
+          sectorColor={worldState.color}
           shockwaveTriggers={shockwaveTriggers}
           shockwaveColor="#ff5f8f"
         />
@@ -189,15 +200,20 @@ export default function FlagshipEarthScene({
             financial intelligence this screen already fetches, given a
             visual, spatial form. See DATA_VISUALIZATION.md for the full
             mapping from mission item to real data source. */}
-        <ImportancePulse intensity={ambientState.intensity} color={ambientState.color} />
+        <ImportancePulse intensity={worldState.intensity} color={worldState.color} />
         <CapitalFlowLines panelPositions={PANEL_POSITIONS} panelStatuses={panelStatuses} panelKeys={panelKeys} />
         <CompanyClusters recommendations={recommendations} anchorPosition={recommendationsPosition} />
         <AgentConstellation committee={committee} anchorPosition={agentConsensusPosition} />
-        <ConfidenceHalo confidenceLabel={cioConfidence} anchorPosition={agentConsensusPosition} />
+        <ConfidenceHalo intensity={worldState.confidenceIntensity} anchorPosition={agentConsensusPosition} />
         <ClaimNetwork claims={claims} anchorPosition={globalEventsPosition} />
         <HistoricalTimeline items={breakingNewsItems} anchorPosition={breakingNewsPosition} />
         {showMissionChain ? <MissionControlChain /> : null}
-        <CameraRig target={cameraTarget} />
+        {/* Phase LIVING-WORLD-001 — "camera energy": the same shared
+            worldState.intensity also scales how pronounced the camera's
+            pointer parallax feels (see CameraRig.js's new `energy` prop)
+            — a busier real world reads as a slightly more alive,
+            responsive camera, not just a brighter one. */}
+        <CameraRig target={cameraTarget} energy={worldState.intensity} />
       </Suspense>
     </Canvas>
   );

@@ -3,7 +3,7 @@ import FlagshipEarthScene from "./FlagshipEarthScene";
 import FlagshipPanelContent from "./FlagshipPanelContent";
 import useFlagshipData from "./useFlagshipData";
 import { FLAGSHIP_PANELS } from "./panelConfig";
-import { computeAmbientState } from "./ambientState";
+import { computeWorldState } from "./worldState";
 import useWatchlist from "../../hooks/useWatchlist";
 import "../workspace3d/workspace3d.css";
 import "./flagshipScreen.css";
@@ -47,7 +47,14 @@ export default function FlagshipScreen() {
     return portfolio?.hasComparison ? Math.min(Math.abs(portfolio.valueChangePct) / 5, 1) : 0;
   }, [panels.portfolioHealth]);
 
-  const ambientState = useMemo(() => computeAmbientState(panels), [panels]);
+  // Phase LIVING-WORLD-001 — the one, real, shared World State Engine
+  // every visual system in the scene now subscribes to (see
+  // worldState.js) — computed exactly once here, memoized on the same
+  // real `panels` data this whole screen already depends on, and passed
+  // down as a single object rather than the prior phase's separate
+  // ambientState/eventCount props (which read a strict subset of the
+  // same real signals this engine now reads in full).
+  const worldState = useMemo(() => computeWorldState(panels), [panels]);
 
   const panelStatuses = useMemo(
     () => Object.fromEntries(FLAGSHIP_PANELS.map((panel) => [panel.key, panels[panel.key]?.status || "loading"])),
@@ -55,7 +62,6 @@ export default function FlagshipScreen() {
   );
 
   const recommendationCount = panels.aiRecommendations?.data?.length || 0;
-  const eventCount = panels.globalEvents?.data?.length || 0;
 
   // Phase CINEMATIC-EXPERIENCE-002 — "breaking-news shockwave animation":
   // a real, one-shot trigger fired exactly when the real Breaking News
@@ -92,13 +98,11 @@ export default function FlagshipScreen() {
         affectedHoldingsCount={affectedHoldingsCount}
         holdingMagnitude={holdingMagnitude}
         recommendationCount={recommendationCount}
-        eventCount={eventCount}
         panelStatuses={panelStatuses}
-        ambientState={ambientState}
+        worldState={worldState}
         shockwaveTriggers={shockwaveTriggers}
         recommendations={panels.aiRecommendations?.data || []}
         committee={panels.agentConsensus?.data?.committee || null}
-        cioConfidence={panels.agentConsensus?.data?.cio?.confidence}
         claims={panels.globalEvents?.data || []}
         breakingNewsItems={panels.breakingNews?.data || []}
       />
