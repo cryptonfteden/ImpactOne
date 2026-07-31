@@ -20,9 +20,6 @@ async function analyze(req, res, next) {
       metrics: req.body?.metrics || null,
     };
 
-    console.log(`[ai-controller] request method=${req.method} symbol=${symbol}`);
-    console.log(`[ai-controller] request body=${JSON.stringify(req.body || {}).slice(0, 2000)}`);
-
     const eventHint = context.news?.[0]?.headline || `${symbol} earnings`;
     const [altDataSummary, analysis, marketImpact, intelligenceReport] = await Promise.all([
       getAltDataSummary({ symbol }).catch(() => null),
@@ -35,8 +32,6 @@ async function analyze(req, res, next) {
     // Replaces the retired investmentCommitteeService.js call — same gate
     // (never blocks the rest of the analysis on failure), new shape.
     const committeeResult = await intelligenceCommitteeService.convene(symbol).catch(() => null);
-    console.log(`[ai-controller] response analysis=${JSON.stringify(analysis).slice(0, 4000)}`);
-    console.log(`[ai-controller] response marketImpact=${JSON.stringify(marketImpact).slice(0, 4000)}`);
     res.json({
       symbol,
       analysis: {
