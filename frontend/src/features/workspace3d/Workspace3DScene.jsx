@@ -5,7 +5,11 @@ import Earth from "./Earth";
 import OrbitalNode from "./OrbitalNode";
 import CameraRig from "./CameraRig";
 import MissionControlChain from "./MissionControlChain";
+import WorldAtmosphere from "./WorldAtmosphere";
+import LightShaft from "./LightShaft";
 import { ORBITAL_MODULES, ORBIT_RADIUS, orbitalPosition, focusedCameraFor, OVERVIEW_CAMERA } from "./orbitalConfig";
+
+const KEY_LIGHT_POSITION = [8, 6, 4];
 
 // Phase IMPACTONE-3D-WORKSPACE-001 — the real <Canvas> scene: Earth,
 // the 7 orbital modules, dynamic lighting, and the camera rig that
@@ -51,12 +55,19 @@ export default function Workspace3DScene({ focusedModuleKey, onSelectModule, sho
             without it enabled on the renderer; shadow-mapSize kept
             modest (1024) since a soft, low-res shadow reads fine at
             this scene's scale and is materially cheaper than 2048+. */}
-        <directionalLight position={[8, 6, 4]} intensity={1.4} castShadow shadow-mapSize={[1024, 1024]} />
+        <directionalLight position={KEY_LIGHT_POSITION} intensity={1.4} castShadow shadow-mapSize={[1024, 1024]} />
         {/* A soft, cool fill light from the opposite side — real depth
             cue (the Earth's "dark side" is dim, not pitch black),
             cheap (one more point light, no shadow casting). */}
         <pointLight position={[-8, -4, -6]} intensity={0.3} color="#4f8cff" />
         <Stars radius={80} depth={30} count={1200} factor={2} fade speed={0.4} />
+        {/* Phase CINEMATIC-EXPERIENCE-002 — shared world atmosphere (fog +
+            space particles) and a cheap volumetric light-shaft
+            approximation; no per-screen live-data signal exists here (this
+            screen fetches no data of its own), so a fixed, neutral,
+            disclosed baseline intensity is used rather than fabricating one. */}
+        <WorldAtmosphere color="#0b1230" intensity={0.3} />
+        <LightShaft from={KEY_LIGHT_POSITION} />
         <Earth />
         {ORBITAL_MODULES.map((module, index) => (
           <OrbitalNode

@@ -3,6 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { Vector3 } from "three";
 import { OVERVIEW_CAMERA } from "./orbitalConfig";
 import { TRANSITION_DURATION_S, easeInOutCubic, cameraGoalKey } from "./cameraEasing";
+import useParallax from "./useParallax";
 
 // Phase FLAGSHIP-POLISH-001 — upgraded from a constant-rate exponential
 // lerp to a fixed-duration, eased tween (see cameraEasing.js). The old
@@ -13,6 +14,18 @@ import { TRANSITION_DURATION_S, easeInOutCubic, cameraGoalKey } from "./cameraEa
 // ease across a fixed real duration, land exactly on the goal — is the
 // standard technique behind a "cinematic" camera move and is what most
 // premium 3D products use.
+
+// Phase CINEMATIC-EXPERIENCE-002 — a real, subtle parallax offset is
+// now applied on top of the scripted transition (never instead of it):
+// the eased tween still always lands exactly on the real destination
+// (wayfinding stays deterministic — see SPATIAL_INTERACTION_GUIDE.md's
+// existing rationale for why camera transitions stay scripted, not
+// physical), but the pointer's real, current position nudges the
+// camera a few real units around that destination, smoothed rather than
+// snapping — "depth reacts naturally" to where the user is actually
+// looking.
+const PARALLAX_MAX_OFFSET = 0.6;
+const PARALLAX_EASE_RATE = 3;
 
 // Phase IMPACTONE-3D-WORKSPACE-001 — "the camera moves, the workspace
 // transforms" (mission's own words for navigation). Every real
@@ -30,6 +43,8 @@ export default function CameraRig({ target }) {
   const goalLookAt = useRef(new Vector3());
   const elapsed = useRef(0);
   const activeKey = useRef(null);
+  const parallax = useParallax();
+  const currentParallax = useRef({ x: 0, y: 0 });
 
   useFrame((_, delta) => {
     const goal = target || OVERVIEW_CAMERA;
@@ -54,6 +69,17 @@ export default function CameraRig({ target }) {
 
     camera.position.lerpVectors(startPosition.current, goalPosition.current, eased);
     currentLookAt.current.lerpVectors(startLookAt.current, goalLookAt.current, eased);
+
+    // Smoothed parallax — eases toward the real, current pointer
+    // position rather than tracking it 1:1, so it reads as depth, not
+    // jitter.
+    const t = 1 - Math.exp(-PARALLAX_EASE_RATE * delta);
+    currentParallax.current.x += (parallax.current.x - currentParallax.current.x) * t;
+    currentParallax.current.y += (parallax.current.y - currentParallax.current.y) * t;
+
+    camera.position.x += currentParallax.current.x * PARALLAX_MAX_OFFSET;
+    camera.position.y += -currentParallax.current.y * PARALLAX_MAX_OFFSET * 0.6;
+
     camera.lookAt(currentLookAt.current);
   });
 

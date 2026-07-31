@@ -34,6 +34,17 @@ const AXIAL_TILT_RAD = 0.41; // ~23.5°, Earth's own real axial tilt
 const DRAG_SENSITIVITY = 0.008;
 const MOMENTUM_DAMPING_PER_SECOND = 0.94; // fraction of angular velocity retained per ~frame at 60fps
 const AMBIENT_EASE_RATE = 2.5; // how quickly the atmosphere eases toward a new real target
+// Phase CINEMATIC-EXPERIENCE-002 — "dynamic reflections," faked cheaply:
+// a single low-intensity point light slowly orbits the Earth, its own
+// color tied to the same real ambientColor everything else in the scene
+// reads. As it orbits, the Earth's own `clearcoat` layer (added in
+// FLAGSHIP-POLISH-001) picks up a real, moving specular highlight — a
+// genuine, cheap, physically-real reflection response, without an
+// environment-map texture or a render-target-based reflection probe
+// (both real, meaningfully more expensive techniques this scene
+// deliberately still avoids — see WORLD_LIGHTING.md).
+const REFLECTION_ORBIT_RADIUS = EARTH_RADIUS * 2.2;
+const REFLECTION_ORBIT_PERIOD_S = 9;
 
 export default function Earth({ ambientColor = "#4f8cff", ambientIntensity = 0.3 }) {
   const earthRef = useRef(null);
@@ -48,6 +59,7 @@ export default function Earth({ ambientColor = "#4f8cff", ambientIntensity = 0.3
   const currentOpacity = useRef(ambientIntensity);
   const currentColor = useRef(new Color(ambientColor));
   const targetColor = useRef(new Color(ambientColor));
+  const reflectionLightRef = useRef(null);
 
   useEffect(() => {
     targetColor.current.set(ambientColor);
@@ -89,7 +101,7 @@ export default function Earth({ ambientColor = "#4f8cff", ambientIntensity = 0.3
     if (!isDragging.current) document.body.style.cursor = "auto";
   }
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     // Core rotation — this is the Earth's own established identity
     // motion ("the Earth is alive," per the original Flagship mission),
     // not decorative; kept as-is.
@@ -119,6 +131,15 @@ export default function Earth({ ambientColor = "#4f8cff", ambientIntensity = 0.3
       currentColor.current.lerp(targetColor.current, t);
       atmosphereMaterialRef.current.opacity = currentOpacity.current;
       atmosphereMaterialRef.current.color.copy(currentColor.current);
+    }
+
+    // Orbiting reflection light — real, continuous, purposeful motion
+    // (not idle decoration): it's what produces the moving specular
+    // highlight described above, every frame.
+    if (reflectionLightRef.current) {
+      const angle = (state.clock.elapsedTime / REFLECTION_ORBIT_PERIOD_S) * Math.PI * 2;
+      reflectionLightRef.current.position.set(Math.cos(angle) * REFLECTION_ORBIT_RADIUS, EARTH_RADIUS * 0.6, Math.sin(angle) * REFLECTION_ORBIT_RADIUS);
+      reflectionLightRef.current.color.copy(currentColor.current);
     }
   });
 
@@ -159,6 +180,10 @@ export default function Earth({ ambientColor = "#4f8cff", ambientIntensity = 0.3
           <sphereGeometry args={[EARTH_RADIUS * 1.05, 12, 12]} />
         </mesh>
       </group>
+      {/* The orbiting "dynamic reflection" light — see doc comment
+          above. Low intensity: a real, subtle highlight, not a second
+          key light. */}
+      <pointLight ref={reflectionLightRef} intensity={0.4} distance={REFLECTION_ORBIT_RADIUS * 1.5} color={ambientColor} />
       {/* Atmosphere glow — soft additive shell. Color/intensity are now
           entirely real-data-driven (see component doc comment above). */}
       <mesh>
