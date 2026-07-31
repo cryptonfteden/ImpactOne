@@ -129,6 +129,14 @@ export default function MainLayout() {
             );
           }
 
+          if (activeView === "3D Workspace") {
+            return (
+              <Suspense fallback={<div className="screen-page"><p className="company-description">Loading 3D workspace...</p></div>}>
+                <ActiveScreen />
+              </Suspense>
+            );
+          }
+
           return <ActiveScreen onNavigate={setActiveView} />;
         })()}
       </div>

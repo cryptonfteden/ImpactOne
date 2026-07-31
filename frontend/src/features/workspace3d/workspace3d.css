@@ -1,0 +1,171 @@
+/* Phase IMPACTONE-3D-WORKSPACE-001 — glassmorphism, floating depth, and
+   soft shadows are deliberately plain CSS here (not real-time-rendered
+   3D shadow maps), which is what keeps the scene itself cheap enough to
+   hold 60fps — see IMPACTONE_3D_ARCHITECTURE.md's Performance section. */
+
+.workspace3d-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 640px;
+  overflow: hidden;
+  background: radial-gradient(ellipse at center, #0b1230 0%, #05070f 100%);
+  border-radius: 12px;
+}
+
+.workspace3d-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+.workspace3d-node-label {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #eaf1ff;
+  background: rgba(20, 30, 60, 0.55);
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+  transform: translateY(28px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.workspace3d-node-label.is-focused {
+  background: rgba(79, 140, 255, 0.35);
+  box-shadow: 0 0 18px rgba(79, 140, 255, 0.55);
+}
+
+.workspace3d-node-label.is-dimmed {
+  opacity: 0.35;
+}
+
+.workspace3d-chain-label {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #eaf1ff;
+  background: rgba(20, 30, 60, 0.6);
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+  transform: translateY(22px);
+}
+
+.workspace3d-toolbar {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+}
+
+.workspace3d-toolbar__button {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(20, 30, 60, 0.45);
+  backdrop-filter: blur(10px);
+  color: #eaf1ff;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.workspace3d-toolbar__button:hover {
+  transform: translateY(-1px);
+}
+
+.workspace3d-toolbar__button.is-active {
+  background: rgba(79, 140, 255, 0.45);
+  box-shadow: 0 0 18px rgba(79, 140, 255, 0.4);
+}
+
+/* The floating glassmorphism panel every focused module's real screen
+   renders inside — soft depth via layered shadow, translucent
+   backdrop-blur "glass," and a subtle entrance motion. */
+.workspace3d-glass-panel {
+  position: absolute;
+  inset: 5% 5% 5% auto;
+  right: 5%;
+  width: min(560px, 44vw);
+  max-height: 90%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(16, 22, 44, 0.55);
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  overflow: hidden;
+  animation: workspace3d-panel-in 0.4s ease both;
+  z-index: 4;
+}
+
+@keyframes workspace3d-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace3d-glass-panel {
+    animation: none;
+  }
+}
+
+.workspace3d-glass-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.workspace3d-glass-panel__title {
+  color: #eaf1ff;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.workspace3d-glass-panel__close {
+  background: transparent;
+  border: none;
+  color: #eaf1ff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.workspace3d-glass-panel__close:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.workspace3d-glass-panel__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 18px 18px;
+}
+
+.workspace3d-glass-panel__loading {
+  color: #aebbe0;
+  padding: 24px;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .workspace3d-glass-panel {
+    inset: 4% 4% 4%;
+    width: auto;
+  }
+}

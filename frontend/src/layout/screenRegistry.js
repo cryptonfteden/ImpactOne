@@ -39,6 +39,12 @@ import {
 // circular import back into MainLayout.jsx itself.
 export const GlobalIntelligenceFeature = lazy(() => import("../features/intelligence/GlobalIntelligenceFeature"));
 
+// Phase IMPACTONE-3D-WORKSPACE-001 — lazy for the same reason as
+// GlobalIntelligenceFeature above: real, added bundle weight (three.js +
+// @react-three/fiber/drei) that every existing screen's users should
+// never have to download unless they actually open this one.
+export const Workspace3DFeature = lazy(() => import("../features/workspace3d/Workspace3DFeature"));
+
 // Sprint 40 — "Dashboard" removed from screenMap/nav: it duplicated
 // Home's morning-brief content almost entirely (see Sidebar.jsx's own
 // comment and SPRINT_40_REPORT.md's duplication findings). Home is now
@@ -46,6 +52,7 @@ export const GlobalIntelligenceFeature = lazy(() => import("../features/intellig
 // below.
 export const screenMap = {
   Home: HomeFeature,
+  "3D Workspace": Workspace3DFeature,
   "Mission Control": MissionControlHomeFeature,
   "Intelligence Workspace": IntelligenceWorkspaceFeature,
   "Portfolio Workspace": PortfolioWorkspaceFeature,

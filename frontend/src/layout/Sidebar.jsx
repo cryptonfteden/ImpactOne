@@ -23,6 +23,10 @@ import { Button } from "../components/ui";
 // Sprint 40's Dashboard removal.
 const PRIMARY_ITEMS = [
   { key: "Home", label: "Today" },
+  // Phase IMPACTONE-3D-WORKSPACE-001 — the immersive 3D command center;
+  // pinned in Primary since it's the mission's own flagship entry point,
+  // not a rarely-used tool.
+  { key: "3D Workspace", label: "3D Workspace" },
   { key: "Market Dashboard", label: "Market Dashboard" },
   { key: "Decision Center", label: "Decision Center" },
   { key: "Portfolio", label: "Portfolio" },
