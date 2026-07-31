@@ -96,6 +96,11 @@ export default function FlagshipScreen() {
         panelStatuses={panelStatuses}
         ambientState={ambientState}
         shockwaveTriggers={shockwaveTriggers}
+        recommendations={panels.aiRecommendations?.data || []}
+        committee={panels.agentConsensus?.data?.committee || null}
+        cioConfidence={panels.agentConsensus?.data?.cio?.confidence}
+        claims={panels.globalEvents?.data || []}
+        breakingNewsItems={panels.breakingNews?.data || []}
       />
       <div className="workspace3d-toolbar">
         <button

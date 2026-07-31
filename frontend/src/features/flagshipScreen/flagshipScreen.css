@@ -1,6 +1,19 @@
 /* Phase FLAGSHIP-SCREEN-001 — panel-content-specific styles; the glass
    panel shell/glassmorphism itself reuses workspace3d.css. */
 
+/* Phase DATA-VISUALIZATION-001 — small, real labels on the 3D company
+   cluster nodes (real active-recommendation symbols). */
+.dataviz-chip {
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #0b1230;
+  background: rgba(234, 241, 255, 0.85);
+  white-space: nowrap;
+  transform: translateY(14px);
+}
+
 .flagship-panel__empty {
   color: #aebbe0;
   padding: 12px 0;

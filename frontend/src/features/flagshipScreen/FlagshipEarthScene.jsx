@@ -12,6 +12,7 @@ import { OVERVIEW_CAMERA } from "../workspace3d/orbitalConfig";
 import { FLAGSHIP_PANELS, flagshipPanelPosition, flagshipFocusedCamera } from "./panelConfig";
 import { NEUTRAL_AMBIENT_STATE } from "./ambientState";
 import ActivityWaves from "./ActivityWaves";
+import { CapitalFlowLines, CompanyClusters, AgentConstellation, ConfidenceHalo, ClaimNetwork, HistoricalTimeline, ImportancePulse } from "./DataVisualizationLayer";
 
 const KEY_LIGHT_POSITION = [8, 6, 4];
 
@@ -94,6 +95,11 @@ export default function FlagshipEarthScene({
   panelStatuses = {},
   ambientState = NEUTRAL_AMBIENT_STATE,
   shockwaveTriggers = [],
+  recommendations = [],
+  committee = null,
+  cioConfidence = undefined,
+  claims = [],
+  breakingNewsItems = [],
 }) {
   const focusedIndex = FLAGSHIP_PANELS.findIndex((panel) => panel.key === focusedPanelKey);
   const cameraTarget = useMemo(
@@ -104,6 +110,10 @@ export default function FlagshipEarthScene({
   const portfolioPosition = PANEL_POSITIONS[portfolioPanelIndex];
   const recommendationsPanelIndex = FLAGSHIP_PANELS.findIndex((panel) => panel.key === "aiRecommendations");
   const recommendationsPosition = PANEL_POSITIONS[recommendationsPanelIndex];
+  const agentConsensusPosition = PANEL_POSITIONS[FLAGSHIP_PANELS.findIndex((panel) => panel.key === "agentConsensus")];
+  const globalEventsPosition = PANEL_POSITIONS[FLAGSHIP_PANELS.findIndex((panel) => panel.key === "globalEvents")];
+  const breakingNewsPosition = PANEL_POSITIONS[FLAGSHIP_PANELS.findIndex((panel) => panel.key === "breakingNews")];
+  const panelKeys = useMemo(() => FLAGSHIP_PANELS.map((panel) => panel.key), []);
   // Real pulse speed: scales with the real magnitude of the portfolio
   // move driving these connections (clamped to a sane, still-legible
   // animation rate — never so fast it reads as noise).
@@ -175,6 +185,17 @@ export default function FlagshipEarthScene({
           shockwaveTriggers={shockwaveTriggers}
           shockwaveColor="#ff5f8f"
         />
+        {/* Phase DATA-VISUALIZATION-001 — every important piece of real
+            financial intelligence this screen already fetches, given a
+            visual, spatial form. See DATA_VISUALIZATION.md for the full
+            mapping from mission item to real data source. */}
+        <ImportancePulse intensity={ambientState.intensity} color={ambientState.color} />
+        <CapitalFlowLines panelPositions={PANEL_POSITIONS} panelStatuses={panelStatuses} panelKeys={panelKeys} />
+        <CompanyClusters recommendations={recommendations} anchorPosition={recommendationsPosition} />
+        <AgentConstellation committee={committee} anchorPosition={agentConsensusPosition} />
+        <ConfidenceHalo confidenceLabel={cioConfidence} anchorPosition={agentConsensusPosition} />
+        <ClaimNetwork claims={claims} anchorPosition={globalEventsPosition} />
+        <HistoricalTimeline items={breakingNewsItems} anchorPosition={breakingNewsPosition} />
         {showMissionChain ? <MissionControlChain /> : null}
         <CameraRig target={cameraTarget} />
       </Suspense>
