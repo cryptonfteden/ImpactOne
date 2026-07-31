@@ -26,7 +26,8 @@
     "express": "^4.21.0",
     "node-cron": "^4.6.0",
     "pg": "^8.22.0",
-    "react-router-dom": "^7.18.1"
+    "react-router-dom": "^7.18.1",
+    "redis": "^6.1.0"
   },
   "devDependencies": {
     "concurrently": "^9.0.1",

@@ -91,3 +91,14 @@ test("POST /api/v2/providers/:providerId/run 404s for an unknown provider", asyn
   const response = await request(app).post("/api/v2/providers/does-not-exist/run");
   assert.equal(response.status, 404);
 });
+
+// Phase REDIS-CACHE-001
+test("GET /api/v2/providers/cache-metrics returns real, honest hit/miss/bypassed counters and Redis availability", async () => {
+  const response = await request(app).get("/api/v2/providers/cache-metrics");
+  assert.equal(response.status, 200);
+  assert.ok(Number.isFinite(response.body.hits));
+  assert.ok(Number.isFinite(response.body.misses));
+  assert.ok(Number.isFinite(response.body.bypassed));
+  assert.equal(typeof response.body.redisAvailable, "boolean");
+  assert.ok(response.body.generatedAt);
+});

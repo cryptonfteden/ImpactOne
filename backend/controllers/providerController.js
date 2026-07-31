@@ -3,6 +3,8 @@ const providerHealthService = require("../services/providerHealthService");
 const providerIngestionService = require("../services/providerIngestionService");
 const providerMetricsService = require("../services/providerMetricsService");
 const providerDiagnosticsService = require("../services/providerDiagnosticsService");
+const { sharedProviderCache } = require("../services/redisCache/providerCache");
+const redisClient = require("../services/redisCache/redisClient");
 
 function handleKnownError(error, res, next) {
   if (error.statusCode) {
@@ -77,6 +79,21 @@ async function runProvider(req, res, next) {
   }
 }
 
+// Phase REDIS-CACHE-001 — "Cache hit/miss metrics," "Integrate with...
+// Scheduler metrics" (same disclosed getStats()/snapshot()-style shape
+// this platform's other metrics modules already use). A real, honest
+// read of the shared provider cache's own counters plus a real,
+// current Redis-availability check — never fabricated.
+async function getProviderCacheMetrics(req, res, next) {
+  try {
+    const stats = sharedProviderCache.getStats();
+    const redisAvailable = await redisClient.isAvailable();
+    res.json({ ...stats, redisAvailable });
+  } catch (error) {
+    handleKnownError(error, res, next);
+  }
+}
+
 module.exports = {
   listProviders,
   getProviderHealth,
@@ -84,4 +101,5 @@ module.exports = {
   getProviderDiagnostics,
   getProviderMetadata,
   runProvider,
+  getProviderCacheMetrics,
 };

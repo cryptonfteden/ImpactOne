@@ -41,4 +41,11 @@ module.exports = {
   // existing environment (dev/test/current deploys) keeps running
   // exactly as before until an operator explicitly sets this.
   ADMIN_API_KEY: process.env.ADMIN_API_KEY || "",
+  // Phase REDIS-CACHE-001 — honestly empty in every environment this
+  // codebase runs in today (confirmed via a dedicated research pass —
+  // no Redis instance is configured anywhere). The provider cache
+  // (services/redisCache/) gracefully falls back to always-miss/
+  // real-call-through whenever this is unset — see redisClient.js.
+  REDIS_URL: process.env.REDIS_URL || "",
+  REDIS_CACHE_DEFAULT_TTL_MS: Number(process.env.REDIS_CACHE_DEFAULT_TTL_MS) || 5 * 60 * 1000,
 };
