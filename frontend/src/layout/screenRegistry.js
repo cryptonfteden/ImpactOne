@@ -45,6 +45,11 @@ export const GlobalIntelligenceFeature = lazy(() => import("../features/intellig
 // never have to download unless they actually open this one.
 export const Workspace3DFeature = lazy(() => import("../features/workspace3d/Workspace3DFeature"));
 
+// Phase FLAGSHIP-SCREEN-001 — the single flagship screen; lazy for the
+// same real reason as the two screens above (three.js/@react-three
+// bundle weight no other screen's users should have to download).
+export const FlagshipScreenFeature = lazy(() => import("../features/flagshipScreen/FlagshipScreen"));
+
 // Sprint 40 — "Dashboard" removed from screenMap/nav: it duplicated
 // Home's morning-brief content almost entirely (see Sidebar.jsx's own
 // comment and SPRINT_40_REPORT.md's duplication findings). Home is now
@@ -52,6 +57,7 @@ export const Workspace3DFeature = lazy(() => import("../features/workspace3d/Wor
 // below.
 export const screenMap = {
   Home: HomeFeature,
+  Flagship: FlagshipScreenFeature,
   "3D Workspace": Workspace3DFeature,
   "Mission Control": MissionControlHomeFeature,
   "Intelligence Workspace": IntelligenceWorkspaceFeature,

@@ -23,6 +23,11 @@ import { Button } from "../components/ui";
 // Sprint 40's Dashboard removal.
 const PRIMARY_ITEMS = [
   { key: "Home", label: "Today" },
+  // Phase FLAGSHIP-SCREEN-001 — the single flagship screen: everything
+  // that matters, on one cinematic, Earth-centered screen. Pinned first
+  // among the immersive entries per the mission's own framing as "the
+  // foundation of every future screen."
+  { key: "Flagship", label: "Flagship" },
   // Phase IMPACTONE-3D-WORKSPACE-001 — the immersive 3D command center;
   // pinned in Primary since it's the mission's own flagship entry point,
   // not a rarely-used tool.

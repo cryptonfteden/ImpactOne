@@ -129,9 +129,9 @@ export default function MainLayout() {
             );
           }
 
-          if (activeView === "3D Workspace") {
+          if (activeView === "3D Workspace" || activeView === "Flagship") {
             return (
-              <Suspense fallback={<div className="screen-page"><p className="company-description">Loading 3D workspace...</p></div>}>
+              <Suspense fallback={<div className="screen-page"><p className="company-description">Loading...</p></div>}>
                 <ActiveScreen />
               </Suspense>
             );
