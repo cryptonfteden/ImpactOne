@@ -28,8 +28,18 @@
   background: rgba(20, 30, 60, 0.55);
   backdrop-filter: blur(6px);
   white-space: nowrap;
-  transform: translateY(28px);
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transform: translateY(28px) scale(1);
+  transition: opacity 0.25s ease, transform 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+  border: 1px solid transparent;
+}
+
+/* Phase FLAGSHIP-POLISH-001 — a real, distinct hover state: a subtle
+   lift and a faint border, separate from the stronger focused/selected
+   treatment below, so "I'm about to click this" and "this is currently
+   open" never look identical. */
+.workspace3d-node-label.is-hovered {
+  transform: translateY(24px) scale(1.05);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 .workspace3d-node-label.is-focused {
@@ -77,11 +87,23 @@
 
 .workspace3d-toolbar__button:hover {
   transform: translateY(-1px);
+  background: rgba(30, 42, 80, 0.55);
 }
 
 .workspace3d-toolbar__button.is-active {
   background: rgba(79, 140, 255, 0.45);
   box-shadow: 0 0 18px rgba(79, 140, 255, 0.4);
+}
+
+/* Phase FLAGSHIP-POLISH-001 — a real, visible keyboard-focus ring on
+   every interactive control in this scene (buttons render over a
+   WebGL canvas, so the browser's own default focus outline is easy to
+   lose against it — this makes it deliberate and premium instead of
+   accidentally invisible). */
+.workspace3d-toolbar__button:focus-visible,
+.workspace3d-glass-panel__close:focus-visible {
+  outline: 2px solid #4f8cff;
+  outline-offset: 2px;
 }
 
 /* The floating glassmorphism panel every focused module's real screen
@@ -98,11 +120,29 @@
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: rgba(16, 22, 44, 0.55);
-  backdrop-filter: blur(18px) saturate(140%);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  backdrop-filter: blur(20px) saturate(150%);
+  /* Phase FLAGSHIP-POLISH-001 — layered depth: a soft, wide ambient
+     shadow (the panel "floating" above the scene) plus a tight contact
+     shadow right at its own edge (grounds it, rather than looking like
+     it's hovering with no relationship to what's behind it), a subtle
+     inset highlight for glass thickness, and a faint top-edge "glass
+     reflection" line (the linear-gradient border-image below). */
+  box-shadow:
+    0 32px 70px rgba(0, 0, 0, 0.5),
+    0 6px 16px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 1px 0 rgba(255, 255, 255, 0.12) inset;
   overflow: hidden;
-  animation: workspace3d-panel-in 0.4s ease both;
+  animation: workspace3d-panel-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
   z-index: 4;
+}
+
+.workspace3d-glass-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 18%);
 }
 
 @keyframes workspace3d-panel-in {

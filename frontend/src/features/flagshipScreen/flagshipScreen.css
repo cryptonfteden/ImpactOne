@@ -6,6 +6,98 @@
   padding: 12px 0;
 }
 
+/* Phase FLAGSHIP-POLISH-001 — real, distinct empty vs. error visuals
+   (previously identical plain text for both). */
+.flagship-panel__state {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.flagship-panel__state p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.flagship-panel__state-icon {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.flagship-panel__state--empty p {
+  color: #aebbe0;
+}
+
+.flagship-panel__state--empty .flagship-panel__state-icon {
+  background: rgba(159, 176, 221, 0.12);
+  color: #9fb0dd;
+}
+
+.flagship-panel__state--error p {
+  color: #ffb3b3;
+}
+
+.flagship-panel__state--error .flagship-panel__state-icon {
+  background: rgba(255, 95, 95, 0.15);
+  color: #ff5f5f;
+}
+
+/* Phase FLAGSHIP-POLISH-001 — real animated shimmer skeleton, in place
+   of a static "Loading..." string, for better perceived performance. */
+.flagship-panel__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.flagship-skeleton-bar {
+  height: 14px;
+  border-radius: 6px;
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.06) 25%,
+    rgba(255, 255, 255, 0.14) 37%,
+    rgba(255, 255, 255, 0.06) 63%
+  );
+  background-size: 400% 100%;
+  animation: flagship-shimmer 1.4s ease infinite;
+}
+
+.flagship-skeleton-bar--wide {
+  width: 90%;
+  height: 18px;
+}
+
+.flagship-skeleton-bar--short {
+  width: 55%;
+}
+
+@keyframes flagship-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flagship-skeleton-bar {
+    animation: none;
+  }
+}
+
 .flagship-panel__content h3 {
   margin: 0 0 6px;
   color: #eaf1ff;

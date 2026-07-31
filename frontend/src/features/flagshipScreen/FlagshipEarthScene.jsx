@@ -43,27 +43,36 @@ function HoldingConnection({ targetPosition, offset }) {
 // to every one of the 10 real panels (mission: "every panel connects
 // visually to the Earth"), and real, animated Earth-to-holding
 // connections when the real portfolio data names affected holdings.
+// Phase FLAGSHIP-POLISH-001 — computed once, module-level: stable array
+// references so each memoized OrbitalNode can actually skip re-rendering
+// when unrelated screen state (e.g. panel data refreshing) changes.
+const PANEL_POSITIONS = FLAGSHIP_PANELS.map((_, index) => flagshipPanelPosition(index));
+
 export default function FlagshipEarthScene({ focusedPanelKey, onSelectPanel, showMissionChain, affectedHoldingsCount }) {
   const focusedIndex = FLAGSHIP_PANELS.findIndex((panel) => panel.key === focusedPanelKey);
-  const cameraTarget = focusedIndex >= 0 ? flagshipFocusedCamera(focusedIndex) : OVERVIEW_CAMERA;
+  const cameraTarget = useMemo(
+    () => (focusedIndex >= 0 ? flagshipFocusedCamera(focusedIndex) : OVERVIEW_CAMERA),
+    [focusedIndex]
+  );
   const portfolioPanelIndex = FLAGSHIP_PANELS.findIndex((panel) => panel.key === "portfolioHealth");
-  const portfolioPosition = flagshipPanelPosition(portfolioPanelIndex);
+  const portfolioPosition = PANEL_POSITIONS[portfolioPanelIndex];
 
   return (
     <Canvas
       className="flagship-canvas"
       dpr={[1, 2]}
+      shadows="soft"
       camera={{ position: OVERVIEW_CAMERA.position, fov: 50 }}
       gl={{ antialias: true, powerPreference: "high-performance" }}
     >
       <Suspense fallback={null}>
         <ambientLight intensity={0.35} />
-        <directionalLight position={[8, 6, 4]} intensity={1.4} castShadow />
+        <directionalLight position={[8, 6, 4]} intensity={1.4} castShadow shadow-mapSize={[1024, 1024]} />
         <pointLight position={[-8, -4, -6]} intensity={0.3} color="#4f8cff" />
         <Stars radius={90} depth={35} count={1500} factor={2} fade speed={0.4} />
         <Earth />
         {FLAGSHIP_PANELS.map((panel, index) => {
-          const position = flagshipPanelPosition(index);
+          const position = PANEL_POSITIONS[index];
           return (
             <group key={panel.key}>
               <Line points={[[0, 0, 0], position]} color={panel.color} lineWidth={0.75} transparent opacity={0.22} />

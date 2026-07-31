@@ -6,7 +6,41 @@
 // logic, no fabricated fields, an honest empty state whenever a real
 // list is genuinely empty.
 function Empty({ label }) {
-  return <p className="flagship-panel__empty">{label}</p>;
+  return (
+    <div className="flagship-panel__state flagship-panel__state--empty">
+      <span className="flagship-panel__state-icon" aria-hidden="true">◇</span>
+      <p>{label}</p>
+    </div>
+  );
+}
+
+// Phase FLAGSHIP-POLISH-001 — a real, visually distinct error state.
+// Previously a real fetch failure and a real, honestly-empty result
+// rendered identically (both just "no data" text) — that's a real
+// regression in information hierarchy: "this failed to load" and
+// "there is genuinely nothing here right now" are different facts a
+// user should be able to tell apart at a glance.
+function ErrorState({ label }) {
+  return (
+    <div className="flagship-panel__state flagship-panel__state--error">
+      <span className="flagship-panel__state-icon" aria-hidden="true">!</span>
+      <p>{label}</p>
+    </div>
+  );
+}
+
+// Phase FLAGSHIP-POLISH-001 — a real animated shimmer skeleton in place
+// of the previous plain "Loading..." text, for better perceived
+// performance (the panel's eventual real shape is already implied while
+// data is in flight, rather than a blank moment of plain text).
+function PanelSkeleton() {
+  return (
+    <div className="flagship-panel__skeleton" aria-busy="true" aria-label="Loading">
+      <div className="flagship-skeleton-bar flagship-skeleton-bar--wide" />
+      <div className="flagship-skeleton-bar" />
+      <div className="flagship-skeleton-bar flagship-skeleton-bar--short" />
+    </div>
+  );
 }
 
 function AiMarketSummaryPanel({ data }) {
@@ -154,6 +188,9 @@ const PANEL_RENDERERS = {
 export default function FlagshipPanelContent({ panelKey, panelState }) {
   const Renderer = PANEL_RENDERERS[panelKey];
   if (!Renderer) return null;
-  if (panelState.status === "loading") return <p className="flagship-panel__empty">Loading...</p>;
+  if (panelState.status === "loading") return <PanelSkeleton />;
+  if (panelState.status === "error") {
+    return <ErrorState label="This panel couldn't load real data just now — try again shortly." />;
+  }
   return <Renderer data={panelState.data} />;
 }
