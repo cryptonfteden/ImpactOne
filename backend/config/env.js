@@ -36,4 +36,9 @@ module.exports = {
   DATABASE_URL_TEST: process.env.DATABASE_URL_TEST || "",
   AUTONOMOUS_ENGINE_ENABLED: process.env.AUTONOMOUS_ENGINE_ENABLED !== "false",
   AUTONOMOUS_ENGINE_INTERVAL_MINUTES: Number(process.env.AUTONOMOUS_ENGINE_INTERVAL_MINUTES) || 30,
+  // Phase PLATFORM-HARDENING-002 — real, opt-in admin-route protection
+  // (middleware/requireApiKey.js). Honestly empty by default — every
+  // existing environment (dev/test/current deploys) keeps running
+  // exactly as before until an operator explicitly sets this.
+  ADMIN_API_KEY: process.env.ADMIN_API_KEY || "",
 };

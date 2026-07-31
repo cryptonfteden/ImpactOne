@@ -1,0 +1,60 @@
+name: CI
+
+# Phase PLATFORM-HARDENING-002 — closes FINAL_PRODUCTION_READINESS.md's
+# named Operational blocker: "no CI/CD pipeline of any kind." Runs the
+# same commands a developer already runs locally (root package.json's
+# own test:backend/test:frontend/build scripts) — no new test/build
+# logic is introduced, this only automates what already exists.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: impactone_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/impactone_test?schema=public
+      DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/impactone_test?schema=public
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm install
+      - run: npm run db:generate
+      - run: npm run db:deploy:test
+      - run: npm run test:backend
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm install
+        working-directory: frontend
+      - run: npm run test
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend

@@ -1,4 +1,5 @@
 const express = require("express");
+const { requireApiKey } = require("../middleware/requireApiKey");
 const { getNewsController } = require("../controllers/newsController");
 const { getWatchlist } = require("../controllers/watchlistController");
 const { getMarket } = require("../controllers/marketController");
@@ -175,9 +176,12 @@ router.use("/v2/executive-dashboard", executiveDashboardRoutes);
 router.use("/v2/feedback", feedbackRoutes);
 router.use("/v2/error-reports", errorReportRoutes);
 router.use("/v2/feature-flags", featureFlagRoutes);
-// Internal only — same no-auth-gate precedent as system-health/quality-
-// dashboard; visibility controlled on the frontend (dev-console gate).
-router.use("/v2/admin-dashboard", adminDashboardRoutes);
+// Phase PLATFORM-HARDENING-002 — this route previously had no backend-
+// side protection at all (visibility was frontend-only). `requireApiKey`
+// gates it for real once an operator sets ADMIN_API_KEY; until then it
+// behaves exactly as before (see middleware/requireApiKey.js's own
+// backward-compatibility guarantee).
+router.use("/v2/admin-dashboard", requireApiKey, adminDashboardRoutes);
 router.use("/v2/beta-metrics", betaMetricsRoutes);
 router.use("/v2/performance-metrics", performanceMetricsRoutes);
 // Phase X10 — Part 1, User Learning Engine (evolving per-user interaction
