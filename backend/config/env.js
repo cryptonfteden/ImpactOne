@@ -63,4 +63,16 @@ module.exports = {
   BILLING_PROVIDER: process.env.BILLING_PROVIDER || "manual",
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || "",
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || "",
+  // Phase PRODUCTION-DEPLOYMENT-001 — honestly empty by default, which
+  // preserves every existing environment's current `cors()` allow-all
+  // behavior (see app.js). A comma-separated list of real origins locks
+  // this down for a real production deployment without changing
+  // anything for local dev/test.
+  CORS_ALLOWED_ORIGINS: (process.env.CORS_ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+  // Phase PRODUCTION-DEPLOYMENT-001 — how long graceful shutdown waits
+  // for in-flight requests to finish before forcing an exit.
+  SHUTDOWN_TIMEOUT_MS: Number(process.env.SHUTDOWN_TIMEOUT_MS) || 10000,
 };

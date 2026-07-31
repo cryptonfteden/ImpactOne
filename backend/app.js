@@ -1,14 +1,23 @@
 const express = require("express");
 const cors = require("cors");
 const routes = require("./routes");
+const healthRoutes = require("./routes/healthRoutes");
 const { errorHandler } = require("./middleware/errorHandler");
 const { betaUserContext } = require("./middleware/betaUserContext");
 const { apiLatencyMiddleware } = require("./services/performanceMetricsService");
 const { securityHeaders } = require("./middleware/securityHeaders");
 const { requestLogger } = require("./middleware/requestLogger");
 const { createRateLimiter } = require("./middleware/rateLimiter");
+const { CORS_ALLOWED_ORIGINS } = require("./config/env");
 
 const app = express();
+
+// Phase PRODUCTION-DEPLOYMENT-001 — CORS_ALLOWED_ORIGINS is honestly
+// empty by default (matches every existing dev/test environment's
+// current allow-all behavior — `cors()` with no options). Setting it to
+// a comma-separated origin list in a real production deployment locks
+// this down without changing behavior anywhere it isn't set.
+const corsOptions = CORS_ALLOWED_ORIGINS.length > 0 ? { origin: CORS_ALLOWED_ORIGINS } : undefined;
 
 // Phase PLATFORM-HARDENING-002 — closes FINAL_PRODUCTION_READINESS.md's
 // named Security/Operational blockers (security headers, rate
@@ -18,7 +27,7 @@ const app = express();
 app.use(securityHeaders);
 app.use(requestLogger);
 app.use(createRateLimiter());
-app.use(cors());
+app.use(cors(corsOptions));
 // Phase PLATFORM-HARDENING-002 — a real, disclosed request-body size
 // cap (input hardening); every existing real payload in this codebase
 // (agent evidence arrays, claim payloads, recommendation reasoning
@@ -33,6 +42,7 @@ app.use(betaUserContext);
 app.use(apiLatencyMiddleware);
 app.use("/api", routes);
 app.get("/health", (req, res) => res.json({ status: "ok" }));
+app.use("/health", healthRoutes);
 app.use(errorHandler);
 
 module.exports = app;
