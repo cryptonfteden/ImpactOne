@@ -65,6 +65,19 @@ const historyDb = [
   },
 ];
 
+// Phase AI-TRUST-001 — Daily Feed trust fix. The prior fallback returned a
+// flat 42 for ANY event that didn't hit one of the specific keyword rules
+// below. Since most real event headlines (e.g. "AAPL earnings", "Earnings
+// calendar concentration") don't contain any of these keywords, EVERY such
+// event scored exactly 42 against EVERY historical record, making "Covid"
+// (first in historyDb, so first after a stable sort on a tie) the top
+// match for all of them — producing byte-identical "most comparable to
+// 'Covid' (42% historical similarity)" text for genuinely unrelated events.
+// Returning 0 here (never fabricating a specific, sourced-sounding
+// percentage for a real keyword match that didn't happen) and filtering
+// zero-score entries out in getHistoricalMatches lets callers (buildWhy in
+// impactIntelligenceService.js, which already checks `topAnalog?.event`)
+// honestly omit the historical-analogy clause instead of fabricating one.
 function similarityScore(event, record) {
   const text = String(event || "").toLowerCase();
   if (text.includes(record.key)) {
@@ -78,9 +91,15 @@ function similarityScore(event, record) {
   if (record.key === "bank" && text.includes("liquidity")) return 76;
   if (record.key === "tariff" && text.includes("trade")) return 78;
   if (record.key === "covid" && text.includes("pandemic")) return 83;
-  return 42;
+  return 0;
 }
 
+/**
+ * Returns up to 3 real, keyword-matched historical analogs, sorted by
+ * similarity, HIGHEST FIRST — never a fabricated match. An event that
+ * doesn't hit any specific keyword rule above honestly returns an empty
+ * array rather than a flat, non-differentiated default.
+ */
 function getHistoricalMatches(event) {
   return historyDb
     .map((item) => ({
@@ -91,6 +110,7 @@ function getHistoricalMatches(event) {
       losingSectors: item.losingSectors,
       recoveryTimeMonths: item.recoveryTimeMonths,
     }))
+    .filter((item) => item.similarity > 0)
     .sort((a, b) => b.similarity - a.similarity)
     .slice(0, 3);
 }

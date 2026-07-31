@@ -29,3 +29,21 @@ test("explainability.why cites this event's own affected sectors, not a generic 
   const result = await impactIntelligenceService.analyzeIntelligence({ event: "Oil supply disruption", symbol: "XOM" });
   assert.match(result.explainability.why, /Energy|Airlines|Shipping|Consumer/, "oil events should reference oil-differentiated sectors in the why text");
 });
+
+test("AI-TRUST-001 — two genuinely unrelated events with no historical/theme keyword match no longer produce a fabricated shared 'Covid'/'Macro shock' explanation", async () => {
+  const aapl = await impactIntelligenceService.analyzeIntelligence({ event: "AAPL earnings", symbol: "AAPL" });
+  const concentration = await impactIntelligenceService.analyzeIntelligence({ event: "Earnings calendar concentration", symbol: "AAPL" });
+
+  assert.doesNotMatch(aapl.explainability.why, /most comparable to "Covid"/, "must never fabricate a Covid comparison when no real keyword match exists");
+  assert.doesNotMatch(concentration.explainability.why, /most comparable to "Covid"/, "must never fabricate a Covid comparison when no real keyword match exists");
+  assert.doesNotMatch(aapl.explainability.why, /propagating from Macro shock/, "must never fabricate a generic Macro shock propagation chain");
+  assert.doesNotMatch(concentration.explainability.why, /propagating from Macro shock/, "must never fabricate a generic Macro shock propagation chain");
+  assert.notEqual(aapl.explainability.why, concentration.explainability.why, "two different event names must still produce two different sentences");
+  assert.deepEqual(aapl.historicalSimilarity, [], "no genuine historical analog should be fabricated for this event");
+});
+
+test("AI-TRUST-001 — a genuine keyword match (Fed rate policy) still produces a real, sourced historical comparison", async () => {
+  const result = await impactIntelligenceService.analyzeIntelligence({ event: "Fed rate hike", symbol: "JPM" });
+  assert.match(result.explainability.why, /most comparable to "Rate Hikes"/, "a genuine Fed/rate keyword match should still cite its real historical analog");
+  assert.ok(result.historicalSimilarity[0].similarity > 0);
+});

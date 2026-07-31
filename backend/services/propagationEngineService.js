@@ -1,3 +1,15 @@
+// Phase AI-TRUST-001 — Daily Feed trust fix. The prior fallback returned
+// the SAME generic ["Macro shock" -> "Risk assets" -> "mixed"] path for
+// ANY event that didn't hit one of the 3 specific theme keywords below —
+// meaning two genuinely unrelated events (e.g. "AAPL earnings" and
+// "Earnings calendar concentration", neither containing "oil"/"fed"/
+// "rate"/"ai"/"nvidia") produced the identical "propagating from Macro
+// shock to Risk assets (mixed)" clause in the Daily Feed's explanation
+// text. Returning an empty array here (never fabricating a specific-
+// sounding propagation chain for a theme match that didn't happen) lets
+// callers (buildWhy in impactIntelligenceService.js, which already
+// checks `propagation?.[0]`) honestly omit the propagation clause
+// instead of fabricating one.
 function propagateByTheme(event = "") {
   const text = String(event || "").toLowerCase();
 
@@ -30,10 +42,7 @@ function propagateByTheme(event = "") {
     ];
   }
 
-  return [
-    { from: "Macro shock", to: "Risk assets", effect: "mixed" },
-    { from: "Risk assets", to: "Sector dispersion", effect: "up" },
-  ];
+  return [];
 }
 
 module.exports = { propagateByTheme };
