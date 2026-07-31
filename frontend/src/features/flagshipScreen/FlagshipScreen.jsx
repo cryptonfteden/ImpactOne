@@ -3,6 +3,7 @@ import FlagshipEarthScene from "./FlagshipEarthScene";
 import FlagshipPanelContent from "./FlagshipPanelContent";
 import useFlagshipData from "./useFlagshipData";
 import { FLAGSHIP_PANELS } from "./panelConfig";
+import { computeAmbientState } from "./ambientState";
 import useWatchlist from "../../hooks/useWatchlist";
 import "../workspace3d/workspace3d.css";
 import "./flagshipScreen.css";
@@ -35,6 +36,23 @@ export default function FlagshipScreen() {
     return portfolio?.changes?.length || 0;
   }, [panels.portfolioHealth]);
 
+  // Phase IMMERSIVE-INTERACTIONS-001 — the real magnitude behind the
+  // holding-connection pulses' speed, and the ambient scene state
+  // (tone/intensity/color) driving atmosphere, lighting, and connection
+  // line opacity — every one computed from data this screen already has
+  // in hand, never a new fetch or new business logic.
+  const holdingMagnitude = useMemo(() => {
+    const portfolio = panels.portfolioHealth?.data;
+    return portfolio?.hasComparison ? Math.min(Math.abs(portfolio.valueChangePct) / 5, 1) : 0;
+  }, [panels.portfolioHealth]);
+
+  const ambientState = useMemo(() => computeAmbientState(panels), [panels]);
+
+  const panelStatuses = useMemo(
+    () => Object.fromEntries(FLAGSHIP_PANELS.map((panel) => [panel.key, panels[panel.key]?.status || "loading"])),
+    [panels]
+  );
+
   const focusedPanel = FLAGSHIP_PANELS.find((panel) => panel.key === focusedPanelKey);
 
   return (
@@ -44,6 +62,9 @@ export default function FlagshipScreen() {
         onSelectPanel={handleSelectPanel}
         showMissionChain={focusedPanelKey === CHAIN_KEY}
         affectedHoldingsCount={affectedHoldingsCount}
+        holdingMagnitude={holdingMagnitude}
+        panelStatuses={panelStatuses}
+        ambientState={ambientState}
       />
       <div className="workspace3d-toolbar">
         <button

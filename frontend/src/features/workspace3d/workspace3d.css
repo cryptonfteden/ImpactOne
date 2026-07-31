@@ -47,8 +47,13 @@
   box-shadow: 0 0 18px rgba(79, 140, 255, 0.55);
 }
 
+/* Phase IMMERSIVE-INTERACTIONS-001 — a real, cheap depth-of-field cue:
+   a dimmed (not-currently-selected) node also blurs slightly, the same
+   visual language a camera actually uses for "not the current subject"
+   — reinforces spatial/focus hierarchy beyond opacity alone. */
 .workspace3d-node-label.is-dimmed {
   opacity: 0.35;
+  filter: blur(1px);
 }
 
 .workspace3d-chain-label {
