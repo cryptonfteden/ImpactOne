@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
 import { SafeList, SafeValue } from "../components/SafeValue";
 import useWatchlist from "../hooks/useWatchlist";
-import { Button, Input, LoadingSpinner } from "../components/ui";
+import { Button, Input, LoadingSpinner, EmptyState } from "../components/ui";
 import { altDataApi, analysisApi, intelligenceApi, marketApi, performanceMetricsApi, claimsApi } from "../services/api";
 import { openSymbolPanel } from "../utils/symbolPanel";
 import { logError } from "../utils/errorHandling";
@@ -615,7 +615,11 @@ export default function AiAnalysisScreen() {
             </div>
           </div>
         ) : (
-          <p className="company-description">No active Claim exists for this symbol yet — a Claims-based report will appear once one forms.</p>
+          // Phase FOUNDER-MODE-001 — real UX-consistency fix: this was a
+          // plain, hand-rolled paragraph while the identical "no active
+          // Claim" empty state on AiAnalysisWorkspaceScreen.jsx already
+          // used the shared EmptyState component's icon+title treatment.
+          <EmptyState icon="◇" title="No active Claim exists for this symbol yet" message="A Claims-based report will appear once one forms." />
         )}
       </SectionCard>
       </div>
