@@ -1159,13 +1159,17 @@ button {
   font-weight: 700;
 }
 
-.glass-card {
-  background: rgba(15, 23, 42, 0.72);
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  box-shadow: 0 20px 45px rgba(2, 6, 23, 0.28);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-}
+/* Phase FINAL-UI-UNIFICATION-001 — real, confirmed dead code removed:
+   this was a second, earlier `.glass-card` rule with different literal
+   values (background/box-shadow/blur all different from the later,
+   real `.glass-card, .panel-card, .kpi-card, .screen-card` rule further
+   down this file). Same specificity, later source order always wins in
+   CSS cascade — every one of this block's properties was already fully
+   unreachable/dead for any real `.glass-card` element, silently
+   overridden the whole time. Removing it changes nothing about what
+   was actually rendered (verified: every property here is also set by
+   the surviving rule), and removes a real, confirmed instance of
+   duplicated styling. See LEGACY_STYLE_INVENTORY.md. */
 
 .hero-panel--featured {
   padding: 28px 30px;
@@ -1669,7 +1673,14 @@ body {
 .screen-card {
   background: var(--glass);
   border: 1px solid var(--glass-border);
-  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.3);
+  /* Phase FINAL-UI-UNIFICATION-001 — this exact box-shadow was a
+     byte-for-byte duplicate of --nova-shadow-glass (0 16px 42px
+     rgba(0, 0, 0, 0.3)) — aliased for the same real, zero-visual-
+     change reason as every other exact-match fix in this migration
+     line. The 14px backdrop-filter blur below is deliberately left
+     as its own literal value (--nova-blur-glass is 24px — not an
+     exact match; see TOKEN_COVERAGE.md). */
+  box-shadow: var(--nova-shadow-glass);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   /* These are the actual flex items in .screen-page's column layout (and
@@ -3167,9 +3178,18 @@ body {
   --h3-radius-md: 16px;
   --h3-radius-lg: 22px;
   --h3-space-1: 6px;
-  --h3-space-2: 12px;
+  /* Phase FINAL-UI-UNIFICATION-001 — --h3-space-2 (12px) and
+     --h3-space-4 (32px) are exact-value duplicates of
+     --nova-space-3/--nova-space-8 respectively — aliased for the same
+     real reason the accent-color variables were aliased in
+     NOVA-MIGRATION-001 (zero rendered-output change, single point of
+     definition). --h3-space-1 (6px) and --h3-space-3 (20px) have no
+     exact Nova equivalent (nearest are 4px/8px and 16px/24px) and are
+     deliberately left as their own literal values — see
+     LEGACY_STYLE_INVENTORY.md. */
+  --h3-space-2: var(--nova-space-3);
   --h3-space-3: 20px;
-  --h3-space-4: 32px;
+  --h3-space-4: var(--nova-space-8);
   --h3-font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 }
 
