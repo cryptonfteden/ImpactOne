@@ -1,3 +1,5 @@
+import { NEUTRAL_ACCENT_COLOR } from "../workspace3d/orbitalConfig";
+
 // Phase LIVING-WORLD-001 — the Global World State Engine. One pure
 // function, reading the same real, already-fetched panel data every
 // other module in this feature already reads (useFlagshipData.js —
@@ -20,7 +22,7 @@
 // phase's own "no duplicated calculations" requirement rules out.
 export const NEUTRAL_WORLD_STATE = Object.freeze({
   tone: "neutral",
-  color: "#4f8cff",
+  color: NEUTRAL_ACCENT_COLOR,
   intensity: 0.3,
   confidenceIntensity: 0.15,
   breakingNewsCount: 0,
@@ -32,7 +34,7 @@ export const NEUTRAL_WORLD_STATE = Object.freeze({
   soundHook: "calm",
 });
 
-const TONE_COLORS = { bullish: "#4fffb0", bearish: "#ff5f5f", neutral: "#4f8cff" };
+const TONE_COLORS = { bullish: "#4fffb0", bearish: "#ff5f5f", neutral: NEUTRAL_ACCENT_COLOR };
 
 // The same real, total, disclosed vocabulary
 // chiefInvestmentOfficerService.js uses for `cio.confidence` — see

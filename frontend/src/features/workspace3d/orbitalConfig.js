@@ -5,13 +5,23 @@
 // <Canvas>. Every 3D component in this feature reads its layout from
 // here rather than hardcoding positions inline.
 
+// Phase FINAL-SHIP-001 — the one, real, shared "neutral/informational
+// blue" this whole 3D layer uses — Earth's default ambient glow, the
+// neutral market tone, the Mission Control chain's own accent, and one
+// module's own accent color all independently hardcoded this exact
+// same hex in 6 different files before this phase. Centralizing it
+// here (already the shared, foundational config every one of those
+// files already imports from) removes that duplication the same way
+// WORLD-CLASS-UI-001 removed it from the CSS layer.
+export const NEUTRAL_ACCENT_COLOR = "#4f8cff";
+
 // The 7 orbital modules named in the mission, each mapped onto a real,
 // already-existing, already-tested screen — zero new business logic,
 // zero new API surface. "Mission Control" is the 8th, central node
 // (handled separately — see MissionControlChain.jsx) since it's framed
 // as the command center, not a peer orbital module.
 export const ORBITAL_MODULES = [
-  { key: "Market Intelligence Workspace", label: "Market Intelligence", color: "#4f8cff" },
+  { key: "Market Intelligence Workspace", label: "Market Intelligence", color: NEUTRAL_ACCENT_COLOR },
   { key: "News Intelligence", label: "News Intelligence", color: "#ff9f4f" },
   { key: "AI Analysis Workspace", label: "AI Analysis", color: "#b06bff" },
   { key: "Portfolio Workspace", label: "Portfolio", color: "#4fffb0" },

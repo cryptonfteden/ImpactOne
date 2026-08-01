@@ -7,7 +7,7 @@ import CameraRig from "./CameraRig";
 import MissionControlChain from "./MissionControlChain";
 import WorldAtmosphere from "./WorldAtmosphere";
 import LightShaft from "./LightShaft";
-import { ORBITAL_MODULES, ORBIT_RADIUS, orbitalPosition, focusedCameraFor, OVERVIEW_CAMERA } from "./orbitalConfig";
+import { ORBITAL_MODULES, ORBIT_RADIUS, orbitalPosition, focusedCameraFor, OVERVIEW_CAMERA, NEUTRAL_ACCENT_COLOR } from "./orbitalConfig";
 
 const KEY_LIGHT_POSITION = [8, 6, 4];
 
@@ -59,7 +59,7 @@ export default function Workspace3DScene({ focusedModuleKey, onSelectModule, sho
         {/* A soft, cool fill light from the opposite side — real depth
             cue (the Earth's "dark side" is dim, not pitch black),
             cheap (one more point light, no shadow casting). */}
-        <pointLight position={[-8, -4, -6]} intensity={0.3} color="#4f8cff" />
+        <pointLight position={[-8, -4, -6]} intensity={0.3} color={NEUTRAL_ACCENT_COLOR} />
         <Stars radius={80} depth={30} count={1200} factor={2} fade speed={0.4} />
         {/* Phase CINEMATIC-EXPERIENCE-002 — shared world atmosphere (fog +
             space particles) and a cheap volumetric light-shaft

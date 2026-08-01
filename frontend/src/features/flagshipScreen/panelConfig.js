@@ -4,14 +4,18 @@
 // (Phase IMPACTONE-3D-WORKSPACE-001) rather than duplicating it — no
 // three.js import here either, so this stays unit-testable under plain
 // jsdom.
-import { orbitalPosition, focusedCameraFor } from "../workspace3d/orbitalConfig";
+import { orbitalPosition, focusedCameraFor, NEUTRAL_ACCENT_COLOR } from "../workspace3d/orbitalConfig";
 
 export const FLAGSHIP_RADIUS = 8;
 
 // The mission's own required panel list, each mapped to a real,
 // already-existing backend service — no new API, no new business logic.
+// Phase FINAL-SHIP-001 — "AI Market Summary"'s color reuses the same
+// shared NEUTRAL_ACCENT_COLOR the rest of the 3D layer's neutral/
+// informational blue already uses (see orbitalConfig.js), instead of
+// an independently hand-typed duplicate of the same hex.
 export const FLAGSHIP_PANELS = [
-  { key: "aiMarketSummary", label: "AI Market Summary", color: "#4f8cff" },
+  { key: "aiMarketSummary", label: "AI Market Summary", color: NEUTRAL_ACCENT_COLOR },
   { key: "globalEvents", label: "Global Events", color: "#ff9f4f" },
   { key: "portfolioHealth", label: "Portfolio Health", color: "#4fffb0" },
   { key: "aiRecommendations", label: "AI Recommendations", color: "#b06bff" },

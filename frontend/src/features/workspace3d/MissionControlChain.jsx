@@ -2,7 +2,7 @@ import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html, Line } from "@react-three/drei";
 import { Vector3 } from "three";
-import { MISSION_CONTROL_CHAIN } from "./orbitalConfig";
+import { MISSION_CONTROL_CHAIN, NEUTRAL_ACCENT_COLOR } from "./orbitalConfig";
 
 const CHAIN_SPACING = 2.2;
 const CHAIN_Y = 3.5;
@@ -43,12 +43,12 @@ export default function MissionControlChain() {
 
   return (
     <group>
-      <Line points={positions} color="#4f8cff" lineWidth={1.5} transparent opacity={0.5} />
+      <Line points={positions} color={NEUTRAL_ACCENT_COLOR} lineWidth={1.5} transparent opacity={0.5} />
       {positions.map((position, index) => (
         <group key={MISSION_CONTROL_CHAIN[index].key} position={position}>
           <mesh>
             <sphereGeometry args={[0.18, 16, 16]} />
-            <meshStandardMaterial color="#4f8cff" emissive="#4f8cff" emissiveIntensity={0.8} />
+            <meshStandardMaterial color={NEUTRAL_ACCENT_COLOR} emissive={NEUTRAL_ACCENT_COLOR} emissiveIntensity={0.8} />
           </mesh>
           <Html center distanceFactor={10} style={{ pointerEvents: "none" }}>
             <div className="workspace3d-chain-label">{MISSION_CONTROL_CHAIN[index].label}</div>

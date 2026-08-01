@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Color } from "three";
-import { EARTH_RADIUS } from "./orbitalConfig";
+import { EARTH_RADIUS, NEUTRAL_ACCENT_COLOR } from "./orbitalConfig";
 
 // Phase IMPACTONE-3D-WORKSPACE-001 — the central object. Deliberately a
 // procedural, shader-free sphere (no external texture asset added to
@@ -46,7 +46,7 @@ const AMBIENT_EASE_RATE = 2.5; // how quickly the atmosphere eases toward a new 
 const REFLECTION_ORBIT_RADIUS = EARTH_RADIUS * 2.2;
 const REFLECTION_ORBIT_PERIOD_S = 9;
 
-export default function Earth({ ambientColor = "#4f8cff", ambientIntensity = 0.3 }) {
+export default function Earth({ ambientColor = NEUTRAL_ACCENT_COLOR, ambientIntensity = 0.3 }) {
   const earthRef = useRef(null);
   const cloudsRef = useRef(null);
   const interactionRef = useRef(null);
