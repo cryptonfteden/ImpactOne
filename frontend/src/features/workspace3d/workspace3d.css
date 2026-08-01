@@ -113,8 +113,16 @@
 
 .workspace3d-toolbar {
   position: absolute;
-  top: var(--nova-space-4);
-  left: var(--nova-space-4);
+  /* Phase APP-STORE-QUALITY-001 — this scene renders inside the app's
+     normal content area (below the header, above the mobile bottom
+     nav), so a portrait notch is already cleared by that chrome. In
+     landscape, though, this scene can span the full available width
+     with a device notch/pill cut into either long edge — env()
+     defaults to 0px on every device without one, so this only ever
+     adds real inset on hardware that needs it, never a visual change
+     anywhere else. */
+  top: calc(var(--nova-space-4) + env(safe-area-inset-top, 0px));
+  left: calc(var(--nova-space-4) + env(safe-area-inset-left, 0px));
   z-index: var(--nova-z-sticky);
   display: flex;
   gap: var(--nova-space-2);

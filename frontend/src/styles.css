@@ -2404,6 +2404,23 @@ body {
   font-size: 16px;
 }
 
+/* Phase APP-STORE-QUALITY-001 — confirmed live: this button's real
+   visual/layout box measures 38x38px, below Apple HIG's/WCAG 2.5.5's
+   44x44px minimum recommended touch target. A prior phase deliberately
+   left the visual size at 38px since the header's own landscape-phone
+   row-width calc (DESIGN-PERFECTION-001) depends on it. This invisible,
+   position:absolute pseudo-element enlarges only the tappable hit area
+   (not the visual box or layout footprint — it takes no space in flow),
+   reaching the 44x44px target without changing anything visible or
+   re-touching that calc. The 12px gap between adjacent header icon
+   buttons leaves room for a 3px expansion on every side with no overlap
+   between neighboring tap zones. */
+.header-icon-button::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+}
+
 .header-icon-button__badge {
   position: absolute;
   top: -4px;
@@ -2955,18 +2972,15 @@ body {
     line-height: 1;
   }
 
-  /* Phase MOBILE-FIXES-001 — confirmed P0 #3: "Feedback widget overlaps
-     and blocks the 'For you' bottom-navigation tab." The widget's own
-     base rule (below, outside this breakpoint) pins it at a fixed
-     20px from the viewport's real bottom edge — squarely inside the
-     bottom nav's own reserved strip once the nav is showing. Lifting it
-     to sit just above the nav (using the same shared
-     --mobile-nav-height variable, so the two can never drift back out
-     of sync) fixes this for every mobile width/orientation this block
-     now covers, not just portrait. */
-  .feedback-widget {
-    bottom: calc(var(--mobile-nav-height) + 12px + env(safe-area-inset-bottom, 0px));
-  }
+  /* Phase APP-STORE-QUALITY-001 — the actual mobile override for the
+     Feedback widget's position now lives after its own base rule below
+     (same reasoning as the MOBILE-FIXES-001 comment there once was),
+     since a rule here was being silently shadowed by the later,
+     unconditional base `.feedback-widget` rule at equal specificity —
+     confirmed live: getComputedStyle always reported the base rule's
+     `bottom: 20px`/`right: 20px`, not this block's values, so the
+     widget still sat on top of the "For you"/"Profile" bottom-nav tabs
+     on every real mobile width, unfixed despite this block's intent. */
 }
 
 /* Phase MOBILE-FIXES-001 — a landscape phone's ~390px of real height is
@@ -3855,6 +3869,30 @@ button:focus-visible {
   right: 20px;
   bottom: 20px;
   z-index: 40;
+}
+
+/* Phase APP-STORE-QUALITY-001 — confirmed live via a real Playwright
+   click attempt (not just a visual overlap check) at 390x844: this
+   widget's own base rule above pins it 20px from the true viewport
+   bottom-right corner, which lands squarely on top of the "For
+   you"/"Profile" bottom-navigation tabs once the mobile bottom nav is
+   showing (Playwright's own actionability check failed with
+   "<button aria-label=\"Give feedback\" class=\"feedback-widget__toggle\">
+   ... subtree intercepts pointer events") — the exact click-blocking
+   defect MOBILE-EXPERIENCE-001/MOBILE-FIXES-001 already documented and
+   tried to fix. That earlier fix (a `.feedback-widget { bottom: ... }`
+   override inside the `@media (max-width: 720px)` block above) was
+   silently shadowed: at equal selector specificity, this later,
+   unconditional rule always won the cascade regardless of viewport
+   width, so the widget never actually moved on a real phone
+   (getComputedStyle confirmed `bottom: 20px` still applied at 390px
+   width). Placing the real mobile override here — after the rule it
+   needs to beat, at the same specificity — is what actually wins the
+   cascade and lifts the widget fully clear of the nav strip. */
+@media (max-width: 720px), (orientation: landscape) and (max-height: 500px) {
+  .feedback-widget {
+    bottom: calc(var(--mobile-nav-height) + 12px + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 .feedback-widget__toggle {
