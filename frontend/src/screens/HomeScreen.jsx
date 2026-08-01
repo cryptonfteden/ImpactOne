@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
 import { LoadingSpinner, EmptyState } from "../components/ui";
 import { homeApi, priceAlertsApi } from "../services/api";
+import { withRequestCache } from "../services/requestCache";
 import useWatchlist from "../hooks/useWatchlist";
 import { logError } from "../utils/errorHandling";
 import { useI18n } from "../i18n/I18nProvider";
@@ -97,7 +98,19 @@ export default function HomeScreen({ onNavigate }) {
     async function load() {
       setIsLoading(true);
       try {
-        const data = await homeApi.getSummary(watchlist);
+        // Phase REAL-WORLD-USAGE-001 — real, measured friction: Home is
+        // this app's landing screen, so a founder bouncing back to it
+        // after a quick look at Recommendations/Portfolio/etc. (this
+        // codebase's own state-driven screen swap fully remounts each
+        // screen — there is no route-level keep-alive) re-triggered a
+        // full network fetch and a full skeleton flash every single
+        // time, even seconds after the same real data had just loaded.
+        // Mission Control, Portfolio Workspace, and News Intelligence
+        // already share this exact real fix (withRequestCache,
+        // Phase PLATFORM-INTEGRATION-001) for the identical problem;
+        // Home — the single highest-traffic screen — was the one
+        // screen still missing it.
+        const data = await withRequestCache(`home:summary:${watchlist.join(",")}`, () => homeApi.getSummary(watchlist));
         if (!cancelled) {
           setSummary(data);
           setError("");

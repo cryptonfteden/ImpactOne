@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import HomeScreen from "./HomeScreen";
 import { homeApi } from "../services/api";
+import { clearRequestCache } from "../services/requestCache";
 import { I18nProvider } from "../i18n/I18nProvider";
 
 function renderHomeScreen(props) {
@@ -66,6 +67,13 @@ const SUMMARY_NO_ACTION = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Phase REAL-WORLD-USAGE-001 — HomeScreen now shares the same real
+  // request cache Mission Control/Portfolio Workspace/News Intelligence
+  // already use (see HomeScreen.jsx); the cache is module-scoped, so it
+  // must be cleared between tests the same way those screens' own tests
+  // already do, or an earlier test's cached response would leak into a
+  // later test expecting a different mocked response.
+  clearRequestCache();
 });
 
 describe("HomeScreen", () => {
