@@ -192,7 +192,11 @@ export default function AiAnalysisScreen() {
                   symbol: normalizedTicker,
                   updatedAt,
                   rating: aiData.analysis?.investmentRating || "Hold",
-                  confidenceScore: Number(aiData.analysis?.confidenceScore || 0),
+                  // Phase LIVE-DATA-INTEGRATION-001 — real bug fix: previously
+                  // defaulted to a literal 0 (a fabricated confidence reading)
+                  // whenever the real value was genuinely absent; now stores an
+                  // honest null instead.
+                  confidenceScore: Number.isFinite(aiData.analysis?.confidenceScore) ? aiData.analysis.confidenceScore : null,
                 };
                 localStorage.setItem("impactone-last-analyzed", JSON.stringify(latestAnalyzed));
                 window.dispatchEvent(new CustomEvent("impactone:last-analyzed-updated", { detail: latestAnalyzed }));
@@ -486,7 +490,14 @@ export default function AiAnalysisScreen() {
           <div className="ai-report">
             <div className="ai-report__header">
               <div className={`score-card__recommendation ${String(finalRating).toLowerCase().replace(/\s+/g, "-")}`}>{finalRating}</div>
-              <div className="ai-report__score">Confidence {aiReport.confidenceScore ?? 0}/100</div>
+              {/* Phase LIVE-DATA-INTEGRATION-001 — real bug fix: this
+                  previously fell back to a literal 0 whenever
+                  confidenceScore was genuinely absent, fabricating a
+                  specific, fake confidence reading rather than honestly
+                  disclosing that none was available. */}
+              <div className="ai-report__score">
+                Confidence {Number.isFinite(aiReport.confidenceScore) ? `${aiReport.confidenceScore}/100` : "not available"}
+              </div>
             </div>
             {aiLastUpdated ? <div className="company-description subtle">Last updated: {aiLastUpdated}</div> : null}
             <div className="company-description"><SafeValue value={aiReport.executiveSummary || aiReport.summary} /></div>
@@ -681,7 +692,9 @@ export default function AiAnalysisScreen() {
               <h4>Impacted sectors and tickers</h4>
               <p className="company-description">Sectors: {(altSignals.impactedSectors || []).join(", ") || "N/A"}</p>
               <p className="company-description subtle">Tickers: {(altSignals.relatedTickers || []).join(", ") || "N/A"}</p>
-              <p className="company-description subtle">Confidence score: {Number(altSignals.confidenceScore || 0)}/100</p>
+              <p className="company-description subtle">
+                Confidence score: {Number.isFinite(altSignals.confidenceScore) ? `${altSignals.confidenceScore}/100` : "not available"}
+              </p>
             </div>
           </div>
         ) : (
@@ -697,7 +710,9 @@ export default function AiAnalysisScreen() {
             <div>
               <h4>Event + confidence</h4>
               <p className="company-description">{intelligenceReport.event}</p>
-              <p className="company-description subtle">Confidence: {Number(intelligenceReport.confidenceScore || 0)}/100 | Horizon: {intelligenceReport.timeHorizon || "N/A"}</p>
+              <p className="company-description subtle">
+                Confidence: {Number.isFinite(intelligenceReport.confidenceScore) ? `${intelligenceReport.confidenceScore}/100` : "not available"} | Horizon: {intelligenceReport.timeHorizon || "N/A"}
+              </p>
             </div>
             <div>
               <h4>Why this matters</h4>

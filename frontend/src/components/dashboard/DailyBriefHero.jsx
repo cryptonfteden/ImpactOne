@@ -67,7 +67,12 @@ export default function DailyBriefHero({
       <div className="daily-brief-hero">
         <div className="daily-brief-hero__main">
           <div className="daily-brief-hero__meta">
-            <span className="score-badge">Confidence {Number(confidenceScore || 0)}/100</span>
+            {/* Phase LIVE-DATA-INTEGRATION-001 — real bug fix: previously
+                fell back to a literal 0 (a fabricated confidence reading)
+                whenever the real value was genuinely absent. */}
+            <span className="score-badge">
+              Confidence {Number.isFinite(confidenceScore) ? `${confidenceScore}/100` : "not available"}
+            </span>
             <Button type="button" className="ghost-button" onClick={() => setIsExpanded((value) => !value)}>
               {isExpanded ? "Collapse" : "Expand"}
             </Button>
