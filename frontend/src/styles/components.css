@@ -23,7 +23,16 @@
   border-radius: var(--nova-radius-md);
   border: none;
   cursor: pointer;
+  /* Phase CINEMATIC-POLISH-003 — this transition-property was declared
+     with no duration/timing-function anywhere, so every real hover/state
+     change on the app's single most-used interactive component was
+     snapping instantly instead of easing, unlike Flagship's own bespoke
+     buttons (workspace3d.css's .workspace3d-toolbar__button), which
+     already set this exact pair. Matching that reference value here,
+     not inventing a new one. */
   transition-property: background-color, color, border-color, box-shadow, transform;
+  transition-duration: var(--nova-motion-duration-standard);
+  transition-timing-function: var(--nova-motion-curve-hover);
 }
 
 .nova-button[data-size="compact"] {
@@ -189,7 +198,13 @@
   border: var(--nova-border-subtle);
   cursor: pointer;
   padding: 2px;
+  /* Phase CINEMATIC-POLISH-003 — same missing duration/timing-function
+     gap as .nova-button/.nova-card: this toggle was snapping between
+     states with zero animation instead of sliding. Same reference value,
+     for the same reason. */
   transition-property: background-color;
+  transition-duration: var(--nova-motion-duration-standard);
+  transition-timing-function: var(--nova-motion-curve-hover);
 }
 .nova-toggle[data-checked="true"] {
   background-color: var(--nova-color-brand-signal);
@@ -200,6 +215,8 @@
   border-radius: var(--nova-radius-full);
   background-color: var(--nova-color-text-on-brand);
   transition-property: transform;
+  transition-duration: var(--nova-motion-duration-standard);
+  transition-timing-function: var(--nova-motion-curve-hover);
   transform: translateX(0);
 }
 .nova-toggle[data-checked="true"] .nova-toggle__thumb {
@@ -288,7 +305,13 @@
   display: flex;
   flex-direction: column;
   gap: var(--nova-space-3);
+  /* Phase CINEMATIC-POLISH-003 — same missing duration/timing-function
+     gap as .nova-button above: the hover lift below was snapping
+     instead of easing on every card across every migrated Workspace
+     screen. Same reference value as .nova-button, for the same reason. */
   transition-property: transform, box-shadow;
+  transition-duration: var(--nova-motion-duration-standard);
+  transition-timing-function: var(--nova-motion-curve-hover);
 }
 
 .nova-card:hover {
