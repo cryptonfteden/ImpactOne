@@ -37,3 +37,23 @@ test("AI-TRUST-001 — never returns a zero-similarity entry, since those are fi
     assert.ok(match.similarity > 0, "every returned match must be a real, non-fabricated match");
   }
 });
+
+test("LIVE-DATA-FINAL-001 — 'Shipping rates surge' (freight pricing) must not falsely match 'Rate Hikes' via a substring inside 'rates'", () => {
+  const matches = getHistoricalMatches("Shipping rates surge");
+  const rateHikesMatch = matches.find((m) => m.event === "Rate Hikes");
+  assert.equal(rateHikesMatch, undefined, "'rates' (freight) is not the same word as 'rate' (interest) and must not match");
+});
+
+test("LIVE-DATA-FINAL-001 — 'Semiconductor capacity constraint' must not falsely match 'AI Boom' via a substring inside 'constraint'", () => {
+  const matches = getHistoricalMatches("Semiconductor capacity constraint");
+  const aiBoomMatch = matches.find((m) => m.event === "AI Boom");
+  assert.equal(aiBoomMatch, undefined, "'constraint' contains the letters 'ai' but is not the word 'ai' and must not match");
+});
+
+test("LIVE-DATA-FINAL-001 — genuinely Fed-policy headlines still, correctly, share the same real historical analog", () => {
+  const a = getHistoricalMatches("Fed rate hike");
+  const b = getHistoricalMatches("FOMC Rate Decision");
+  assert.equal(a[0].event, "Rate Hikes");
+  assert.equal(b[0].event, "Rate Hikes");
+  assert.equal(a[0].similarity, b[0].similarity, "two genuinely Fed-rate-related headlines sharing one real analog is not a defect");
+});

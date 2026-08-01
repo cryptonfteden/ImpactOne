@@ -10,10 +10,23 @@
 // callers (buildWhy in impactIntelligenceService.js, which already
 // checks `propagation?.[0]`) honestly omit the propagation clause
 // instead of fabricating one.
+//
+// Phase LIVE-DATA-FINAL-001 — the same plain-substring matching also let a
+// short keyword match INSIDE an unrelated word: "Shipping rates surge"
+// (freight pricing, via "rates") and "Semiconductor capacity constraint"
+// (via "constraint") both wrongly triggered the Fed-funds/AI-demand chains
+// below. hasWord() requires a real word-boundary match, kept as its own
+// local copy rather than a shared import to match this codebase's existing
+// precedent of each engine owning its own small matching helper (see
+// claimConfidence.js's own comment on capAndRedistributeWeights).
+function hasWord(text, word) {
+  return new RegExp(`\\b${word}\\b`, "i").test(text);
+}
+
 function propagateByTheme(event = "") {
   const text = String(event || "").toLowerCase();
 
-  if (text.includes("oil")) {
+  if (hasWord(text, "oil")) {
     return [
       { from: "Oil", to: "Airlines", effect: "down" },
       { from: "Oil", to: "Shipping", effect: "up" },
@@ -24,7 +37,7 @@ function propagateByTheme(event = "") {
     ];
   }
 
-  if (text.includes("fed") || text.includes("rate")) {
+  if (hasWord(text, "fed") || hasWord(text, "rate")) {
     return [
       { from: "Fed funds", to: "Bonds", effect: "down" },
       { from: "Fed funds", to: "USD", effect: "up" },
@@ -33,7 +46,7 @@ function propagateByTheme(event = "") {
     ];
   }
 
-  if (text.includes("ai") || text.includes("nvidia")) {
+  if (hasWord(text, "ai") || hasWord(text, "nvidia")) {
     return [
       { from: "AI demand", to: "Semiconductors", effect: "up" },
       { from: "Semiconductors", to: "Cloud", effect: "up" },

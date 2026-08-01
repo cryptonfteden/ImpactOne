@@ -78,19 +78,36 @@ const historyDb = [
 // zero-score entries out in getHistoricalMatches lets callers (buildWhy in
 // impactIntelligenceService.js, which already checks `topAnalog?.event`)
 // honestly omit the historical-analogy clause instead of fabricating one.
+//
+// Phase LIVE-DATA-FINAL-001 — a second, distinct false-match class was
+// found live: plain substring matching let a short keyword match INSIDE an
+// unrelated word, not just inside an unrelated headline. "Shipping rates
+// surge" (freight pricing) matched the "rate" key via the substring inside
+// "rates", and "Semiconductor capacity constraint" matched the "ai" key via
+// the substring inside "constraint" — both real events wrongly scored 88%
+// similar to "Rate Hikes"/"AI Boom" respectively, though nothing about them
+// genuinely supports that. hasWord() below requires a real word-boundary
+// match (so "rate" matches "Fed rate hike" but not "rates" or "constraint")
+// while still matching "Fed rate hike" and "FOMC Rate Decision" identically
+// to "Rate Hikes" — two genuinely Fed-policy headlines sharing one real
+// historical analog is not a defect; two unrelated ones sharing it was.
+function hasWord(text, word) {
+  return new RegExp(`\\b${word}\\b`, "i").test(text);
+}
+
 function similarityScore(event, record) {
   const text = String(event || "").toLowerCase();
-  if (text.includes(record.key)) {
+  if (hasWord(text, record.key)) {
     return 88;
   }
 
-  if (record.key === "ai" && (text.includes("nvidia") || text.includes("ai"))) return 84;
-  if (record.key === "oil" && (text.includes("oil") || text.includes("energy"))) return 83;
-  if (record.key === "rate" && (text.includes("fed") || text.includes("rate"))) return 86;
-  if (record.key === "ukraine" && (text.includes("israel") || text.includes("war") || text.includes("conflict"))) return 79;
-  if (record.key === "bank" && text.includes("liquidity")) return 76;
-  if (record.key === "tariff" && text.includes("trade")) return 78;
-  if (record.key === "covid" && text.includes("pandemic")) return 83;
+  if (record.key === "ai" && (hasWord(text, "nvidia") || hasWord(text, "ai"))) return 84;
+  if (record.key === "oil" && (hasWord(text, "oil") || hasWord(text, "energy"))) return 83;
+  if (record.key === "rate" && (hasWord(text, "fed") || hasWord(text, "rate"))) return 86;
+  if (record.key === "ukraine" && (hasWord(text, "israel") || hasWord(text, "war") || hasWord(text, "conflict"))) return 79;
+  if (record.key === "bank" && hasWord(text, "liquidity")) return 76;
+  if (record.key === "tariff" && hasWord(text, "trade")) return 78;
+  if (record.key === "covid" && hasWord(text, "pandemic")) return 83;
   return 0;
 }
 
