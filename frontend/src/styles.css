@@ -2966,6 +2966,29 @@ body {
   .bottom-nav__label {
     font-size: 0.62rem;
   }
+
+  /* Phase DESIGN-PERFECTION-001 — confirmed live at 844x390: the
+     unrelated `@media (max-width: 980px)` breakpoint above (Sprint 5,
+     intended for a narrow *desktop* window) also matches this same
+     landscape-phone case on width alone (844px < 980px) and forces
+     `.header-controls` into a full-width vertical column — stacking
+     the search bar, market-status pill, and all 4 header icon buttons
+     into one tall list that eats a large share of an already-scarce
+     390px of height. A landscape phone has width to spare (844px) but
+     almost no height to spare, so the stacked layout is exactly
+     backwards here. Restoring the normal horizontal row for this one
+     case fixes it without touching the legitimate narrow-desktop-
+     window use of the column layout at 821-980px. */
+  .header-controls {
+    width: auto;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .search-box {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
 }
 
 /* Sprint 33 Priority 1 — Profile "More" links (secondary destinations
