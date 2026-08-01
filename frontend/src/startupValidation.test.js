@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateScreenMap, validateRequiredModules, runStartupValidation } from "./startupValidation";
+import { validateScreenMap, validateRequiredModules, validateOrigins, runStartupValidation } from "./startupValidation";
 
 function RealComponent() {
   return null;
@@ -45,6 +45,39 @@ describe("validateRequiredModules", () => {
   it("flags a null required module", () => {
     const issues = validateRequiredModules({ thing: null });
     expect(issues).toHaveLength(1);
+  });
+});
+
+describe("validateOrigins", () => {
+  it("is a no-op outside production — a dev's own localhost API is expected and fine", () => {
+    const issues = validateOrigins({ apiBaseUrl: "http://localhost:5000/api", isProd: false });
+    expect(issues).toEqual([]);
+  });
+
+  it("flags a missing API origin in production", () => {
+    const issues = validateOrigins({ apiBaseUrl: "", isProd: true });
+    expect(issues).toHaveLength(1);
+    expect(issues[0].key).toBe("apiBaseUrl");
+  });
+
+  it("flags a production API origin that still points at localhost", () => {
+    const issues = validateOrigins({ apiBaseUrl: "http://localhost:5000/api", isProd: true });
+    expect(issues).toHaveLength(1);
+  });
+
+  it("flags a production API origin that points at 127.0.0.1", () => {
+    const issues = validateOrigins({ apiBaseUrl: "http://127.0.0.1:5000/api", isProd: true });
+    expect(issues).toHaveLength(1);
+  });
+
+  it("flags an unparseable production API origin", () => {
+    const issues = validateOrigins({ apiBaseUrl: "not a url", isProd: true });
+    expect(issues).toHaveLength(1);
+  });
+
+  it("passes a real, public production API origin", () => {
+    const issues = validateOrigins({ apiBaseUrl: "https://api.impactone.app/api", isProd: true });
+    expect(issues).toEqual([]);
   });
 });
 

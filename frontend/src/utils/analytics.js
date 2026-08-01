@@ -7,7 +7,9 @@
 // name and property keys against its own allowlist (analyticsService.js)
 // so this file being wrong or tampered with client-side can't smuggle
 // anything unexpected into storage.
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+import { API_BASE_URL } from "../config/apiConfig";
+
+const API_BASE = API_BASE_URL;
 
 // Phase X9 — Part 1, Product Analytics. Mirrors the backend's own
 // allowlist exactly (backend/services/analyticsService.js) — kept in

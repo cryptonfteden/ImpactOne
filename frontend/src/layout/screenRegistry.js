@@ -3,6 +3,7 @@ import { SIDEBAR_NAV_KEYS } from "./Sidebar";
 import { BOTTOM_NAV_KEYS } from "./BottomNav";
 import { runStartupValidation } from "../startupValidation";
 import { logError } from "../utils/errorHandling";
+import { API_BASE_URL } from "../config/apiConfig";
 import {
   AnalysisFeature,
   NewsFeature,
@@ -105,6 +106,7 @@ export const STARTUP_VALIDATION_RESULT = runStartupValidation({
   screenMap,
   navigableKeys: [...SIDEBAR_NAV_KEYS, ...BOTTOM_NAV_KEYS],
   requiredModules: { HomeFeature, PortfolioFeature, DecisionCenterFeature },
+  origins: { apiBaseUrl: API_BASE_URL, isProd: import.meta.env.PROD },
 });
 if (!STARTUP_VALIDATION_RESULT.ok) {
   for (const issue of STARTUP_VALIDATION_RESULT.issues) {

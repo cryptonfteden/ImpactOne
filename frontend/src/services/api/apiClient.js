@@ -1,6 +1,7 @@
 import { parseJsonResponse } from "../../utils/errorHandling";
+import { API_BASE_URL } from "../../config/apiConfig";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+const API_BASE = API_BASE_URL;
 // Phase H2 — Beta User Isolation. Same localStorage key OnboardingFlow.jsx
 // writes to after resolving an invite code (see betaUserRoutes.js). Never
 // set for a non-beta session — this whole mechanism is additive and

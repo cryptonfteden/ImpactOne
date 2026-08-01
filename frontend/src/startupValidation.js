@@ -58,10 +58,43 @@ export function validateRequiredModules(namedValues) {
   return issues;
 }
 
-export function runStartupValidation({ screenMap, navigableKeys, requiredModules } = {}) {
+// Phase PHONE-INSTALLATION-001 — a production build whose API origin is
+// missing or still points at localhost/127.0.0.1 will load fine on the
+// dev machine that built it, then fail every real request on a phone
+// that can never reach that address. Flags this as a real, reported
+// issue rather than a build that "looks fine" until a founder installs
+// it on their own device.
+const LOOPBACK_HOST_PATTERN = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
+
+export function validateOrigins({ apiBaseUrl, isProd } = {}) {
+  const issues = [];
+  if (!isProd) return issues;
+
+  if (!apiBaseUrl) {
+    issues.push({ area: "origin", key: "apiBaseUrl", message: "Production build has no configured API origin (VITE_API_BASE_URL is unset)." });
+    return issues;
+  }
+
+  let host = "";
+  try {
+    host = new URL(apiBaseUrl).host;
+  } catch {
+    issues.push({ area: "origin", key: "apiBaseUrl", message: `Production API origin "${apiBaseUrl}" is not a valid URL.` });
+    return issues;
+  }
+
+  if (LOOPBACK_HOST_PATTERN.test(host)) {
+    issues.push({ area: "origin", key: "apiBaseUrl", message: `Production API origin "${apiBaseUrl}" points at localhost — unreachable from any real device.` });
+  }
+
+  return issues;
+}
+
+export function runStartupValidation({ screenMap, navigableKeys, requiredModules, origins } = {}) {
   const issues = [
     ...validateScreenMap(screenMap, navigableKeys),
     ...validateRequiredModules(requiredModules),
+    ...validateOrigins(origins),
   ];
   return { ok: issues.length === 0, issues };
 }
