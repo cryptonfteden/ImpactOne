@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { Button } from "./ui";
 import { feedbackApi } from "../services/api";
 import { trackEvent } from "../utils/analytics";
@@ -22,6 +22,25 @@ function FeedbackWidget({ currentScreen }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const textareaRef = useRef(null);
+
+  // Phase MOBILE-FIXES-001 — confirmed P0 #5: defensive keyboard-
+  // avoidance. This panel is itself `position: absolute` inside the
+  // widget's `position: fixed` root — on many mobile browsers a fixed-
+  // position element stays pinned to the layout viewport rather than
+  // the real, visible one once the on-screen keyboard opens, so the
+  // textarea (and the Send button below it) can end up covered by the
+  // keyboard with no way to scroll it into view. Scrolling the focused
+  // field into view on focus is the standard, minimal defensive fix —
+  // it's a real no-op on desktop/no-keyboard environments.
+  function handleTextareaFocus() {
+    // rAF: wait one real frame for the keyboard's opening animation to
+    // have started resizing the visual viewport before measuring/
+    // scrolling, rather than scrolling against the pre-keyboard layout.
+    requestAnimationFrame(() => {
+      textareaRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    });
+  }
 
   async function submit() {
     const trimmed = message.trim();
@@ -84,10 +103,12 @@ function FeedbackWidget({ currentScreen }) {
                 ))}
               </div>
               <textarea
+                ref={textareaRef}
                 className="feedback-widget__textarea"
                 placeholder="Tell us what's on your mind..."
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
+                onFocus={handleTextareaFocus}
                 rows={4}
               />
               {error ? <p className="company-description negative">{error}</p> : null}

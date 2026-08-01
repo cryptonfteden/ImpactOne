@@ -20,6 +20,14 @@
   height: 100%;
   min-height: 640px;
   overflow: hidden;
+  /* Phase MOBILE-FIXES-001 — confirmed P0 #4 (safe-area/full-screen
+     verification): a fixed 640px min-height forced this "full-screen"
+     scene to be taller than the actual viewport on any short/landscape
+     phone (e.g. the 844x390 case this phase verifies — real height
+     390px), pushing part of the immersive scene off-screen and
+     requiring an extra scroll the mission's own "full-screen 3D scene"
+     framing doesn't intend. On short viewports it now fits the real,
+     available height instead (still never below a legible floor). */
   background: radial-gradient(ellipse at center, #0b1230 0%, #05070f 100%);
   border-radius: var(--nova-radius-lg);
 }
@@ -243,5 +251,17 @@
   .workspace3d-glass-panel {
     inset: 4% 4% 4%;
     width: auto;
+  }
+}
+
+/* Phase MOBILE-FIXES-001 — confirmed P0 #4: on a short/landscape phone
+   viewport the fixed 640px floor above no longer applies — the scene
+   fits the real, available height (minus the real, reserved bottom-nav
+   strip every other mobile fix in this phase already accounts for via
+   the same shared --mobile-nav-height variable) instead of forcing an
+   extra scroll on a screen that's supposed to read as full-screen. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .workspace3d-root {
+    min-height: calc(100vh - var(--mobile-nav-height, 0px));
   }
 }

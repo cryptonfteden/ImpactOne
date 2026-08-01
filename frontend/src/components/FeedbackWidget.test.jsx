@@ -52,4 +52,24 @@ describe("FeedbackWidget", () => {
     fireEvent.click(screen.getByLabelText("Give feedback"));
     expect(screen.getByText("Send feedback")).toBeDisabled();
   });
+
+  // Phase MOBILE-FIXES-001 — confirmed P0 #5: defensive keyboard-
+  // avoidance. This panel is `position: absolute` inside the widget's
+  // own `position: fixed` root, which on many mobile browsers can stay
+  // pinned behind an open on-screen keyboard — scrolling the textarea
+  // into view on focus is the real, minimal defensive fix.
+  it("scrolls the feedback textarea into view when it receives real focus (keyboard-avoidance)", () => {
+    const scrollIntoViewMock = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoViewMock;
+    vi.useFakeTimers();
+
+    render(<FeedbackWidget currentScreen="Home" />);
+    fireEvent.click(screen.getByLabelText("Give feedback"));
+    fireEvent.focus(screen.getByPlaceholderText(/Tell us what's on your mind/));
+
+    vi.runAllTimers();
+    expect(scrollIntoViewMock).toHaveBeenCalledWith(expect.objectContaining({ block: "center" }));
+
+    vi.useRealTimers();
+  });
 });

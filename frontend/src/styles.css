@@ -2830,13 +2830,37 @@ body {
   display: none;
 }
 
-@media (max-width: 720px) {
+:root {
+  /* Phase MOBILE-FIXES-001 — one real, shared source of truth for the
+     mobile bottom nav's own reserved height, instead of the same
+     magic number (64px) being repeated independently everywhere that
+     needs to clear it (.main-panel's padding, the feedback widget's
+     mobile offset, any future CTA's safe scroll-margin) — the exact
+     "duplicated styling" class of bug prior polish phases already
+     removed elsewhere in this codebase. */
+  --mobile-nav-height: 64px;
+}
+
+/* Phase MOBILE-FIXES-001 — confirmed P0 #1: "landscape phones have no
+   usable navigation." The rule below previously only matched on
+   viewport WIDTH (max-width: 720px) — a real landscape phone (e.g. the
+   844x390 case this phase explicitly verifies) has a width of 844px,
+   which never matches a width-only breakpoint, so neither the mobile
+   bottom-nav (hidden by default) nor a usable sidebar (it falls into a
+   separate, unrelated 820px breakpoint that turns it into a full-width,
+   vertically-stacked list with no height constraint — genuinely
+   unusable in a ~390px-tall viewport) ever appeared. Adding the
+   `(orientation: landscape) and (max-height: 500px)` OR-branch below
+   makes every rule in this block also apply to short-height landscape
+   phones, reusing the exact same portrait mobile nav (BottomNav.jsx) —
+   no new navigation concept, per this phase's own requirement. */
+@media (max-width: 720px), (orientation: landscape) and (max-height: 500px) {
   .sidebar {
     display: none;
   }
 
   .main-panel {
-    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px));
   }
 
   .header-bar {
@@ -2849,6 +2873,20 @@ body {
     flex-direction: column;
     align-items: flex-start;
     padding: 20px;
+  }
+
+  /* Phase MOBILE-FIXES-001 — confirmed P0 #2: "Home primary CTA is
+     hidden behind the fixed bottom navigation." Home's two primary
+     next-step buttons ("Review today's decisions" / "Open portfolio",
+     the single-product-entry CTAs from Phase X5) sit inside this exact
+     action row. Giving the row itself a real scroll-margin equal to
+     the nav's reserved height means any programmatic or keyboard-driven
+     scroll to it (not just a manual swipe) can never land with the
+     buttons still covered by the fixed nav — a defensive fix that
+     covers this specific, confirmed case and the same class of bug
+     anywhere else a primary action sits near a screen's natural end. */
+  .screen-hero .opportunity-item__actions {
+    scroll-margin-bottom: calc(var(--mobile-nav-height) + 16px + env(safe-area-inset-bottom, 0px));
   }
 
   .bottom-nav {
@@ -2889,6 +2927,44 @@ body {
 
   .bottom-nav__label {
     line-height: 1;
+  }
+
+  /* Phase MOBILE-FIXES-001 — confirmed P0 #3: "Feedback widget overlaps
+     and blocks the 'For you' bottom-navigation tab." The widget's own
+     base rule (below, outside this breakpoint) pins it at a fixed
+     20px from the viewport's real bottom edge — squarely inside the
+     bottom nav's own reserved strip once the nav is showing. Lifting it
+     to sit just above the nav (using the same shared
+     --mobile-nav-height variable, so the two can never drift back out
+     of sync) fixes this for every mobile width/orientation this block
+     now covers, not just portrait. */
+  .feedback-widget {
+    bottom: calc(var(--mobile-nav-height) + 12px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Phase MOBILE-FIXES-001 — a landscape phone's ~390px of real height is
+   tight; the portrait touch-target sizing above (min-height: 48px)
+   already clears the required 44x44px minimum, so it's kept as-is
+   rather than shrunk — only the label/icon are trimmed slightly so the
+   bar itself takes a smaller share of the limited vertical space. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .bottom-nav {
+    padding-top: 2px;
+    padding-bottom: calc(2px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .bottom-nav__item {
+    min-height: 44px;
+    padding: 2px 2px;
+  }
+
+  .bottom-nav__icon {
+    font-size: 1rem;
+  }
+
+  .bottom-nav__label {
+    font-size: 0.62rem;
   }
 }
 
