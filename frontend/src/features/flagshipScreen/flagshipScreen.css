@@ -1,11 +1,20 @@
 /* Phase FLAGSHIP-SCREEN-001 — panel-content-specific styles; the glass
-   panel shell/glassmorphism itself reuses workspace3d.css. */
+   panel shell/glassmorphism itself reuses workspace3d.css.
+
+   Phase WORLD-CLASS-UI-001 — spacing/radius/text-color values below now
+   reference the app's shared Nova design tokens instead of one-off
+   bespoke values, matching the same migration applied to
+   workspace3d.css. Bullish/bearish/neutral status colors (#4fffb0,
+   #ff5f5f, and the brand-signal blue used for the AI-recommendation
+   chip below) are real, established data-tone colors already shared
+   with worldState.js/DataVisualizationLayer.jsx — left as literal
+   values since they encode data meaning, not UI chrome. */
 
 /* Phase DATA-VISUALIZATION-001 — small, real labels on the 3D company
    cluster nodes (real active-recommendation symbols). */
 .dataviz-chip {
-  padding: 2px 6px;
-  border-radius: 999px;
+  padding: 2px var(--nova-space-2);
+  border-radius: var(--nova-radius-full);
   font-size: 10px;
   font-weight: 700;
   color: #0b1230;
@@ -15,8 +24,8 @@
 }
 
 .flagship-panel__empty {
-  color: #aebbe0;
-  padding: 12px 0;
+  color: var(--nova-color-text-secondary);
+  padding: var(--nova-space-3) 0;
 }
 
 /* Phase FLAGSHIP-POLISH-001 — real, distinct empty vs. error visuals
@@ -24,13 +33,13 @@
 .flagship-panel__state {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 12px 0;
+  gap: var(--nova-space-2);
+  padding: var(--nova-space-3) 0;
 }
 
 .flagship-panel__state p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--nova-font-size-sm);
   line-height: 1.5;
 }
 
@@ -41,18 +50,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  font-size: 13px;
+  border-radius: var(--nova-radius-full);
+  font-size: var(--nova-font-size-sm);
   font-weight: 700;
 }
 
 .flagship-panel__state--empty p {
-  color: #aebbe0;
+  color: var(--nova-color-text-secondary);
 }
 
 .flagship-panel__state--empty .flagship-panel__state-icon {
   background: rgba(159, 176, 221, 0.12);
-  color: #9fb0dd;
+  color: var(--nova-color-text-secondary);
 }
 
 .flagship-panel__state--error p {
@@ -69,13 +78,13 @@
 .flagship-panel__skeleton {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 4px 0;
+  gap: var(--nova-space-2);
+  padding: var(--nova-space-1) 0;
 }
 
 .flagship-skeleton-bar {
   height: 14px;
-  border-radius: 6px;
+  border-radius: var(--nova-radius-sm);
   width: 100%;
   background: linear-gradient(
     90deg,
@@ -84,7 +93,7 @@
     rgba(255, 255, 255, 0.06) 63%
   );
   background-size: 400% 100%;
-  animation: flagship-shimmer 1.4s ease infinite;
+  animation: flagship-shimmer var(--nova-motion-duration-ai-thinking-loop) var(--nova-motion-curve-hover) infinite;
 }
 
 .flagship-skeleton-bar--wide {
@@ -112,34 +121,34 @@
 }
 
 .flagship-panel__content h3 {
-  margin: 0 0 6px;
-  color: #eaf1ff;
-  font-size: 16px;
+  margin: 0 0 var(--nova-space-2);
+  color: var(--nova-color-text-primary);
+  font-size: var(--nova-font-size-base);
 }
 
 .flagship-panel__content p {
-  margin: 0 0 8px;
-  color: #cdd8f5;
-  font-size: 13px;
+  margin: 0 0 var(--nova-space-2);
+  color: var(--nova-color-text-secondary);
+  font-size: var(--nova-font-size-sm);
   line-height: 1.5;
 }
 
 .flagship-panel__meta {
-  color: #9fb0dd !important;
-  font-size: 12px !important;
+  color: var(--nova-color-text-tertiary) !important;
+  font-size: var(--nova-font-size-xs) !important;
 }
 
 .flagship-panel__stat {
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  margin-bottom: 6px;
+  gap: var(--nova-space-2);
+  margin-bottom: var(--nova-space-2);
 }
 
 .flagship-panel__stat span {
-  font-size: 22px;
+  font-size: var(--nova-font-size-lg);
   font-weight: 700;
-  color: #eaf1ff;
+  color: var(--nova-color-text-primary);
 }
 
 .flagship-panel__stat .is-positive {
@@ -151,9 +160,9 @@
 }
 
 .flagship-panel__gauge {
-  font-size: 32px;
+  font-size: var(--nova-font-size-2xl);
   font-weight: 800;
-  color: #eaf1ff;
+  color: var(--nova-color-text-primary);
 }
 
 .flagship-panel__list {
@@ -162,7 +171,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--nova-space-2);
 }
 
 .flagship-panel__list li {
@@ -170,17 +179,17 @@
   flex-direction: column;
   gap: 2px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding-bottom: 8px;
+  padding-bottom: var(--nova-space-2);
 }
 
 .flagship-panel__list li strong {
-  color: #eaf1ff;
-  font-size: 13px;
+  color: var(--nova-color-text-primary);
+  font-size: var(--nova-font-size-sm);
 }
 
 .flagship-panel__list li span {
-  color: #9fb0dd;
-  font-size: 12px;
+  color: var(--nova-color-text-secondary);
+  font-size: var(--nova-font-size-xs);
 }
 
 .flagship-panel__chips {
@@ -189,15 +198,15 @@
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--nova-space-2);
 }
 
 .flagship-panel__chips li {
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(79, 140, 255, 0.18);
-  border: 1px solid rgba(79, 140, 255, 0.35);
-  color: #eaf1ff;
-  font-size: 12px;
+  padding: 4px var(--nova-space-3);
+  border-radius: var(--nova-radius-full);
+  background: rgba(111, 182, 255, 0.18);
+  border: 1px solid rgba(111, 182, 255, 0.35);
+  color: var(--nova-color-text-primary);
+  font-size: var(--nova-font-size-xs);
   font-weight: 600;
 }
