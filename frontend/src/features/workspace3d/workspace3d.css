@@ -65,9 +65,15 @@
   pointer-events: auto;
 }
 
+/* Phase WORLD-CLASS-FINISH-001 — this used a bespoke outline-based
+   focus ring (outline: 2px solid + outline-offset: 3px) instead of the
+   same box-shadow glow ring every NOVA component already uses
+   (accessibility.css's shared --nova-glow-focus token) — confirmed via
+   grep this was the only interactive element in the whole app using an
+   outline instead of the shared glow. Same token, not a new concept. */
 .workspace3d-node-label:focus-visible {
-  outline: 2px solid var(--nova-color-brand-signal);
-  outline-offset: 3px;
+  outline: none;
+  box-shadow: var(--nova-glow-focus);
 }
 
 /* Phase FLAGSHIP-POLISH-001 — a real, distinct hover state: a subtle
@@ -142,11 +148,16 @@
    every interactive control in this scene (buttons render over a
    WebGL canvas, so the browser's own default focus outline is easy to
    lose against it — this makes it deliberate and premium instead of
-   accidentally invisible). */
+   accidentally invisible).
+   Phase WORLD-CLASS-FINISH-001 — was outline: 2px solid + outline-
+   offset: 2px (a second, slightly different bespoke value from the
+   node-label rule above, and a third visual treatment overall alongside
+   the app-wide NOVA glow ring) — unified onto the same shared
+   --nova-glow-focus box-shadow used everywhere else. */
 .workspace3d-toolbar__button:focus-visible,
 .workspace3d-glass-panel__close:focus-visible {
-  outline: 2px solid var(--nova-color-brand-signal);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--nova-glow-focus);
 }
 
 /* The floating glassmorphism panel every focused module's real screen
