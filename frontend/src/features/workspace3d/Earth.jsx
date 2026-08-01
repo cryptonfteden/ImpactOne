@@ -83,6 +83,12 @@ export default function Earth({ ambientColor = "#4f8cff", ambientIntensity = 0.3
     return () => {
       window.removeEventListener("pointermove", handleWindowPointerMove);
       window.removeEventListener("pointerup", handleWindowPointerUp);
+      // Phase APPLE-QUALITY-001 — real bug fix: if this component
+      // unmounts (e.g. the user navigates away) while the cursor was
+      // set to "grab"/"grabbing", the browser cursor stayed stuck in
+      // that state forever, since nothing else in the app ever resets
+      // it. Always restore it on unmount, regardless of drag state.
+      document.body.style.cursor = "auto";
     };
   }, []);
 

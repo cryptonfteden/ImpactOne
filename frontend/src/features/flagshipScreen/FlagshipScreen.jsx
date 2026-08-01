@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FlagshipEarthScene from "./FlagshipEarthScene";
 import FlagshipPanelContent from "./FlagshipPanelContent";
+import GlassPanel from "../workspace3d/GlassPanel";
 import useFlagshipData from "./useFlagshipData";
 import { FLAGSHIP_PANELS } from "./panelConfig";
 import { computeWorldState } from "./worldState";
@@ -116,17 +117,9 @@ export default function FlagshipScreen() {
         </button>
       </div>
       {focusedPanel ? (
-        <div className="workspace3d-glass-panel" role="region" aria-label={focusedPanel.label}>
-          <div className="workspace3d-glass-panel__header">
-            <span className="workspace3d-glass-panel__title">{focusedPanel.label}</span>
-            <button type="button" className="workspace3d-glass-panel__close" onClick={handleClose} aria-label={`Close ${focusedPanel.label}`}>
-              ×
-            </button>
-          </div>
-          <div className="workspace3d-glass-panel__body">
-            <FlagshipPanelContent panelKey={focusedPanel.key} panelState={panels[focusedPanel.key]} />
-          </div>
-        </div>
+        <GlassPanel title={focusedPanel.label} onClose={handleClose}>
+          <FlagshipPanelContent panelKey={focusedPanel.key} panelState={panels[focusedPanel.key]} />
+        </GlassPanel>
       ) : null}
     </div>
   );

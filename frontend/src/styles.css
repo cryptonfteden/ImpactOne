@@ -152,6 +152,18 @@ button {
   border-radius: 999px;
   padding: 10px 14px;
   min-width: 240px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Phase APPLE-QUALITY-001 — real bug fix: the inner input suppressed
+   its own native focus outline (`outline: 0` below) with no visible
+   replacement anywhere — a keyboard user tabbing into the header
+   search box got zero visual confirmation it was focused. Matches the
+   same focus-ring treatment already established elsewhere in this file
+   (e.g. `.advanced-chart__canvas-stack:focus-visible`). */
+.search-box:focus-within {
+  border-color: var(--h3-accent);
+  box-shadow: 0 0 0 3px rgba(111, 182, 255, 0.22);
 }
 
 .search-box input {

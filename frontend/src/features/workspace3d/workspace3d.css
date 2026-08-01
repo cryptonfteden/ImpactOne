@@ -19,11 +19,18 @@
   display: block;
 }
 
+/* Phase APPLE-QUALITY-001 — this is now a real <button> (previously a
+   non-interactive <div> — the 3D mesh's onClick was the only way to
+   reach it, leaving keyboard-only users with no way to select a panel
+   at all); the font/appearance/cursor resets below undo the browser's
+   default button chrome so it still reads as the same pill, not a
+   native button. */
 .workspace3d-node-label {
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
+  font-family: inherit;
   color: #eaf1ff;
   background: rgba(20, 30, 60, 0.55);
   backdrop-filter: blur(6px);
@@ -31,6 +38,14 @@
   transform: translateY(28px) scale(1);
   transition: opacity 0.25s ease, transform 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
   border: 1px solid transparent;
+  cursor: pointer;
+  appearance: none;
+  pointer-events: auto;
+}
+
+.workspace3d-node-label:focus-visible {
+  outline: 2px solid #4f8cff;
+  outline-offset: 3px;
 }
 
 /* Phase FLAGSHIP-POLISH-001 — a real, distinct hover state: a subtle

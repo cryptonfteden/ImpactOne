@@ -1,4 +1,4 @@
-import { useRef, useMemo, useState, useCallback, memo } from "react";
+import { useRef, useMemo, useState, useCallback, useEffect, memo } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 
@@ -25,11 +25,28 @@ import { Html } from "@react-three/drei";
 //    current data status, so the "market activity" pulse this component
 //    always claimed to represent is, for callers that have the data,
 //    now actually driven by it.
+//
+// Phase APPLE-QUALITY-001 — two real fixes:
+// 1. The label is now a real, focusable <button> (was a non-interactive
+//    <div> — the 3D mesh's onClick was the ONLY way to select a panel,
+//    meaning keyboard-only users had no way to reach it at all). Tab
+//    now reaches every node in document order; Enter/Space activates it
+//    exactly like a click, with a real, visible focus ring.
+// 2. `document.body.style.cursor` is now reset on unmount, matching the
+//    same real leak fix applied to Earth.jsx — previously, unmounting
+//    while hovered left the browser cursor stuck on "pointer" forever.
 function OrbitalNode({ module, position, isFocused, isDimmed, onSelect, pulseAmplitude = 0.08 }) {
   const meshRef = useRef(null);
   const phase = useMemo(() => Math.random() * Math.PI * 2, []);
   const [isHovered, setIsHovered] = useState(false);
   const hoverAmount = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      if (isHovered) document.body.style.cursor = "auto";
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePointerOver = useCallback((event) => {
     event.stopPropagation();
@@ -42,7 +59,7 @@ function OrbitalNode({ module, position, isFocused, isDimmed, onSelect, pulseAmp
     document.body.style.cursor = "auto";
   }, []);
 
-  const handleClick = useCallback(
+  const handleSelect = useCallback(
     (event) => {
       event.stopPropagation();
       onSelect(module.key);
@@ -70,7 +87,7 @@ function OrbitalNode({ module, position, isFocused, isDimmed, onSelect, pulseAmp
     <group position={position}>
       <mesh
         ref={meshRef}
-        onClick={handleClick}
+        onClick={handleSelect}
         onPointerOver={handlePointerOver}
         onPointerOut={handlePointerOut}
         castShadow
@@ -84,12 +101,17 @@ function OrbitalNode({ module, position, isFocused, isDimmed, onSelect, pulseAmp
           opacity={isDimmed ? 0.35 : 1}
         />
       </mesh>
-      <Html center distanceFactor={10} style={{ pointerEvents: "none" }}>
-        <div
+      <Html center distanceFactor={10}>
+        <button
+          type="button"
           className={`workspace3d-node-label ${isFocused ? "is-focused" : ""} ${isDimmed ? "is-dimmed" : ""} ${isHovered ? "is-hovered" : ""}`}
+          onClick={handleSelect}
+          onPointerOver={handlePointerOver}
+          onPointerOut={handlePointerOut}
+          aria-pressed={isFocused}
         >
           {module.label}
-        </div>
+        </button>
       </Html>
     </group>
   );
