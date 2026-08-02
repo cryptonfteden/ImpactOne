@@ -74,10 +74,32 @@ SHUTDOWN_TIMEOUT_MS=10000
 # Autonomous engine (optional; defaults to enabled)
 AUTONOMOUS_ENGINE_ENABLED=true
 AUTONOMOUS_ENGINE_INTERVAL_MINUTES=30
+
+# Agent Scheduler tuning (optional; all have safe defaults, see
+# backend/services/agentScheduler/schedulerConfig.js)
+AGENT_SCHEDULER_CONCURRENCY=20
+AGENT_SCHEDULER_TIMEOUT_MS=5000
+AGENT_SCHEDULER_MAX_RETRIES=1
+AGENT_SCHEDULER_BASE_DELAY_MS=20
+AGENT_SCHEDULER_MAX_DELAY_MS=2000
+AGENT_SCHEDULER_AGING_FACTOR_PER_MS=0.01
+AGENT_SCHEDULER_HEALTH_CACHE_TTL_MS=2000
+
+# Agent Observability retention (optional; safe defaults)
+AGENT_OBSERVABILITY_MAX_RECORDS=5000
+AGENT_OBSERVABILITY_FAILURE_LOG_MAX_RECORDS=1000
+
+# Redis-backed provider cache TTL override (optional; safe default)
+REDIS_CACHE_PRICE_HISTORY_TTL_MS=900000
+
+# Options Flow vendor gate (optional; the provider honestly reports
+# unconfigured/stubbed data until this is set)
+OPTIONS_FLOW_PROVIDER_API_KEY=
 ```
 
 ## Startup Sequence
 
+0. **`npm run db:generate` (`prisma generate`) must have already been run at least once.** This is not optional and is not the same as running migrations — `npm install` alone does **not** produce the generated Prisma Client, and every backend module that transitively requires `backend/db/prismaClient.js` (which is most of the route tree) will crash immediately with `Cannot find module '.prisma/client/default'` if this step was skipped. Re-run it after every `npm install` that changes `@prisma/client`'s version or after any `schema.prisma` change.
 1. `node backend/server.js` loads `.env`/`.env.local` (via `backend/config/env.js`, unchanged from prior phases).
 2. `validateEnvironmentOrExit()` runs against the real, raw environment. Any fatal problem (see Required/Conditionally Required tables above) prints every real error found and exits with code `1` — the process never partially starts against a known-broken configuration. Non-fatal gaps (Recommended table) print as warnings but do not block startup.
 3. The HTTP server starts listening on `PORT`.
