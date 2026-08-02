@@ -112,6 +112,13 @@ button {
 
 .main-panel {
   flex: 1;
+  /* Phase PIXEL-PERFECT-001 — confirmed live at 1024x768 (a real,
+     common tablet-landscape resolution): without this, a flex item's
+     default min-width:auto lets its content (the header's search box +
+     icons) force this panel wider than its actual allotted space,
+     producing a real ~8px horizontal overflow/scrollbar at exactly
+     this width. The standard fix for this flexbox behavior. */
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
@@ -1649,6 +1656,7 @@ body {
   border-radius: 8px;
   padding: 5px 8px;
   cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease;
 }
 
 .header-suggestion:hover {
@@ -1878,6 +1886,7 @@ body {
   color: var(--text-1);
   background: rgba(18, 30, 45, 0.8);
   border: 1px solid rgba(132, 170, 221, 0.2);
+  transition: color 0.2s ease, border-color 0.2s ease;
 }
 
 .analysis-sticky-nav__link:hover {
@@ -2002,6 +2011,29 @@ body {
 
   .watch-card-premium__metrics {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Phase PIXEL-PERFECT-001 — confirmed live at 1024x768 (a real, common
+   tablet-landscape resolution): above 980px the sidebar is visible and
+   .header-controls returns to an unstacked row, but the row's own real
+   content (a 330px-min-width search box + market-status pill + 4
+   header icon buttons) doesn't actually fit in the space left over
+   next to the sidebar until roughly 1150px — leaving 981-1149px with a
+   real, measured ~88px horizontal overflow/scrollbar. Reusing the
+   exact same stacked-column treatment the 980px breakpoint above
+   already applies (not a new pattern) for this narrow gap closes it
+   without touching that block's own grid-column rules, which aren't
+   part of this specific defect. */
+@media (min-width: 981px) and (max-width: 1149px) {
+  .header-controls {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-box {
+    min-width: 100%;
   }
 }
 
@@ -2477,6 +2509,7 @@ body {
   background: transparent;
   color: #d7e8ff;
   cursor: pointer;
+  transition: background 0.2s ease;
 }
 
 .header-menu__item:hover {
@@ -2622,6 +2655,7 @@ body {
   cursor: pointer;
   padding: 6px 4px;
   font-size: 0.9rem;
+  transition: color 0.2s ease;
 }
 
 .onboarding-back-button:hover {
@@ -3260,6 +3294,7 @@ body {
   box-shadow: 0 0 0 1px rgba(111, 182, 255, 0.35), 0 8px 24px rgba(47, 111, 224, 0.35);
   font-weight: 600;
   letter-spacing: 0.01em;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .primary-action:hover {
@@ -3557,6 +3592,61 @@ button:focus-visible {
 @media (max-width: 900px) {
   .sidebar {
     display: none;
+  }
+
+  /* Phase PIXEL-PERFECT-001 — confirmed live at a real tablet-portrait
+     width (768px): this rule hides the sidebar down to 900px, but the
+     mobile bottom nav below only turns on at 720px — leaving every
+     width from 721-900px (a real, common tablet-portrait band: 768px
+     iPad, 810/820/834px iPad Air/Pro) with NO primary navigation
+     visible at all. Enabling the same bottom nav here (not a new
+     navigation concept — the identical BottomNav.jsx markup/styles
+     already used below 720px) closes that gap without touching the
+     phone-specific rules in the 720px block (header padding, hero
+     stacking, safe-area insets) that were tuned for narrower widths
+     and aren't necessarily appropriate at true tablet widths. */
+  .main-panel {
+    padding-bottom: var(--mobile-nav-height);
+  }
+
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    background: linear-gradient(180deg, rgba(8, 13, 20, 0.98), rgba(6, 10, 17, 0.99));
+    border-top: 1px solid rgba(157, 174, 202, 0.2);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .bottom-nav__item {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 48px;
+    padding: 6px 2px;
+    background: transparent;
+    border: none;
+    color: var(--text-2);
+    font-size: 0.7rem;
+  }
+
+  .bottom-nav__item.active {
+    color: var(--accent);
+  }
+
+  .bottom-nav__icon {
+    font-size: 1.15rem;
+    line-height: 1;
+  }
+
+  .bottom-nav__label {
+    line-height: 1;
   }
 
   .notification-panel {
