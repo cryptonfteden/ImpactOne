@@ -32,6 +32,7 @@ These have no safe default and **must** be set for the process to start against 
 |---|---|---|
 | `VITE_API_BASE_URL` | Falls back to `http://localhost:5000/api`, baked into the production bundle — unreachable from a real device. Flagged by `startupValidation.js`'s `validateOrigins()` in production builds. | Set at frontend build time, not runtime. See `PRODUCTION_ENVIRONMENT_MATRIX.md`. |
 | `VITE_PORTFOLIO_ENGINE` | Falls back to the legacy, localStorage-driven Portfolio screen. | `"api"` selects the newer, server-owned Portfolio Engine screen. Either value is a fully supported, working code path — not a work-in-progress flag. |
+| `VITE_DEV_CONSOLE` | Internal-only nav items (Intelligence Console, Health Dashboard, Admin Dashboard, AI Performance Dashboard) stay hidden. | Set to `"true"` to reveal them in Sidebar/Profile "More" nav. Never set in a real production build — these are internal diagnostics only. |
 
 ## Full Variable Reference
 

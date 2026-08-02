@@ -28,10 +28,6 @@ const PRIMARY_ITEMS = [
   // among the immersive entries per the mission's own framing as "the
   // foundation of every future screen."
   { key: "Flagship", label: "Flagship" },
-  // Phase IMPACTONE-3D-WORKSPACE-001 — the immersive 3D command center;
-  // pinned in Primary since it's the mission's own flagship entry point,
-  // not a rarely-used tool.
-  { key: "3D Workspace", label: "3D Workspace" },
   { key: "Market Dashboard", label: "Market Dashboard" },
   { key: "Decision Center", label: "Decision Center" },
   { key: "Portfolio", label: "Portfolio" },
@@ -39,6 +35,20 @@ const PRIMARY_ITEMS = [
 ];
 
 const ADVANCED_ITEMS = [
+  // Phase RC1-BLOCKERS-001 — demoted from Primary. A live founder review
+  // (FOUNDER_WEEK_REVIEW.md) found this and Flagship read as two
+  // near-identical co-equal 3D entry points (same workspace3d-root shell,
+  // differing only by one toolbar button label), with no way for a user
+  // to know why both existed. Flagship is the mission's designated single
+  // flagship destination (its own comments across every 3D-era phase
+  // frame it that way) and already reuses this feature's own Earth/
+  // CameraRig/OrbitalNode primitives — this screen's real, distinct value
+  // is as a 3D portal to the Advanced screens below (Mission Control,
+  // Intelligence Workspace, etc.), which is itself an Advanced-tier
+  // concern, not a Primary/daily one. Nothing was deleted — same
+  // "unreachable-from-Primary, not removed" precedent already used for
+  // the legacy Watchlist screen and Sprint 40's Dashboard, above.
+  { key: "3D Workspace", label: "3D Workspace" },
   { key: "Mission Control", label: "Mission Control" },
   { key: "Intelligence Workspace", label: "Intelligence Workspace" },
   { key: "Portfolio Workspace", label: "Portfolio Workspace" },

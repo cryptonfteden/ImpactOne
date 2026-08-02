@@ -150,21 +150,36 @@ test("event expiry: the same event read shortly after publish is still ACTIVE", 
 test("lifecycle: a newer event in the same series (same engine/eventType/symbols) supersedes the prior ACTIVE one", async () => {
   const first = await intelligenceBusService.publishEvent(sentimentOverallEvent({ publishedAt: "2026-07-25T21:00:00.000Z", payload: { score: 50 } }));
   const second = await intelligenceBusService.publishEvent(sentimentOverallEvent({ publishedAt: "2026-07-26T21:00:00.000Z", payload: { score: 60 } }));
+  // Phase RC1-BLOCKERS-001 — this read has no bearing on supersession (a
+  // SUPERSEDED event stays SUPERSEDED regardless of the clock), but the
+  // second event's own ACTIVE/EXPIRED status depends on how much time has
+  // passed since its fixed publishedAt above. A real, reproducible bug:
+  // this test read with the real system clock, which drifted past this
+  // fixture's expiry window as real time advanced past 2026-07-26 — a
+  // fixed `now` shortly after publishedAt makes the assertion deterministic
+  // regardless of when this suite actually runs.
+  const readNow = new Date("2026-07-26T21:05:00.000Z");
 
-  const firstReread = await intelligenceBusService.getEventById(first.id);
+  const firstReread = await intelligenceBusService.getEventById(first.id, { now: readNow });
   assert.equal(firstReread.lifecycleStatus, "SUPERSEDED");
   assert.equal(firstReread.supersededByEventId, second.id);
 
-  const secondReread = await intelligenceBusService.getEventById(second.id);
+  const secondReread = await intelligenceBusService.getEventById(second.id, { now: readNow });
   assert.equal(secondReread.lifecycleStatus, "ACTIVE");
 });
 
 test("lifecycle: events from a different engine/symbol series are never superseded by an unrelated publish", async () => {
-  await intelligenceBusService.publishEvent(optionsSweepEvent());
-  const sentimentEvent = await intelligenceBusService.publishEvent(sentimentOverallEvent());
-  await intelligenceBusService.publishEvent(sentimentOverallEvent({ publishedAt: "2026-07-27T21:00:00.000Z", payload: { score: 40 } }));
+  const publishedAt = "2026-07-27T21:00:00.000Z";
+  await intelligenceBusService.publishEvent(optionsSweepEvent({ publishedAt }));
+  const sentimentEvent = await intelligenceBusService.publishEvent(sentimentOverallEvent({ publishedAt }));
+  await intelligenceBusService.publishEvent(sentimentOverallEvent({ publishedAt: "2026-07-27T21:30:00.000Z", payload: { score: 40 } }));
 
-  const optionsEvents = await intelligenceBusService.getEvents({ engineId: "options" });
+  // Phase RC1-BLOCKERS-001 — same fixed-clock fix as above: this read's
+  // ACTIVE assertion depends on the real system clock staying within the
+  // options event's expiry window, which is not guaranteed as real time
+  // advances past this fixture's fixed publishedAt. A fixed `now` shortly
+  // after publish removes that dependency without weakening what's asserted.
+  const optionsEvents = await intelligenceBusService.getEvents({ engineId: "options" }, { now: new Date("2026-07-27T21:05:00.000Z") });
   assert.equal(optionsEvents[0].lifecycleStatus, "ACTIVE"); // untouched by the sentiment series' supersession
 });
 

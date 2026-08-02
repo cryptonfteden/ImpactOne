@@ -82,10 +82,18 @@ function normalizeSymbols(values = []) {
   return normalized.length ? unique(normalized) : DEFAULT_WATCHLIST;
 }
 
+// Phase RC1-BLOCKERS-001 — same word-boundary fix commit 70aee70 applied
+// to historicalSimilarityService.js/propagationEngineService.js (plain
+// `text.includes(keyword)` matched "ai" inside "said"/"main" and similar
+// false positives).
+function hasWord(text, phrase) {
+  return new RegExp(`\\b${phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(text);
+}
+
 function classifyEventType(headline = "") {
   const text = String(headline || "").toLowerCase();
   for (const [type, keywords] of Object.entries(CORE_EVENT_TYPES)) {
-    if (keywords.some((keyword) => text.includes(keyword))) {
+    if (keywords.some((keyword) => hasWord(text, keyword))) {
       return type;
     }
   }
@@ -115,28 +123,38 @@ function mapReliability(confidence, sources = []) {
 // counterargument, mirroring Sprint 26's fix to adjustAffected (same
 // problem: most event types fell through to one generic 2-line bucket,
 // producing identical "counter-evidence" text across unrelated events).
+// Phase RC1-BLOCKERS-001 — each line below takes %EVENT%, interpolated
+// with the real, specific headline this call is actually for (see
+// buildCounterarguments). Previously these were emitted verbatim per
+// category, so two different headlines landing in the same one of 19
+// buckets (e.g. "AAPL earnings" and "Earnings calendar concentration"
+// both matching "earnings") produced byte-identical counterargument
+// text with nothing tying it to either specific event. Naming the real,
+// already-known headline is genuine per-event evidence, not invented
+// variation — two calls for the literal same headline still correctly
+// produce the same sentence.
 const COUNTERARGUMENT_BY_TYPE = {
-  centralBanks: "Policy communication may calm markets if the move is already priced in.",
-  macro: "A single data print may not confirm a genuine regime shift.",
-  geopolitics: "Diplomatic de-escalation could reverse the initial risk repricing.",
-  ma: "Regulatory review could delay or block the deal before it closes.",
-  regulation: "Legal challenges or lobbying could soften the final rule.",
-  supplyChain: "Alternate routing or inventory buffers could blunt the disruption.",
-  semiconductors: "Capacity additions elsewhere could offset the near-term shortage.",
-  energy: "Strategic reserve releases could cap the price move.",
-  crypto: "Regulatory pushback could reverse flow-driven momentum.",
-  defense: "Budget appropriations could lag the initial headline reaction.",
-  ai: "Compute or power constraints could slow the pace investors are pricing in.",
-  healthcare: "Trial or regulatory setbacks remain common at this stage.",
-  consumer: "Discretionary spending is sensitive to a single soft data print reversing.",
-  financials: "Credit conditions could tighten faster than the headline implies.",
-  space: "Launch delays are common and could push the timeline out.",
-  nuclear: "Permitting timelines are long and could delay realized impact.",
-  cybersecurity: "Remediation could limit the scope investors are currently pricing.",
-  quantum: "Commercial timelines in this sector remain early and uncertain.",
+  centralBanks: "Policy communication may calm markets if %EVENT%'s move is already priced in.",
+  macro: "A single data print behind %EVENT% may not confirm a genuine regime shift.",
+  geopolitics: "Diplomatic de-escalation could reverse the initial risk repricing from %EVENT%.",
+  ma: "Regulatory review could delay or block the deal in %EVENT% before it closes.",
+  regulation: "Legal challenges or lobbying could soften the final rule behind %EVENT%.",
+  supplyChain: "Alternate routing or inventory buffers could blunt the disruption in %EVENT%.",
+  semiconductors: "Capacity additions elsewhere could offset the near-term shortage behind %EVENT%.",
+  energy: "Strategic reserve releases could cap the price move behind %EVENT%.",
+  crypto: "Regulatory pushback could reverse the flow-driven momentum behind %EVENT%.",
+  defense: "Budget appropriations could lag the initial reaction to %EVENT%.",
+  ai: "Compute or power constraints could slow the pace investors are pricing into %EVENT%.",
+  healthcare: "Trial or regulatory setbacks remain common at this stage for %EVENT%.",
+  consumer: "Discretionary spending tied to %EVENT% is sensitive to a single soft data print reversing.",
+  financials: "Credit conditions tied to %EVENT% could tighten faster than the headline implies.",
+  space: "Launch delays are common and could push out the timeline behind %EVENT%.",
+  nuclear: "Permitting timelines are long and could delay the realized impact of %EVENT%.",
+  cybersecurity: "Remediation could limit the scope investors are currently pricing into %EVENT%.",
+  quantum: "Commercial timelines behind %EVENT% remain early and uncertain.",
 };
 
-function buildCounterarguments(type, event) {
+function buildCounterarguments(type, event = "this event") {
   const base = [
     "Positioning may already reflect the headline, limiting follow-through.",
     "Cross-asset transmission could remain localized instead of broadening.",
@@ -145,7 +163,7 @@ function buildCounterarguments(type, event) {
   if (type === "earnings") {
     base.unshift(`Management commentary could offset the first reaction to ${event}.`);
   } else if (COUNTERARGUMENT_BY_TYPE[type]) {
-    base.unshift(COUNTERARGUMENT_BY_TYPE[type]);
+    base.unshift(COUNTERARGUMENT_BY_TYPE[type].replace("%EVENT%", `"${event}"`));
   }
 
   return base.slice(0, 3);
@@ -154,29 +172,36 @@ function buildCounterarguments(type, event) {
 // Sprint 27 Priority 3 — same fix applied to invalidation signals: every
 // event type gets its own pair instead of 15 of 19 types sharing one
 // generic fallback.
+// Phase RC1-BLOCKERS-001 — first line per type now takes %EVENT%, same
+// reasoning as COUNTERARGUMENT_BY_TYPE above: ties this call's output to
+// the real, specific headline instead of the category alone, so two
+// different same-category events stop producing byte-identical
+// invalidation text. The second line stays a genuinely category-general
+// fallback (not event-specific by nature) — see buildInvalidation.
 const INVALIDATION_BY_TYPE = {
-  energy: ["Commodity prices retrace sharply.", "Inflation pass-through fails to broaden."],
-  crypto: ["ETF flow momentum fades.", "Macro liquidity tightens more than expected."],
-  centralBanks: ["Forward guidance softens the policy signal.", "Growth data reaccelerates against the initial narrative."],
-  macro: ["Revisions reverse the initial data print.", "Other coincident indicators fail to confirm the trend."],
-  geopolitics: ["A negotiated settlement materializes faster than expected.", "Market risk pricing normalizes without follow-through escalation."],
-  ma: ["Regulators block or materially delay the deal.", "Financing terms deteriorate before close."],
-  regulation: ["The proposed rule is watered down before finalization.", "Legal challenges stay the rule's enforcement."],
-  supplyChain: ["Alternate suppliers absorb the disruption within weeks.", "Inventory buffers prevent a measurable output hit."],
-  semiconductors: ["Yields recover faster than guided.", "Demand softens enough to offset the supply constraint."],
-  defense: ["Budget appropriations stall in committee.", "Program timelines slip beyond the priced-in horizon."],
-  ai: ["Compute buildout guidance is walked back next quarter.", "Enterprise adoption data disappoints against expectations."],
-  healthcare: ["Trial data misses its primary endpoint.", "Regulatory review extends materially beyond guidance."],
-  consumer: ["Spending data reverses within the next reporting cycle.", "Margin pressure offsets the top-line signal."],
-  financials: ["Credit quality metrics deteriorate faster than priced.", "Net interest margin guidance disappoints."],
-  space: ["The launch or contract milestone slips.", "Payload or customer demand fails to materialize as guided."],
-  nuclear: ["Permitting or siting approval stalls.", "Capital costs run materially above guidance."],
-  cybersecurity: ["The vulnerability is patched before meaningful exploitation.", "Disclosed impact proves smaller than initial reports suggested."],
-  quantum: ["A commercial milestone slips well beyond guidance.", "A competing approach demonstrates a faster path to the same result."],
+  energy: ["Commodity prices behind %EVENT% retrace sharply.", "Inflation pass-through fails to broaden."],
+  crypto: ["ETF flow momentum behind %EVENT% fades.", "Macro liquidity tightens more than expected."],
+  centralBanks: ["Forward guidance softens the policy signal in %EVENT%.", "Growth data reaccelerates against the initial narrative."],
+  macro: ["Revisions reverse the initial data print behind %EVENT%.", "Other coincident indicators fail to confirm the trend."],
+  geopolitics: ["A negotiated settlement to %EVENT% materializes faster than expected.", "Market risk pricing normalizes without follow-through escalation."],
+  ma: ["Regulators block or materially delay %EVENT%.", "Financing terms deteriorate before close."],
+  regulation: ["The rule behind %EVENT% is watered down before finalization.", "Legal challenges stay the rule's enforcement."],
+  supplyChain: ["Alternate suppliers absorb the disruption in %EVENT% within weeks.", "Inventory buffers prevent a measurable output hit."],
+  semiconductors: ["Yields behind %EVENT% recover faster than guided.", "Demand softens enough to offset the supply constraint."],
+  defense: ["Budget appropriations for %EVENT% stall in committee.", "Program timelines slip beyond the priced-in horizon."],
+  ai: ["Compute buildout guidance behind %EVENT% is walked back next quarter.", "Enterprise adoption data disappoints against expectations."],
+  healthcare: ["Trial data behind %EVENT% misses its primary endpoint.", "Regulatory review extends materially beyond guidance."],
+  consumer: ["Spending data behind %EVENT% reverses within the next reporting cycle.", "Margin pressure offsets the top-line signal."],
+  financials: ["Credit quality metrics behind %EVENT% deteriorate faster than priced.", "Net interest margin guidance disappoints."],
+  space: ["The launch or contract milestone in %EVENT% slips.", "Payload or customer demand fails to materialize as guided."],
+  nuclear: ["Permitting or siting approval for %EVENT% stalls.", "Capital costs run materially above guidance."],
+  cybersecurity: ["The vulnerability in %EVENT% is patched before meaningful exploitation.", "Disclosed impact proves smaller than initial reports suggested."],
+  quantum: ["A commercial milestone behind %EVENT% slips well beyond guidance.", "A competing approach demonstrates a faster path to the same result."],
 };
 
-function buildInvalidation(type) {
-  return INVALIDATION_BY_TYPE[type] || ["Supporting data fails to confirm the first-order move.", "Sector leadership rotates away from affected assets."];
+function buildInvalidation(type, event = "this event") {
+  const templates = INVALIDATION_BY_TYPE[type] || ["Supporting data fails to confirm %EVENT%'s first-order move.", "Sector leadership rotates away from affected assets."];
+  return templates.map((line) => line.replace("%EVENT%", `"${event}"`));
 }
 
 function buildRegions(analysis, type) {
@@ -707,7 +732,7 @@ async function processEvent({ event, sourceUrl = null, sourceName = null, publis
       dataSources,
       confidence,
       counterarguments: buildCounterarguments(eventType, event),
-      invalidationSignals: buildInvalidation(eventType),
+      invalidationSignals: buildInvalidation(eventType, event),
     },
   };
 }

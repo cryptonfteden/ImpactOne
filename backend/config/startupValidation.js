@@ -61,7 +61,17 @@ function validateEnvironment(rawEnv = process.env) {
     }
   }
 
-  return { valid: errors.length === 0, errors, warnings };
+  const valid = errors.length === 0;
+  // Phase RC1-BLOCKERS-001 — an RC audit found this returns { valid,
+  // errors, warnings } while frontend/src/startupValidation.js returns
+  // { ok, issues } for the analogous check, with no shared field name
+  // between them. Renaming either side would mean touching every real
+  // consumer on that side (server.js here; screenRegistry.js there) plus
+  // their tests — a structural change, not a cleanup. This adds `ok` as
+  // a plain alias of `valid` instead: purely additive, breaks nothing
+  // that reads `.valid` today, and lets a caller that already knows the
+  // frontend's `.ok` convention use the same field name here too.
+  return { valid, ok: valid, errors, warnings };
 }
 
 /**

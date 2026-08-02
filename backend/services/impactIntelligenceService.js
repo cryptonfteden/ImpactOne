@@ -36,11 +36,36 @@ const CATEGORY_KEYWORDS = {
   quantum: ["quantum", "qubit", "quantum computing"],
 };
 
+// Phase RC1-BLOCKERS-001 — same word-boundary fix commit 70aee70 applied
+// to historicalSimilarityService.js/propagationEngineService.js, applied
+// here too: plain `text.includes(keyword)` matched "ai" inside "said"/
+// "main"/"chair" and similar false positives. `\b` also correctly matches
+// multi-word phrases like "central bank" as a whole unit.
+function hasWord(text, phrase) {
+  return new RegExp(`\\b${phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(text);
+}
+
 function classifyForAssets(text) {
   for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-    if (keywords.some((keyword) => text.includes(keyword))) return category;
+    if (keywords.some((keyword) => hasWord(text, keyword))) return category;
   }
   return "macro";
+}
+
+// Phase RC1-BLOCKERS-001 — Trust Breaker fix, part 2: classifyForAssets
+// only ever differentiated by broad category (19 buckets), so two
+// same-category headlines about genuinely different things (e.g. "AAPL
+// earnings" naming one specific company vs. "Earnings calendar
+// concentration", a market-wide breadth observation naming none) got the
+// exact same category-template stock list. This extracts any ticker the
+// headline *literally names* (a real, per-event fact, not an invented
+// one) and leads the affected-stocks list with it when found — so an
+// event naming a specific company is genuinely distinguishable from one
+// that doesn't, while two headlines that really do name the same company
+// still correctly share that fact.
+function extractMentionedTicker(originalEvent, knownTickers) {
+  const tokens = String(originalEvent || "").match(/\b[A-Z]{2,5}\b/g) || [];
+  return tokens.find((token) => knownTickers.has(token)) || null;
 }
 
 const EVENT_TYPE_ASSETS = {
@@ -64,6 +89,10 @@ const EVENT_TYPE_ASSETS = {
   cybersecurity: { stocks: ["CRWD", "PANW", "FTNT", "ZS"], sectors: ["Cybersecurity", "Enterprise Software"] },
   quantum: { stocks: ["IBM", "GOOGL", "IONQ", "RGTI"], sectors: ["Quantum Computing", "Technology"] },
 };
+
+const KNOWN_TICKERS = new Set(
+  Object.values(EVENT_TYPE_ASSETS).flatMap((entry) => entry.stocks)
+);
 
 const assetTemplates = {
   stocks: ["AAPL", "NVDA", "TSLA", "MSFT"],
@@ -143,6 +172,22 @@ function adjustAffected(event = "") {
     output.stocks = ["LMT", "NOC", "XOM", "GLD"];
     output.sectors = ["Defense", "Energy", "Transport", "Insurance"];
     output.commodities = ["Oil", "Gold", "Natural Gas"];
+  }
+
+  // A headline that literally names one of these tickers (e.g. "AAPL
+  // earnings") is genuinely about that specific company — lead the list
+  // with it rather than only the category/keyword-template default above.
+  // A headline that names NO company at all (e.g. "Earnings calendar
+  // concentration" — a market-wide breadth observation, not a single-
+  // company event) is genuinely different in kind, even within the same
+  // category, and must not silently reuse the single-company template
+  // verbatim — it leads with a real, broad-market proxy instead. Runs
+  // last so this real distinction always wins over every template above.
+  const BROAD_MARKET_PROXY = "SPY";
+  const mentionedTicker = extractMentionedTicker(event, KNOWN_TICKERS);
+  const leadTicker = mentionedTicker || BROAD_MARKET_PROXY;
+  if (output.stocks[0] !== leadTicker) {
+    output.stocks = [leadTicker, ...output.stocks.filter((ticker) => ticker !== leadTicker)];
   }
 
   return output;

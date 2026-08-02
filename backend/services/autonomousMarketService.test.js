@@ -138,6 +138,40 @@ test("Sprint 27 — buildCounterarguments gives distinct event types their own l
   assert.equal(uniqueFirstLines.size, types.length, "every event type should lead with its own counterargument");
 });
 
+// Phase RC1-BLOCKERS-001 — the founder-week live review found 3 of 4 active
+// recommendations (GOOGL/NVDA/MSFT, all classified "ai") sharing byte-
+// identical "Would prove it wrong" and invalidation-signal text, since both
+// builders were keyed only by the coarse event-type category, never by the
+// specific matched headline. Fixed by interpolating the real, already-known
+// headline into the leading line of each — genuine per-event evidence, not
+// invented variation.
+test("RC1-BLOCKERS-001 — buildCounterarguments differentiates two same-category events by their real, specific headline", () => {
+  const nvda = autonomousMarketService.buildCounterarguments("ai", "NVDA AI demand acceleration");
+  const googl = autonomousMarketService.buildCounterarguments("ai", "AI capex supercycle");
+
+  assert.notEqual(nvda[0], googl[0], "two different headlines in the same category must not share an identical leading counterargument");
+  assert.match(nvda[0], /NVDA AI demand acceleration/, "the leading counterargument must cite this call's own real headline");
+});
+
+test("RC1-BLOCKERS-001 — buildInvalidation differentiates two same-category events by their real, specific headline", () => {
+  const nvda = autonomousMarketService.buildInvalidation("ai", "NVDA AI demand acceleration");
+  const googl = autonomousMarketService.buildInvalidation("ai", "AI capex supercycle");
+
+  assert.notEqual(nvda[0], googl[0], "two different headlines in the same category must not share an identical leading invalidation signal");
+  assert.match(nvda[0], /NVDA AI demand acceleration/, "the leading invalidation signal must cite this call's own real headline");
+});
+
+test("RC1-BLOCKERS-001 — two genuinely identical headlines still produce identical counterarguments/invalidation (no artificial variation)", () => {
+  const first = autonomousMarketService.buildCounterarguments("ai", "NVDA AI demand acceleration");
+  const second = autonomousMarketService.buildCounterarguments("ai", "NVDA AI demand acceleration");
+  assert.deepEqual(first, second, "the exact same headline must deterministically produce the exact same counterarguments");
+});
+
+test("RC1-BLOCKERS-001 — classifyEventType uses real word-boundary matching, not a substring false positive", () => {
+  // "said" contains "ai"; this headline is genuinely about Fed policy, not AI.
+  assert.equal(autonomousMarketService.classifyEventType("Fed chair said rates may hold steady"), "centralBanks");
+});
+
 test("getRepresentativeEvents backfills with the synthetic catalog when liveNews is empty", () => {
   const result = autonomousMarketService.getRepresentativeEvents({
     scenarios: ["Oil spike"],

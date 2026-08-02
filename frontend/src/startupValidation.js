@@ -96,5 +96,12 @@ export function runStartupValidation({ screenMap, navigableKeys, requiredModules
     ...validateRequiredModules(requiredModules),
     ...validateOrigins(origins),
   ];
-  return { ok: issues.length === 0, issues };
+  const ok = issues.length === 0;
+  // Phase RC1-BLOCKERS-001 — backend/config/startupValidation.js returns
+  // { valid, errors, warnings } for its analogous check; this returns
+  // { ok, issues }, with no shared field name between the two. Adds
+  // `valid` as a plain alias of `ok` here (and `ok` as an alias of
+  // `valid` on the backend side) — purely additive, breaks no existing
+  // `.ok` consumer, and gives both sides one shared, working field name.
+  return { ok, valid: ok, issues };
 }

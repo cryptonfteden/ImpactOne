@@ -70,7 +70,12 @@ function PersonalProgress() {
 // its own richer, always-visible list independently of this section.
 // Sprint 40 — "Dashboard" removed: it duplicated Home's content (see
 // Sidebar.jsx's own comment and SPRINT_40_REPORT.md).
-const MORE_DESTINATIONS = ["Themes", "AI Analysis", "Alerts", "Global Intelligence", "Watchlist", "Settings"];
+// Phase RC1-BLOCKERS-001 — this list pointed at "Watchlist" (the legacy,
+// unreachable-from-Sidebar screen Sidebar.jsx's own comment already
+// deprecated in favor of "Watchlist Folders"), giving mobile users a
+// second, dead-end path to a screen desktop nav had already retired.
+// Now points at the same canonical destination Sidebar.jsx uses.
+const MORE_DESTINATIONS = ["Themes", "AI Analysis", "Alerts", "Global Intelligence", "Watchlist Folders", "Settings"];
 
 function MoreLinks({ onNavigate }) {
   const destinations = import.meta.env.VITE_DEV_CONSOLE === "true" ? [...MORE_DESTINATIONS, "Intelligence Console"] : MORE_DESTINATIONS;
