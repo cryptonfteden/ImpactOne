@@ -54,8 +54,8 @@ No application code, no test files, no product behavior changed this phase.
 
 | Field | Value |
 |---|---|
-| Commit hash | *(filled in after this phase's commit — see final message)* |
-| Remote hash | *(filled in after push — see final message)* |
+| Commit hash | `62a803e19d48b60f0e364fb7157db8ce162cc2fe` |
+| Remote hash | `62a803e19d48b60f0e364fb7157db8ce162cc2fe` (confirmed identical to local via `git fetch origin` + `git rev-parse` on both refs) |
 | Test results | Backend 2511/2511 passing, 0 failures; Frontend 621/621 passing |
 | Build result | Succeeded, no new warnings |
 | Secret scanning result | Current tree and full reachable history both scanned clean of any *new* exposure; the two known historical secrets remain disclosed, registered, and allowlisted in CI (not purged from history, per founder decision) |
