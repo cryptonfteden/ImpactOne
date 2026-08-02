@@ -26,6 +26,13 @@ These have no safe default and **must** be set for the process to start against 
 | `REDIS_URL` | Provider cache runs uncached — every provider call hits the real upstream API directly (functionally correct, just slower/costlier). |
 | `CORS_ALLOWED_ORIGINS` | CORS allows every origin. |
 
+## Frontend Build-Time Variables
+
+| Variable | Effect if unset | Notes |
+|---|---|---|
+| `VITE_API_BASE_URL` | Falls back to `http://localhost:5000/api`, baked into the production bundle — unreachable from a real device. Flagged by `startupValidation.js`'s `validateOrigins()` in production builds. | Set at frontend build time, not runtime. See `PRODUCTION_ENVIRONMENT_MATRIX.md`. |
+| `VITE_PORTFOLIO_ENGINE` | Falls back to the legacy, localStorage-driven Portfolio screen. | `"api"` selects the newer, server-owned Portfolio Engine screen. Either value is a fully supported, working code path — not a work-in-progress flag. |
+
 ## Full Variable Reference
 
 ```
