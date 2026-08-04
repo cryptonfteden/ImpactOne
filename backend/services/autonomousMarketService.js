@@ -3,6 +3,10 @@ const { getDailyBrief } = require("./dailyBriefService");
 const { analyzeIntelligence, analyzePortfolioIntelligence } = require("./impactIntelligenceService");
 const { getAltDataSummary } = require("./altDataService");
 const { getQuote } = require("./finnhubService");
+// Namespace-style (not destructured) so tests can monkey-patch it, matching
+// the testability convention already used for finnhubService elsewhere in
+// this codebase (e.g. portfolioEngineService.js).
+const newsService = require("./newsService");
 
 const CORE_EVENT_TYPES = {
   macro: ["macro", "inflation", "jobs", "growth"],
@@ -23,6 +27,8 @@ const CORE_EVENT_TYPES = {
   space: ["space", "launch", "satellite", "orbital"],
   nuclear: ["nuclear", "uranium", "reactor"],
   cybersecurity: ["cyber", "security", "breach", "software security"],
+  // Sprint 20, Part 6 — Theme Dashboard's seventh theme.
+  quantum: ["quantum", "qubit", "quantum computing"],
 };
 
 const DEFAULT_WATCHLIST = ["AAPL", "NVDA", "TSLA"];
@@ -58,6 +64,8 @@ const AUTONOMOUS_SCAN_UNIVERSE = {
   healthcare: ["Healthcare innovation re-rating"],
   consumer: ["Consumer discretionary slowdown"],
   financials: ["Bank funding stress"],
+  // Sprint 20, Part 6 — Theme Dashboard's seventh theme.
+  quantum: ["Quantum computing breakthrough"],
 };
 const COUNTRY_UNIVERSE = ["US", "EU", "China", "Taiwan", "Japan", "Middle East", "UK", "India"];
 
@@ -74,10 +82,18 @@ function normalizeSymbols(values = []) {
   return normalized.length ? unique(normalized) : DEFAULT_WATCHLIST;
 }
 
+// Phase RC1-BLOCKERS-001 — same word-boundary fix commit 70aee70 applied
+// to historicalSimilarityService.js/propagationEngineService.js (plain
+// `text.includes(keyword)` matched "ai" inside "said"/"main" and similar
+// false positives).
+function hasWord(text, phrase) {
+  return new RegExp(`\\b${phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(text);
+}
+
 function classifyEventType(headline = "") {
   const text = String(headline || "").toLowerCase();
   for (const [type, keywords] of Object.entries(CORE_EVENT_TYPES)) {
-    if (keywords.some((keyword) => text.includes(keyword))) {
+    if (keywords.some((keyword) => hasWord(text, keyword))) {
       return type;
     }
   }
@@ -103,27 +119,89 @@ function mapReliability(confidence, sources = []) {
   return "developing";
 }
 
-function buildCounterarguments(type, event) {
+// Sprint 27 Priority 3 — every one of the 19 CORE_EVENT_TYPES gets its own
+// counterargument, mirroring Sprint 26's fix to adjustAffected (same
+// problem: most event types fell through to one generic 2-line bucket,
+// producing identical "counter-evidence" text across unrelated events).
+// Phase RC1-BLOCKERS-001 — each line below takes %EVENT%, interpolated
+// with the real, specific headline this call is actually for (see
+// buildCounterarguments). Previously these were emitted verbatim per
+// category, so two different headlines landing in the same one of 19
+// buckets (e.g. "AAPL earnings" and "Earnings calendar concentration"
+// both matching "earnings") produced byte-identical counterargument
+// text with nothing tying it to either specific event. Naming the real,
+// already-known headline is genuine per-event evidence, not invented
+// variation — two calls for the literal same headline still correctly
+// produce the same sentence.
+const COUNTERARGUMENT_BY_TYPE = {
+  centralBanks: "Policy communication may calm markets if %EVENT%'s move is already priced in.",
+  macro: "A single data print behind %EVENT% may not confirm a genuine regime shift.",
+  geopolitics: "Diplomatic de-escalation could reverse the initial risk repricing from %EVENT%.",
+  ma: "Regulatory review could delay or block the deal in %EVENT% before it closes.",
+  regulation: "Legal challenges or lobbying could soften the final rule behind %EVENT%.",
+  supplyChain: "Alternate routing or inventory buffers could blunt the disruption in %EVENT%.",
+  semiconductors: "Capacity additions elsewhere could offset the near-term shortage behind %EVENT%.",
+  energy: "Strategic reserve releases could cap the price move behind %EVENT%.",
+  crypto: "Regulatory pushback could reverse the flow-driven momentum behind %EVENT%.",
+  defense: "Budget appropriations could lag the initial reaction to %EVENT%.",
+  ai: "Compute or power constraints could slow the pace investors are pricing into %EVENT%.",
+  healthcare: "Trial or regulatory setbacks remain common at this stage for %EVENT%.",
+  consumer: "Discretionary spending tied to %EVENT% is sensitive to a single soft data print reversing.",
+  financials: "Credit conditions tied to %EVENT% could tighten faster than the headline implies.",
+  space: "Launch delays are common and could push out the timeline behind %EVENT%.",
+  nuclear: "Permitting timelines are long and could delay the realized impact of %EVENT%.",
+  cybersecurity: "Remediation could limit the scope investors are currently pricing into %EVENT%.",
+  quantum: "Commercial timelines behind %EVENT% remain early and uncertain.",
+};
+
+function buildCounterarguments(type, event = "this event") {
   const base = [
     "Positioning may already reflect the headline, limiting follow-through.",
     "Cross-asset transmission could remain localized instead of broadening.",
   ];
 
-  if (type === "centralBanks") {
-    base.unshift("Policy communication may calm markets if the move is already priced in.");
-  }
   if (type === "earnings") {
     base.unshift(`Management commentary could offset the first reaction to ${event}.`);
+  } else if (COUNTERARGUMENT_BY_TYPE[type]) {
+    base.unshift(COUNTERARGUMENT_BY_TYPE[type].replace("%EVENT%", `"${event}"`));
   }
 
   return base.slice(0, 3);
 }
 
-function buildInvalidation(type) {
-  if (type === "energy") return ["Commodity prices retrace sharply.", "Inflation pass-through fails to broaden."];
-  if (type === "crypto") return ["ETF flow momentum fades.", "Macro liquidity tightens more than expected."];
-  if (type === "centralBanks") return ["Forward guidance softens the policy signal.", "Growth data reaccelerates against the initial narrative."];
-  return ["Supporting data fails to confirm the first-order move.", "Sector leadership rotates away from affected assets."];
+// Sprint 27 Priority 3 — same fix applied to invalidation signals: every
+// event type gets its own pair instead of 15 of 19 types sharing one
+// generic fallback.
+// Phase RC1-BLOCKERS-001 — first line per type now takes %EVENT%, same
+// reasoning as COUNTERARGUMENT_BY_TYPE above: ties this call's output to
+// the real, specific headline instead of the category alone, so two
+// different same-category events stop producing byte-identical
+// invalidation text. The second line stays a genuinely category-general
+// fallback (not event-specific by nature) — see buildInvalidation.
+const INVALIDATION_BY_TYPE = {
+  energy: ["Commodity prices behind %EVENT% retrace sharply.", "Inflation pass-through fails to broaden."],
+  crypto: ["ETF flow momentum behind %EVENT% fades.", "Macro liquidity tightens more than expected."],
+  centralBanks: ["Forward guidance softens the policy signal in %EVENT%.", "Growth data reaccelerates against the initial narrative."],
+  macro: ["Revisions reverse the initial data print behind %EVENT%.", "Other coincident indicators fail to confirm the trend."],
+  geopolitics: ["A negotiated settlement to %EVENT% materializes faster than expected.", "Market risk pricing normalizes without follow-through escalation."],
+  ma: ["Regulators block or materially delay %EVENT%.", "Financing terms deteriorate before close."],
+  regulation: ["The rule behind %EVENT% is watered down before finalization.", "Legal challenges stay the rule's enforcement."],
+  supplyChain: ["Alternate suppliers absorb the disruption in %EVENT% within weeks.", "Inventory buffers prevent a measurable output hit."],
+  semiconductors: ["Yields behind %EVENT% recover faster than guided.", "Demand softens enough to offset the supply constraint."],
+  defense: ["Budget appropriations for %EVENT% stall in committee.", "Program timelines slip beyond the priced-in horizon."],
+  ai: ["Compute buildout guidance behind %EVENT% is walked back next quarter.", "Enterprise adoption data disappoints against expectations."],
+  healthcare: ["Trial data behind %EVENT% misses its primary endpoint.", "Regulatory review extends materially beyond guidance."],
+  consumer: ["Spending data behind %EVENT% reverses within the next reporting cycle.", "Margin pressure offsets the top-line signal."],
+  financials: ["Credit quality metrics behind %EVENT% deteriorate faster than priced.", "Net interest margin guidance disappoints."],
+  space: ["The launch or contract milestone in %EVENT% slips.", "Payload or customer demand fails to materialize as guided."],
+  nuclear: ["Permitting or siting approval for %EVENT% stalls.", "Capital costs run materially above guidance."],
+  cybersecurity: ["The vulnerability in %EVENT% is patched before meaningful exploitation.", "Disclosed impact proves smaller than initial reports suggested."],
+  quantum: ["A commercial milestone behind %EVENT% slips well beyond guidance.", "A competing approach demonstrates a faster path to the same result."],
+};
+
+function buildInvalidation(type, event = "this event") {
+  const templates = INVALIDATION_BY_TYPE[type] || ["Supporting data fails to confirm %EVENT%'s first-order move.", "Sector leadership rotates away from affected assets."];
+  return templates.map((line) => line.replace("%EVENT%", `"${event}"`));
 }
 
 function buildRegions(analysis, type) {
@@ -220,16 +298,90 @@ function buildScanCoverage() {
   }));
 }
 
-function getRepresentativeEvents({ scenarios = [], dailyBrief = null, watchlist = [] }) {
-  const seeded = unique([
+// Small curated tier of well-known financial news outlets. A heuristic,
+// not a fabricated precision score — anything not on this list gets the
+// same flat medium default rather than being penalized.
+const HIGH_QUALITY_NEWS_SOURCES = ["reuters", "bloomberg", "wall street journal", "wsj", "cnbc", "financial times", "associated press", "marketwatch"];
+const DEFAULT_SOURCE_QUALITY_SCORE = 60;
+const HIGH_SOURCE_QUALITY_SCORE = 95;
+
+function sourceQualityScore(sourceName) {
+  if (!sourceName) {
+    return DEFAULT_SOURCE_QUALITY_SCORE;
+  }
+  const normalized = String(sourceName).toLowerCase();
+  return HIGH_QUALITY_NEWS_SOURCES.some((known) => normalized.includes(known)) ? HIGH_SOURCE_QUALITY_SCORE : DEFAULT_SOURCE_QUALITY_SCORE;
+}
+
+function recencyScore(publishedAt) {
+  if (!publishedAt) {
+    return 40;
+  }
+  const ageMs = Date.now() - new Date(publishedAt).getTime();
+  if (!Number.isFinite(ageMs) || ageMs < 0) {
+    return 40;
+  }
+  const ageHours = ageMs / (1000 * 60 * 60);
+  if (ageHours <= 6) return 100;
+  if (ageHours <= 24) return 80;
+  if (ageHours <= 72) return 55;
+  if (ageHours <= 168) return 30;
+  return 10;
+}
+
+// Earlier query terms are higher priority (see buildNewsQueryTerms) —
+// active-recommendation/held-symbol matches should outrank sector-level
+// matches even before recency/source quality are factored in.
+function relevanceScoreForTermIndex(termIndex) {
+  return Math.max(20, 100 - termIndex * 15);
+}
+
+/**
+ * Sprint 16 Phase C — ranks candidate articles (each tagged with the index
+ * of the query term that surfaced it) by portfolio relevance, recency, and
+ * source quality, before the top ones are selected for expensive analysis.
+ * "Urgency" ranking of the final analyzed feed is unchanged — that still
+ * happens via the existing importanceScore sort once analyzeIntelligence
+ * has actually run.
+ */
+function rankNewsArticles(taggedArticles = []) {
+  return taggedArticles
+    .map(({ article, termIndex }) => {
+      const relevance = relevanceScoreForTermIndex(termIndex);
+      const recency = recencyScore(article?.publishedAt);
+      const quality = sourceQualityScore(article?.source?.name);
+      const score = relevance * 0.45 + recency * 0.3 + quality * 0.25;
+      return { article, score };
+    })
+    .sort((a, b) => b.score - a.score)
+    .map((item) => item.article);
+}
+
+/**
+ * Real news headlines (when NEWS_API_KEY is configured — newsService
+ * already falls back gracefully otherwise) are preferred first, backfilled
+ * with the existing synthetic scenario catalog up to the same 28-item cap
+ * this function has always returned. Real articles carry a citable
+ * sourceUrl; synthetic entries carry null (unchanged behavior).
+ */
+function getRepresentativeEvents({ scenarios = [], dailyBrief = null, watchlist = [], liveNews = [] }) {
+  const liveNewsEvents = (liveNews || [])
+    .map((article) => ({ headline: String(article?.title || "").trim(), sourceUrl: article?.url || null, sourceName: article?.source?.name || null, publishedAt: article?.publishedAt || null }))
+    .filter((item) => item.headline)
+    .slice(0, 6);
+  const liveHeadlines = new Set(liveNewsEvents.map((item) => item.headline));
+
+  const syntheticHeadlines = unique([
     ...scenarios,
     ...(dailyBrief?.topMarketMovingEvents || []).map((item) => item.event),
     ...(dailyBrief?.altSignalsSnapshot?.upcomingEventRisk || []).map((item) => item.event),
     ...watchlist.map((symbol) => `${symbol} watchlist momentum`),
     ...Object.values(AUTONOMOUS_SCAN_UNIVERSE).flatMap((items) => items.slice(0, 1)),
-  ]);
+  ]).filter((headline) => !liveHeadlines.has(headline));
 
-  return seeded.slice(0, 28);
+  const syntheticEvents = syntheticHeadlines.map((headline) => ({ headline, sourceUrl: null, sourceName: null, publishedAt: null }));
+
+  return [...liveNewsEvents, ...syntheticEvents].slice(0, 28);
 }
 
 function choosePortfolioAction(score) {
@@ -307,9 +459,19 @@ function buildCountryMetrics({ country, feed, macroRegime }) {
   };
 }
 
+/**
+ * Shared conviction-score formula — extracted so callers besides
+ * buildAlphaDiscovery's top-10 slice (e.g. the autonomous recommendation
+ * engine) can score any watchlistRankings entry consistently with what
+ * the rest of the app already shows.
+ */
+function computeConvictionScore(rankingItem) {
+  return clamp(Math.round(rankingItem.overallAiScore + (rankingItem.opportunityScore - rankingItem.riskScore) * 0.2), 0, 100);
+}
+
 function buildAlphaDiscovery({ feed, watchlistRankings, globalMap, dailyBrief, altSnapshot }) {
   const ideas = watchlistRankings.map((item) => {
-    const convictionScore = clamp(Math.round(item.overallAiScore + (item.opportunityScore - item.riskScore) * 0.2), 0, 100);
+    const convictionScore = computeConvictionScore(item);
     return {
       symbol: item.symbol,
       convictionScore,
@@ -404,7 +566,8 @@ function buildChangeWindows(feed, watchlistRankings) {
 
 async function buildWatchlistRanks({ watchlist, feed, altSignalsBySymbol, quotesBySymbol }) {
   return watchlist.map((symbol) => {
-    const quoteChange = Number(quotesBySymbol[symbol]?.quote?.change || 0);
+    const livePayload = quotesBySymbol[symbol]?.quote || null;
+    const quoteChange = Number(livePayload?.change || 0);
     const symbolEvents = feed.filter((item) => (item.affectedAssets || []).includes(symbol) || (item.relatedTickers || []).includes(symbol));
     const primaryEvent = symbolEvents.sort((a, b) => b.importanceScore - a.importanceScore)[0] || null;
     const altSignals = altSignalsBySymbol[symbol]?.signals || null;
@@ -422,7 +585,21 @@ async function buildWatchlistRanks({ watchlist, feed, altSignalsBySymbol, quotes
       eventExposure: scores.eventExposure,
       overallAiScore,
       primaryDriver: primaryEvent?.headline || "No dominant event",
-      explanation: primaryEvent?.whyItMatters || `${symbol} is being scored on macro, event, and positioning exposure.`,
+      // Sprint 25 — when no matched event exists, the fallback must still
+      // be genuinely derived from this symbol's own real, already-computed
+      // scores (never the same boilerplate sentence for every symbol with
+      // no news). Honest about the absence of a driving event, specific
+      // about what the score is actually built from.
+      explanation:
+        primaryEvent?.whyItMatters ||
+        `${symbol}: no single dominant news event — score of ${overallAiScore}/100 reflects momentum ${scores.momentum}/100, opportunity ${scores.opportunityScore}/100, risk ${scores.riskScore}/100.`,
+      // Live Finnhub quote data already fetched above for scoring — surfaced
+      // here (rather than discarded) so downstream consumers (e.g. the
+      // autonomous recommendation engine) can cite a real price, not just
+      // derived scores. null when no quote was available, same graceful
+      // pattern as the rest of this pipeline.
+      currentPrice: Number.isFinite(livePayload?.price) ? livePayload.price : null,
+      dayChangePercent: Number.isFinite(livePayload?.changePercent) ? livePayload.changePercent : null,
     };
   }).sort((a, b) => b.overallAiScore - a.overallAiScore);
 }
@@ -485,7 +662,7 @@ function buildGlobalMap({ feed, dailyBrief, altSnapshot }) {
   };
 }
 
-async function processEvent({ event, watchlist, portfolioExposure, anchorSymbol }) {
+async function processEvent({ event, sourceUrl = null, sourceName = null, publishedAt = null, watchlist, portfolioExposure, anchorSymbol }) {
   const analysis = await analyzeIntelligence({ event, symbol: anchorSymbol });
   const eventType = classifyEventType(event);
   const importanceScore = clamp(Math.round((Number(analysis.confidenceScore || 60) * 0.7) + ((analysis.affected?.stocks || []).filter((item) => watchlist.includes(item)).length * 8)), 0, 100);
@@ -497,10 +674,19 @@ async function processEvent({ event, watchlist, portfolioExposure, anchorSymbol 
     ...(analysis.affected?.crypto || []),
     ...(analysis.affected?.commodities || []),
   ]).slice(0, 12);
-  const relatedTickers = affectedAssets.filter((asset) => watchlist.includes(asset)).length
-    ? affectedAssets.filter((asset) => watchlist.includes(asset))
-    : (analysis.affected?.stocks || []).slice(0, 4);
-  const hasPortfolioExposure = relatedTickers.length > 0 || (portfolioExposure?.portfolioExposure || []).some((holding) => affectedAssets.includes(holding.symbol));
+  // Sprint 26 — Trust Breaker fix: relatedTickers must never fall back to
+  // the generic asset-template list (analysis.affected.stocks), because
+  // that list is the same handful of symbols for most events regardless of
+  // the user's actual holdings/watchlist. Falling back to it here made
+  // hasPortfolioExposure true — and "Portfolio overlap detected" render —
+  // for users with zero real exposure. Only genuine watchlist/portfolio
+  // matches count; an honest empty array when there are none.
+  const watchlistMatchedTickers = affectedAssets.filter((asset) => watchlist.includes(asset));
+  const portfolioMatchedTickers = (portfolioExposure?.portfolioExposure || [])
+    .filter((holding) => affectedAssets.includes(holding.symbol))
+    .map((holding) => holding.symbol);
+  const relatedTickers = unique([...watchlistMatchedTickers, ...portfolioMatchedTickers]);
+  const hasPortfolioExposure = relatedTickers.length > 0;
   const impactType = importanceScore >= 75 ? "opportunity" : importanceScore <= 48 ? "risk" : (eventType === "geopolitics" || eventType === "centralBanks" ? "risk" : "neutral");
   const actionability = buildActionability(importanceScore, urgency, hasPortfolioExposure);
   const riskLevel = buildRiskLevel(eventType, importanceScore);
@@ -512,6 +698,9 @@ async function processEvent({ event, watchlist, portfolioExposure, anchorSymbol 
   return {
     id: `${eventType}:${String(event).toLowerCase().replace(/\s+/g, "-")}`,
     headline: event,
+    sourceUrl,
+    sourceName,
+    publishedAt,
     eventType,
     importanceScore,
     confidence,
@@ -532,7 +721,7 @@ async function processEvent({ event, watchlist, portfolioExposure, anchorSymbol 
     bestHistoricalOutcome: historical.bestHistoricalOutcome,
     worstHistoricalOutcome: historical.worstHistoricalOutcome,
     marketImpactPrediction: analysis.scenario?.expectedMarketReaction || "Mixed market impact expected.",
-    portfolioImpactPrediction: hasPortfolioExposure ? `Portfolio overlap detected in ${relatedTickers.join(", ") || "watchlist assets"}.` : "No direct portfolio overlap detected.",
+    portfolioImpactPrediction: hasPortfolioExposure ? `Portfolio overlap detected in ${relatedTickers.join(", ")}.` : "No direct portfolio overlap detected.",
     actionability,
     riskLevel,
     timeBucket: eventType === "earnings" ? "since-open" : eventType === "geopolitics" ? "overnight" : "last-hour",
@@ -543,15 +732,70 @@ async function processEvent({ event, watchlist, portfolioExposure, anchorSymbol 
       dataSources,
       confidence,
       counterarguments: buildCounterarguments(eventType, event),
-      invalidationSignals: buildInvalidation(eventType),
+      invalidationSignals: buildInvalidation(eventType, event),
     },
   };
 }
 
-async function getAutonomousOverview({ watchlist = DEFAULT_WATCHLIST, scenarios = DEFAULT_SCENARIOS, sessionType = "morning" } = {}) {
+/**
+ * Sprint 16 Phase C — turns real portfolio/watchlist/sector/recommendation
+ * state into a deduped, priority-ordered list of news query terms.
+ * Priority: symbols with an existing active recommendation (freshest
+ * info needed) > held portfolio symbols > watchlist symbols > portfolio
+ * sector names. Capped so a single overview call issues a bounded number
+ * of NewsAPI requests.
+ */
+function buildNewsQueryTerms({ heldSymbols = [], watchlistSymbols = [], sectors = [], activeRecommendationSymbols = [] } = {}, maxTerms = 6) {
+  const terms = unique([
+    ...activeRecommendationSymbols,
+    ...heldSymbols,
+    ...watchlistSymbols,
+    ...sectors.map((sector) => `${sector} sector stocks`),
+  ]);
+
+  return terms.slice(0, maxTerms);
+}
+
+/**
+ * Without portfolioContext (every caller before Phase C, and every
+ * non-recommendation caller today — e.g. autonomousMarketController.js),
+ * behavior is byte-identical to before: a single "markets" query. With
+ * portfolioContext, issues one query per dynamic term and merges the
+ * results, deduped by article URL (falling back to title when a fallback
+ * article has no URL).
+ */
+async function fetchPersonalizedNews(portfolioContext) {
+  const terms = portfolioContext ? buildNewsQueryTerms(portfolioContext) : [];
+  if (!terms.length) {
+    return newsService.getNews("markets").catch(() => []);
+  }
+
+  const resultsByTerm = await Promise.all(terms.map((term) => newsService.getNews(term).catch(() => [])));
+  const tagged = resultsByTerm.flatMap((articles, termIndex) => (articles || []).map((article) => ({ article, termIndex })));
+  const ranked = rankNewsArticles(tagged);
+
+  // Dedupe after ranking so the highest-scored occurrence of a duplicate
+  // (e.g. the same article returned by both a held-symbol and a sector
+  // query) is the one that survives.
+  const seen = new Set();
+  const deduped = [];
+
+  for (const article of ranked) {
+    const dedupeKey = article?.url || article?.title;
+    if (!dedupeKey || seen.has(dedupeKey)) {
+      continue;
+    }
+    seen.add(dedupeKey);
+    deduped.push(article);
+  }
+
+  return deduped;
+}
+
+async function getAutonomousOverview({ watchlist = DEFAULT_WATCHLIST, scenarios = DEFAULT_SCENARIOS, sessionType = "morning", portfolioContext = null } = {}) {
   const normalizedWatchlist = normalizeSymbols(watchlist);
   const normalizedScenarios = scenarios.length ? scenarios : DEFAULT_SCENARIOS;
-  const cacheKey = JSON.stringify({ watchlist: normalizedWatchlist, scenarios: normalizedScenarios, sessionType });
+  const cacheKey = JSON.stringify({ watchlist: normalizedWatchlist, scenarios: normalizedScenarios, sessionType, portfolioContext });
   const cached = get("intel:autonomousOverview", cacheKey);
   if (cached) {
     return cached;
@@ -560,11 +804,12 @@ async function getAutonomousOverview({ watchlist = DEFAULT_WATCHLIST, scenarios 
   const portfolioInput = normalizedWatchlist.map((symbol) => ({ symbol, weight: 1 / normalizedWatchlist.length }));
   const portfolioExposure = analyzePortfolioIntelligence({ holdings: portfolioInput });
 
-  const [dailyBrief, anchorAlt, quotesBySymbol, altSignalsBySymbol] = await Promise.all([
+  const [dailyBrief, anchorAlt, quotesBySymbol, altSignalsBySymbol, liveNews] = await Promise.all([
     getDailyBrief({ watchlist: normalizedWatchlist, scenarios: normalizedScenarios, sessionType }),
     getAltDataSummary({ symbol: normalizedWatchlist[0] }).catch(() => null),
     Promise.all(normalizedWatchlist.map(async (symbol) => ({ symbol, payload: await getQuote(symbol).catch(() => null) }))),
     Promise.all(normalizedWatchlist.map(async (symbol) => ({ symbol, payload: await getAltDataSummary({ symbol }).catch(() => null) }))),
+    fetchPersonalizedNews(portfolioContext),
   ]);
 
   const quotesMap = Object.fromEntries(quotesBySymbol.map(({ symbol, payload }) => [symbol, payload]));
@@ -574,10 +819,14 @@ async function getAutonomousOverview({ watchlist = DEFAULT_WATCHLIST, scenarios 
     scenarios: normalizedScenarios,
     dailyBrief,
     watchlist: normalizedWatchlist,
+    liveNews,
   });
 
   const processedFeed = await Promise.all(detectedEvents.map((event) => processEvent({
-    event,
+    event: event.headline,
+    sourceUrl: event.sourceUrl,
+    sourceName: event.sourceName,
+    publishedAt: event.publishedAt,
     watchlist: normalizedWatchlist,
     portfolioExposure,
     anchorSymbol: normalizedWatchlist[0],
@@ -642,4 +891,17 @@ async function getAutonomousOverview({ watchlist = DEFAULT_WATCHLIST, scenarios 
   return result;
 }
 
-module.exports = { getAutonomousOverview };
+module.exports = {
+  getAutonomousOverview,
+  buildPortfolioAction,
+  computeConvictionScore,
+  getRepresentativeEvents,
+  buildNewsQueryTerms,
+  rankNewsArticles,
+  sourceQualityScore,
+  recencyScore,
+  buildInvalidation,
+  buildCounterarguments,
+  classifyEventType,
+  DEFAULT_WATCHLIST,
+};

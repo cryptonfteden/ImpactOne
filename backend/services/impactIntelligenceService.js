@@ -6,6 +6,94 @@ const { propagateByTheme } = require("./propagationEngineService");
 const { analyzePortfolio } = require("./portfolioIntelligenceService");
 const { getUnifiedFusion } = require("./alternativeFusionService");
 
+// Sprint 26 — Trust Breaker fix: the prior adjustAffected only
+// differentiated 4 event categories; every other event silently fell
+// through to the same generic 4-stock/4-sector template. This uses the
+// same 19 category keywords autonomousMarketService.CORE_EVENT_TYPES
+// defines (duplicated here, not imported, to avoid a circular require —
+// autonomousMarketService.js already requires this file), so the
+// sector/company list genuinely reflects what kind of event this is for
+// every category, not just four of them.
+const CATEGORY_KEYWORDS = {
+  macro: ["macro", "inflation", "jobs", "growth"],
+  geopolitics: ["war", "conflict", "geopolit", "border", "sanction", "israel"],
+  centralBanks: ["fed", "ecb", "boj", "rate", "central bank"],
+  earnings: ["earnings", "guidance", "beat", "miss"],
+  ma: ["acquire", "merger", "m&a", "deal"],
+  regulation: ["regulation", "doj", "antitrust", "policy", "sec filing", "sec probe"],
+  supplyChain: ["supply", "shipment", "factory", "logistics"],
+  semiconductors: ["chip", "semiconductor", "foundry", "gpu"],
+  energy: ["oil", "gas", "energy", "opec"],
+  crypto: ["bitcoin", "btc", "crypto", "etf"],
+  defense: ["defense", "missile", "military"],
+  ai: ["ai", "nvidia", "model", "compute"],
+  healthcare: ["drug", "healthcare", "fda", "biotech"],
+  consumer: ["consumer", "retail", "spending", "discretionary"],
+  financials: ["bank", "credit", "financial", "lending"],
+  space: ["space", "launch", "satellite", "orbital"],
+  nuclear: ["nuclear", "uranium", "reactor"],
+  cybersecurity: ["cyber", "security", "breach", "software security"],
+  quantum: ["quantum", "qubit", "quantum computing"],
+};
+
+// Phase RC1-BLOCKERS-001 — same word-boundary fix commit 70aee70 applied
+// to historicalSimilarityService.js/propagationEngineService.js, applied
+// here too: plain `text.includes(keyword)` matched "ai" inside "said"/
+// "main"/"chair" and similar false positives. `\b` also correctly matches
+// multi-word phrases like "central bank" as a whole unit.
+function hasWord(text, phrase) {
+  return new RegExp(`\\b${phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(text);
+}
+
+function classifyForAssets(text) {
+  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (keywords.some((keyword) => hasWord(text, keyword))) return category;
+  }
+  return "macro";
+}
+
+// Phase RC1-BLOCKERS-001 — Trust Breaker fix, part 2: classifyForAssets
+// only ever differentiated by broad category (19 buckets), so two
+// same-category headlines about genuinely different things (e.g. "AAPL
+// earnings" naming one specific company vs. "Earnings calendar
+// concentration", a market-wide breadth observation naming none) got the
+// exact same category-template stock list. This extracts any ticker the
+// headline *literally names* (a real, per-event fact, not an invented
+// one) and leads the affected-stocks list with it when found — so an
+// event naming a specific company is genuinely distinguishable from one
+// that doesn't, while two headlines that really do name the same company
+// still correctly share that fact.
+function extractMentionedTicker(originalEvent, knownTickers) {
+  const tokens = String(originalEvent || "").match(/\b[A-Z]{2,5}\b/g) || [];
+  return tokens.find((token) => knownTickers.has(token)) || null;
+}
+
+const EVENT_TYPE_ASSETS = {
+  macro: { stocks: ["SPY", "IWM", "AAPL", "JPM"], sectors: ["Broad Market", "Financials", "Consumer"] },
+  geopolitics: { stocks: ["LMT", "NOC", "XOM", "GLD"], sectors: ["Defense", "Energy", "Transport", "Insurance"] },
+  centralBanks: { stocks: ["JPM", "AAPL", "NVDA", "TLT"], sectors: ["Financials", "Rate-Sensitive Growth", "Bonds"] },
+  earnings: { stocks: ["AAPL", "NVDA", "MSFT", "AMZN"], sectors: ["Technology", "Consumer Discretionary"] },
+  ma: { stocks: ["GS", "MS", "AAPL", "MSFT"], sectors: ["Investment Banking", "Technology"] },
+  regulation: { stocks: ["META", "GOOGL", "AAPL", "AMZN"], sectors: ["Big Tech", "Compliance-Sensitive"] },
+  supplyChain: { stocks: ["AAPL", "TSM", "NVDA", "FDX"], sectors: ["Hardware", "Logistics", "Semiconductors"] },
+  semiconductors: { stocks: ["NVDA", "AMD", "TSM", "ASML"], sectors: ["Semiconductors", "Hardware"] },
+  energy: { stocks: ["XOM", "CVX", "DAL", "LUV"], sectors: ["Energy", "Airlines", "Shipping", "Consumer"] },
+  crypto: { stocks: ["COIN", "MSTR", "RIOT", "NVDA"], sectors: ["Crypto", "Semiconductors", "Exchanges"] },
+  defense: { stocks: ["LMT", "RTX", "NOC", "GD"], sectors: ["Defense", "Aerospace"] },
+  ai: { stocks: ["NVDA", "MSFT", "GOOGL", "META"], sectors: ["AI Infrastructure", "Semiconductors", "Cloud"] },
+  healthcare: { stocks: ["UNH", "JNJ", "PFE", "LLY"], sectors: ["Healthcare", "Biotech", "Pharma"] },
+  consumer: { stocks: ["AMZN", "WMT", "TGT", "COST"], sectors: ["Consumer Discretionary", "Retail"] },
+  financials: { stocks: ["JPM", "GS", "MS", "BAC"], sectors: ["Financials", "Banking", "Credit"] },
+  space: { stocks: ["LMT", "RTX", "BA"], sectors: ["Aerospace", "Space", "Defense"] },
+  nuclear: { stocks: ["CCJ", "LEU", "NEE"], sectors: ["Nuclear", "Utilities", "Uranium"] },
+  cybersecurity: { stocks: ["CRWD", "PANW", "FTNT", "ZS"], sectors: ["Cybersecurity", "Enterprise Software"] },
+  quantum: { stocks: ["IBM", "GOOGL", "IONQ", "RGTI"], sectors: ["Quantum Computing", "Technology"] },
+};
+
+const KNOWN_TICKERS = new Set(
+  Object.values(EVENT_TYPE_ASSETS).flatMap((entry) => entry.stocks)
+);
+
 const assetTemplates = {
   stocks: ["AAPL", "NVDA", "TSLA", "MSFT"],
   etfs: ["SPY", "QQQ", "XLE", "SMH"],
@@ -25,9 +113,42 @@ function inferTimeHorizon(event = "") {
   return "1-6 months";
 }
 
+// Sprint 26 — replaces the prior boilerplate ("The event 'X' affects
+// cross-asset pricing through macro regime, positioning, and liquidity
+// channels.") that was identical for every event with only the event name
+// substituted. Genuinely derived from this call's own real, already-
+// computed inputs (affected sectors, the strongest historical analog, the
+// theme this event propagates through) — never the same sentence twice for
+// two different events, and honest when a given input is missing.
+function buildWhy({ event, affected, history, propagation }) {
+  const sectors = (affected?.sectors || []).slice(0, 2).join(" and ");
+  const topAnalog = history?.[0];
+  const parts = [`"${event}" is being weighed against ${sectors || "broad market"} exposure`];
+
+  if (topAnalog?.event) {
+    parts.push(`most comparable to "${topAnalog.event}" (${topAnalog.similarity ?? "n/a"}% historical similarity)`);
+  }
+  const topPropagation = propagation?.[0];
+  if (topPropagation) {
+    parts.push(`propagating from ${topPropagation.from} to ${topPropagation.to} (${topPropagation.effect})`);
+  }
+
+  return `${parts.join("; ")}.`;
+}
+
 function adjustAffected(event = "") {
   const text = String(event || "").toLowerCase();
   const output = JSON.parse(JSON.stringify(assetTemplates));
+
+  // Broad category override first (covers all 19 categories); the four
+  // sharper, more specific keyword overrides below take precedence over it
+  // when they also match, since they're more precisely differentiated.
+  const category = classifyForAssets(text);
+  const categoryAssets = EVENT_TYPE_ASSETS[category];
+  if (categoryAssets) {
+    output.stocks = categoryAssets.stocks;
+    output.sectors = categoryAssets.sectors;
+  }
 
   if (text.includes("oil")) {
     output.stocks = ["XOM", "CVX", "DAL", "LUV"];
@@ -51,6 +172,22 @@ function adjustAffected(event = "") {
     output.stocks = ["LMT", "NOC", "XOM", "GLD"];
     output.sectors = ["Defense", "Energy", "Transport", "Insurance"];
     output.commodities = ["Oil", "Gold", "Natural Gas"];
+  }
+
+  // A headline that literally names one of these tickers (e.g. "AAPL
+  // earnings") is genuinely about that specific company — lead the list
+  // with it rather than only the category/keyword-template default above.
+  // A headline that names NO company at all (e.g. "Earnings calendar
+  // concentration" — a market-wide breadth observation, not a single-
+  // company event) is genuinely different in kind, even within the same
+  // category, and must not silently reuse the single-company template
+  // verbatim — it leads with a real, broad-market proxy instead. Runs
+  // last so this real distinction always wins over every template above.
+  const BROAD_MARKET_PROXY = "SPY";
+  const mentionedTicker = extractMentionedTicker(event, KNOWN_TICKERS);
+  const leadTicker = mentionedTicker || BROAD_MARKET_PROXY;
+  if (output.stocks[0] !== leadTicker) {
+    output.stocks = [leadTicker, ...output.stocks.filter((ticker) => ticker !== leadTicker)];
   }
 
   return output;
@@ -85,7 +222,7 @@ async function analyzeIntelligence({ event = "Fed rate hike", symbol = "AAPL" } 
     scenario,
     sectorPropagation: propagation,
     explainability: {
-      why: `The event '${event}' affects cross-asset pricing through macro regime, positioning, and liquidity channels.`,
+      why: buildWhy({ event, affected, history, propagation }),
       supportingEvidence: fusion.evidence,
       dataSourcesUsed: Object.entries(fusion.sourcesUsed).filter(([, value]) => value).map(([key]) => key),
       confidence: confidenceScore,

@@ -1,0 +1,286 @@
+/* Phase IMPACTONE-3D-WORKSPACE-001 — glassmorphism, floating depth, and
+   soft shadows are deliberately plain CSS here (not real-time-rendered
+   3D shadow maps), which is what keeps the scene itself cheap enough to
+   hold 60fps — see IMPACTONE_3D_ARCHITECTURE.md's Performance section.
+
+   Phase WORLD-CLASS-UI-001 — every spacing/radius/blur/shadow/easing
+   value below now references the app's real, shared Nova design tokens
+   (tokens.css) instead of the bespoke, one-off values this scene
+   originally shipped with — the same accent blue, glass blur, and
+   corner-radius scale used everywhere else in the app, not a second,
+   parallel visual language. See VISUAL_CONSISTENCY.md/UI_STANDARDIZATION.md
+   for the full before/after token mapping. Colors that encode real
+   data meaning (bullish/bearish/neutral tone, computed in worldState.js)
+   are deliberately left as their own literal hex values here — those
+   are data semantics, not UI chrome, and out of scope for a token swap. */
+
+.workspace3d-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 640px;
+  overflow: hidden;
+  /* Phase MOBILE-FIXES-001 — confirmed P0 #4 (safe-area/full-screen
+     verification): a fixed 640px min-height forced this "full-screen"
+     scene to be taller than the actual viewport on any short/landscape
+     phone (e.g. the 844x390 case this phase verifies — real height
+     390px), pushing part of the immersive scene off-screen and
+     requiring an extra scroll the mission's own "full-screen 3D scene"
+     framing doesn't intend. On short viewports it now fits the real,
+     available height instead (still never below a legible floor). */
+  background: radial-gradient(ellipse at center, #0b1230 0%, #05070f 100%);
+  border-radius: var(--nova-radius-lg);
+}
+
+.workspace3d-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* Phase APPLE-QUALITY-001 — this is now a real <button> (previously a
+   non-interactive <div> — the 3D mesh's onClick was the only way to
+   reach it, leaving keyboard-only users with no way to select a panel
+   at all); the font/appearance/cursor resets below undo the browser's
+   default button chrome so it still reads as the same pill, not a
+   native button. */
+.workspace3d-node-label {
+  padding: var(--nova-space-1) var(--nova-space-3);
+  border-radius: var(--nova-radius-full);
+  font-size: var(--nova-font-size-xs);
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--nova-color-text-primary);
+  background: rgba(20, 30, 60, 0.55);
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+  transform: translateY(28px) scale(1);
+  transition: opacity var(--nova-motion-duration-standard) var(--nova-motion-curve-hover),
+    transform var(--nova-motion-duration-standard) var(--nova-motion-curve-hover),
+    background var(--nova-motion-duration-standard) var(--nova-motion-curve-hover),
+    box-shadow var(--nova-motion-duration-standard) var(--nova-motion-curve-hover);
+  border: 1px solid transparent;
+  cursor: pointer;
+  appearance: none;
+  pointer-events: auto;
+}
+
+/* Phase WORLD-CLASS-FINISH-001 — this used a bespoke outline-based
+   focus ring (outline: 2px solid + outline-offset: 3px) instead of the
+   same box-shadow glow ring every NOVA component already uses
+   (accessibility.css's shared --nova-glow-focus token) — confirmed via
+   grep this was the only interactive element in the whole app using an
+   outline instead of the shared glow. Same token, not a new concept. */
+.workspace3d-node-label:focus-visible {
+  outline: none;
+  box-shadow: var(--nova-glow-focus);
+}
+
+/* Phase FLAGSHIP-POLISH-001 — a real, distinct hover state: a subtle
+   lift and a faint border, separate from the stronger focused/selected
+   treatment below, so "I'm about to click this" and "this is currently
+   open" never look identical. */
+.workspace3d-node-label.is-hovered {
+  transform: translateY(24px) scale(1.05);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.workspace3d-node-label.is-focused {
+  background: rgba(111, 182, 255, 0.35);
+  box-shadow: var(--nova-glow-focus);
+}
+
+/* Phase IMMERSIVE-INTERACTIONS-001 — a real, cheap depth-of-field cue:
+   a dimmed (not-currently-selected) node also blurs slightly, the same
+   visual language a camera actually uses for "not the current subject"
+   — reinforces spatial/focus hierarchy beyond opacity alone. */
+.workspace3d-node-label.is-dimmed {
+  opacity: 0.35;
+  filter: blur(1px);
+}
+
+.workspace3d-chain-label {
+  padding: 3px var(--nova-space-2);
+  border-radius: var(--nova-radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--nova-color-text-primary);
+  background: rgba(20, 30, 60, 0.6);
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+  transform: translateY(22px);
+}
+
+.workspace3d-toolbar {
+  position: absolute;
+  /* Phase APP-STORE-QUALITY-001 — this scene renders inside the app's
+     normal content area (below the header, above the mobile bottom
+     nav), so a portrait notch is already cleared by that chrome. In
+     landscape, though, this scene can span the full available width
+     with a device notch/pill cut into either long edge — env()
+     defaults to 0px on every device without one, so this only ever
+     adds real inset on hardware that needs it, never a visual change
+     anywhere else. */
+  top: calc(var(--nova-space-4) + env(safe-area-inset-top, 0px));
+  left: calc(var(--nova-space-4) + env(safe-area-inset-left, 0px));
+  z-index: var(--nova-z-sticky);
+  display: flex;
+  gap: var(--nova-space-2);
+}
+
+.workspace3d-toolbar__button {
+  padding: var(--nova-space-2) var(--nova-space-4);
+  border-radius: var(--nova-radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(20, 30, 60, 0.45);
+  backdrop-filter: blur(10px);
+  color: var(--nova-color-text-primary);
+  font-weight: 600;
+  font-size: var(--nova-font-size-sm);
+  cursor: pointer;
+  transition: background var(--nova-motion-duration-standard) var(--nova-motion-curve-hover),
+    transform var(--nova-motion-duration-standard) var(--nova-motion-curve-hover);
+}
+
+.workspace3d-toolbar__button:hover {
+  transform: translateY(-1px);
+  background: rgba(30, 42, 80, 0.55);
+}
+
+.workspace3d-toolbar__button.is-active {
+  background: rgba(111, 182, 255, 0.45);
+  box-shadow: var(--nova-glow-focus);
+}
+
+/* Phase FLAGSHIP-POLISH-001 — a real, visible keyboard-focus ring on
+   every interactive control in this scene (buttons render over a
+   WebGL canvas, so the browser's own default focus outline is easy to
+   lose against it — this makes it deliberate and premium instead of
+   accidentally invisible).
+   Phase WORLD-CLASS-FINISH-001 — was outline: 2px solid + outline-
+   offset: 2px (a second, slightly different bespoke value from the
+   node-label rule above, and a third visual treatment overall alongside
+   the app-wide NOVA glow ring) — unified onto the same shared
+   --nova-glow-focus box-shadow used everywhere else. */
+.workspace3d-toolbar__button:focus-visible,
+.workspace3d-glass-panel__close:focus-visible {
+  outline: none;
+  box-shadow: var(--nova-glow-focus);
+}
+
+/* The floating glassmorphism panel every focused module's real screen
+   renders inside — soft depth via layered shadow, translucent
+   backdrop-blur "glass," and a subtle entrance motion. */
+.workspace3d-glass-panel {
+  position: absolute;
+  inset: 5% 5% 5% auto;
+  right: 5%;
+  width: min(560px, 44vw);
+  max-height: 90%;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--nova-radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(16, 22, 44, 0.55);
+  backdrop-filter: blur(var(--nova-blur-glass)) saturate(150%);
+  /* Phase FLAGSHIP-POLISH-001 — layered depth: the app's own shared
+     --nova-shadow-glass token anchors the base "floating above the
+     scene" shadow, plus a tighter contact shadow right at the panel's
+     own edge (grounds it, rather than looking like it's hovering with
+     no relationship to what's behind it), a subtle inset highlight for
+     glass thickness, and a faint top-edge "glass reflection" line (the
+     linear-gradient border-image below). */
+  box-shadow:
+    var(--nova-shadow-glass),
+    0 6px 16px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 1px 0 rgba(255, 255, 255, 0.12) inset;
+  overflow: hidden;
+  animation: workspace3d-panel-in var(--nova-motion-duration-screen) var(--nova-motion-curve-enter) both;
+  z-index: var(--nova-z-modal);
+}
+
+.workspace3d-glass-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 18%);
+}
+
+@keyframes workspace3d-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace3d-glass-panel {
+    animation: none;
+  }
+}
+
+.workspace3d-glass-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--nova-space-3) var(--nova-space-4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.workspace3d-glass-panel__title {
+  color: var(--nova-color-text-primary);
+  font-weight: 700;
+  font-size: var(--nova-font-size-sm);
+}
+
+.workspace3d-glass-panel__close {
+  background: transparent;
+  border: none;
+  color: var(--nova-color-text-primary);
+  font-size: var(--nova-font-size-lg);
+  line-height: 1;
+  cursor: pointer;
+  padding: var(--nova-space-1) var(--nova-space-2);
+  border-radius: var(--nova-radius-md);
+}
+
+.workspace3d-glass-panel__close:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.workspace3d-glass-panel__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--nova-space-3) var(--nova-space-4) var(--nova-space-4);
+}
+
+.workspace3d-glass-panel__loading {
+  color: var(--nova-color-text-tertiary);
+  padding: var(--nova-space-6);
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .workspace3d-glass-panel {
+    inset: 4% 4% 4%;
+    width: auto;
+  }
+}
+
+/* Phase MOBILE-FIXES-001 — confirmed P0 #4: on a short/landscape phone
+   viewport the fixed 640px floor above no longer applies — the scene
+   fits the real, available height (minus the real, reserved bottom-nav
+   strip every other mobile fix in this phase already accounts for via
+   the same shared --mobile-nav-height variable) instead of forcing an
+   extra scroll on a screen that's supposed to read as full-screen. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .workspace3d-root {
+    min-height: calc(100vh - var(--mobile-nav-height, 0px));
+  }
+}

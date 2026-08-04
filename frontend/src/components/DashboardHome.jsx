@@ -6,13 +6,16 @@ import PortfolioRiskPanel from "./dashboard/PortfolioRiskPanel";
 import WatchlistPriorityPanel from "./dashboard/WatchlistPriorityPanel";
 import AskImpactOnePanel from "./dashboard/AskImpactOnePanel";
 import OpportunityModule from "./dashboard/OpportunityModule";
+import RecommendationsPreview from "./dashboard/RecommendationsPreview";
 import DailyBriefArchive from "./dashboard/DailyBriefArchive";
 import DashboardFooter from "./dashboard/DashboardFooter";
 import useWatchlist from "../hooks/useWatchlist";
 import usePortfolioEngine from "../hooks/usePortfolioEngine";
+import useRecommendations from "../hooks/useRecommendations";
 import { altDataApi, intelligenceApi, marketApi, watchlistApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 import { computeDiversification, computeRiskScore, rankPriorityCards, sortMoversByChange } from "../utils/dashboardMetrics";
+import { startVisibilityAwarePolling } from "../utils/pollWhileVisible";
 
 const DEFAULT_SCENARIOS = ["Oil spike", "Fed rate hike", "BTC ETF approval", "Israel conflict"];
 const INDEX_PROXIES = [
@@ -28,6 +31,7 @@ function selectTicker(symbol) {
 export default function DashboardHome({ onNavigate }) {
   const { watchlist, addTicker } = useWatchlist();
   const { summary: portfolioSummary, isLoading: isPortfolioLoading, error: portfolioError } = usePortfolioEngine();
+  const { recommendations, isLoading: isRecommendationsLoading, error: recommendationsError } = useRecommendations();
 
   const [overview, setOverview] = useState(null);
   const [overviewError, setOverviewError] = useState("");
@@ -49,7 +53,6 @@ export default function DashboardHome({ onNavigate }) {
   // Daily brief + priority feed + alpha discovery + alerts share one payload.
   useEffect(() => {
     let cancelled = false;
-    let intervalId;
 
     async function loadOverview() {
       try {
@@ -75,10 +78,10 @@ export default function DashboardHome({ onNavigate }) {
     }
 
     loadOverview();
-    intervalId = setInterval(loadOverview, 60000);
+    const stopPolling = startVisibilityAwarePolling(loadOverview, 60000);
     return () => {
       cancelled = true;
-      clearInterval(intervalId);
+      stopPolling();
     };
   }, [watchlist]);
 
@@ -313,6 +316,13 @@ export default function DashboardHome({ onNavigate }) {
         ideas={alphaDiscovery?.top10InvestmentIdeas || []}
         watchlist={watchlist}
         onAddToWatchlist={addTicker}
+      />
+
+      <RecommendationsPreview
+        isLoading={isRecommendationsLoading}
+        error={recommendationsError}
+        recommendations={recommendations}
+        onViewAll={() => onNavigate?.("Recommendations")}
       />
 
       <DailyBriefArchive isLoading={isArchiveLoading} error={archiveError} entries={archive} />

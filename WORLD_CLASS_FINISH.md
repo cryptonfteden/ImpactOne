@@ -1,0 +1,19 @@
+# WORLD_CLASS_FINISH.md — Final Visual Execution Pass
+
+**Phase:** WORLD-CLASS-FINISH-001. Mission: perform the final visual execution pass before production — pixel alignment, optical spacing, typography consistency, glass consistency, shadow consistency, icon sizing, border consistency, hover timing, focus timing, animation smoothness, visual balance. No redesign, no new functionality, no new visual concepts — only perfect execution.
+
+**State at start of this phase:** `git log` checked fresh first. HEAD was `f86cf43` *"fix(frontend): wire missing transition timing on core NOVA components (CINEMATIC-POLISH-003)"* — no new commits landed since. One uncommitted, in-progress change from a concurrent process was found on `frontend/src/styles.css` (aliasing `--h3-space-2`/`--h3-space-4` to Nova spacing tokens, tagged `FINAL-UI-UNIFICATION-001`) — left untouched and not included in this phase's own commit, per this engagement's established discipline of never bundling another process's in-progress work into an unrelated commit.
+
+**This is the third consecutive visual-execution phase today** (`DESIGN-PERFECTION-001`, `CINEMATIC-POLISH-003`, now this one). Each prior phase's own headline finding was re-verified as still fixed, not re-litigated: the phone-landscape header row (`fbd4a8a`), and the missing hover/transition timing on `.nova-button`/`.nova-card`/`.nova-toggle` (`f86cf43`), are both confirmed still in place. This phase's job was to find what those two passes did not — genuinely new, objectively verifiable execution defects in the remaining named categories (border consistency, focus-ring consistency, icon sizing, pixel alignment).
+
+## Headline finding: three different focus-ring treatments for the same concept, now one
+
+Direct inspection of `frontend/src/features/workspace3d/workspace3d.css` found the 3D layer's keyboard-focus indicator used a **bespoke, hard-edged `outline` ring** — and not even a single consistent one: `.workspace3d-node-label:focus-visible` used `outline: 2px solid ...; outline-offset: 3px;`, while `.workspace3d-toolbar__button:focus-visible`/`.workspace3d-glass-panel__close:focus-visible` used the same color but a *different* offset (`2px`). Meanwhile, every other interactive element in the entire app (every NOVA button, card, toggle, tab) uses one single shared, already-token-defined treatment: `accessibility.css`'s `box-shadow: var(--nova-glow-focus)` — a soft 4px glow, not a hard outline. This meant the product had **three** visually distinct focus-ring treatments for one identical concept (keyboard focus), two of them confined to the one screen (Flagship/3D Workspace) users are meant to experience as the most polished part of the product.
+
+**Fix applied**: both 3D-layer rules now use the exact same `box-shadow: var(--nova-glow-focus)` treatment as everywhere else in the app — not a new visual concept, the *already-existing, most-used* one. `outline: none` was added alongside to fully remove the old ring rather than layering a second one on top. Verified via source read that both elements (`.workspace3d-node-label`, `.workspace3d-toolbar__button`) already use `border-radius: var(--nova-radius-full)`, so the glow renders as a correctly-rounded ring matching each element's own pill shape, exactly as it does on every other NOVA button in the app.
+
+**Verification**: full frontend regression **615/615 passing, zero regressions**. Production build clean.
+
+## Everything else audited this phase
+
+See [PIXEL_AUDIT.md](PIXEL_AUDIT.md) for the specific pixel/spacing/border/icon-sizing measurements taken, [VISUAL_QA.md](VISUAL_QA.md) for the full category-by-category QA pass (hover timing, animation smoothness, visual balance, typography), and [FINAL_VISUAL_SIGNOFF.md](FINAL_VISUAL_SIGNOFF.md) for the production-readiness verdict.

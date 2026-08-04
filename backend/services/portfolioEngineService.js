@@ -15,12 +15,14 @@ function round2(value) {
   return Number(Number(value).toFixed(2));
 }
 
-async function getOrCreateDefaultPortfolio() {
-  const existing = await portfolioRepository.findDefaultPortfolio();
+// Phase H2 — betaUserId is optional; omitted, this is the exact pre-H2
+// singleton behavior every existing caller/test relies on.
+async function getOrCreateDefaultPortfolio(betaUserId) {
+  const existing = await portfolioRepository.findDefaultPortfolio(betaUserId);
   if (existing) {
     return existing;
   }
-  return portfolioRepository.createDefaultPortfolio();
+  return portfolioRepository.createDefaultPortfolio(betaUserId);
 }
 
 async function markPositions(positions) {
@@ -80,8 +82,8 @@ function computeAllocation(markedPositions, totalValue) {
   return { bySector: toRows(bySector), byAssetType: toRows(byAssetType) };
 }
 
-async function getPortfolioSummary() {
-  const portfolio = await getOrCreateDefaultPortfolio();
+async function getPortfolioSummary(betaUserId) {
+  const portfolio = await getOrCreateDefaultPortfolio(betaUserId);
   const openPositions = await portfolioRepository.getOpenPositions(portfolio.id);
   const markedPositions = await markPositions(openPositions);
 
@@ -120,7 +122,7 @@ async function getPortfolioSummary() {
  * today's product behavior) — the schema already supports fractional
  * quantities for when that becomes a requirement.
  */
-async function placeOrder({ symbol, side, quantity, sector, assetType }) {
+async function placeOrder({ symbol, side, quantity, sector, assetType, betaUserId }) {
   const normalizedSymbol = String(symbol || "").trim().toUpperCase();
   const normalizedSide = String(side || "").trim().toUpperCase();
   const normalizedQuantity = Number(quantity);
@@ -135,7 +137,7 @@ async function placeOrder({ symbol, side, quantity, sector, assetType }) {
     throw badRequest("quantity must be a positive whole number of shares.");
   }
 
-  const portfolio = await getOrCreateDefaultPortfolio();
+  const portfolio = await getOrCreateDefaultPortfolio(betaUserId);
   const quotePayload = await finnhubService.getQuote(normalizedSymbol);
   const price = Number(quotePayload.quote?.price);
   if (!Number.isFinite(price) || price <= 0) {
@@ -277,8 +279,8 @@ async function placeOrder({ symbol, side, quantity, sector, assetType }) {
   });
 }
 
-async function getTradeHistory({ limit } = {}) {
-  const portfolio = await getOrCreateDefaultPortfolio();
+async function getTradeHistory({ limit, betaUserId } = {}) {
+  const portfolio = await getOrCreateDefaultPortfolio(betaUserId);
   const trades = await portfolioRepository.getTrades(portfolio.id, { limit });
   return trades.map((trade) => ({
     id: trade.id,
@@ -291,8 +293,8 @@ async function getTradeHistory({ limit } = {}) {
   }));
 }
 
-async function getTransactionLog({ limit } = {}) {
-  const portfolio = await getOrCreateDefaultPortfolio();
+async function getTransactionLog({ limit, betaUserId } = {}) {
+  const portfolio = await getOrCreateDefaultPortfolio(betaUserId);
   const entries = await portfolioRepository.getLedgerEntries(portfolio.id, { limit });
   return entries.map((entry) => ({
     id: entry.id,
@@ -305,8 +307,8 @@ async function getTransactionLog({ limit } = {}) {
   }));
 }
 
-async function getPerformanceTimeline({ limit } = {}) {
-  const portfolio = await getOrCreateDefaultPortfolio();
+async function getPerformanceTimeline({ limit, betaUserId } = {}) {
+  const portfolio = await getOrCreateDefaultPortfolio(betaUserId);
   const snapshots = await portfolioRepository.getPerformanceSnapshots(portfolio.id, { limit });
   return snapshots.map((snapshot) => ({
     capturedAt: snapshot.capturedAt,
@@ -325,8 +327,8 @@ async function getPerformanceTimeline({ limit } = {}) {
  * Called on-demand this sprint; a scheduled daily job is a later sprint
  * (background workers/scheduler are out of scope here).
  */
-async function capturePerformanceSnapshot() {
-  const summary = await getPortfolioSummary();
+async function capturePerformanceSnapshot(betaUserId) {
+  const summary = await getPortfolioSummary(betaUserId);
   const snapshot = await portfolioRepository.createPerformanceSnapshot({
     portfolioId: summary.portfolioId,
     totalValue: summary.totalValue,
@@ -352,10 +354,86 @@ async function capturePerformanceSnapshot() {
   };
 }
 
-async function resetPortfolio() {
-  const portfolio = await getOrCreateDefaultPortfolio();
+/**
+ * Sprint 24 — real, sourced "today vs yesterday" for Portfolio Intelligence
+ * and Home's "what changed for my portfolio." Compares the current live
+ * summary against the most recent PerformanceSnapshot captured before
+ * today (not merely the previous row, since capture is currently
+ * on-demand, not scheduled — the "prior" snapshot could be from any
+ * earlier date). Honest about absence: when no snapshot exists from a
+ * prior day, this says so explicitly rather than fabricating a zero delta.
+ * MEANINGFUL_CHANGE_THRESHOLD_PCT keeps this "highlight only meaningful
+ * changes," not noise.
+ */
+const MEANINGFUL_CHANGE_THRESHOLD_PCT = 0.5;
+
+function startOfTodayUtc() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+async function getPerformanceDelta(betaUserId) {
+  const portfolio = await getOrCreateDefaultPortfolio(betaUserId);
+  const today = await getPortfolioSummary(betaUserId);
+  const allSnapshots = await portfolioRepository.getPerformanceSnapshots(portfolio.id, { limit: 365 });
+
+  const cutoff = startOfTodayUtc();
+  const priorSnapshots = allSnapshots.filter((snapshot) => new Date(snapshot.capturedAt) < cutoff);
+  const previous = priorSnapshots.length ? priorSnapshots[priorSnapshots.length - 1] : null;
+
+  if (!previous) {
+    return {
+      hasComparison: false,
+      totalValue: round2(today.totalValue),
+      changes: [],
+      summary: "No prior-day snapshot yet — this is the first day being tracked.",
+    };
+  }
+
+  const previousTotalValue = Number(previous.totalValue);
+  const valueChangeAbs = today.totalValue - previousTotalValue;
+  const valueChangePct = previousTotalValue !== 0 ? (valueChangeAbs / previousTotalValue) * 100 : 0;
+
+  const changes = [];
+  if (Math.abs(valueChangePct) >= MEANINGFUL_CHANGE_THRESHOLD_PCT) {
+    changes.push({
+      dimension: "totalValue",
+      label: "Total portfolio value",
+      beforeValue: round2(previousTotalValue),
+      afterValue: round2(today.totalValue),
+      changePct: round2(valueChangePct),
+    });
+  }
+
+  const previousUnrealizedPnl = Number(previous.unrealizedPnl);
+  const unrealizedPnlChange = today.unrealizedPnl - previousUnrealizedPnl;
+  if (Math.abs(unrealizedPnlChange) >= 1) {
+    changes.push({
+      dimension: "unrealizedPnl",
+      label: "Unrealized P/L",
+      beforeValue: round2(previousUnrealizedPnl),
+      afterValue: round2(today.unrealizedPnl),
+      changePct: null,
+    });
+  }
+
+  return {
+    hasComparison: true,
+    previousCapturedAt: previous.capturedAt,
+    totalValue: round2(today.totalValue),
+    valueChangeAbs: round2(valueChangeAbs),
+    valueChangePct: round2(valueChangePct),
+    changes,
+    summary: changes.length
+      ? `Portfolio value ${valueChangeAbs >= 0 ? "up" : "down"} ${Math.abs(round2(valueChangePct))}% since the last snapshot.`
+      : "No meaningful change in your portfolio since the last snapshot.",
+  };
+}
+
+async function resetPortfolio(betaUserId) {
+  const portfolio = await getOrCreateDefaultPortfolio(betaUserId);
   await portfolioRepository.resetPortfolio(portfolio.id);
-  return getPortfolioSummary();
+  return getPortfolioSummary(betaUserId);
 }
 
 module.exports = {
@@ -366,5 +444,6 @@ module.exports = {
   getTransactionLog,
   getPerformanceTimeline,
   capturePerformanceSnapshot,
+  getPerformanceDelta,
   resetPortfolio,
 };

@@ -3,6 +3,7 @@ import SectionCard from "../components/SectionCard";
 import useWatchlist from "../hooks/useWatchlist";
 import { intelligenceApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
+import { startVisibilityAwarePolling } from "../utils/pollWhileVisible";
 
 const DEFAULT_SCENARIOS = ["Oil spike", "Fed rate hike", "BTC ETF approval", "Israel conflict"];
 
@@ -13,7 +14,6 @@ export default function GlobalIntelligenceScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    let intervalId;
 
     async function loadOverview() {
       try {
@@ -30,17 +30,17 @@ export default function GlobalIntelligenceScreen() {
         logError("Global intelligence overview failed", nextError);
         if (!cancelled) {
           setOverview(null);
-          setError(nextError?.message || "Unable to load global intelligence.");
+          setError("Unable to load global intelligence.");
         }
       }
     }
 
     loadOverview();
-    intervalId = setInterval(loadOverview, 60000);
+    const stopPolling = startVisibilityAwarePolling(loadOverview, 60000);
 
     return () => {
       cancelled = true;
-      clearInterval(intervalId);
+      stopPolling();
     };
   }, [watchlist]);
 
@@ -157,8 +157,8 @@ export default function GlobalIntelligenceScreen() {
 
         <SectionCard title="Capital Flows" subtitle="Current transitions" className="screen-card">
           <div className="widget-list">
-            {(globalMap?.capitalFlows || []).map((item) => (
-              <div key={`${item.from}-${item.to}`} className="widget-list-item">
+            {(globalMap?.capitalFlows || []).map((item, index) => (
+              <div key={`${item.from}-${item.to}-${index}`} className="widget-list-item">
                 <strong>{item.from} → {item.to}</strong>
                 <span>{item.rationale}</span>
               </div>
@@ -170,8 +170,8 @@ export default function GlobalIntelligenceScreen() {
       <div className="analysis-grid">
         <SectionCard title="Alpha Discovery" subtitle="Highest conviction opportunities" className="screen-card">
           <div className="widget-list">
-            {(alphaDiscovery?.top10InvestmentIdeas || []).slice(0, 10).map((idea) => (
-              <div key={`${idea.symbol}-${idea.primaryDriver}`} className="widget-list-item">
+            {(alphaDiscovery?.top10InvestmentIdeas || []).slice(0, 10).map((idea, index) => (
+              <div key={`${idea.symbol}-${idea.primaryDriver}-${index}`} className="widget-list-item">
                 <strong>{idea.symbol}</strong>
                 <span>{idea.portfolioAction?.action || "Wait"} | {idea.convictionScore}</span>
               </div>

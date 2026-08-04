@@ -1,0 +1,16 @@
+import { apiClient } from "./apiClient";
+
+export const themeApi = {
+  list() {
+    return apiClient.get("/v2/themes");
+  },
+  get(themeKey) {
+    return apiClient.get(`/v2/themes/${encodeURIComponent(themeKey)}`);
+  },
+  getEvolution(themeKey) {
+    return apiClient.get(`/v2/themes/${encodeURIComponent(themeKey)}/evolution`);
+  },
+  recordView(themeKey) {
+    return apiClient.post(`/v2/themes/${encodeURIComponent(themeKey)}/view`);
+  },
+};

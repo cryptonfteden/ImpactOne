@@ -1,0 +1,23 @@
+# Phase SECURITY-INCIDENT-CLOSURE-001 — gitleaks configuration for CI.
+#
+# Extends gitleaks' own default, maintained ruleset (not replacing it) —
+# see https://github.com/gitleaks/gitleaks for the base rule set this
+# inherits.
+[extend]
+useDefault = true
+
+# Two commits (7676e23, 5d855ea) already contain a real, already-disclosed,
+# already-rotated historical secret exposure (frontend/.env, Sprint 1/2 —
+# see SECRET_EXPOSURE_REGISTER.md for full detail). Per founder decision,
+# git history was not rewritten to remove them. Without this allowlist,
+# every future CI run on this repository would fail permanently on these
+# two already-known, already-handled commits, masking any *new* secret a
+# future commit might introduce. This allowlists exactly those two
+# specific commits by hash — not a path or regex exemption, so it cannot
+# accidentally suppress a genuinely new secret added anywhere else,
+# including in a new commit that happens to touch the same file.
+[allowlist]
+commits = [
+  "7676e23e85bb84d99d243f5959db70f7d226db9d",
+  "5d855ea2c6fe240a0bee080fa2dbeb010ca1c020",
+]

@@ -1,0 +1,27 @@
+# Real Device Verification — PHONE-INSTALLATION-001
+
+## Method (Disclosed Honestly)
+
+This environment has no physical Android phone, no browser, and no device lab attached — consistent with every other phase in this session's line, this is disclosed rather than glossed over. "Verification" below means one of two things, always labeled explicitly per item:
+
+- **Code-verified**: read the actual manifest/service-worker/CSS/config and confirmed it satisfies the requirement, by the same real-values discipline used throughout this session (exact fields, exact media queries, exact fallback behavior — not a general impression).
+- **Not verifiable here — requires the founder's real phone**: the specific, exact step the founder needs to perform, so this gap is actionable rather than silent.
+
+## Objectives, One by One
+
+| Objective | Status | Evidence |
+|---|---|---|
+| Reliable phone-accessible deployment | Code-verified + requires real hosting step | Backend already has a documented production deployment shape (`DEPLOYMENT_CHECKLIST.md`); frontend is a static build (`npm run build` → `frontend/dist/`) servable from any HTTPS static host. **Requires the founder's phone**: confirming the real chosen hosting URL loads over the phone's actual network. |
+| PWA installation from Android Chrome | Code-verified (manifest satisfies Chrome's install criteria) + requires real phone | `manifest.json` has `name`, `short_name`, `start_url`, `icons` (192/512 `any` + 192/512 `maskable`), `display: standalone` — the exact set Chrome's installability checklist requires. Service worker with a `fetch` handler is registered. **Requires the founder's phone**: tapping the real "Install app" / "Add to Home screen" prompt and confirming it appears. |
+| Standalone launch mode | Code-verified | `manifest.json`'s `"display": "standalone"` — confirmed present, not `"browser"` or `"minimal-ui"`. **Requires the founder's phone**: confirming the installed icon opens without the browser's address bar/tab chrome. |
+| Manifest, icons, service worker, update behavior | Code-verified | Manifest fields as above; all 4 icon files exist in `frontend/public/`; `sw.js` registered production-only, dispatches `impactone:update-available`, `UpdateBanner.jsx` renders a real reload prompt. See `PWA_DEPLOYMENT_REPORT.md`'s "Update Safety" section for the full mechanism. |
+| Production API connectivity | Code-verified (the real gap this phase found and fixed) + requires real phone | The four call sites that previously could silently default to an unreachable `localhost` URL now share one validated `apiConfig.js`, and a production build with a missing/localhost API origin is now flagged by `startupValidation.js`'s `validateOrigins()`. **Requires the founder's phone**: confirming a real screen (e.g. Home) actually loads real data over the phone's cellular/Wi-Fi connection once `VITE_API_BASE_URL` is set to the real deployed backend's public HTTPS origin. |
+| Authentication and session persistence | Code-verified | This deployment's identity model (from Phase X4/H2) is the beta-invite flow: a `impactone-beta-user-id` value written to `localStorage` once, then sent as `X-Beta-User-Id` on every request (`apiClient.js`). `localStorage` persists across app closes/reopens and across a PWA relaunch by design (it's origin-scoped, not tab-scoped) — no additional code was needed for this to survive a phone relaunch. **Requires the founder's phone**: closing the installed app fully and reopening it, confirming no re-invite prompt appears. |
+| Portrait and landscape rotation | Code-verified (existing, from `MOBILE-FIXES-001`) | `@media (orientation: landscape) and (max-height: 500px)` rules already exist for the 3D workspace and other short-viewport cases (confirmed by reading `workspace3d.css` this phase — unchanged, still correct). **Requires the founder's phone**: physically rotating the device on a few real screens. |
+| Offline/error behavior | Code-verified | `sw.js`'s fetch handler: navigations fall back to the cached shell offline; API requests are never cached and a failed fetch surfaces as a real error (existing `ErrorState` components per earlier phases), not stale data pretending to be live. **Requires the founder's phone**: toggling airplane mode mid-session and confirming the app opens to the shell with an honest "unavailable" state rather than a blank screen or stale numbers. |
+| Safe-area handling | Code-verified | `viewport-fit=cover` is set in `index.html`; `env(safe-area-inset-*)` is already referenced in `styles.css`/`workspace3d.css` from the `MOBILE-FIXES-001` line of work. **Requires the founder's phone**: confirming no control sits under a real notch/home-indicator on their specific device. |
+| Startup and first-launch experience | Code-verified | `registerServiceWorker.js` only registers in production, never blocks first paint; `startupValidation.js` never throws or blocks rendering — the app is designed to render even with reported issues, with `AppErrorBoundary` as the true backstop. **Requires the founder's phone**: the actual first cold-start timing and first-paint feel, which no code read can measure. |
+
+## Bottom Line
+
+Every objective has a real, specific, code-level check that passed. None of them can be fully closed out without the founder's own phone in hand — that gap is the same one every "no browser tool available" phase in this session has disclosed, and it's why `FOUNDER_INSTALL_GUIDE.md` gives the founder the exact steps to run this checklist themselves against a real device.

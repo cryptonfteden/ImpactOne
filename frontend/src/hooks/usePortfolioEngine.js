@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { portfolioEngineApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
+import { startVisibilityAwarePolling } from "../utils/pollWhileVisible";
 
 const REFRESH_INTERVAL_MS = 60000;
 
@@ -9,23 +10,26 @@ export default function usePortfolioEngine({ autoRefresh = true } = {}) {
   const [trades, setTrades] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [performance, setPerformance] = useState([]);
+  const [performanceDelta, setPerformanceDelta] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
 
   const refresh = useCallback(async () => {
     try {
-      const [summaryData, tradesData, transactionsData, performanceData] = await Promise.all([
+      const [summaryData, tradesData, transactionsData, performanceData, deltaData] = await Promise.all([
         portfolioEngineApi.getSummary(),
         portfolioEngineApi.getTrades(),
         portfolioEngineApi.getTransactions(),
         portfolioEngineApi.getPerformance(),
+        portfolioEngineApi.getPerformanceDelta(),
       ]);
 
       setSummary(summaryData);
       setTrades(tradesData.trades || []);
       setTransactions(transactionsData.transactions || []);
       setPerformance(performanceData.timeline || []);
+      setPerformanceDelta(deltaData);
       setError("");
     } catch (fetchError) {
       logError("Portfolio engine refresh failed", fetchError);
@@ -37,7 +41,7 @@ export default function usePortfolioEngine({ autoRefresh = true } = {}) {
 
   useEffect(() => {
     let cancelled = false;
-    let intervalId;
+    let stopPolling;
 
     async function initialLoad() {
       if (!cancelled) {
@@ -47,13 +51,13 @@ export default function usePortfolioEngine({ autoRefresh = true } = {}) {
 
     initialLoad();
     if (autoRefresh) {
-      intervalId = setInterval(refresh, REFRESH_INTERVAL_MS);
+      stopPolling = startVisibilityAwarePolling(refresh, REFRESH_INTERVAL_MS);
     }
 
     return () => {
       cancelled = true;
-      if (intervalId) {
-        clearInterval(intervalId);
+      if (stopPolling) {
+        stopPolling();
       }
     };
   }, [refresh, autoRefresh]);
@@ -88,6 +92,7 @@ export default function usePortfolioEngine({ autoRefresh = true } = {}) {
     trades,
     transactions,
     performance,
+    performanceDelta,
     isLoading,
     error,
     actionError,

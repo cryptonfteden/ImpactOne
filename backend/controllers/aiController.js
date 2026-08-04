@@ -1,7 +1,9 @@
 const { analyzeTicker } = require("../services/openaiService");
 const { analyzeMarketImpact } = require("../services/marketImpactService");
 const { getAltDataSummary } = require("../services/altDataService");
-const { analyzeInvestmentCommittee } = require("../services/investmentCommitteeService");
+// Sprint 41 — Committee Unification: the ONE canonical committee, replacing
+// the retired investmentCommitteeService.js.
+const intelligenceCommitteeService = require("../services/intelligenceCommittee/intelligenceCommitteeService");
 const { analyzeIntelligence } = require("../services/impactIntelligenceService");
 
 async function analyze(req, res, next) {
@@ -18,9 +20,6 @@ async function analyze(req, res, next) {
       metrics: req.body?.metrics || null,
     };
 
-    console.log(`[ai-controller] request method=${req.method} symbol=${symbol}`);
-    console.log(`[ai-controller] request body=${JSON.stringify(req.body || {}).slice(0, 2000)}`);
-
     const eventHint = context.news?.[0]?.headline || `${symbol} earnings`;
     const [altDataSummary, analysis, marketImpact, intelligenceReport] = await Promise.all([
       getAltDataSummary({ symbol }).catch(() => null),
@@ -28,23 +27,22 @@ async function analyze(req, res, next) {
       analyzeMarketImpact(symbol, context),
       analyzeIntelligence({ event: eventHint, symbol }).catch(() => null),
     ]);
-    const committeeReport = await analyzeInvestmentCommittee({
-      symbol,
-      context,
-      intelligenceReport,
-      altDataSummary,
-      marketImpact,
-    }).catch(() => null);
-    console.log(`[ai-controller] response analysis=${JSON.stringify(analysis).slice(0, 4000)}`);
-    console.log(`[ai-controller] response marketImpact=${JSON.stringify(marketImpact).slice(0, 4000)}`);
+    // Sprint 41 — Committee Unification: convenes the ONE canonical
+    // committee (evidence-matrix-driven, Sprint 38) for this symbol.
+    // Replaces the retired investmentCommitteeService.js call — same gate
+    // (never blocks the rest of the analysis on failure), new shape.
+    const committeeResult = await intelligenceCommitteeService.convene(symbol).catch(() => null);
     res.json({
       symbol,
       analysis: {
         ...analysis,
         marketImpact,
         alternativeDataSignals: altDataSummary?.signals || null,
-        committee: committeeReport?.committee || null,
-        committeeTrackRecord: committeeReport?.trackRecord?.stats || null,
+        // Sprint 41 — the unified committee's coordinator summary and CIO
+        // summary, exactly as produced by intelligenceCommitteeService —
+        // never a second verdict (both carry isVerdict: false).
+        committee: committeeResult?.committee || null,
+        cio: committeeResult?.cio || null,
       },
     });
   } catch (error) {

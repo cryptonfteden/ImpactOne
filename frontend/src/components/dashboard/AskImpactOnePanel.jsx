@@ -37,7 +37,7 @@ export default function AskImpactOnePanel({ context = {} }) {
       setMessages((current) => [...current, { role: "answer", text: result.answer, source: result.source, contextUsed: context }]);
     } catch (askError) {
       logError("Ask ImpactOne failed", askError);
-      setError(askError?.message || "Unable to reach Ask ImpactOne right now.");
+      setError("Unable to reach Ask ImpactOne right now.");
     } finally {
       setIsAsking(false);
     }

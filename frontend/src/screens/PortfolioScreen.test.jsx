@@ -43,6 +43,11 @@ vi.mock("../hooks/usePortfolioEngine", () => ({
 
 vi.mock("../services/api", () => ({
   intelligenceApi: { overview: vi.fn().mockResolvedValue({}) },
+  impactGraphApi: {
+    getGraph: vi.fn().mockResolvedValue({ status: "NO_DATA", nodes: [], edges: [] }),
+    getPortfolioGraph: vi.fn().mockResolvedValue({ status: "NO_DATA", nodes: [], edges: [] }),
+    getWorkspaceGraph: vi.fn().mockResolvedValue({ status: "NO_DATA", nodes: [], edges: [] }),
+  },
 }));
 
 afterEach(() => {
@@ -66,5 +71,16 @@ describe("PortfolioScreen feature flag", () => {
     render(<PortfolioScreen />);
     expect(screen.getByText("Persistent paper-trading engine")).toBeInTheDocument();
     expect(screen.queryByText("Virtual agent portfolio and paper trading")).not.toBeInTheDocument();
+  });
+});
+
+describe("Sprint 40 — Portfolio AI Advisor Insights", () => {
+  it("shows an honest empty state when there are no open positions or sector allocation", () => {
+    render(<PortfolioScreen />);
+    expect(screen.getByText("AI Advisor Insights")).toBeInTheDocument();
+    expect(screen.getByText("No open positions yet — no sector concentration to report.")).toBeInTheDocument();
+    expect(screen.getByText("No open positions yet — no opportunity to report.")).toBeInTheDocument();
+    expect(screen.getByText("No open positions — no risk exposure to warn about.")).toBeInTheDocument();
+    expect(screen.getByText(/Not tracked at the portfolio level yet/)).toBeInTheDocument();
   });
 });

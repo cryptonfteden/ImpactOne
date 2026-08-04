@@ -4,6 +4,7 @@
 **Scope:** MVP endpoints only  
 **Status:** Based on the current backend implementation where available; missing MVP endpoints are explicitly called out  
 **Date:** 2026-07-11
+**Terminology:** Every field name discussed below that maps to a domain concept (`confidenceScore`, `conviction`, `qualityScore`, `action`, `committeeDebate`, and the rest) is defined exactly once, including its canonical vs. non-canonical synonym status, in `CANONICAL_DOMAIN_MODEL.md`.
 
 ---
 
@@ -68,6 +69,24 @@
 - `POST /api/v2/portfolio/performance/snapshot`
 - `POST /api/v2/portfolio/reset`
 - `POST /api/chat/ask`
+- `GET /api/v2/recommendations`
+- `GET /api/v2/recommendations/:id`
+- `POST /api/v2/recommendations/run`
+- `GET /api/v2/recommendations/status`
+- `GET /api/v2/recommendations/:id/decision-trace`
+- `GET /api/v2/investor-profile`
+- `POST /api/v2/investor-profile`
+- `PATCH /api/v2/investor-profile`
+- `GET /api/v2/investor-profile/investment-profile`
+- `GET /api/v2/home-summary`
+- `GET /api/v2/themes`
+- `GET /api/v2/themes/:themeKey`
+- `GET /api/v2/providers`
+- `GET /api/v2/providers/:providerId/health`
+- `GET /api/v2/providers/:providerId/metrics`
+- `GET /api/v2/providers/:providerId/diagnostics`
+- `GET /api/v2/providers/:providerId/metadata`
+- `POST /api/v2/providers/:providerId/run`
 
 ### MVP-required but currently missing
 
@@ -404,7 +423,7 @@ GET /api/quote?symbol=AAPL
   - `metrics`
 
 **Response schema**
-- `{ symbol: string, analysis: { executiveSummary, bullCase, bearCase, valuation, keyRisks, catalysts, shortTermOutlook, longTermOutlook, investmentRating, confidenceScore, whatChangedToday, requiresApiKey, source, providerError?, providerNotice?, marketImpact, alternativeDataSignals, committee, committeeTrackRecord } }`
+- `{ symbol: string, analysis: { executiveSummary, bullCase, bearCase, valuation, keyRisks, catalysts, shortTermOutlook, longTermOutlook, investmentRating, confidenceScore, whatChangedToday, requiresApiKey, source, providerError?, providerNotice?, marketImpact, alternativeDataSignals, committeeDebate, committeeTrackRecord } }` — `committeeDebate` (renamed from `committee` in Sprint 18A; see 3.8) is debate/explanation context only, never an independent verdict. `investmentRating` above is a separate, pre-existing field from this endpoint's own OpenAI-backed analysis and is out of scope for the Sprint 18A canonical-verdict merge (see `INTELLIGENCE_PLATFORM_REVIEW.md`, which scoped the merge to the Investment Committee and Recommendation Engines specifically).
 
 **Error responses**
 - `500 { error: "..." }` via global error handler for uncaught failures.
@@ -472,7 +491,7 @@ Content-Type: application/json
       "relatedTickers": [],
       "confidenceScore": 78
     },
-    "committee": null,
+    "committeeDebate": null,
     "committeeTrackRecord": null
   }
 }
@@ -534,6 +553,8 @@ GET /api/compare?symbol=AAPL
 
 ### 3.8 `GET /api/committee/analyze` and `POST /api/committee/analyze`
 
+**Sprint 18A — Canonical Decision Architecture.** The committee is a debate/explanation layer, not an independent verdict engine. Its response never contains a `decision`/`action`/`verdict`-shaped field on its own (see `backend/services/canonicalVerdict.js`, which structurally strips any such key even if one somehow appeared). The one canonical action for a symbol, when one exists, comes only from a persisted `Recommendation` — surfaced here as `relatedRecommendation` and reflected in `canonicalVerdict`.
+
 **Route**
 - `/api/committee/analyze`
 
@@ -548,7 +569,13 @@ GET /api/compare?symbol=AAPL
 - `marketImpact` optional object.
 
 **Response schema**
-- `{ symbol, displaySymbol, committee: { generatedAt, eventHint, agents, cio, committeeAgreement, disagreementScore, expertsDisagree, disagreementExplanation, voteBreakdown, trackRecordSummary }, trackRecord }`
+- `{ symbol, displaySymbol, committeeDebate: { generatedAt, eventHint, supportingArguments, opposingArguments, expertVotes, disagreementLevel, consensusLevel, expertsDisagree, disagreementExplanation, voteBreakdown, specialistObservations, synthesis }, trackRecord, relatedRecommendation, canonicalVerdict }`
+  - `committeeDebate.expertVotes`: `Array<{ agent, vote, confidence, rationale }>` — each agent's raw vote on the original 6-way scale (`Strong Buy`…`Strong Sell`). This is the committee's individual-expert opinion, not a published aggregate verdict.
+  - `committeeDebate.supportingArguments` / `opposingArguments`: `Array<{ agent, argument }>` — every bull/bear argument, tagged by the agent that raised it.
+  - `committeeDebate.synthesis`: the CIO narrative (`executiveSummary`, `expectedReturn`, `risk`, `confidence`, `investmentHorizon`, `portfolioAllocationSuggestion`, `providerNotice`, `source`) with its `decision` field deliberately removed.
+  - `relatedRecommendation`: `null`, or `{ id, action, confidenceScore, qualityScore, riskLabel, createdAt }` read from an ACTIVE `Recommendation` row when one exists for this symbol — the platform's one canonical call, shown at most once.
+  - `canonicalVerdict`: `{ hasCanonicalRecommendation, action, confidenceScore, qualityScore, riskLabel, committeeDebate }` — the same assembly `buildCanonicalVerdictView` produces internally; `action` is `null` when no persisted recommendation exists yet (never a synthesized substitute).
+  - `trackRecord`: unchanged shape, now a **frozen/legacy** view — see 3.9.
 
 **Error responses**
 - `500 { error: "Internal Server Error" }` via global error handler for uncaught failures.
@@ -580,30 +607,33 @@ Content-Type: application/json
 {
   "symbol": "NVDA",
   "displaySymbol": "NVDA",
-  "committee": {
-    "generatedAt": "2026-07-11T12:00:00.000Z",
+  "committeeDebate": {
+    "generatedAt": "2026-07-12T12:00:00.000Z",
     "eventHint": "AI capex remains strong",
-    "agents": [
-      { "role": "Macro Strategist", "vote": "Buy" },
-      { "role": "Equity Analyst", "vote": "Buy" }
+    "supportingArguments": [{ "agent": "Equity Analyst", "argument": "Business quality supports upside." }],
+    "opposingArguments": [{ "agent": "Risk Manager", "argument": "Tail risk remains elevated." }],
+    "expertVotes": [
+      { "agent": "Macro Strategist", "vote": "Buy", "confidence": 70, "rationale": "Macro regime is currently risk-on." },
+      { "agent": "Equity Analyst", "vote": "Buy", "confidence": 74, "rationale": "Business quality supports upside." }
     ],
-    "cio": {
-      "executiveSummary": "...",
-      "decision": "Buy",
-      "expectedReturn": "+12%",
-      "risk": "Medium",
-      "confidence": 74,
-      "catalysts": ["..."],
-      "threats": ["..."],
-      "investmentHorizon": "1-3 months",
-      "portfolioAllocationSuggestion": "3-4%"
-    },
-    "committeeAgreement": 80,
-    "disagreementScore": 20,
+    "disagreementLevel": 20,
+    "consensusLevel": 80,
     "expertsDisagree": false,
     "disagreementExplanation": "Committee alignment is high enough to support a cleaner final recommendation.",
     "voteBreakdown": [{ "vote": "Buy", "count": 4 }],
-    "trackRecordSummary": { "totalDecisions": 12, "symbolsCovered": 7, "pendingEvaluations": 12 }
+    "specialistObservations": [
+      { "agent": "Equity Analyst", "focus": ["Valuation"], "supportingEvidence": ["Analyst posture: Buy"], "unknowns": ["Future earnings quality is still uncertain."] }
+    ],
+    "synthesis": {
+      "executiveSummary": "Balance of views points to buy with moderate conviction.",
+      "expectedReturn": "12-18%",
+      "risk": "Moderate",
+      "confidence": 74,
+      "investmentHorizon": "3-12 months",
+      "portfolioAllocationSuggestion": "3-5% tactical allocation",
+      "providerNotice": null,
+      "source": "openai"
+    }
   },
   "trackRecord": {
     "entries": [],
@@ -616,13 +646,17 @@ Content-Type: application/json
       "averageReturn": 6.12,
       "pendingEvaluations": 8
     }
-  }
+  },
+  "relatedRecommendation": { "id": "rec-1", "action": "BUY", "confidenceScore": 88, "qualityScore": 82, "riskLabel": "Low", "createdAt": "2026-07-12T11:30:00.000Z" },
+  "canonicalVerdict": { "hasCanonicalRecommendation": true, "action": "BUY", "confidenceScore": 88, "qualityScore": 82, "riskLabel": "Low", "committeeDebate": { "...": "sanitized copy of committeeDebate above" } }
 }
 ```
 
 ---
 
 ### 3.9 `GET /api/committee/track-record`
+
+**Sprint 18A note:** this endpoint's underlying store (`backend/data/committeeTrackRecord.json`) is now **frozen** — `analyzeInvestmentCommittee` no longer writes new entries to it (that write, `upsertCommitteeDecision`, was removed as part of folding the committee into a debate layer; see 3.8). Existing historical entries remain fully readable via this endpoint, unchanged and undiscarded. A future Alpha Attribution Engine (see `INTELLIGENCE_PLATFORM_BLUEPRINT.md`) is the intended eventual replacement for real, ongoing committee/recommendation outcome tracking.
 
 **Route**
 - `/api/committee/track-record`
@@ -645,7 +679,7 @@ Content-Type: application/json
 
 **Validation rules**
 - Symbol filter is optional.
-- Entries are enriched with live quote data when possible.
+- Entries are enriched with live quote data when possible. The entry set itself no longer grows — it reflects committee decisions made before Sprint 18A only.
 
 **Example request**
 ```http
@@ -2219,6 +2253,420 @@ Content-Type: application/json
   "providerNotice": null
 }
 ```
+
+---
+
+### 3.39 `GET /api/v2/recommendations`
+
+**Purpose**
+- Sprint 16 (Phases A-D) — lists advisory-only, AI-generated recommendations from the autonomous recommendation engine. Never places a trade; see `POST /api/v2/recommendations/run`.
+
+**Route**
+- `/api/v2/recommendations`
+
+**HTTP method**
+- `GET`
+
+**Request body**
+- None.
+- Query parameters: `status` (`ACTIVE` | `SUPERSEDED` | `EXPIRED`, optional), `symbol` (optional), `limit` (optional number). When neither `status` nor `symbol` is given, defaults to `ACTIVE` only.
+
+**Response schema**
+- `{ recommendations: Array<Recommendation> }`, where `Recommendation` is:
+  - `id, createdAt, symbol, action ("BUY"|"REDUCE"|"EXIT"), confidenceScore, expectedUpside, expectedDownside, riskScore, riskLabel, positionSizeSuggestion, reasoning, timeHorizon, status, supersededById, expiresAt`
+  - `explanation: { thesis, supportingEvidence: Array<{headline, whyItMatters, sourceName, sourceUrl}>, opposingEvidence: Array<{headline, whyItMatters, sourceName, sourceUrl, counterarguments}>, keyRisks: string[], invalidationConditions: string[], timeHorizon, affectedPositions: Array<{symbol, quantity, marketValue, weightPct, sector}>, affectedWatchlistSymbols: string[], confidenceDrivers: string[], confidenceReducers: string[], committeeDebate: object|null }` — Sprint 18A: `committeeDebate` is the sanitized Investment Committee debate for this symbol (same shape as 3.8's `committeeDebate`, minus any raw-response fields), embedded here so the UI never needs a second fetch; `null` when the committee call failed or hadn't run.
+  - `scenarios: Array<{ case: "bull"|"base"|"bear", narrative, probability (0-1), priceImpact, portfolioImpact (string|null), catalysts: string[], risks: string[], invalidationTrigger }>` (always exactly 3 entries)
+  - `qualityScore` (0-100) and `qualityComponents: { sourceQuality, evidenceFreshness, portfolioRelevance, evidenceAgreement, dataCompleteness, modelConfidence }` (each 0-100; weighted 15/15/20/20/10/20% respectively to produce `qualityScore`)
+  - `evidence: { overallAiScore, opportunityScore, riskScore, convictionScore, primaryDriver, rankingExplanation, matchedEvents, sectorWeightPct, concentrationTriggered, macroRegime, currentPrice, dayChangePercent, symbolSource ("portfolio"|"watchlist"|"market-scan") }`, where each `matchedEvents` entry is `{ headline, importanceScore, whyItMatters, sourceUrl, sourceName, publishedAt, confidence, reliability, impactType, riskLevel, timeHorizon, counterarguments, invalidationSignals, personalRelevance }`
+  - `portfolioContext: { quantity, marketValue, unrealizedPnlPct, sector, weightPct } | null` (null when not currently held)
+
+**Error responses**
+- `500 { error: "Internal Server Error" }` for uncaught failures.
+
+**Authentication requirements**
+- None.
+
+**Validation rules**
+- `limit` is optional and coerced to a number.
+
+**Example request**
+```http
+GET /api/v2/recommendations?status=ACTIVE
+```
+
+**Example response**
+```json
+{
+  "recommendations": [
+    {
+      "id": "rec-id",
+      "symbol": "NVDA",
+      "action": "BUY",
+      "confidenceScore": 84,
+      "riskLabel": "Moderate",
+      "expectedUpside": "10-16%",
+      "expectedDownside": "-8% tactical stop",
+      "timeHorizon": "1-3 months",
+      "qualityScore": 82,
+      "qualityComponents": { "sourceQuality": 95, "evidenceFreshness": 80, "portfolioRelevance": 40, "evidenceAgreement": 100, "dataCompleteness": 100, "modelConfidence": 84 },
+      "explanation": { "thesis": "Buy NVDA: AI infrastructure demand remains strong", "supportingEvidence": [], "opposingEvidence": [], "keyRisks": [], "invalidationConditions": [], "affectedPositions": [], "affectedWatchlistSymbols": [], "confidenceDrivers": [], "confidenceReducers": [] },
+      "scenarios": [{ "case": "bull", "narrative": "AI capex accelerates.", "probability": 0.3, "priceImpact": "15-22%", "portfolioImpact": null, "catalysts": [], "risks": [], "invalidationTrigger": "..." }],
+      "status": "ACTIVE"
+    }
+  ]
+}
+```
+
+---
+
+### 3.40 `GET /api/v2/recommendations/:id`
+
+**Purpose**
+- Full detail for a single recommendation, including the same `explanation`/`scenarios`/`qualityScore`/`evidence` fields as the list endpoint.
+
+**Route**
+- `/api/v2/recommendations/:id`
+
+**HTTP method**
+- `GET`
+
+**Request body**
+- None.
+
+**Response schema**
+- `Recommendation` (see 3.39).
+
+**Error responses**
+- `404 { error: "Recommendation not found." }`
+- `500 { error: "Internal Server Error" }` otherwise.
+
+**Authentication requirements**
+- None.
+
+**Validation rules**
+- `:id` must be an existing recommendation id.
+
+**Example request**
+```http
+GET /api/v2/recommendations/rec-id
+```
+
+**Example response**
+- Same shape as one entry of `GET /api/v2/recommendations`.
+
+---
+
+### 3.41 `POST /api/v2/recommendations/run`
+
+**Purpose**
+- Triggers one on-demand evaluation pass of the recommendation engine. Advisory only — never calls the portfolio engine's order-placement path. The same logic also runs on a schedule server-side (`AUTONOMOUS_ENGINE_INTERVAL_MINUTES`, default 30).
+
+**Route**
+- `/api/v2/recommendations/run`
+
+**HTTP method**
+- `POST`
+
+**Request body**
+- `{ watchlist?: string[] }` — optional. When provided (e.g. from the frontend's real localStorage watchlist), personalizes the evaluation universe and news queries; when omitted, the engine falls back to held positions plus the default 3-symbol universe (`AAPL`/`NVDA`/`TSLA`) — the same behavior scheduled runs use, since they have no per-request context.
+
+**Response schema**
+- `{ runLog: { id, startedAt, symbolsEvaluated, recommendationsGenerated, errors }, symbolsEvaluated, recommendationsGenerated, errors: Array<{symbol, message}> }`
+
+**Error responses**
+- `500 { error: "Internal Server Error" }` for uncaught failures. Per-symbol errors are captured in the response body's `errors` array rather than failing the whole request.
+
+**Authentication requirements**
+- None.
+
+**Validation rules**
+- `watchlist`, if present, must be an array; non-array values are ignored (treated as `[]`).
+
+**Example request**
+```http
+POST /api/v2/recommendations/run
+Content-Type: application/json
+
+{ "watchlist": ["PLTR"] }
+```
+
+**Example response**
+```json
+{
+  "runLog": { "id": "log-id", "startedAt": "2026-07-11T12:00:00.000Z", "symbolsEvaluated": 4, "recommendationsGenerated": 2, "errors": null },
+  "symbolsEvaluated": 4,
+  "recommendationsGenerated": 2,
+  "errors": []
+}
+```
+
+---
+
+### 3.42 `GET /api/v2/recommendations/status`
+
+**Purpose**
+- Engine status for the Recommendations screen — whether the scheduler is enabled/running, its interval, and the most recent run.
+
+**Route**
+- `/api/v2/recommendations/status`
+
+**HTTP method**
+- `GET`
+
+**Request body**
+- None.
+
+**Response schema**
+- `{ enabled: boolean, running: boolean, intervalMinutes: number, lastRunAt: string|null, lastRunResult: object|null, latestRunLog: { id, startedAt, symbolsEvaluated, recommendationsGenerated, errors } | null }`
+
+**Error responses**
+- `500 { error: "Internal Server Error" }` otherwise.
+
+**Authentication requirements**
+- None.
+
+**Validation rules**
+- None.
+
+**Example request**
+```http
+GET /api/v2/recommendations/status
+```
+
+**Example response**
+```json
+{
+  "enabled": true,
+  "running": true,
+  "intervalMinutes": 30,
+  "lastRunAt": "2026-07-11T12:00:00.000Z",
+  "latestRunLog": { "id": "log-id", "startedAt": "2026-07-11T12:00:00.000Z", "symbolsEvaluated": 4, "recommendationsGenerated": 2, "errors": null }
+}
+```
+
+---
+
+### 3.43 `GET /api/v2/recommendations/:id/decision-trace`
+
+**Purpose**
+- Sprint 16 Phase D — returns the immutable decision trace for a recommendation: the input evidence, ranking result, confidence calculation, and final output used to generate it. A separate resource from the main detail response so the (more verbose) audit payload only downloads when specifically requested. Contains only already-processed application data — never a raw provider HTTP response or an API key.
+- **Sprint 18A** adds three additive, nullable fields (`committeeDebate`, `evidenceReferences`, `modelVersionMetadata`) and enriches `confidenceCalculation` with `conviction` and `uncertainty`. Historical traces created before Sprint 18A simply have `null` for the three new fields — nothing was backfilled or discarded. The trace remains immutable: still create + read only, no update path exists anywhere in the repository.
+
+**Route**
+- `/api/v2/recommendations/:id/decision-trace`
+
+**HTTP method**
+- `GET`
+
+**Request body**
+- None.
+
+**Response schema**
+- `{ id, recommendationId, inputEvidence: { rankingItem, matchedEvents, portfolioSnapshot, macroRegime }, rankingResult: { convictionScore, portfolioAction, symbolSource, action, concentrationTriggered }, confidenceCalculation: { qualityScore, qualityComponents, riskScore, riskLabel, conviction, uncertainty }, finalOutput: { action, expectedUpside, expectedDownside, positionSizeSuggestion, timeHorizon, reasoning }, committeeDebate: object|null, evidenceReferences: Array<EventEnvelope>|null, modelVersionMetadata: { eventEnvelopeVersion, contractVersion }|null, createdAt }`
+  - `confidenceCalculation.conviction`: alias of `rankingResult.convictionScore`, included here so the full shared scoring vocabulary is readable from one object (see §3.44 below).
+  - `confidenceCalculation.uncertainty`: 0-100, `computeUncertainty()` — distinct from confidence; reflects disagreement (evidence agreement + committee consensus), not signal strength.
+  - `committeeDebate`: the exact sanitized debate object used at decision time (see 3.8) — an immutable snapshot, not a live pointer to the committee's current view.
+  - `evidenceReferences`: each matched event projected onto the canonical Event Envelope (see §3.45), stored **alongside**, not instead of, `inputEvidence.matchedEvents`.
+  - `modelVersionMetadata`: `{ eventEnvelopeVersion: "1.0.0", contractVersion: "1.0.0" }` — the schema versions in effect when this trace was created.
+
+**Error responses**
+- `404 { error: "Recommendation not found." }` when the recommendation id doesn't exist.
+- `404 { error: "Decision trace not found." }` when the recommendation exists but has no trace (should not occur in normal operation — every engine-generated recommendation writes one).
+- `500 { error: "Internal Server Error" }` otherwise.
+
+**Authentication requirements**
+- None.
+
+**Validation rules**
+- `:id` must be an existing recommendation id.
+
+**Example request**
+```http
+GET /api/v2/recommendations/rec-id/decision-trace
+```
+
+**Example response**
+```json
+{
+  "id": "trace-id",
+  "recommendationId": "rec-id",
+  "rankingResult": { "action": "BUY", "convictionScore": 84, "symbolSource": "market-scan", "concentrationTriggered": false },
+  "confidenceCalculation": {
+    "qualityScore": 82,
+    "qualityComponents": { "sourceQuality": 95, "evidenceFreshness": 80, "portfolioRelevance": 40, "evidenceAgreement": 100, "dataCompleteness": 100, "modelConfidence": 84 },
+    "riskScore": 30,
+    "riskLabel": "Low",
+    "conviction": 84,
+    "uncertainty": 15
+  },
+  "finalOutput": { "action": "BUY", "expectedUpside": "10-16%", "expectedDownside": "-8% tactical stop", "timeHorizon": "1-3 months" },
+  "committeeDebate": { "consensusLevel": 85, "disagreementLevel": 15, "expertVotes": [{ "agent": "Equity Analyst", "vote": "Buy", "confidence": 74 }] },
+  "evidenceReferences": [
+    { "eventId": "a1b2...", "eventType": "ai", "sourceType": "news", "sourceName": "Reuters", "symbols": ["NVDA"], "credibilityScore": 95, "freshnessScore": 100, "relevanceScore": 88, "deduplicationKey": "a1b2..." }
+  ],
+  "modelVersionMetadata": { "eventEnvelopeVersion": "1.0.0", "contractVersion": "1.0.0" },
+  "createdAt": "2026-07-12T12:00:00.000Z"
+}
+```
+
+---
+
+### 3.44 Shared Scoring Vocabulary (Sprint 18A)
+
+**Purpose**
+- One documented contract for every score this platform computes, defined in `backend/services/scoringVocabulary.js` (`SCORE_DEFINITIONS`) and reused — not reimplemented — across the Recommendation Engine and the Investment Committee. This is not an HTTP endpoint; it documents the fields referenced throughout §3.39-3.43 and §3.8.
+
+| Score | Range | Meaning | Formula/source | Fallback | API field |
+|---|---|---|---|---|---|
+| `confidence` | 0-100 | Strength of the engine's signal for the recommended action | Equal to `conviction` today (see note) | Always computed | `Recommendation.confidenceScore` |
+| `conviction` | 0-100 | The engine's raw opportunity/risk/momentum blend that selects the action tier | `computeConvictionScore(rankingItem)` | Always computed | `DecisionTrace.rankingResult.convictionScore`, `confidenceCalculation.conviction` |
+| `quality` | 0-100 | Weighted rollup of the six components below | Weighted average, `QUALITY_WEIGHTS` (15/15/20/20/10/20%) | Always computable | `Recommendation.qualityScore` |
+| `risk` | 0-100 | Downside/volatility risk, folding in concentration and macro exposure | `computeSymbolRiskScore` | baseRisk defaults to 50 | `Recommendation.riskScore`/`riskLabel` |
+| `relevance` | 0-100 | How directly evidence applies to this user's actual holdings/watchlist | `portfolioRelevance` component (100/70/40 base by symbol source) | 40 (market-scan) | `qualityComponents.portfolioRelevance` |
+| `sourceCredibility` | 0-100 | Reliability of an evidence source | `sourceQualityScore(sourceName)` | 60 (unrecognized/missing) | `qualityComponents.sourceQuality` |
+| `evidenceFreshness` | 0-100 | Recency of evidence, decayed over time | `recencyScore(publishedAt)` | 40 (missing `publishedAt`) | `qualityComponents.evidenceFreshness` |
+| `evidenceAgreement` | 0-100 | Fraction of directional evidence supporting the action | `supportingCount / (supportingCount + opposingCount) * 100` | 50 (no directional evidence) | `qualityComponents.evidenceAgreement` |
+| `uncertainty` | 0-100 | Genuine disagreement across evidence and committee opinion — distinct from confidence | `computeUncertainty()` — 100 minus the average of `evidenceAgreement` and the committee's `consensusLevel` | 50 (neither input available) | `confidenceCalculation.uncertainty` |
+
+**Note on `confidence`/`conviction`/`modelConfidence`:** these three are currently the same underlying number under three names — an intentional, documented simplification (see `scoringVocabulary.js`), not a bug. Differentiating them requires real outcome-calibration data this platform does not yet have (see `FIVE_YEAR_ARCHITECTURE_ROADMAP.md`'s Alpha Attribution Engine milestone).
+
+**UI representation:** `quality` renders as a pill (opportunity-colored ≥75, neutral ≥50, risk-colored below); `risk` renders as its label (`Low`/`Moderate`/`High`); `relevance` renders as the symbol-source badge, not the raw number; the remaining scores currently surface only via the decision-trace API, not a dedicated UI element.
+
+---
+
+### 3.45 Canonical Event Envelope (Sprint 18A)
+
+**Purpose**
+- The one event schema intelligence evidence is normalized into, defined in `backend/services/eventEnvelope.js` — frozen ahead of the Research Intelligence Engine build (`RESEARCH_INTELLIGENCE_ENGINE_DESIGN.md`) so multiple engines integrate against one locked shape. Not an HTTP endpoint on its own; it's the `EventEnvelope` type referenced by `evidenceReferences` in §3.43.
+
+**Fields** (all 19 required — `validateEventEnvelope` checks presence, not non-emptiness):
+
+`eventId, eventType, sourceType, sourceName, sourceUrl, publishedAt, ingestedAt, entities, symbols, sectors, countries, summary, rawReference, credibilityScore, freshnessScore, relevanceScore, confidence, provenance, deduplicationKey`
+
+**Today's only real source:** `adaptLegacyFeedItemToEnvelope(feedItem, { symbol })` projects `autonomousMarketService`'s existing matched-event feed items onto this schema, reusing `classifyEventType`, `sourceQualityScore`, and `recencyScore` rather than new analysis. `credibilityScore`/`freshnessScore` come directly from the Shared Scoring Vocabulary (§3.44). `deduplicationKey` is a deterministic hash of `(sourceType, sourceUrl or headline, publishedAt)` — the same underlying evidence always produces the same key.
+
+**Example**
+```json
+{
+  "eventId": "a1b2c3...",
+  "eventType": "ai",
+  "sourceType": "news",
+  "sourceName": "Reuters",
+  "sourceUrl": "https://news.example.com/nvda-chip",
+  "publishedAt": "2026-07-12T10:00:00.000Z",
+  "ingestedAt": "2026-07-12T10:05:00.000Z",
+  "entities": [],
+  "symbols": ["NVDA"],
+  "sectors": [],
+  "countries": [],
+  "summary": "Expands NVDA's data-center AI compute footprint.",
+  "rawReference": "NVDA announces new AI chip partnership",
+  "credibilityScore": 95,
+  "freshnessScore": 100,
+  "relevanceScore": 78,
+  "confidence": 82,
+  "provenance": { "sourceName": "Reuters", "sourceUrl": "https://news.example.com/nvda-chip" },
+  "deduplicationKey": "a1b2c3..."
+}
+```
+
+---
+
+### 3.46 `GET /api/v2/investor-profile`, `POST /api/v2/investor-profile`, `PATCH /api/v2/investor-profile`
+
+**Sprint 20** — the onboarding-collected Investor Profile, a single-tenant singleton (same convention as `Portfolio`: `findFirst`, no `userId` yet — see `ARCHITECTURE.md` §6.6). Unlike `DecisionTrace`, this is user-editable settings data.
+
+**Routes / methods**
+- `GET /api/v2/investor-profile` — returns the profile, or `404 { error: "No investor profile exists yet." }` before onboarding.
+- `POST /api/v2/investor-profile` — creates the profile. Body: `{ age (required, integer 5-120), country?, experienceLevel? ("BEGINNER"|"INTERMEDIATE"|"ADVANCED"), monthlyInvestmentAmount?, investmentGoal? ("WEALTH"|"RETIREMENT"|"PASSIVE_INCOME"|"LEARNING"|"HOUSE"|"OTHER"), riskTolerance? ("LOW"|"MEDIUM"|"HIGH"), investmentHorizon? ("SHORT_TERM"|"MEDIUM_TERM"|"LONG_TERM") }`. `400 { error: "age is required and must be an integer between 5 and 120." }` when invalid/missing.
+- `PATCH /api/v2/investor-profile` — updates any subset of the same fields. `404` when no profile exists yet.
+
+**Authentication requirements:** None (single-tenant, pre-auth — see `VISION.md` Personalization Principles on identity/tenancy as a named future prerequisite).
+
+**Example response**
+```json
+{ "id": "p1", "age": 17, "country": "IL", "experienceLevel": "BEGINNER", "monthlyInvestmentAmount": 500, "investmentGoal": "WEALTH", "riskTolerance": "MEDIUM", "investmentHorizon": "LONG_TERM" }
+```
+
+---
+
+### 3.47 `GET /api/v2/investor-profile/investment-profile`
+
+**Sprint 20, Part 2** — the AI Investment Profile: a deterministic (no LLM call) allocation/volatility/educational summary generated from the Investor Profile.
+
+**Response schema**
+```
+{ suggestedAllocation: { stocks, bonds, cash }, diversificationExplanation, expectedVolatility: { lowPct, highPct, label }, suggestedAnnualReturnPct, educationalExplanation, assumptionsDisclosure }
+```
+`assumptionsDisclosure` is always present and always states the figures are illustrations based on configurable assumptions, never promises. `404` before a profile exists.
+
+---
+
+### 3.48 `GET /api/v2/home-summary`
+
+**Sprint 20, Part 3** — the redesigned Home screen's four-question aggregation.
+
+**Query parameters:** `watchlist` (comma-separated symbols, optional).
+
+**Response schema**
+```
+{
+  whatHappened: { headline, sourceName, sourceUrl },
+  whyShouldICare: string,
+  howDoesItAffectMe: string,
+  shouldIDoAnythingToday: { hasAction, action, symbol, recommendationId, reasoning, qualityScore },
+  generatedAt
+}
+```
+`shouldIDoAnythingToday.action` is sourced only from `canonicalVerdict.buildCanonicalVerdictView` against a real, persisted `Recommendation` — never independently computed. `hasAction: false` is an explicit, honest state ("no action needed today"), not a fabricated fallback.
+
+---
+
+### 3.49 `GET /api/intelligence/live-feed` (Sprint 20 addition: personalized ranking)
+
+Unchanged route/response shape from its original documentation — see the existing feed-item shape. **Addition:** when an `InvestorProfile` exists (read server-side), the returned `feed` array is re-ordered by `feedPersonalizationService.rankFeedForInvestor` (age/risk-tolerance/investment-horizon-derived weighting layered on top of existing relevance/recency/source-quality scoring). Personalization only ever changes ordering — every event's `impactType`, `riskLevel`, and other fields are unchanged. With no profile yet, behavior is byte-for-byte identical to before Sprint 20.
+
+---
+
+### 3.50 `GET /api/v2/themes`, `GET /api/v2/themes/:themeKey`
+
+**Sprint 20, Part 6** — the Theme Dashboard.
+
+- `GET /api/v2/themes` → `{ themes: [{ themeKey, label }, ...] }` — exactly 7 entries: `ai`, `quantum`, `defense`, `energy`, `space`, `cybersecurity`, `healthcare`.
+- `GET /api/v2/themes/:themeKey` → full theme intelligence:
+```
+{
+  themeKey, label, maturity ("Early"|"Emerging"|"Growth"|"Mature"),
+  thesis, supportingEvidence: [{headline, whyItMatters, sourceName, sourceUrl, publishedAt}],
+  counterarguments: string[], companies: string[], etfs: string[],
+  confidenceScore, confidenceTrend: [{date, confidenceScore, maturityLabel}]
+}
+```
+`maturity` is a deterministic tier derived from real matching-event volume in the current feed (via the existing `classifyEventType` tagging) — never fabricated. `thesis` is template-generated from real aggregated evidence, deliberately not an LLM call for this first slice. `confidenceTrend` reflects real history captured by a daily best-effort job starting from whenever the platform first ran it — never backfilled. `404 { error: "Unknown theme: ..." }` for an invalid `themeKey`.
+
+---
+
+### 3.51 `GET /api/v2/providers`, `GET /api/v2/providers/:providerId/health`, `POST /api/v2/providers/:providerId/run`
+
+**Sprint 21A — Global Intelligence Platform.** Ops visibility into the provider ingestion framework. As of Sprint 23A, the developer-only Intelligence Console consumes these (see §3.52) — still no product-facing (end-user) UI does. Not the same thing as §9's market-data providers (Finnhub/NewsAPI/OpenAI/Polygon/Alpha Vantage, called synchronously within request handling) — these are the 15 background ingestion sources in `backend/services/providers/`.
+
+- `GET /api/v2/providers` → `{ providers: [{ providerId, label, sourceType, lastRunAt, lastStatus, successRate }, ...] }` — all 15 registered providers, including ones never run yet (`lastRunAt: null, lastStatus: null, successRate: null` — an honest empty state, not omitted).
+- `GET /api/v2/providers/:providerId/health` → the same shape plus `recentRuns: ProviderRunLog[]` (last 10). `404 { error: "Unknown provider: ..." }` for an unregistered `providerId`.
+- `POST /api/v2/providers/:providerId/run` → triggers `providerIngestionService.runProviderIngestion(providerId)` synchronously and returns its result: `{ providerId, status ("SUCCESS"|"FAILED"|"PARTIAL"), itemsFetched, itemsPersisted, itemsDeduped, errorMessage, durationMs }`. `404` for an unregistered `providerId`. A rate-limited or upstream-failing provider returns `status: "FAILED"` in a normal `200` response body, not an HTTP error — the run itself is the resource being reported on.
+
+This layer performs ingestion only — no recommendation, verdict, or theme-intelligence write path is reachable from it.
+
+---
+
+### 3.52 `GET /api/v2/providers/:providerId/metrics`, `GET /api/v2/providers/:providerId/diagnostics`, `GET /api/v2/providers/:providerId/metadata`
+
+**Sprint 23A — Continuous Intelligence Platform Foundation.** Three additions distinct from §3.51's Health (point-in-time status): Metrics answers "how has this provider performed over its whole history," Diagnostics answers "is something wrong with it right now, in detail," and Metadata answers "what is this provider, statically."
+
+- `GET /api/v2/providers/:providerId/metrics` → `{ providerId, totalRuns, totalItemsFetched, totalItemsPersisted, totalItemsDeduped, dedupRate, errorRate, avgDurationMs, lastSuccessAt }`. Aggregated over the provider's *entire* `ProviderRunLog` history (not just the last 10, unlike `/health`). `dedupRate`/`errorRate`/`avgDurationMs`/`lastSuccessAt` are `null` (never `0` or a fabricated default) before any run exists — an honest empty state. `404` for an unregistered `providerId`.
+- `GET /api/v2/providers/:providerId/diagnostics` → `{ providerId, contractValid, contractIssues, rateLimiter: { maxPerMinute, currentCount, windowResetInMs }, lastError: { message, occurredAt } | null }`. `contractValid`/`contractIssues` are a live re-check via the same `validateProviderShape` the registry runs at boot — not cached. `rateLimiter` reads the exact limiter instance `providerIngestionService` runs ingestion against (a shared, per-provider, module-level limiter, not a fresh simulation), so `currentCount` reflects real, current budget usage. `404` for an unregistered `providerId`.
+- `GET /api/v2/providers/:providerId/metadata` → `{ providerId, label, sourceType, category, defaultThemes, rateLimit }` — the static registry entry, unchanged since provider registration. `404` for an unregistered `providerId`.
+
+All three, like §3.51's endpoints, perform reads only — no recommendation, verdict, portfolio, or Outcome-Engine write or read path is reachable from any of them.
 
 ---
 

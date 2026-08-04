@@ -3,6 +3,7 @@
 **Status:** Current implementation snapshot  
 **Scope:** Full MVP system architecture  
 **Note:** This document describes the codebase as it exists today. Where a capability is not implemented, that gap is called out explicitly.
+**Terminology:** Every domain concept named below (Recommendation, DecisionTrace, Committee Debate, Confidence, Conviction, and the rest) is defined exactly once in `CANONICAL_DOMAIN_MODEL.md`. Where this document names a field or model, that document states what it means and how it relates to every other document's usage of the same word.
 
 ---
 
@@ -54,26 +55,37 @@ The frontend boots from [frontend/src/main.jsx](frontend/src/main.jsx) and rende
 
 The app is organized as a screen map rather than separate route pages. The current active view is stored in local component state and switched through the sidebar.
 
-Primary screens:
+**Sprint 20 — onboarding gate.** `frontend/src/AppRoot.jsx` sits above `MainLayout` (rendered by `main.jsx` in place of it) and decides, based on `useInvestorProfile()`, whether to render a full-screen `OnboardingFlow` takeover (no sidebar/header chrome) or the normal app shell. The gate is shown once, the first time no `InvestorProfile` exists server-side.
 
+Primary screens (Home is now the default landing view; Dashboard remains fully reachable, unchanged):
+
+- Home
 - Dashboard
 - Global Intelligence
 - AI Analysis
 - Watchlist
 - Portfolio
-- Market News
+- Recommendations
+- Daily Feed
+- Themes
 - Alerts
+- My Profile
 - Settings
 
 ### 2.4 Feature Layer
 
 The `features/` directory acts as a thin adapter layer between `MainLayout` and screen components.
 
+- `HomeFeature` -> Home screen (Sprint 20, default landing view)
 - `DashboardFeature` -> dashboard home
 - `AnalysisFeature` -> AI analysis screen
 - `WatchlistFeature` -> watchlist screen
 - `PortfolioFeature` -> portfolio screen
-- `NewsFeature` -> market news screen
+- `RecommendationsFeature` -> recommendations screen
+- `NewsFeature` -> Daily Feed screen (renamed from Market News in Sprint 20)
+- `ThemesFeature` -> Theme Dashboard screen (Sprint 20)
+- `MyProfileFeature` -> investor profile screen (Sprint 20)
+- `IntelligenceConsoleFeature` -> developer-only provider ops console (Sprint 23A), only registered in `screenMap` when `VITE_DEV_CONSOLE=true`
 - `AlertsFeature` -> alerts screen
 - `SettingsFeature` -> settings screen
 - `GlobalIntelligenceFeature` is lazy-loaded for the heavier intelligence experience
@@ -118,15 +130,20 @@ The screens use a few consistent patterns:
 
 ```mermaid
 flowchart TD
-  Main[main.jsx] --> Providers[AppProviders]
-  Providers --> Layout[MainLayout]
+  Main[main.jsx] --> Root[AppRoot]
+  Root --> Onboarding[OnboardingFlow]
+  Root --> Layout[MainLayout]
   Layout --> Sidebar[Sidebar]
   Layout --> Header[Header]
+  Layout --> Home[HomeFeature]
   Layout --> Dashboard[DashboardFeature]
   Layout --> Analysis[AnalysisFeature]
   Layout --> Watchlist[WatchlistFeature]
   Layout --> Portfolio[PortfolioFeature]
+  Layout --> Recommendations[RecommendationsFeature]
   Layout --> News[NewsFeature]
+  Layout --> Themes[ThemesFeature]
+  Layout --> MyProfile[MyProfileFeature]
   Layout --> Alerts[AlertsFeature]
   Layout --> Settings[SettingsFeature]
   Layout --> Global[GlobalIntelligenceFeature]
@@ -150,7 +167,10 @@ flowchart TD
   Watchlist --> WatchlistHook
   Watchlist --> Api1
   Global --> Api4
-  News --> StaticNews[static content today]
+  Home --> HomeApi[homeApi]
+  News --> Api4
+  Themes --> ThemeApi[themeApi]
+  MyProfile --> InvestorProfileApi[investorProfileApi]
 ```
 
 ---
@@ -199,7 +219,7 @@ The service layer contains the actual domain logic. Major service groups include
 
 - Market and quote aggregation
 - AI analysis
-- Committee analysis and track record
+- Committee debate/explanation layer, folded into the Recommendation Engine's decision pipeline (Sprint 18A — see §6.5)
 - Alternative-data fusion
 - Autonomous market intelligence
 - Daily brief generation and archive capture
@@ -417,8 +437,8 @@ The AI layer is split into several cooperating services rather than one monolith
 
 - `openaiService` provides ticker-level report generation with fallback behavior when the API key is missing or OpenAI fails.
 - `impactIntelligenceService` orchestrates event analysis, impact scoring, historical similarity, propagation, and portfolio relevance.
-- `investmentCommitteeService` synthesizes committee-style investment decisions.
-- `committeeTrackRecordService` tracks committee outcomes over time.
+- `investmentCommitteeService` runs a five-agent debate (bull/bear arguments, votes, confidence per persona) and a CIO synthesis narrative. **As of Sprint 18A it never publishes an independent decision** — it is a debate/explanation layer feeding the Recommendation Engine, not a second verdict engine (see §6.5).
+- `committeeTrackRecordService` is a **frozen, legacy** read-only store (Sprint 18A) — historical committee decisions from before the canonical-verdict merge remain readable, but nothing writes new entries here anymore.
 - `marketImpactService` converts market data into event-driven impact signals.
 - `scenarioEngineService` builds structured scenario outputs.
 - `propagationEngineService` and `relationshipGraphService` support cross-asset / cross-sector propagation logic.
@@ -444,6 +464,41 @@ The system prefers deterministic fallback outputs over hard failures. That means
 ### 6.4 AI Caching
 
 Several AI and intelligence services use in-memory caches to avoid repeated calls during rapid screen refreshes. This keeps the UX responsive but means the cache resets on server restart.
+
+### 6.5 Canonical Decision Architecture (Sprint 18A)
+
+An independent architecture review (`INTELLIGENCE_PLATFORM_REVIEW.md`) found that the Investment Committee and the Recommendation Engine independently computed two verdicts (`Strong Buy…Strong Sell` vs. `BUY/REDUCE/EXIT`) that could disagree in front of the same user on the same symbol. Sprint 18A corrects this with three new shared modules, all in `backend/services/`:
+
+- **`canonicalVerdict.js`** — the one place the Committee's 6-way vote scale is reconciled against the Recommendation Engine's action vocabulary, and the one function (`buildCanonicalVerdictView`) that assembles what an API response exposes. It structurally strips any `action`/`decision`/`verdict`-shaped key from committee output before it can reach a response — a guard independent of, not just reliant on, `investmentCommitteeService.js`'s own discipline.
+- **`scoringVocabulary.js`** — one documented contract (range/meaning/formula/fallback) for every score the platform computes: `confidence`, `conviction`, `quality`, `risk`, `relevance`, `sourceCredibility`, `evidenceFreshness`, `evidenceAgreement`, and a genuinely new `uncertainty` score. It wraps existing, already-tested scorers rather than duplicating them. Full detail: `API_CONTRACTS.md` §3.44.
+- **`eventEnvelope.js`** — the canonical 19-field Event Envelope, frozen ahead of the Research Intelligence Engine build (`RESEARCH_INTELLIGENCE_ENGINE_DESIGN.md`) so multiple future engines integrate against one locked shape. `adaptLegacyFeedItemToEnvelope` proves the schema against the one real event source that exists today. Full detail: `API_CONTRACTS.md` §3.45.
+
+**What changed structurally:** `investmentCommitteeService.js` no longer writes to `committeeTrackRecordService`'s JSON-file store and no longer returns an independent `cio.decision`. Its debate (arguments, expert votes, disagreement/consensus levels, synthesis narrative) is threaded into `autonomousRecommendationEngine.js`'s `evaluateSymbol()` — gated to symbols where an action already triggered, so it never runs across the full scan universe — and stored in both `Recommendation.explanation.committeeDebate` (for direct UI consumption) and the immutable `DecisionTrace.committeeDebate` (audit copy). `DecisionTrace` also gained `evidenceReferences` (canonical-envelope evidence, additive alongside the pre-existing `matchedEvents` shape) and `modelVersionMetadata`. `DecisionTrace` remains create-and-read-only — no update path was introduced.
+
+### 6.6 Personalization (Sprint 20)
+
+A new `InvestorProfile` model (`backend/services/investorProfileService.js`/`investorProfileRepository.js`) is a single-tenant singleton, following exactly the same `findFirst`/create convention `portfolioRepository.js` established for `Portfolio` — no `userId` field exists anywhere yet, a deliberate, named gap (see `VISION.md`'s Personalization Principles) rather than a real multi-tenant identity layer. It feeds three consumers, all additive to existing engines rather than new parallel systems:
+
+- **`homeSummaryService.js`** — the Home screen's four-question aggregation. Reads a real, persisted `Recommendation` (when one exists) through `canonicalVerdict.buildCanonicalVerdictView` for "should I do anything today" — never a second, independently-computed verdict.
+- **`feedPersonalizationService.js`** — layers age/risk-tolerance/investment-horizon-derived weighting on top of the existing relevance/recency/source-quality scoring (`autonomousMarketService.rankNewsArticles`), applied by `GET /api/intelligence/live-feed` only when a profile exists. Reorders only; never mutates an event's underlying facts.
+- **`themeIntelligenceService.js`** — the Theme Dashboard's 7 pages, built on the existing `classifyEventType` classification (`autonomousMarketService.js`) rather than a new data source. `ThemeConfidenceSnapshot` (new model, mirrors `DailyBriefSnapshot`) accumulates real trend history via a new daily best-effort job (`themeSnapshotScheduler.js`, same single-instance `node-cron` convention as `schedulerService.js`).
+
+### 6.7 World Memory (Sprint 21B)
+
+A permanent, append-only historical layer (`backend/services/worldMemoryRepository.js`), designed to remain correct and queryable across years of accumulation rather than days. Distinct from every "snapshot" table before it (`ThemeConfidenceSnapshot`, `DailyBriefSnapshot`), which are overwritten/upserted per period: World Memory tables are never updated or deleted once written — where understanding of the past changes, a new row is added referencing the one it supersedes, and the old row is left exactly as it was.
+
+Eight models, one spine and seven satellites, each answering one of nine standing questions by linking to an existing table rather than duplicating its content:
+
+- **`WorldMemoryRecord`** (spine) — one row per real-world occurrence judged memory-worthy, distinct from `CanonicalEvent` (Sprint 21A, one row per deduplicated provider report of that occurrence); a record may anchor several `CanonicalEvent` rows. Answers *what happened* by linking to them.
+- **`WorldMemoryCausalLink`** — *why did it happen*: an append-only causal edge list between records, accumulating real recorded reasoning over years rather than being recomputed from `relationshipGraphService.js`'s small hardcoded node set on every request.
+- **`WorldMemoryStateChange`** — *what changed*: a dimension-agnostic before/after `Json` ledger row, so new kinds of tracked change never require a schema migration.
+- **`WorldMemoryPrediction`** — *what prediction did we make*: a thin link into `Recommendation`/`DecisionTrace` plus a frozen action/confidence snapshot, so the prediction-as-stated stays queryable even as the live engine evolves.
+- **`Outcome`** — *was it correct*: implements `OUTCOME_INTELLIGENCE_ENGINE.md`'s (Sprint 19, previously design-only) grading schema exactly, wired into World Memory via `worldMemoryPredictionId`. No grading algorithm exists yet — this sprint added the table only, so a future grading engine has somewhere real to write.
+- **`WorldMemoryThesisRevision`** — *which thesis changed*: the first place theme thesis **text** history (not just `ThemeConfidenceSnapshot`'s confidence number) is persisted. `revisionNumber` is assigned by the repository itself inside a retry-on-conflict loop, never by the caller, so concurrent writers can't collide or skip a number.
+- **`WorldMemorySectorImpact`** — *which sectors benefited/were hurt*: one row per sector per record, since a single event routinely helps some sectors while hurting others simultaneously.
+- **`WorldMemoryLesson`** — *what did we learn*: never edited or deleted; a revised understanding is a new row with `supersedesId` pointing at the old one, which stays exactly as originally written.
+
+`worldMemoryRepository.js` enforces this at the API-surface level, not just by convention: every function is a `.create()`, and the file contains no `.update()`/`.delete()`/`.upsert()` call anywhere — verified by a source-scanning test (`worldMemoryRepository.immutability.test.js`) that strips comments before checking, so the guarantee can't be faked by a doc comment. This sprint is schema and persistence only — no grading logic, no new routes, no scheduler, no UI.
 
 ---
 
@@ -597,26 +652,38 @@ Provider behavior is designed around graceful degradation:
 
 ## 10. Background Jobs
 
-There is no true server-side scheduler or worker system in the current codebase.
+Three single-instance, in-process `node-cron` schedulers exist today (`schedulerService.js` for the autonomous recommendation engine, gated by `AUTONOMOUS_ENGINE_ENABLED`; `themeSnapshotScheduler.js`, daily; `providerScheduler.js`, Sprint 21A, every 15 minutes). All three share one shape (`start/stop/getStatus/runNow`) and are bootstrapped only from `server.js`, never `app.js`, so tests requiring `app.js` never leak a running timer.
 
 ### 10.1 What Exists Today
 
+- Three `node-cron` schedulers (above)
 - Frontend polling every 60 seconds on certain screens
 - In-memory cache refreshes on demand
 - Best-effort daily brief snapshot capture during brief generation
 - Portfolio performance snapshot capture on demand
+- Best-effort daily theme confidence snapshot capture (Sprint 20)
+- Provider ingestion runs with rate limiting and retry (Sprint 21A — see §10.4)
 
 ### 10.2 What Does Not Exist Yet
 
-- Cron jobs
-- Queue workers
+- Queue workers (Redis/BullMQ or equivalent)
+- Distributed/multi-process execution
 - Event-driven background consumers
-- Scheduled ETL pipelines
-- Retry queues for provider ingestion
+- Scheduled ETL pipelines beyond the three schedulers above
 
 ### 10.3 Practical Impact
 
-This means background behavior is mostly user-triggered or screen-poll driven. The app behaves like a live dashboard, but it is not yet running a durable job orchestration layer.
+Background behavior is now a mix of three lightweight in-process schedulers plus user-triggered/screen-poll-driven work. This is still a single-process job model — there is no durable, multi-worker job orchestration layer, and none is planned until real scale requires it (see §10.4's queue note).
+
+### 10.4 Provider Framework (Sprint 21A)
+
+Distinct from §9's market-data providers (Finnhub, NewsAPI, OpenAI, Polygon, Alpha Vantage — used synchronously inside request handling), the provider framework is a background ingestion layer: `backend/services/providers/` defines 15 source providers (Reuters/Bloomberg wire, SEC, Reddit, X, Telegram, Polymarket, Fed, ECB, FOMC, FDA, NASA, US Treasury, Congress, Major Earnings, Patent Feeds), each built via `providerFactory.createProvider()` against one shared interface (`baseProviderContract.js`). `providerIngestionService.runProviderIngestion(providerId)` rate-limits, retries (`retryPolicy.js`), maps results through the canonical event envelope (`eventEnvelope.js`), and persists them with DB-level dedup (`canonicalEventRepository.js`, unique on `deduplicationKey`) — writing one `ProviderRunLog` row per run, exposed via `providerHealthService.js` and `GET /api/v2/providers`. `providerScheduler.js` runs every registered provider sequentially every 15 minutes.
+
+Only the wire-news provider has a real `fetchImpl` today (delegates to the existing `autonomousMarketService` news pipeline); the other 14 honestly return `[]` — no live integration yet, and no fabricated placeholder data. `runProviderIngestion(providerId)` is deliberately a discrete, stateless, idempotent unit of work — the explicit swap point for a future per-provider queue, which does not exist yet (no queue library has been added).
+
+This layer performs ingestion only. Nothing in `backend/services/providers/` or `providerIngestionService.js` calls `autonomousRecommendationEngine`, `canonicalVerdict`, or any theme/recommendation write path.
+
+**Sprint 23A** extended ops visibility with three more read endpoints alongside Health: `providerMetricsService.js` (full-history aggregation — totals, dedup rate, error rate, avg duration — distinct from Health's last-10-runs status), `providerDiagnosticsService.js` (live contract re-check via the registry's own `validateProviderShape`, current rate-limiter budget via a new `rateLimiter.getState()`, and the most recent error), and a metadata route (the static registry entry). `rateLimiter.getState()` is read-only and reads the exact limiter instance `providerIngestionService` runs against (via a new exported `getLimiterFor`), never a fresh simulation. Sprint 23A also added the framework's first frontend surface — a developer-only **Intelligence Console** (`frontend/src/screens/IntelligenceConsoleScreen.jsx`) consuming all four ops endpoints plus the manual run trigger, gated behind `VITE_DEV_CONSOLE=true` (same feature-flag precedent as §7's `VITE_PORTFOLIO_ENGINE`) — absent from `screenMap`/`navItems` and therefore unreachable in any normal build. Constraint compliance (no coupling to `autonomousRecommendationEngine`, `canonicalVerdict`, `portfolioEngineService`, or `worldMemoryRepository`) was verified by grep after implementation, not merely asserted — see `PROJECT_STATUS.md` §29.
 
 ---
 

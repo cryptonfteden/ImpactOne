@@ -1,0 +1,46 @@
+# Self-Audit
+
+A critical review of this session's own work (2026-07-26/27, `MISSION-CONTROL-001` through this evidence pack), written by the same agent that did the work. This is deliberately unflattering where the evidence supports it — the mission's own instruction was to expose evidence, not to protect this session's reputation.
+
+---
+
+## Mistakes
+
+1. **Two live bugs shipped past initial implementation and were only caught by manual live testing, not by the test suite.** `MarketIntelligenceWorkspaceScreen.jsx` assumed `macroRegime` was a string when the real field is a structured object; `sentimentAgent.js` assumed `trend` was a string when the real field is `{daily, weekly}`. Both were caught before the phase's commit, not after — but both would have shipped as silent bugs (likely a crash or a `[object Object]` render) had this session not chosen to run the real code live instead of trusting the test suite's green result alone. This is the same bug class the project's own history shows recurring at least 5 other times before this session — this session did not break the pattern, it repeated it, just also fixed its own instances of it the same day.
+2. **A real ordering bug was introduced and fixed within the same phase (`PLATFORM-INTEGRATION-001`)** — a screen's fallback state briefly overwrote another screen's shared context before a real fetch resolved. This was a direct consequence of building shared cross-screen state in one pass rather than incrementally with more testing between each context addition.
+3. **`registry.js`'s idempotency flag bug** (a persistent `let registered = false` disconnected from the orchestrator's real registry state) was written, then found and fixed before shipping — but it was written at all, meaning the first-draft implementation of a stated requirement ("prepare registration for future agents") did not correctly reason about what "already registered" actually means at runtime.
+
+## Wrong assumptions
+
+4. **This session assumed, without being told, that "MISSION-CONTROL-001" (its own first mission, executed before this session had full visibility into its own history per the compaction that occurred mid-session) had been correctly scoped and committed** — it was accepted as a bundled commit (`c51048c`) per an explicit user choice, but this session did not independently re-verify at any later point that everything genuinely required by that original mission text was actually present in that bundle, only that the bundle existed and tests passed.
+5. **This session initially treated "Agent Orchestrator should become the canonical Stock Intelligence path" (a plausible reading of the mission's own framing: "every Stock Intelligence request must flow through this engine") as something to defer rather than directly ask about.** The decision to keep it additive was reasoned through and disclosed, but it was made unilaterally rather than surfaced as a clarifying question before implementation — a judgment call that could have gone the other way with different consequences, and wasn't put in front of the user before being decided.
+
+## Rework
+
+6. **The Mission Control screen went through 2 full passes before its architecture was extracted into a reusable Design System** — `MISSION-CONTROL-001` and `MISSION-CONTROL-002` both touched the same screen's core structure before `DESIGN-SYSTEM-001` generalized it. In hindsight, extracting shared primitives (HeroCard, MetricArc, etc.) at the point Portfolio Workspace was first being planned — rather than after 2 screens already existed with parallel implementations — would have avoided at least some of the refactor cost `DESIGN-SYSTEM-001` had to absorb.
+7. **`claimPresentation.js`'s consolidation (`DEDUPLICATION-001`) happened only after `PLATFORM-INTEGRATION-001` had already shipped 4 screens each with their own copy of `statusTone()`/`statusPlainLabel()`.** This was real, measurable rework — four call sites had to be found and migrated instead of one shared module being used from the start.
+
+## Missed opportunities
+
+8. **No contract/schema test was built between mock-data fallback modules and real API shapes**, despite this exact gap being the direct cause of at least 2 bugs this session found in its own work (see Mistake #1) and being named explicitly in this project's own prior audit trail as a recurring risk (7+ instances across the project's full history). This session had the clearest possible motive to build this — it was bitten by the exact gap twice in two days — and did not.
+9. **This session never asked whether an eighth Workspace screen was actually the right next move**, despite `CEO_RECOMMENDATIONS.md` (a document already in this repository, that this session's own research read while compiling `CEO_AUDIT_EXPORT/`) explicitly recommending a pause to unify existing duplicated concepts before shipping a fourth Workspace screen. This session shipped four more anyway (Market Intelligence, Personal Intelligence, plus Watchlist and AI Analysis before those), because each phase's mission said to, not because a product-strategy conversation happened about whether that was still the right call given the standing recommendation.
+10. **No lint rule or CI check was added to enforce continued Design System adoption**, despite this session being the one that created the Design System and therefore having the most direct, immediate context for writing that enforcement mechanism. This is now `KNOWN_GAPS.md` #15 and `RISK_REGISTER.md` R9 — a gap this session is directly positioned to have closed and chose not to (each phase's own scope didn't ask for it, and this session did not propose it unprompted).
+
+## Features that should never have been built (or built when they were)
+
+11. **Nothing built this session falls into "should never have been built" in this pack's own judgment** — every screen answered a real, previously-unaddressed question (this session verified each one against the project's `CANONICAL_DOMAIN_MODEL.md` and real backend fields before building, per its own reports), and every engine (Agent Orchestrator) was scoped narrowly enough to avoid overreach (e.g., deliberately not becoming the canonical path without review). The closer, more honest critique is item #9 above: not that any single screen was wrong to build, but that the *sequence and pace* of building four more Workspace screens in two days, against a standing external recommendation to pause, was not itself reconsidered.
+
+## Features that still need redesign
+
+12. **The relationship between the now-7 "Workspace" screens has no stated hierarchy.** Mission Control, Intelligence Workspace, Portfolio Workspace, News Intelligence, Watchlist Workspace, AI Analysis Workspace, and Market/Personal Intelligence Workspaces are currently siblings in the navigation with no stated "start here" or "this supersedes that" relationship — a genuine UX design question this session did not resolve because no phase's mission asked it to.
+13. **The three personalization services** (`feedPersonalizationService`, `personalIntelligenceService`, `personalizationService`) were extended, not consolidated, by this session's `PERSONAL-INTELLIGENCE-001` phase — adding a fourth touchpoint to an already-fragmented area rather than resolving the fragmentation first.
+
+## Technical shortcuts
+
+14. **`requestCache`'s cache keys are hand-written literal strings** (e.g., `"claims:overnight-changes:10"`), not derived programmatically from the actual call's parameters. This was a deliberate simplicity choice under the phase's time constraints, and it carries a real, disclosed risk: a future parameter change could silently serve stale/wrong-shaped cached data if the hand-written key isn't updated in lockstep.
+15. **`PlatformContext` was allowed to carry two different responsibilities** (cross-screen selection/navigation state, and cached domain-data fetching) rather than being split into two contexts from the start — a shortcut taken to ship `PLATFORM-INTEGRATION-001` in one pass rather than a more disciplined two-context design.
+
+## Architectural compromises
+
+16. **The Agent Orchestrator's confidence-calculation rule was designed differently from the existing Committee's "never blend confidence" rule**, on the reasoning that the Orchestrator is generic infrastructure rather than an investment-verdict system. This was reasoned through explicitly and disclosed (see `ARCHITECTURE_TRACE.md` D7), not hidden — but it is still, honestly, a second confidence-computation philosophy now living in the same codebase as the first, and a future engineer unaware of the distinction could reasonably wonder why they're not the same.
+17. **This entire session's arc — 16 completed missions plus 2 documentation-only missions — remains entirely local, with only its very first commit (`c51048c`) ever pushed to a shared remote.** This is per explicit standing policy (push always requires a stop-and-ask), not an oversight, but it means every fix in this file — including the production-build fix and the privacy fix, arguably the two most consequential changes in the project's recent history — currently exists nowhere but one local machine's git history. That is itself worth this pack naming plainly: **the most important recent work in this project has no remote backup.**

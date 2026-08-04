@@ -1,0 +1,68 @@
+/*
+ * Phase X12B — NOVA Foundation, Part 7: Accessibility Foundation.
+ *
+ * Global focus rings, applied once here rather than per-component, so no
+ * future component can accidentally ship with `outline: none` and no
+ * replacement (NOVA_DESIGN_BIBLE.md §12's explicit rule). Uses
+ * `:focus-visible` (not bare `:focus`) so the ring only appears for
+ * real keyboard/switch-control navigation, not every mouse click — the
+ * modern, correct way to satisfy "visible keyboard focus" without the
+ * older "focus ring on every click" complaint that used to cause teams
+ * to disable focus rings altogether.
+ */
+
+.nova-focus-ring:focus-visible,
+[data-nova-interactive]:focus-visible {
+  outline: none;
+  box-shadow: var(--nova-glow-focus);
+  border-radius: var(--nova-radius-md);
+}
+
+/* Skip-link — the one real "keyboard navigation" affordance every page
+ * needs before any component exists yet: a way past repeated nav
+ * without a screen reader. Visually hidden until focused. */
+.nova-skip-link {
+  position: fixed;
+  inset-block-start: var(--nova-space-2);
+  inset-inline-start: var(--nova-space-2);
+  z-index: var(--nova-z-toast);
+  padding: var(--nova-space-2) var(--nova-space-4);
+  border-radius: var(--nova-radius-md);
+  background-color: var(--nova-color-brand-signal);
+  color: var(--nova-color-text-on-brand);
+  font-family: var(--nova-font-family-ui);
+  font-weight: var(--nova-font-weight-medium);
+  transform: translateY(-200%);
+  transition: transform var(--nova-motion-duration-standard) var(--nova-motion-curve-enter);
+}
+
+.nova-skip-link:focus {
+  transform: translateY(0);
+}
+
+/* Reduced motion is honored here too — a skip link snapping into place
+ * instead of sliding is correct, not a degraded experience. */
+@media (prefers-reduced-motion: reduce) {
+  .nova-skip-link {
+    transition-duration: 1ms;
+  }
+}
+
+html[data-motion="reduced"] .nova-skip-link {
+  transition-duration: 1ms;
+}
+
+/* Visually-hidden-but-screen-reader-visible utility — the standard
+ * "sr-only" pattern, needed by any future component that has a real
+ * accessible name not meant to render visually. */
+.nova-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

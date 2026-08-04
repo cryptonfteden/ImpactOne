@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Phase SECURITY-INCIDENT-CLOSURE-001 — a dependency-free, git-native
+# pre-commit secret scan. Not auto-installed for every clone (that would
+# silently run unreviewed code on checkout, its own supply-chain risk) —
+# an operator opts in once with:
+#   git config core.hooksPath .githooks
+# Scans only what is about to actually be committed (the staged diff),
+# not the whole working tree, so it stays fast and only blocks a *new*
+# secret from being introduced, never flags what already exists in
+# untouched history.
+set -euo pipefail
+
+STAGED_DIFF="$(git diff --cached --unified=0 -- . ':!*.lock' ':!package-lock.json')"
+
+if [ -z "$STAGED_DIFF" ]; then
+  exit 0
+fi
+
+PATTERNS=(
+  'sk-[A-Za-z0-9_-]{20,}'                      # OpenAI-style secret keys
+  'AKIA[0-9A-Z]{16}'                            # AWS access key IDs
+  '-----BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY-----'
+  'postgresql://[^:]+:[^@[:space:]]{4,}@'       # a DB URL with a real, non-empty password
+  '(JWT_SECRET|ADMIN_API_KEY|STRIPE_SECRET_KEY|STRIPE_WEBHOOK_SECRET|FINNHUB_API_KEY|OPENAI_API_KEY|POLYGON_API_KEY|NEWS_API_KEY|ALPHA_VANTAGE_API_KEY)=[^[:space:]]{6,}'
+)
+
+FOUND=0
+for pattern in "${PATTERNS[@]}"; do
+  if echo "$STAGED_DIFF" | grep -E -- "$pattern" > /dev/null 2>&1; then
+    echo "pre-commit: refusing to commit — a staged line matches a real-secret pattern ($pattern)." >&2
+    FOUND=1
+  fi
+done
+
+if [ "$FOUND" -eq 1 ]; then
+  echo "pre-commit: if this is a false positive (a placeholder, not a real secret), use 'git commit --no-verify' deliberately, once you've confirmed it by eye." >&2
+  exit 1
+fi
+
+exit 0

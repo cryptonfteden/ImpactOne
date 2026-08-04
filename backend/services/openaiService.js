@@ -90,8 +90,6 @@ async function analyzeTicker(symbol, context = {}) {
   }
 
   try {
-    console.log(`[openai] request symbol=${normalizedSymbol}`);
-    console.log(`[openai] context=${JSON.stringify(context).slice(0, 2000)}`);
     const response = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
@@ -116,8 +114,6 @@ async function analyzeTicker(symbol, context = {}) {
       }
     );
 
-    console.log(`[openai] response status=${response.status}`);
-    console.log(`[openai] response body=${JSON.stringify(response.data).slice(0, 4000)}`);
     const payload = JSON.parse(response.data.choices?.[0]?.message?.content || "{}");
     const result = normalizeAnalysis({ symbol: normalizedSymbol, ...payload });
     setCachedAnalysis(cacheKey, result);

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Button } from "../ui";
+import { API_BASE_URL } from "../../config/apiConfig";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+const API_BASE = API_BASE_URL;
 const HEALTH_URL = `${API_BASE.replace(/\/api\/?$/, "")}/health`;
 
 const INERT_LINKS = ["Help", "Feedback", "Terms", "Product updates"];

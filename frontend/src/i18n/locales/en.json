@@ -1,0 +1,331 @@
+{
+  "nav": {
+    "home": "Home",
+    "feed": "Feed",
+    "portfolio": "Portfolio",
+    "forYou": "For you",
+    "profile": "Profile",
+    "dashboard": "Dashboard",
+    "globalIntelligence": "Global Intelligence",
+    "aiAnalysis": "AI Analysis",
+    "watchlist": "Watchlist",
+    "recommendations": "Recommendations",
+    "dailyFeed": "Daily Feed",
+    "themes": "Themes",
+    "alerts": "Alerts",
+    "myProfile": "My Profile",
+    "settings": "Settings",
+    "more": "More",
+    "moreSubtitle": "Everything else, one tap away",
+    "primaryNavigation": "Primary navigation",
+    "missionControl": "Mission Control",
+    "intelligenceWorkspace": "Intelligence Workspace",
+    "portfolioWorkspace": "Portfolio Workspace"
+  },
+  "missionControl": {
+    "eyebrow": "Mission Control",
+    "title": "Everything that needs you, in one view",
+    "subtitle": "A single command surface over the same live intelligence as your Morning Brief.",
+    "loading": "Assembling Mission Control",
+    "refreshFailed": "We couldn't refresh Mission Control — this may be an offline device, a backend outage, or a single provider timing out.",
+    "noCachedFallback": "Nothing has loaded yet, so there's no cached view to fall back to. Check your connection and reload.",
+    "nothingToShow": "Nothing to show yet.",
+    "sections": {
+      "kpis": "At a Glance",
+      "intelligence": "Intelligence",
+      "priority": "Priority Intelligence",
+      "recommendation": "Top Recommendation",
+      "portfolioRisk": "Portfolio Risk",
+      "alerts": "Active Alerts",
+      "beliefs": "Belief Changes",
+      "brief": "Today's Brief",
+      "portfolioChanges": "Portfolio Changes",
+      "overnightChanges": "Claims That Changed Overnight"
+    },
+    "brief": {
+      "empty": "No meaningful intelligence to surface yet today.",
+      "attentionLevel": "Attention: {level}",
+      "confidence": "Confidence {value}/100"
+    },
+    "claims": {
+      "topActive": "Top Active Claims",
+      "highestConfidence": "Highest Confidence Claims",
+      "gaining": "Claims Gaining Confidence",
+      "losing": "Claims Losing Confidence",
+      "invalidated": "Recently Invalidated Claims",
+      "risks": "Top Market Risks",
+      "opportunities": "Top Opportunities",
+      "emptyTopActive": "No active claims right now.",
+      "emptyHighestConfidence": "No claims have a real confidence score yet.",
+      "emptyGaining": "No claims are currently strengthening.",
+      "emptyLosing": "No claims are currently weakening.",
+      "emptyInvalidated": "No claims have been invalidated recently.",
+      "emptyRisks": "No bearish claims right now.",
+      "emptyOpportunities": "No bullish claims right now.",
+      "confidenceUnavailable": "Confidence not yet available",
+      "probability": "Probability {value}%",
+      "affectedAssets": "Affects: {assets}",
+      "marketWide": "market-wide",
+      "portfolioImpactUnavailable": "Portfolio impact not yet computed for this claim.",
+      "lastUpdated": "Updated {time}",
+      "unknown": "unknown"
+    },
+    "kpi": {
+      "actionNeeded": "Action needed",
+      "portfolioChanges": "Portfolio changes",
+      "beliefsUpdated": "Beliefs updated",
+      "activeAlerts": "Active alerts"
+    },
+    "empty": {
+      "priority": "Nothing prioritized for you right now.",
+      "recommendation": "No action needed today — nothing in your portfolio requires attention.",
+      "alerts": "No active price alerts yet. Set one from Watchlist Folders.",
+      "beliefs": "No theme thesis has changed recently.",
+      "portfolioRisk": "No standout opportunity to score right now."
+    },
+    "alerts": {
+      "symbol": "Symbol",
+      "direction": "Direction",
+      "target": "Target",
+      "current": "Current",
+      "status": "Status",
+      "above": "Above",
+      "below": "Below"
+    },
+    "openPortfolio": "Open Portfolio",
+    "openRecommendations": "Open Recommendations",
+    "openDecisionCenter": "Open Decision Center"
+  },
+  "intelligenceWorkspace": {
+    "eyebrow": "Intelligence Workspace",
+    "title": "The AI intelligence desk for global markets",
+    "subtitle": "Ranked events, sector impact, source evidence, and the reasoning behind today's read — all from the same live intelligence pipeline.",
+    "loading": "Assembling the intelligence desk",
+    "refreshFailed": "We couldn't refresh the Intelligence Workspace — this may be an offline device, a backend outage, or a single provider timing out.",
+    "noCachedFallback": "Nothing has loaded yet, so there's no cached view to fall back to. Check your connection and reload.",
+    "nothingToShow": "Nothing to show yet.",
+    "unknown": "Unknown",
+    "notAvailable": "Not available for this event.",
+    "sections": {
+      "brief": "Intelligence Brief",
+      "priorityEvents": "Priority Events",
+      "impactMap": "Market Impact Map",
+      "sourceEvidence": "Source Evidence",
+      "aiAnalysis": "AI Analysis",
+      "recent": "Recent Intelligence",
+      "saved": "Saved / Tracked Items"
+    },
+    "brief": {
+      "lastUpdated": "Updated {time}",
+      "implication": "Primary market implication"
+    },
+    "events": {
+      "headline": "Event",
+      "severity": "Severity",
+      "sectors": "Affected sectors",
+      "direction": "Expected direction",
+      "horizon": "Time horizon"
+    },
+    "sourceEvidence": {
+      "reliability": "Reliability: {level}"
+    },
+    "aiAnalysis": {
+      "uncertainty": "Uncertainty",
+      "uncertaintyValue": "{value}/100 (inverse of stated confidence)",
+      "counterScenario": "Counter-scenario",
+      "invalidation": "What would change this conclusion"
+    },
+    "filters": {
+      "all": "All",
+      "opportunity": "Opportunity",
+      "risk": "Risk",
+      "neutral": "Neutral"
+    },
+    "saved": {
+      "symbolCount": "{count} symbol(s)",
+      "above": "above",
+      "below": "below"
+    },
+    "empty": {
+      "brief": "No intelligence brief available right now.",
+      "priorityEvents": "No priority events right now.",
+      "impactMap": "No sector impact data right now.",
+      "sourceEvidence": "No source evidence available right now.",
+      "aiAnalysis": "No AI analysis available right now.",
+      "recent": "Nothing matches this filter right now.",
+      "saved": "Nothing saved or tracked yet. Pin a symbol from Watchlist Folders or set a price alert to see it here."
+    }
+  },
+  "portfolioWorkspace": {
+    "eyebrow": "Portfolio Workspace",
+    "title": "The AI operating center for your holdings",
+    "subtitle": "Health, risk, concentration, and AI recommendations — all from your real, live portfolio.",
+    "loading": "Assembling the portfolio workspace",
+    "refreshFailed": "We couldn't refresh the Portfolio Workspace — this may be an offline device, a backend outage, or a single provider timing out.",
+    "noCachedFallback": "Nothing has loaded yet, so there's no cached view to fall back to. Check your connection and reload.",
+    "nothingToShow": "Nothing to show yet.",
+    "sections": {
+      "whatChanged": "What Changed Since Yesterday",
+      "whyThisAffectsYou": "Why This Affects You",
+      "health": "Portfolio Health",
+      "riskMap": "Portfolio Risk Map",
+      "concentration": "Concentration Analysis",
+      "diversification": "Diversification Score",
+      "sectorAllocation": "Sector Allocation",
+      "winners": "Biggest Winners",
+      "losers": "Biggest Losers",
+      "recommendations": "AI Portfolio Recommendations",
+      "rebalance": "Rebalance Suggestions",
+      "cash": "Cash Allocation"
+    },
+    "claims": {
+      "supportingEvidence": "{count} supporting evidence",
+      "counterEvidence": "{count} counter evidence",
+      "scenarioPreview": "Scenario preview not yet available — the Scenario Engine is architecture-only today.",
+      "why": "Why",
+      "evidence": "Evidence",
+      "counterEvidenceLabel": "Counter Evidence",
+      "potentialScenarios": "Potential Scenarios"
+    },
+    "health": {
+      "totalValue": "Total value",
+      "totalReturn": "Total return",
+      "dailyPnl": "Daily P&L",
+      "cash": "Cash balance",
+      "noComparison": "No prior snapshot yet — this is the first day being tracked."
+    },
+    "riskMap": {
+      "weight": "{pct}% of portfolio",
+      "netUnrealized": "Net unrealized: ${value}"
+    },
+    "concentration": {
+      "largest": "Largest holding: {symbol} at {pct}% of the portfolio.",
+      "top1": "Top 1: {pct}%",
+      "top3": "Top 3: {pct}%",
+      "top5": "Top 5: {pct}%",
+      "hhi": "HHI: {value}",
+      "methodology": "Weights computed from real position market values ÷ real total value. HHI is the standard sum-of-squared-weights index (×10,000) — not a modeled score."
+    },
+    "diversification": {
+      "holdings": "{count} holdings",
+      "sectors": "{count} sectors",
+      "largestWeight": "Largest position: {pct}%",
+      "methodology": "Real counts and weights from your current positions — this app does not compute a single synthesized diversification score."
+    },
+    "sectorAllocation": {
+      "sector": "Sector",
+      "value": "Value",
+      "weight": "Weight"
+    },
+    "cash": {
+      "balance": "Cash: ${value}",
+      "weight": "{pct}% of portfolio"
+    },
+    "empty": {
+      "whatChanged": "No prior-day snapshot yet — this is the first day being tracked.",
+      "whyThisAffectsYou": "No Claims currently affect your portfolio.",
+      "health": "No portfolio data yet — place a trade to see your health metrics here.",
+      "riskMap": "No sector data yet.",
+      "concentration": "Not enough position data to compute concentration yet.",
+      "diversification": "No holdings yet.",
+      "sectorAllocation": "No sector allocation data yet.",
+      "winners": "No positions currently showing a gain.",
+      "losers": "No positions currently showing a loss.",
+      "recommendations": "No AI recommendations tied to your current holdings right now.",
+      "rebalanceNotAvailable": "Rebalance suggestions aren't available yet — this app doesn't generate them today. Nothing is shown here rather than a guess.",
+      "cash": "No cash balance data yet."
+    }
+  },
+  "header": {
+    "title": "ImpactOne Terminal",
+    "subtitle": "Live intelligence workspace",
+    "searchPlaceholder": "Ask about a ticker, portfolio, or market event",
+    "searchGo": "Go",
+    "marketOpen": "Market: Open",
+    "quickActions": "Quick actions",
+    "accountMenu": "Account menu — Guest workspace",
+    "openDashboard": "Open Home",
+    "openPortfolio": "Open Portfolio",
+    "openAlerts": "Open Alerts",
+    "openAlertsLabel": "Open alerts",
+    "openAlertsUnread": "Open alerts ({count} unread)",
+    "guestWorkspace": "Guest workspace"
+  },
+  "common": {
+    "loading": "Loading...",
+    "retry": "Retry",
+    "reload": "Reload",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "back": "Back",
+    "skip": "Skip",
+    "continue": "Continue",
+    "getStarted": "Get started",
+    "showMore": "Show more",
+    "showLess": "Show less",
+    "updated": "Updated"
+  },
+  "offline": {
+    "bannerMessage": "You're offline. Already-loaded screens stay usable, but nothing here is live right now — reconnect to get current data."
+  },
+  "update": {
+    "bannerMessage": "A new version of ImpactOne is ready.",
+    "reloadButton": "Reload to update"
+  },
+  "home": {
+    "eyebrow": "Today",
+    "title": "Your morning brief",
+    "noChangeVsYesterday": "No material change vs. yesterday.",
+    "changeUnavailable": "We couldn't check what changed since yesterday right now — this isn't the same as nothing having changed. Try again shortly.",
+    "actionNeeded": "Action needed",
+    "actionYes": "Yes — {symbol}",
+    "actionNo": "No",
+    "portfolioLabel": "Portfolio",
+    "portfolioUnchanged": "Unchanged",
+    "portfolioChanges": "{count} change(s)",
+    "beliefsLabel": "Beliefs",
+    "beliefsUpdated": "{count} updated",
+    "refreshFailed": "We couldn't refresh — this may be an offline device, a backend outage, or a single provider timing out.",
+    "refreshFailedBanner": "{error} Everything below is still real data from {age} — reload to try refreshing.",
+    "nothingToShow": "Nothing to show yet.",
+    "noCachedFallback": "Nothing has loaded yet, so there's no cached summary to fall back to. Check your connection and reload.",
+    "morningBriefLabel": "Morning personal brief",
+    "sourceFallback": "Source",
+    "cards": {
+      "morningBrief": "Morning Brief",
+      "todayForYou": "Today For You",
+      "todayForYouSubtitle": "Prioritized for your profile, portfolio, and watchlist",
+      "portfolio": "Portfolio",
+      "beliefs": "What changed in the platform's beliefs?",
+      "recommendations": "Recommendations",
+      "intelligenceTimeline": "Intelligence Timeline"
+    },
+    "empty": {
+      "todayForYou": "Nothing prioritized for you right now.",
+      "beliefs": "No theme thesis has changed recently.",
+      "recommendations": "No action needed today — nothing in your portfolio requires attention.",
+      "timelineWindow": "Nothing in this window right now.",
+      "noOpportunity": "No standout opportunity today.",
+      "noRisk": "No standout risk today."
+    },
+    "viewFullReasoning": "View full reasoning",
+    "biggestOpportunity": "Biggest opportunity: {symbol} (quality {score}/100)",
+    "biggestRisk": "Biggest risk: {symbol} — {reason}",
+    "mattersToday": "Matters today: {count}",
+    "canWait": "Can wait: {count}",
+    "timeline": {
+      "overnight": "Overnight",
+      "openingBell": "Opening Bell",
+      "today": "Today",
+      "thisWeek": "This Week",
+      "longTerm": "Long Term"
+    }
+  },
+  "settings": {
+    "title": "Customize your ImpactOne workspace",
+    "language": "Language",
+    "languageDescription": "Choose your preferred display language."
+  }
+}

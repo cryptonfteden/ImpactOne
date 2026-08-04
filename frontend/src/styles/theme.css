@@ -1,0 +1,170 @@
+/*
+ * Phase X12B — NOVA Foundation, Part 2: Theme Engine (CSS layer).
+ *
+ * The resolution mechanism named explicitly (TOKEN_REVIEW.md finding #5
+ * required this): CSS custom properties, re-pointed per a `data-theme`
+ * attribute on <html>, set by ThemeProvider.jsx (the JS half of the
+ * engine — see THEME_ENGINE.md). This file never renders anything on its
+ * own; it only redefines tokens.css's semantic layer per theme, so any
+ * component that already references a --nova-color-* / --nova-surface-*
+ * semantic token repaints correctly on theme switch with zero component
+ * changes.
+ *
+ * Four themes, per the mission:
+ *   1. NOVA Dark (default) — tokens.css's :root values ARE this theme;
+ *      no override block needed, but data-theme="dark" is still a valid
+ *      explicit selector for callers that always want to force it.
+ *   2. Light (placeholder → now a REAL, populated token set per
+ *      TOKEN_REVIEW.md finding #5 — "populate real light-mode values or
+ *      downgrade the claim"; this phase populates them for real).
+ *   3. High Contrast — a boosted-contrast dark variant for low-vision
+ *      users; every text/border token widens its contrast margin well
+ *      past AA, toward AAA where possible.
+ *   4. Reduced Motion — not a color theme; a `data-motion="reduced"`
+ *      attribute (independent axis from data-theme, since a user can
+ *      want light+reduced-motion or dark+reduced-motion) consumed by
+ *      motion.css.
+ */
+
+/* ===========================================================================
+ * Theme: NOVA Dark (explicit selector; values match :root defaults)
+ * ========================================================================= */
+:root,
+[data-theme="dark"] {
+  --nova-surface-base: var(--nova-primitive-ink-900);
+  --nova-surface-1: var(--nova-primitive-ink-800);
+  --nova-surface-2: var(--nova-primitive-ink-700);
+  --nova-surface-3: var(--nova-primitive-ink-600);
+
+  --nova-color-border-subtle: var(--nova-primitive-ink-500);
+  --nova-color-border-strong: #4a5878;
+
+  --nova-color-brand-signal: var(--nova-primitive-blue-300);
+  --nova-color-brand-signal-bright: var(--nova-primitive-blue-400);
+
+  --nova-color-text-primary: var(--nova-primitive-paper-50);
+  --nova-color-text-secondary: #a8b0c3;
+  --nova-color-text-tertiary: var(--nova-primitive-slate-400);
+  --nova-color-text-on-brand: var(--nova-primitive-white);
+
+  --nova-elevation-1: 0 8px 24px rgba(0, 0, 0, 0.24);
+  --nova-elevation-2: 0 16px 40px rgba(0, 0, 0, 0.32);
+  --nova-shadow-glass: 0 16px 42px rgba(0, 0, 0, 0.3);
+  --nova-glow-focus: 0 0 0 4px rgba(111, 182, 255, 0.28);
+}
+
+/* ===========================================================================
+ * Theme: Light (real values — TOKEN_REVIEW.md finding #5)
+ *
+ * Brand-signal is re-pointed to a DARKENED variant of the same hue
+ * (#1660C7, not a different color family) for text/icon/focus-ring use
+ * on light backgrounds — the light #6fb6ff shipped accent computes only
+ * 2.14:1 on white (fails AA badly); #1660C7 clears 5.95:1. This is the
+ * theme engine doing its real job: same brand hue, theme-appropriate
+ * lightness, zero component changes required.
+ * ========================================================================= */
+[data-theme="light"] {
+  --nova-surface-base: #ffffff;
+  --nova-surface-1: #f7f8fa;
+  --nova-surface-2: #eef1f6;
+  --nova-surface-3: #e2e6ee;
+
+  --nova-color-border-subtle: #d5dae4;
+  --nova-color-border-strong: #b6bfd0;
+
+  --nova-color-brand-signal: #1660c7;
+  --nova-color-brand-signal-bright: #0f52ae;
+  --nova-color-brand-violet: #6a4fd6;
+  --nova-color-brand-cyan: #0f8fa8;
+  --nova-color-brand-amber: #b5760a;
+
+  --nova-color-positive: #158a4a;
+  --nova-color-negative: #c8283f;
+  --nova-color-warning: #b5760a;
+  --nova-color-info: var(--nova-color-brand-signal);
+
+  --nova-color-text-primary: #0a0e16;
+  --nova-color-text-secondary: #414a5e;
+  --nova-color-text-tertiary: #5b6478; /* 5.93:1 on white, 5.58:1 on surface-1 */
+  --nova-color-text-on-brand: #ffffff;
+
+  --nova-elevation-1: 0 8px 24px rgba(15, 23, 42, 0.1);
+  --nova-elevation-2: 0 16px 40px rgba(15, 23, 42, 0.14);
+  --nova-shadow-glass: 0 16px 42px rgba(15, 23, 42, 0.12);
+  --nova-glow-focus: 0 0 0 4px rgba(22, 96, 199, 0.22);
+
+  --nova-opacity-glass-surface: 0.82; /* light glass needs higher opacity to stay legible */
+}
+
+/* ===========================================================================
+ * Theme: High Contrast (dark-based; boosts every margin well past AA)
+ * ========================================================================= */
+[data-theme="high-contrast"] {
+  --nova-surface-base: #000000;
+  --nova-surface-1: #0a0a0a;
+  --nova-surface-2: #161616;
+  --nova-surface-3: #232323;
+
+  --nova-color-border-subtle: #6b6b6b;
+  --nova-color-border-strong: #ffffff;
+
+  --nova-color-brand-signal: #8fc7ff; /* lightened for max contrast on near-black */
+  --nova-color-brand-signal-bright: #b3dbff;
+
+  --nova-color-positive: #4ade80;
+  --nova-color-negative: #ff8095;
+  --nova-color-warning: #ffc55c;
+  --nova-color-info: var(--nova-color-brand-signal);
+
+  --nova-color-text-primary: #ffffff;
+  --nova-color-text-secondary: #e4e4e4;
+  --nova-color-text-tertiary: #c2c2c2; /* still >7:1 on near-black, well past AA */
+  --nova-color-text-on-brand: #000000;
+
+  --nova-elevation-1: 0 0 0 1px #ffffff;
+  --nova-elevation-2: 0 0 0 2px #ffffff;
+  --nova-shadow-glass: 0 0 0 1px #ffffff;
+  --nova-glow-focus: 0 0 0 4px #ffffff;
+
+  /* High contrast disables glass translucency outright — Part 6's own
+   * rule ("glass must never be the default") extends here: in this
+   * theme it must never appear at all, since translucency actively
+   * fights the theme's entire purpose. */
+  --nova-opacity-glass-surface: 1;
+  --nova-blur-glass: 0px;
+}
+
+/* ===========================================================================
+ * OS-level default resolution: when no explicit data-theme is set yet
+ * (first paint, before ThemeProvider hydrates), honor the OS preference
+ * so there is never a flash of the wrong theme.
+ * ========================================================================= */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --nova-surface-base: #ffffff;
+    --nova-surface-1: #f7f8fa;
+    --nova-surface-2: #eef1f6;
+    --nova-surface-3: #e2e6ee;
+    --nova-color-border-subtle: #d5dae4;
+    --nova-color-border-strong: #b6bfd0;
+    --nova-color-brand-signal: #1660c7;
+    --nova-color-brand-signal-bright: #0f52ae;
+    --nova-color-text-primary: #0a0e16;
+    --nova-color-text-secondary: #414a5e;
+    --nova-color-text-tertiary: #5b6478;
+    --nova-color-text-on-brand: #ffffff;
+  }
+}
+
+/* ===========================================================================
+ * prefers-reduced-transparency — TOKEN_REVIEW.md finding #7. A system
+ * that leans on glass/blur (Part 6) must honor this standard hook, not
+ * just prefers-reduced-motion. Forces every theme's glass surfaces to
+ * opaque, same rule high-contrast applies unconditionally above.
+ * ========================================================================= */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --nova-opacity-glass-surface: 1;
+    --nova-blur-glass: 0px;
+  }
+}

@@ -9,18 +9,21 @@ vi.mock("../services/api", () => ({
     getTrades: vi.fn(),
     getTransactions: vi.fn(),
     getPerformance: vi.fn(),
+    getPerformanceDelta: vi.fn(),
     placeOrder: vi.fn(),
     reset: vi.fn(),
   },
 }));
 
 const SUMMARY_FIXTURE = { cashBalance: 100000, totalValue: 100000, positions: [] };
+const DELTA_FIXTURE = { hasComparison: false, totalValue: 100000, changes: [], summary: "No prior-day snapshot yet — this is the first day being tracked." };
 
 function mockHappyPath() {
   portfolioEngineApi.getSummary.mockResolvedValue(SUMMARY_FIXTURE);
   portfolioEngineApi.getTrades.mockResolvedValue({ trades: [] });
   portfolioEngineApi.getTransactions.mockResolvedValue({ transactions: [] });
   portfolioEngineApi.getPerformance.mockResolvedValue({ timeline: [] });
+  portfolioEngineApi.getPerformanceDelta.mockResolvedValue(DELTA_FIXTURE);
 }
 
 beforeEach(() => {
@@ -38,6 +41,7 @@ describe("usePortfolioEngine", () => {
     expect(result.current.summary).toEqual(SUMMARY_FIXTURE);
     expect(result.current.trades).toEqual([]);
     expect(result.current.error).toBe("");
+    expect(result.current.performanceDelta).toEqual(DELTA_FIXTURE);
   });
 
   it("surfaces a fetch error without throwing", async () => {
@@ -45,6 +49,7 @@ describe("usePortfolioEngine", () => {
     portfolioEngineApi.getTrades.mockResolvedValue({ trades: [] });
     portfolioEngineApi.getTransactions.mockResolvedValue({ transactions: [] });
     portfolioEngineApi.getPerformance.mockResolvedValue({ timeline: [] });
+    portfolioEngineApi.getPerformanceDelta.mockResolvedValue(DELTA_FIXTURE);
 
     const { result } = renderHook(() => usePortfolioEngine({ autoRefresh: false }));
 

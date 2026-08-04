@@ -1,0 +1,87 @@
+/*
+ * Phase X12B — NOVA Foundation, Part 5: Motion Foundation (CSS layer).
+ *
+ * No component should ever write a raw `transition-duration` or
+ * `cubic-bezier` value — every real duration/curve is one of the
+ * tokens.css --nova-motion-* custom properties, referenced here as the
+ * two reusable transition presets components apply directly, so no two
+ * components can silently drift to slightly different timing for the
+ * "same" interaction.
+ *
+ * Reduced motion is honored globally, unconditionally, via BOTH the
+ * standard `prefers-reduced-motion` media query AND ThemeProvider's
+ * `data-motion="reduced"` attribute (a user-facing in-app override, for
+ * users on a shared/borrowed device who can't change OS settings) — the
+ * same "OS signal OR explicit in-app override, whichever asks for it"
+ * pattern used nowhere else in this codebase, but exactly the right
+ * shape here: neither should be treated as taking priority over "the
+ * user wants reduced motion" being satisfied by either.
+ */
+
+.nova-transition-standard {
+  transition-duration: var(--nova-motion-duration-standard);
+  transition-timing-function: var(--nova-motion-curve-enter);
+}
+
+.nova-transition-micro {
+  transition-duration: var(--nova-motion-duration-micro);
+  transition-timing-function: var(--nova-motion-curve-hover);
+}
+
+.nova-transition-screen {
+  transition-duration: var(--nova-motion-duration-screen);
+  transition-timing-function: var(--nova-motion-curve-enter);
+}
+
+.nova-transition-exit {
+  transition-duration: var(--nova-motion-duration-standard);
+  transition-timing-function: var(--nova-motion-curve-exit);
+}
+
+/* The one signature looping animation (NOVA_DESIGN_BIBLE.md §8/§11's "AI
+ * Thinking") — a slow gradient-position sweep, defined once here so no
+ * future AI widget reimplements its own slightly-different version. */
+@keyframes nova-ai-thinking-sweep {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.nova-ai-thinking {
+  background: linear-gradient(135deg, var(--nova-color-brand-signal) 0%, var(--nova-color-brand-violet) 100%);
+  background-size: 200% 200%;
+  animation: nova-ai-thinking-sweep var(--nova-motion-duration-ai-thinking-loop) ease-in-out infinite;
+}
+
+/* Reduced motion — BOTH real signals honored, either one is sufficient. */
+@media (prefers-reduced-motion: reduce) {
+  .nova-transition-standard,
+  .nova-transition-micro,
+  .nova-transition-screen,
+  .nova-transition-exit {
+    transition-duration: 1ms;
+  }
+
+  .nova-ai-thinking {
+    animation: none;
+    background-position: 50% 50%;
+  }
+}
+
+html[data-motion="reduced"] .nova-transition-standard,
+html[data-motion="reduced"] .nova-transition-micro,
+html[data-motion="reduced"] .nova-transition-screen,
+html[data-motion="reduced"] .nova-transition-exit {
+  transition-duration: 1ms;
+}
+
+html[data-motion="reduced"] .nova-ai-thinking {
+  animation: none;
+  background-position: 50% 50%;
+}

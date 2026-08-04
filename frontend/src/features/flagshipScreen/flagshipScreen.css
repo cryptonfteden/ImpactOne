@@ -1,0 +1,212 @@
+/* Phase FLAGSHIP-SCREEN-001 — panel-content-specific styles; the glass
+   panel shell/glassmorphism itself reuses workspace3d.css.
+
+   Phase WORLD-CLASS-UI-001 — spacing/radius/text-color values below now
+   reference the app's shared Nova design tokens instead of one-off
+   bespoke values, matching the same migration applied to
+   workspace3d.css. Bullish/bearish/neutral status colors (#4fffb0,
+   #ff5f5f, and the brand-signal blue used for the AI-recommendation
+   chip below) are real, established data-tone colors already shared
+   with worldState.js/DataVisualizationLayer.jsx — left as literal
+   values since they encode data meaning, not UI chrome. */
+
+/* Phase DATA-VISUALIZATION-001 — small, real labels on the 3D company
+   cluster nodes (real active-recommendation symbols). */
+.dataviz-chip {
+  padding: 2px var(--nova-space-2);
+  border-radius: var(--nova-radius-full);
+  font-size: 10px;
+  font-weight: 700;
+  color: #0b1230;
+  background: rgba(234, 241, 255, 0.85);
+  white-space: nowrap;
+  transform: translateY(14px);
+}
+
+.flagship-panel__empty {
+  color: var(--nova-color-text-secondary);
+  padding: var(--nova-space-3) 0;
+}
+
+/* Phase FLAGSHIP-POLISH-001 — real, distinct empty vs. error visuals
+   (previously identical plain text for both). */
+.flagship-panel__state {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--nova-space-2);
+  padding: var(--nova-space-3) 0;
+}
+
+.flagship-panel__state p {
+  margin: 0;
+  font-size: var(--nova-font-size-sm);
+  line-height: 1.5;
+}
+
+.flagship-panel__state-icon {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--nova-radius-full);
+  font-size: var(--nova-font-size-sm);
+  font-weight: 700;
+}
+
+.flagship-panel__state--empty p {
+  color: var(--nova-color-text-secondary);
+}
+
+.flagship-panel__state--empty .flagship-panel__state-icon {
+  background: rgba(159, 176, 221, 0.12);
+  color: var(--nova-color-text-secondary);
+}
+
+.flagship-panel__state--error p {
+  color: #ffb3b3;
+}
+
+.flagship-panel__state--error .flagship-panel__state-icon {
+  background: rgba(255, 95, 95, 0.15);
+  color: #ff5f5f;
+}
+
+/* Phase FLAGSHIP-POLISH-001 — real animated shimmer skeleton, in place
+   of a static "Loading..." string, for better perceived performance. */
+.flagship-panel__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nova-space-2);
+  padding: var(--nova-space-1) 0;
+}
+
+.flagship-skeleton-bar {
+  height: 14px;
+  border-radius: var(--nova-radius-sm);
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.06) 25%,
+    rgba(255, 255, 255, 0.14) 37%,
+    rgba(255, 255, 255, 0.06) 63%
+  );
+  background-size: 400% 100%;
+  animation: flagship-shimmer var(--nova-motion-duration-ai-thinking-loop) var(--nova-motion-curve-hover) infinite;
+}
+
+.flagship-skeleton-bar--wide {
+  width: 90%;
+  height: 18px;
+}
+
+.flagship-skeleton-bar--short {
+  width: 55%;
+}
+
+@keyframes flagship-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flagship-skeleton-bar {
+    animation: none;
+  }
+}
+
+.flagship-panel__content h3 {
+  margin: 0 0 var(--nova-space-2);
+  color: var(--nova-color-text-primary);
+  font-size: var(--nova-font-size-base);
+}
+
+.flagship-panel__content p {
+  margin: 0 0 var(--nova-space-2);
+  color: var(--nova-color-text-secondary);
+  font-size: var(--nova-font-size-sm);
+  line-height: 1.5;
+}
+
+.flagship-panel__meta {
+  color: var(--nova-color-text-tertiary) !important;
+  font-size: var(--nova-font-size-xs) !important;
+}
+
+.flagship-panel__stat {
+  display: flex;
+  align-items: baseline;
+  gap: var(--nova-space-2);
+  margin-bottom: var(--nova-space-2);
+}
+
+.flagship-panel__stat span {
+  font-size: var(--nova-font-size-lg);
+  font-weight: 700;
+  color: var(--nova-color-text-primary);
+}
+
+.flagship-panel__stat .is-positive {
+  color: #4fffb0;
+}
+
+.flagship-panel__stat .is-negative {
+  color: #ff5f5f;
+}
+
+.flagship-panel__gauge {
+  font-size: var(--nova-font-size-2xl);
+  font-weight: 800;
+  color: var(--nova-color-text-primary);
+}
+
+.flagship-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--nova-space-2);
+}
+
+.flagship-panel__list li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: var(--nova-space-2);
+}
+
+.flagship-panel__list li strong {
+  color: var(--nova-color-text-primary);
+  font-size: var(--nova-font-size-sm);
+}
+
+.flagship-panel__list li span {
+  color: var(--nova-color-text-secondary);
+  font-size: var(--nova-font-size-xs);
+}
+
+.flagship-panel__chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--nova-space-2);
+}
+
+.flagship-panel__chips li {
+  padding: 4px var(--nova-space-3);
+  border-radius: var(--nova-radius-full);
+  background: rgba(111, 182, 255, 0.18);
+  border: 1px solid rgba(111, 182, 255, 0.35);
+  color: var(--nova-color-text-primary);
+  font-size: var(--nova-font-size-xs);
+  font-weight: 600;
+}

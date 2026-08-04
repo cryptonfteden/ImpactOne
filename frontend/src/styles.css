@@ -112,6 +112,13 @@ button {
 
 .main-panel {
   flex: 1;
+  /* Phase PIXEL-PERFECT-001 — confirmed live at 1024x768 (a real,
+     common tablet-landscape resolution): without this, a flex item's
+     default min-width:auto lets its content (the header's search box +
+     icons) force this panel wider than its actual allotted space,
+     producing a real ~8px horizontal overflow/scrollbar at exactly
+     this width. The standard fix for this flexbox behavior. */
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
@@ -152,6 +159,18 @@ button {
   border-radius: 999px;
   padding: 10px 14px;
   min-width: 240px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Phase APPLE-QUALITY-001 — real bug fix: the inner input suppressed
+   its own native focus outline (`outline: 0` below) with no visible
+   replacement anywhere — a keyboard user tabbing into the header
+   search box got zero visual confirmation it was focused. Matches the
+   same focus-ring treatment already established elsewhere in this file
+   (e.g. `.advanced-chart__canvas-stack:focus-visible`). */
+.search-box:focus-within {
+  border-color: var(--h3-accent);
+  box-shadow: 0 0 0 3px rgba(111, 182, 255, 0.22);
 }
 
 .search-box input {
@@ -312,6 +331,13 @@ button {
 
 .table-wrapper {
   overflow-x: auto;
+  /* Without this, a flex/grid ancestor's default min-width: auto pins it
+     to this wrapper's unscrolled content width (the full table), instead
+     of letting overflow-x: auto actually take effect — a wide table (7-10
+     columns) then blows out the whole page horizontally on mobile rather
+     than scrolling within its own box. */
+  min-width: 0;
+  max-width: 100%;
 }
 
 .watchlist-table {
@@ -375,6 +401,7 @@ button {
 
 .screen-page {
   flex: 1;
+  min-width: 0;
   padding: 24px 32px 32px;
   display: flex;
   flex-direction: column;
@@ -743,6 +770,129 @@ button {
   font-size: 0.9rem;
 }
 
+/* Phase E2 — Beta Trust Improvements: premium-quality empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 28px 20px;
+  border: 1px dashed #334155;
+  border-radius: 16px;
+  background: rgba(148, 163, 184, 0.04);
+}
+
+.empty-state__icon {
+  font-size: 1.4rem;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.empty-state__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.empty-state__message {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  max-width: 480px;
+  line-height: 1.5;
+}
+
+.empty-state__action {
+  margin-top: 4px;
+}
+
+/* Phase E2 — first-time onboarding overlay */
+.welcome-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 7, 18, 0.72);
+  backdrop-filter: blur(2px);
+  padding: 20px;
+}
+
+.welcome-card {
+  width: 100%;
+  max-width: 440px;
+  background: #0f172a;
+  border: 1px solid #1f2937;
+  border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  padding: 28px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.welcome-card__eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.75rem;
+  color: #60a5fa;
+  margin: 0;
+}
+
+.welcome-card h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: #e5e7eb;
+}
+
+.welcome-card__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.welcome-card__list li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.welcome-card__bullet {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.welcome-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+/* Phase E2 — branded initial-load state (replaces a blank div) */
+.boot-loading {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: #94a3b8;
+}
+
+.boot-loading__title {
+  color: #e5e7eb;
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+}
+
 .company-profile {
   display: flex;
   flex-direction: column;
@@ -851,7 +1001,7 @@ button {
 
 .stack-list {
   margin: 0;
-  padding-left: 18px;
+  padding-inline-start: 18px;
   color: #cbd5e1;
   display: flex;
   flex-direction: column;
@@ -991,6 +1141,11 @@ button {
   padding: 12px;
   border-radius: 12px;
   background: rgba(2, 6, 23, 0.48);
+  /* Grid items default to min-width: auto, which pins them to their
+     content's intrinsic width even when the track is narrower — the
+     cause of a real ~6px horizontal overflow on narrow (390px) mobile
+     viewports where the flex-wrap actions row otherwise couldn't shrink. */
+  min-width: 0;
 }
 
 .opportunity-item__top {
@@ -1011,13 +1166,17 @@ button {
   font-weight: 700;
 }
 
-.glass-card {
-  background: rgba(15, 23, 42, 0.72);
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  box-shadow: 0 20px 45px rgba(2, 6, 23, 0.28);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-}
+/* Phase FINAL-UI-UNIFICATION-001 — real, confirmed dead code removed:
+   this was a second, earlier `.glass-card` rule with different literal
+   values (background/box-shadow/blur all different from the later,
+   real `.glass-card, .panel-card, .kpi-card, .screen-card` rule further
+   down this file). Same specificity, later source order always wins in
+   CSS cascade — every one of this block's properties was already fully
+   unreachable/dead for any real `.glass-card` element, silently
+   overridden the whole time. Removing it changes nothing about what
+   was actually rendered (verified: every property here is also set by
+   the surviving rule), and removes a real, confirmed instance of
+   duplicated styling. See LEGACY_STYLE_INVENTORY.md. */
 
 .hero-panel--featured {
   padding: 28px 30px;
@@ -1353,7 +1512,22 @@ button {
   --text-0: #f3f7ff;
   --text-1: #c4d2e9;
   --text-2: #8ea3c3;
-  --accent: #6fb6ff;
+  /* Phase NOVA-MIGRATION-001 — this legacy variable's own literal value
+     (#6fb6ff) is byte-for-byte identical to the real Nova
+     --nova-color-brand-signal token (see DESIGN_TOKENS.md's own v1.1.0
+     changelog: "reconciled to the real, already-shipped #6fb6ff accent
+     ... a deliberate decision to NOT introduce a fourth, unreconciled
+     accent-blue value"). Aliasing it here removes the duplicate literal
+     at its single highest-leverage point — every one of this
+     variable's 14 real usages throughout this file now derives from
+     the one shared Nova token, with zero visual change (the computed
+     value is identical). accent-soft's own literal rgba (111, 182, 255)
+     is the same color's RGB channels — kept as its own literal since
+     CSS custom properties can't derive an alpha-blended variant of
+     another variable without color-mix(), which was judged unnecessary
+     complexity for a value that's already exact and already documented
+     as reconciled. */
+  --accent: var(--nova-color-brand-signal);
   --accent-soft: rgba(111, 182, 255, 0.17);
   --success: #37d68e;
   --danger: #ff6b79;
@@ -1465,6 +1639,16 @@ body {
   max-width: 460px;
 }
 
+/* Sprint 40 — conversational search answer popover, reuses .header-
+   autocomplete's positioning but needs a column layout and more width
+   for a real sentence-length answer rather than a row of ticker chips. */
+.header-conversational-answer {
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 380px;
+  gap: 8px;
+}
+
 .header-suggestion {
   color: var(--text-1);
   background: rgba(19, 32, 49, 0.9);
@@ -1472,6 +1656,7 @@ body {
   border-radius: 8px;
   padding: 5px 8px;
   cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease;
 }
 
 .header-suggestion:hover {
@@ -1496,9 +1681,21 @@ body {
 .screen-card {
   background: var(--glass);
   border: 1px solid var(--glass-border);
-  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.3);
+  /* Phase FINAL-UI-UNIFICATION-001 — this exact box-shadow was a
+     byte-for-byte duplicate of --nova-shadow-glass (0 16px 42px
+     rgba(0, 0, 0, 0.3)) — aliased for the same real, zero-visual-
+     change reason as every other exact-match fix in this migration
+     line. The 14px backdrop-filter blur below is deliberately left
+     as its own literal value (--nova-blur-glass is 24px — not an
+     exact match; see TOKEN_COVERAGE.md). */
+  box-shadow: var(--nova-shadow-glass);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  /* These are the actual flex items in .screen-page's column layout (and
+     grid items in .screen-grid/.portfolio-grid); min-width: 0 is what
+     lets them shrink to the viewport instead of growing to fit an inner
+     wide table, even though that table's own .table-wrapper scrolls. */
+  min-width: 0;
 }
 
 .hero-panel {
@@ -1689,6 +1886,7 @@ body {
   color: var(--text-1);
   background: rgba(18, 30, 45, 0.8);
   border: 1px solid rgba(132, 170, 221, 0.2);
+  transition: color 0.2s ease, border-color 0.2s ease;
 }
 
 .analysis-sticky-nav__link:hover {
@@ -1780,10 +1978,13 @@ body {
 }
 
 @media (max-width: 980px) {
-  .sidebar {
-    width: 100%;
-    min-height: auto;
-  }
+  /* .sidebar's own full-width/stacked treatment belongs to the
+     max-width: 820px breakpoint below, where .app-shell actually
+     switches to flex-direction: column. Duplicating "width: 100%" here
+     while .app-shell is still a row (821-980px) made the sidebar and
+     main-panel awkwardly split a flex row instead of the sidebar
+     keeping its normal fixed width — most visible on a landscape phone
+     (e.g. 844x390), which falls in exactly this band. */
 
   .watchlist-premium-grid,
   .analysis-grid,
@@ -1810,6 +2011,29 @@ body {
 
   .watch-card-premium__metrics {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Phase PIXEL-PERFECT-001 — confirmed live at 1024x768 (a real, common
+   tablet-landscape resolution): above 980px the sidebar is visible and
+   .header-controls returns to an unstacked row, but the row's own real
+   content (a 330px-min-width search box + market-status pill + 4
+   header icon buttons) doesn't actually fit in the space left over
+   next to the sidebar until roughly 1150px — leaving 981-1149px with a
+   real, measured ~88px horizontal overflow/scrollbar. Reusing the
+   exact same stacked-column treatment the 980px breakpoint above
+   already applies (not a new pattern) for this narrow gap closes it
+   without touching that block's own grid-column rules, which aren't
+   part of this specific defect. */
+@media (min-width: 981px) and (max-width: 1149px) {
+  .header-controls {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-box {
+    min-width: 100%;
   }
 }
 
@@ -2024,6 +2248,102 @@ body {
   gap: 8px;
   margin-top: 10px;
   flex-wrap: wrap;
+  /* As a flex child (e.g. inside .screen-hero's space-between row), this
+     defaults to min-width: auto and refuses to shrink below its
+     unwrapped content width, overflowing the viewport on narrow mobile
+     screens even with flex-wrap set. min-width: 0 lets it actually wrap. */
+  min-width: 0;
+  max-width: 100%;
+}
+
+.matched-events {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.matched-event {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.matched-event__source {
+  font-size: 0.77rem;
+  color: #7dd3fc;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.matched-event__source:hover {
+  text-decoration: underline;
+}
+
+/* Sprint 16 Phase D — Decision Quality and Explainability */
+
+.explanation-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.explanation-section__title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #94a3b8);
+  margin: 0;
+}
+
+.evidence-line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.scenario-card {
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(2, 6, 23, 0.48);
+  border-left: 3px solid rgba(148, 163, 184, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scenario-card--bull {
+  border-left-color: #4ade80;
+}
+
+.scenario-card--bear {
+  border-left-color: #f87171;
+}
+
+.scenario-card__title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  justify-content: space-between;
+}
+
+@media (max-width: 720px) {
+  .scenario-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .dashboard-footer {
@@ -2116,6 +2436,23 @@ body {
   font-size: 16px;
 }
 
+/* Phase APP-STORE-QUALITY-001 — confirmed live: this button's real
+   visual/layout box measures 38x38px, below Apple HIG's/WCAG 2.5.5's
+   44x44px minimum recommended touch target. A prior phase deliberately
+   left the visual size at 38px since the header's own landscape-phone
+   row-width calc (DESIGN-PERFECTION-001) depends on it. This invisible,
+   position:absolute pseudo-element enlarges only the tappable hit area
+   (not the visual box or layout footprint — it takes no space in flow),
+   reaching the 44x44px target without changing anything visible or
+   re-touching that calc. The 12px gap between adjacent header icon
+   buttons leaves room for a 3px expansion on every side with no overlap
+   between neighboring tap zones. */
+.header-icon-button::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+}
+
 .header-icon-button__badge {
   position: absolute;
   top: -4px;
@@ -2172,14 +2509,1505 @@ body {
   background: transparent;
   color: #d7e8ff;
   cursor: pointer;
+  transition: background 0.2s ease;
 }
 
 .header-menu__item:hover {
   background: rgba(56, 189, 248, 0.12);
 }
 
+/* Sprint 20 — onboarding takeover. Mobile-first: a single centered card,
+   full-viewport, no sidebar/header chrome, generous (>=44px) tap targets. */
+.onboarding-shell {
+  min-height: 100vh;
+  /* dvh shrinks with an on-screen mobile keyboard so the Continue button
+     stays reachable instead of being pushed off a fixed 100vh; vh stays
+     as the fallback for browsers without dvh support. */
+  min-height: 100dvh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(circle at top, var(--bg-1) 0%, var(--bg-0) 70%);
+}
+
+.onboarding-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  backdrop-filter: blur(14px);
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: onboarding-step-in 260ms ease-out;
+}
+
+.onboarding-card--centered {
+  align-items: center;
+  text-align: center;
+}
+
+@keyframes onboarding-step-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.onboarding-progress {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.onboarding-progress-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--glass-border);
+  transition: background 200ms ease;
+}
+
+.onboarding-progress-dot.active {
+  background: var(--accent);
+}
+
+.onboarding-progress-dot.complete {
+  background: var(--text-2);
+}
+
+.onboarding-title {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--text-0);
+  text-align: center;
+  text-wrap: balance;
+}
+
+.onboarding-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.onboarding-chip {
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-2);
+  color: var(--text-1);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+}
+
+.onboarding-chip:hover {
+  border-color: var(--accent);
+  color: var(--text-0);
+}
+
+.onboarding-chip.selected {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--text-0);
+}
+
+.onboarding-numeric-step {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.onboarding-numeric-input {
+  width: 100%;
+  min-height: 48px;
+  font-size: 1.1rem;
+  text-align: center;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-2);
+  color: var(--text-0);
+  padding: 10px 16px;
+}
+
+.onboarding-continue-button {
+  min-height: 44px;
+  width: 100%;
+  border-radius: 12px;
+  border: none;
+  background: var(--accent);
+  color: var(--bg-0);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.onboarding-back-button {
+  min-height: 44px;
+  align-self: flex-start;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  padding: 6px 4px;
+  font-size: 0.9rem;
+  transition: color 0.2s ease;
+}
+
+.onboarding-back-button:hover {
+  color: var(--text-0);
+}
+
+.onboarding-skip-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.onboarding-skip-button {
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  align-self: center;
+  text-decoration: underline;
+}
+
+.onboarding-skip-button--all {
+  font-size: 0.8rem;
+  color: var(--text-2);
+  opacity: 0.75;
+}
+
+.onboarding-error {
+  color: var(--danger);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .onboarding-card {
+    padding: 24px 18px;
+    border-radius: 16px;
+  }
+}
+
+/* Sprint 20, Part 2 — compound-interest simulator and future timeline. */
+.simulator {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.simulator__controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.simulator__control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-1);
+  font-size: 0.85rem;
+}
+
+.simulator__control input[type="range"] {
+  width: 100%;
+  min-height: 24px;
+  accent-color: var(--accent);
+}
+
+.simulator__control strong {
+  color: var(--text-0);
+  font-size: 1rem;
+}
+
+.simulator__result {
+  text-align: center;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+}
+
+.simulator__result-label {
+  color: var(--text-2);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.simulator__result-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-0);
+}
+
+.simulator__disclaimer {
+  text-align: center;
+}
+
+.timeline-chart__svg {
+  width: 100%;
+  height: 180px;
+}
+
+.timeline-chart__area {
+  fill: var(--accent-soft);
+}
+
+.timeline-chart__balance-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.4;
+}
+
+.timeline-chart__contributed-line {
+  fill: none;
+  stroke: var(--text-2);
+  stroke-width: 1.6;
+  stroke-dasharray: 4 3;
+}
+
+.timeline-chart__legend {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  font-size: 0.8rem;
+}
+
+.timeline-chart__legend-item {
+  position: relative;
+  padding-left: 16px;
+  color: var(--text-2);
+}
+
+.timeline-chart__legend-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.timeline-chart__legend-item--balance::before {
+  background: var(--accent);
+}
+
+.timeline-chart__legend-item--contributed::before {
+  background: var(--text-2);
+}
+
+/* Sprint 20, Part 3 — Home screen. Deliberately minimal: a single-column
+   stack of exactly four cards, no nested grids, one API call — the
+   simplest, most mobile-first layout in the app on purpose. */
+.home-screen {
+  max-width: 640px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.home-card {
+  padding: 20px;
+}
+
+@media (max-width: 480px) {
+  .home-screen {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+}
+
+/* Sprint 20, Part 4 — Daily Feed item card. Overrides news-item--premium's
+   icon-row assumption with a simple column layout, since this card has no
+   icon slot. */
+.feed-item-card {
+  display: flex !important;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-2);
+}
+
+.feed-item-card__stats {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  color: var(--text-2);
+}
+
+.feed-item-card__trace {
+  margin-top: 4px;
+  border-top: 1px solid var(--glass-border);
+  padding-top: 8px;
+}
+
+.feed-item-card__trace summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 0.85rem;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+/* Sprint 20 — allocation bar (Suggested portfolio). */
+.allocation-bar {
+  display: flex;
+  width: 100%;
+  height: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.allocation-bar__segment--stocks {
+  background: var(--accent);
+}
+
+.allocation-bar__segment--bonds {
+  background: var(--success);
+}
+
+.allocation-bar__segment--cash {
+  background: var(--text-2);
+}
+
+.allocation-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  color: var(--text-1);
+}
+
 @media (max-width: 820px) {
   .header-portfolio-glance {
     display: none;
   }
+}
+
+/* Sprint 33 Priority 1 — Mobile Information Architecture.
+   Bottom nav is the primary mobile destination-switcher (5 items); the
+   sidebar remains desktop's richer, always-visible nav. Hidden/shown by
+   viewport width rather than by JS, so there is no layout flash. */
+.bottom-nav {
+  display: none;
+}
+
+:root {
+  /* Phase MOBILE-FIXES-001 — one real, shared source of truth for the
+     mobile bottom nav's own reserved height, instead of the same
+     magic number (64px) being repeated independently everywhere that
+     needs to clear it (.main-panel's padding, the feedback widget's
+     mobile offset, any future CTA's safe scroll-margin) — the exact
+     "duplicated styling" class of bug prior polish phases already
+     removed elsewhere in this codebase. */
+  --mobile-nav-height: 64px;
+}
+
+/* Phase MOBILE-FIXES-001 — confirmed P0 #1: "landscape phones have no
+   usable navigation." The rule below previously only matched on
+   viewport WIDTH (max-width: 720px) — a real landscape phone (e.g. the
+   844x390 case this phase explicitly verifies) has a width of 844px,
+   which never matches a width-only breakpoint, so neither the mobile
+   bottom-nav (hidden by default) nor a usable sidebar (it falls into a
+   separate, unrelated 820px breakpoint that turns it into a full-width,
+   vertically-stacked list with no height constraint — genuinely
+   unusable in a ~390px-tall viewport) ever appeared. Adding the
+   `(orientation: landscape) and (max-height: 500px)` OR-branch below
+   makes every rule in this block also apply to short-height landscape
+   phones, reusing the exact same portrait mobile nav (BottomNav.jsx) —
+   no new navigation concept, per this phase's own requirement. */
+@media (max-width: 720px), (orientation: landscape) and (max-height: 500px) {
+  .sidebar {
+    display: none;
+  }
+
+  .main-panel {
+    padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .header-bar {
+    padding-top: calc(16px + env(safe-area-inset-top, 0px));
+    padding-left: calc(28px + env(safe-area-inset-left, 0px));
+    padding-right: calc(28px + env(safe-area-inset-right, 0px));
+  }
+
+  .screen-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px;
+  }
+
+  /* Phase MOBILE-FIXES-001 — confirmed P0 #2: "Home primary CTA is
+     hidden behind the fixed bottom navigation." Home's two primary
+     next-step buttons ("Review today's decisions" / "Open portfolio",
+     the single-product-entry CTAs from Phase X5) sit inside this exact
+     action row. Giving the row itself a real scroll-margin equal to
+     the nav's reserved height means any programmatic or keyboard-driven
+     scroll to it (not just a manual swipe) can never land with the
+     buttons still covered by the fixed nav — a defensive fix that
+     covers this specific, confirmed case and the same class of bug
+     anywhere else a primary action sits near a screen's natural end. */
+  .screen-hero .opportunity-item__actions {
+    scroll-margin-bottom: calc(var(--mobile-nav-height) + 16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    background: linear-gradient(180deg, rgba(8, 13, 20, 0.98), rgba(6, 10, 17, 0.99));
+    border-top: 1px solid rgba(157, 174, 202, 0.2);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .bottom-nav__item {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 48px;
+    padding: 6px 2px;
+    background: transparent;
+    border: none;
+    color: var(--text-2);
+    font-size: 0.7rem;
+  }
+
+  .bottom-nav__item.active {
+    color: var(--accent);
+  }
+
+  .bottom-nav__icon {
+    font-size: 1.15rem;
+    line-height: 1;
+  }
+
+  .bottom-nav__label {
+    line-height: 1;
+  }
+
+  /* Phase APP-STORE-QUALITY-001 — the actual mobile override for the
+     Feedback widget's position now lives after its own base rule below
+     (same reasoning as the MOBILE-FIXES-001 comment there once was),
+     since a rule here was being silently shadowed by the later,
+     unconditional base `.feedback-widget` rule at equal specificity —
+     confirmed live: getComputedStyle always reported the base rule's
+     `bottom: 20px`/`right: 20px`, not this block's values, so the
+     widget still sat on top of the "For you"/"Profile" bottom-nav tabs
+     on every real mobile width, unfixed despite this block's intent. */
+}
+
+/* Phase MOBILE-FIXES-001 — a landscape phone's ~390px of real height is
+   tight; the portrait touch-target sizing above (min-height: 48px)
+   already clears the required 44x44px minimum, so it's kept as-is
+   rather than shrunk — only the label/icon are trimmed slightly so the
+   bar itself takes a smaller share of the limited vertical space. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .bottom-nav {
+    padding-top: 2px;
+    padding-bottom: calc(2px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .bottom-nav__item {
+    min-height: 44px;
+    padding: 2px 2px;
+  }
+
+  .bottom-nav__icon {
+    font-size: 1rem;
+  }
+
+  .bottom-nav__label {
+    font-size: 0.62rem;
+  }
+
+  /* Phase DESIGN-PERFECTION-001 — confirmed live at 844x390: the
+     unrelated `@media (max-width: 980px)` breakpoint above (Sprint 5,
+     intended for a narrow *desktop* window) also matches this same
+     landscape-phone case on width alone (844px < 980px) and forces
+     `.header-controls` into a full-width vertical column — stacking
+     the search bar, market-status pill, and all 4 header icon buttons
+     into one tall list that eats a large share of an already-scarce
+     390px of height. A landscape phone has width to spare (844px) but
+     almost no height to spare, so the stacked layout is exactly
+     backwards here. Restoring the normal horizontal row for this one
+     case fixes it without touching the legitimate narrow-desktop-
+     window use of the column layout at 821-980px. */
+  .header-controls {
+    width: auto;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .search-box {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+}
+
+/* Sprint 33 Priority 1 — Profile "More" links (secondary destinations
+   moved off the mobile primary nav, kept fully reachable here). */
+.more-links-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 480px) {
+  .more-links-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.more-links-grid__item {
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--glass-border);
+  color: var(--text-0);
+  text-align: left;
+}
+
+/* Sprint 33 Priority 8 — device-level offline signal, distinct from any
+   one screen's own request-failure message. */
+.offline-banner {
+  position: sticky;
+  top: 0;
+  z-index: 45;
+  padding: 8px 16px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-0);
+  background: rgba(255, 107, 121, 0.22);
+  border-bottom: 1px solid rgba(255, 107, 121, 0.4);
+}
+
+/* Sprint 33 Priority 10 — respect prefers-reduced-motion. Every existing
+   animation/transition in this file (spinners, skeleton shimmer,
+   onboarding step-in, chip hover transitions, etc.) is disabled/flattened
+   to an instant state rather than fine-tuned per-animation, since none of
+   them communicate information that would be lost by not animating. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Sprint 34 — surfaces the previously-unused PWA update-available signal. */
+.update-banner {
+  position: sticky;
+  top: 0;
+  z-index: 46;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 16px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--bg-0);
+  background: var(--accent);
+}
+
+.update-banner__button {
+  min-height: 32px;
+  padding: 4px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(6, 9, 15, 0.3);
+  background: var(--bg-0);
+  color: var(--text-0);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Sprint 35 — Internationalization Foundation, language switcher. */
+.language-select {
+  min-height: 44px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-2);
+  color: var(--text-0);
+  font-size: 0.95rem;
+}
+
+/* Sprint 36 Priority 4 — Recommendation optimization: a scannable stat
+   row replacing 3 sentence-length paragraphs. */
+.rec-stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0;
+}
+
+/* Sprint 35 Priority 3 — Recommendation Clarity, the always-visible
+   "at a glance" answers (why now / invalidation / watch next). */
+.rec-at-a-glance {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--glass-border);
+}
+
+/* ==========================================================================
+   Phase H3 -- Futuristic Design System
+   "AI intelligence command center" direction: premium dark, restrained
+   glass, strong type hierarchy, real status/confidence indicators. Applied
+   as a cascade over the existing base (later rules, same/higher
+   specificity win) rather than a rewrite -- every existing screen inherits
+   this without its own component logic changing. See
+   FUTURISTIC_DESIGN_SYSTEM.md for the full token rationale.
+   ========================================================================== */
+
+:root {
+  /* Core surface tokens */
+  --h3-void: #05070d;
+  --h3-surface: #0a0f1c;
+  --h3-surface-raised: #0e1526;
+  --h3-glass-bg: linear-gradient(180deg, rgba(20, 28, 48, 0.72) 0%, rgba(12, 17, 32, 0.72) 100%);
+  --h3-border: rgba(120, 170, 255, 0.16);
+  --h3-border-strong: rgba(120, 170, 255, 0.32);
+
+  /* Text */
+  --h3-text-primary: #e9edf7;
+  --h3-text-secondary: #93a1c2;
+  --h3-text-tertiary: #56618a;
+
+  /* Accent system -- primary (intelligence blue) + secondary (confidence cyan) */
+  /* Phase NOVA-MIGRATION-001 — same real, exact-value duplication as
+     the --accent alias above: tokens.css's own comment for
+     --nova-primitive-blue-400 names this exact variable
+     ("--h3-accent-strong") as the value it was reconciled from. Both
+     now derive from the one shared Nova token instead of independently
+     repeating the same literal hex a third/fourth time in this file. */
+  --h3-accent: var(--nova-color-brand-signal);
+  --h3-accent-strong: var(--nova-color-brand-signal-bright);
+  --h3-cyan: #5eead4;
+  --h3-glow: 0 0 0 1px rgba(111, 182, 255, 0.14), 0 8px 32px rgba(6, 10, 20, 0.55), 0 0 28px rgba(95, 160, 255, 0.06);
+  --h3-glow-strong: 0 0 0 1px rgba(111, 182, 255, 0.28), 0 0 36px rgba(95, 160, 255, 0.22);
+
+  /* Status */
+  --h3-positive: #34d399;
+  --h3-negative: #f87171;
+  --h3-warning: #fbbf24;
+
+  /* Scale */
+  --h3-radius-sm: 10px;
+  --h3-radius-md: 16px;
+  --h3-radius-lg: 22px;
+  --h3-space-1: 6px;
+  /* Phase FINAL-UI-UNIFICATION-001 — --h3-space-2 (12px) and
+     --h3-space-4 (32px) are exact-value duplicates of
+     --nova-space-3/--nova-space-8 respectively — aliased for the same
+     real reason the accent-color variables were aliased in
+     NOVA-MIGRATION-001 (zero rendered-output change, single point of
+     definition). --h3-space-1 (6px) and --h3-space-3 (20px) have no
+     exact Nova equivalent (nearest are 4px/8px and 16px/24px) and are
+     deliberately left as their own literal values — see
+     LEGACY_STYLE_INVENTORY.md. */
+  --h3-space-2: var(--nova-space-3);
+  --h3-space-3: 20px;
+  --h3-space-4: var(--nova-space-8);
+  --h3-font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+body {
+  background: radial-gradient(ellipse 1200px 800px at 15% -10%, rgba(79, 157, 255, 0.08), transparent 60%),
+    radial-gradient(ellipse 900px 700px at 100% 0%, rgba(94, 234, 212, 0.05), transparent 55%),
+    var(--h3-void);
+}
+
+.screen-hero h1,
+.onboarding-title,
+.welcome-card h2 {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.eyebrow {
+  font-weight: 700;
+  letter-spacing: 0.22em;
+}
+
+.portfolio-metric,
+.kpi-value,
+.header-portfolio-glance__value,
+.score-card__recommendation,
+.watchlist-table td,
+.feed-item-card__stats span,
+.alert-row__price {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.panel-card,
+.welcome-card,
+.folder-card,
+.notification-panel,
+.h3-modal-card {
+  background: var(--h3-glass-bg);
+  border: 1px solid var(--h3-border);
+  border-radius: var(--h3-radius-lg);
+  box-shadow: var(--h3-glow);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.panel-card:hover {
+  border-color: var(--h3-border-strong);
+}
+
+.primary-action {
+  background: linear-gradient(135deg, var(--h3-accent-strong), #2f6fe0);
+  box-shadow: 0 0 0 1px rgba(111, 182, 255, 0.35), 0 8px 24px rgba(47, 111, 224, 0.35);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.primary-action:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 1px rgba(111, 182, 255, 0.5), 0 12px 32px rgba(47, 111, 224, 0.45);
+}
+
+.ghost-button {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--h3-border);
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.ghost-button:hover:not(:disabled) {
+  border-color: var(--h3-border-strong);
+  background: rgba(111, 182, 255, 0.06);
+  transform: translateY(-1px);
+}
+
+.ghost-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+input,
+select,
+textarea {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--h3-border);
+  border-radius: var(--h3-radius-sm);
+  color: var(--h3-text-primary);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+  outline: none;
+  border-color: var(--h3-accent);
+  box-shadow: 0 0 0 3px rgba(111, 182, 255, 0.22);
+}
+
+.watchlist-table th {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--h3-text-tertiary);
+  border-bottom: 1px solid var(--h3-border);
+}
+
+.watchlist-table td {
+  border-bottom: 1px solid rgba(120, 170, 255, 0.06);
+}
+
+.watchlist-table tbody tr:hover td {
+  background: rgba(111, 182, 255, 0.035);
+}
+
+.sidebar {
+  background: linear-gradient(180deg, var(--h3-surface-raised), var(--h3-surface));
+  border-right: 1px solid var(--h3-border);
+}
+
+.sidebar-link {
+  border-radius: var(--h3-radius-sm);
+  position: relative;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.sidebar-link.active {
+  background: rgba(111, 182, 255, 0.1);
+  color: var(--h3-text-primary);
+  box-shadow: inset 3px 0 0 var(--h3-accent);
+}
+
+.sidebar-link:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.bottom-nav {
+  background: rgba(10, 15, 28, 0.85);
+  border-top: 1px solid var(--h3-border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.bottom-nav__item.active {
+  color: var(--h3-accent);
+}
+
+.bottom-nav__item.active .bottom-nav__icon {
+  filter: drop-shadow(0 0 6px rgba(111, 182, 255, 0.6));
+}
+
+.header-bar {
+  background: rgba(10, 15, 28, 0.72);
+  border-bottom: 1px solid var(--h3-border);
+}
+
+.pill.opportunity {
+  background: rgba(52, 211, 153, 0.14);
+  color: var(--h3-positive);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+.pill.risk {
+  background: rgba(248, 113, 113, 0.14);
+  color: var(--h3-negative);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+.pill.monitor {
+  background: rgba(251, 191, 36, 0.12);
+  color: var(--h3-warning);
+  border: 1px solid rgba(251, 191, 36, 0.28);
+}
+
+.skeleton {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 25%, rgba(111, 182, 255, 0.08) 37%, rgba(255, 255, 255, 0.03) 63%);
+  background-size: 400% 100%;
+  animation: h3-shimmer 1.6s ease-in-out infinite;
+  border-radius: var(--h3-radius-sm);
+}
+
+@keyframes h3-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+  .primary-action:hover, .ghost-button:hover { transform: none; }
+}
+
+.notification-bell {
+  position: relative;
+}
+
+.notification-bell__badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--h3-negative);
+  color: #05070d;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 8px rgba(248, 113, 113, 0.6);
+}
+
+.notification-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 340px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding: var(--h3-space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 60;
+}
+
+.notification-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--h3-space-2);
+  border-radius: var(--h3-radius-sm);
+  border: 1px solid var(--h3-border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.notification-item--unread {
+  border-color: var(--h3-border-strong);
+  background: rgba(111, 182, 255, 0.05);
+}
+
+.notification-item__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.notification-item__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.notification-item__actions button {
+  font-size: 0.75rem;
+  padding: 4px 10px;
+}
+
+.folder-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--h3-space-3);
+}
+
+.folder-card {
+  padding: var(--h3-space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--h3-space-2);
+}
+
+.folder-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.folder-card__symbols {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.folder-symbol-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--h3-radius-sm);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--h3-border);
+}
+
+.folder-symbol-row__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.alert-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--h3-radius-sm);
+  border: 1px solid var(--h3-border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.alert-row__price {
+  font-family: var(--h3-font-mono);
+}
+
+.alert-row--triggered {
+  border-color: rgba(52, 211, 153, 0.3);
+  background: rgba(52, 211, 153, 0.05);
+}
+
+.h3-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 7, 18, 0.72);
+  backdrop-filter: blur(2px);
+  padding: 20px;
+}
+
+.h3-modal-card {
+  width: 100%;
+  max-width: 420px;
+  padding: var(--h3-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--h3-space-2);
+}
+
+.h3-modal-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+@media (max-width: 900px) {
+  .sidebar {
+    display: none;
+  }
+
+  /* Phase PIXEL-PERFECT-001 — confirmed live at a real tablet-portrait
+     width (768px): this rule hides the sidebar down to 900px, but the
+     mobile bottom nav below only turns on at 720px — leaving every
+     width from 721-900px (a real, common tablet-portrait band: 768px
+     iPad, 810/820/834px iPad Air/Pro) with NO primary navigation
+     visible at all. Enabling the same bottom nav here (not a new
+     navigation concept — the identical BottomNav.jsx markup/styles
+     already used below 720px) closes that gap without touching the
+     phone-specific rules in the 720px block (header padding, hero
+     stacking, safe-area insets) that were tuned for narrower widths
+     and aren't necessarily appropriate at true tablet widths. */
+  .main-panel {
+    padding-bottom: var(--mobile-nav-height);
+  }
+
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    background: linear-gradient(180deg, rgba(8, 13, 20, 0.98), rgba(6, 10, 17, 0.99));
+    border-top: 1px solid rgba(157, 174, 202, 0.2);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .bottom-nav__item {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 48px;
+    padding: 6px 2px;
+    background: transparent;
+    border: none;
+    color: var(--text-2);
+    font-size: 0.7rem;
+  }
+
+  .bottom-nav__item.active {
+    color: var(--accent);
+  }
+
+  .bottom-nav__icon {
+    font-size: 1.15rem;
+    line-height: 1;
+  }
+
+  .bottom-nav__label {
+    line-height: 1;
+  }
+
+  .notification-panel {
+    position: fixed;
+    top: 64px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+  }
+
+  .folder-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .alert-row {
+    grid-template-columns: 1fr;
+    text-align: left;
+  }
+
+  .header-portfolio-glance {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .h3-modal-card {
+    max-width: 100%;
+  }
+
+  .folder-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+
+/* ==========================================================================
+   Phase X2 -- Advanced Market Chart & Stock Side Panel
+   ========================================================================== */
+
+.advanced-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--h3-space-2);
+}
+
+.advanced-chart__toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.advanced-chart__timeframes {
+  display: flex;
+  gap: 6px;
+}
+
+.advanced-chart__timeframes .ghost-button.active,
+.ghost-button.active {
+  border-color: var(--h3-border-strong);
+  background: rgba(111, 182, 255, 0.12);
+  color: var(--h3-text-primary);
+}
+
+.advanced-chart__toolbar-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.advanced-chart__canvas-stack {
+  position: relative;
+  width: 100%;
+  border-radius: var(--h3-radius-md);
+  border: 1px solid var(--h3-border);
+  background: rgba(255, 255, 255, 0.015);
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+}
+
+.advanced-chart__canvas-stack:focus-visible {
+  outline: none;
+  border-color: var(--h3-accent);
+  box-shadow: 0 0 0 3px rgba(111, 182, 255, 0.22);
+}
+
+.advanced-chart__tooltip {
+  position: absolute;
+  top: 8px;
+  padding: 8px 10px;
+  border-radius: var(--h3-radius-sm);
+  border: 1px solid var(--h3-border-strong);
+  background: rgba(10, 15, 28, 0.92);
+  backdrop-filter: blur(8px);
+  font-family: var(--h3-font-mono);
+  font-size: 0.78rem;
+  pointer-events: none;
+  z-index: 5;
+  min-width: 140px;
+}
+
+.advanced-chart__tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 1px 0;
+}
+
+.advanced-chart__canvas-stack:active {
+  cursor: grabbing;
+}
+
+.advanced-chart__layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.side-panel-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: rgba(4, 7, 18, 0.6);
+  backdrop-filter: blur(2px);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.side-panel {
+  width: min(560px, 100%);
+  height: 100%;
+  overflow-y: auto;
+  background: var(--h3-glass-bg);
+  border-left: 1px solid var(--h3-border-strong);
+  box-shadow: -20px 0 60px rgba(0, 0, 0, 0.45);
+  padding: var(--h3-space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--h3-space-3);
+}
+
+.side-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.side-panel__section-title {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--h3-text-tertiary);
+  margin: 0 0 8px;
+}
+
+.opportunity-score-ring {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.opportunity-score-ring__value {
+  font-size: 2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.factor-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(120, 170, 255, 0.06);
+  font-size: 0.85rem;
+}
+
+.factor-row--unavailable {
+  opacity: 0.5;
+}
+
+/* ==========================================================================
+   Phase X3 -- Impact Graph, Decision Center, Workspace 2.0
+   ========================================================================== */
+
+.impact-graph {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.impact-graph__node {
+  border-left: 2px solid var(--h3-border);
+  padding-left: 12px;
+}
+
+.impact-graph__node-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--h3-text-primary);
+  cursor: pointer;
+  padding: 6px 0;
+  text-align: left;
+  width: 100%;
+}
+
+.impact-graph__headline {
+  font-weight: 600;
+}
+
+.impact-graph__node-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0 10px 22px;
+}
+
+.impact-graph__cause {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.impact-graph__cause-label {
+  color: var(--h3-text-tertiary);
+}
+
+.impact-graph__cause--unknown em {
+  color: var(--h3-warning);
+  font-style: normal;
+}
+
+.decision-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: var(--h3-radius-md);
+  border: 1px solid var(--h3-border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.decision-item--HIGH {
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.decision-item--MEDIUM {
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+.decision-item__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.decision-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.workspace-detail__tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.workspace-health-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.timeline-item {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(120, 170, 255, 0.06);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 900px) {
+  .decision-filters {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+}
+
+@media (max-width: 900px) {
+  .side-panel {
+    width: 100%;
+  }
+
+  .advanced-chart__toolbar {
+    justify-content: flex-start;
+  }
+}
+/* Phase X9 — Part 2, Feedback Widget. Fixed, unobtrusive corner control,
+   reachable from every screen without covering primary content. */
+.feedback-widget {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 40;
+}
+
+/* Phase APP-STORE-QUALITY-001 — confirmed live via a real Playwright
+   click attempt (not just a visual overlap check) at 390x844: this
+   widget's own base rule above pins it 20px from the true viewport
+   bottom-right corner, which lands squarely on top of the "For
+   you"/"Profile" bottom-navigation tabs once the mobile bottom nav is
+   showing (Playwright's own actionability check failed with
+   "<button aria-label=\"Give feedback\" class=\"feedback-widget__toggle\">
+   ... subtree intercepts pointer events") — the exact click-blocking
+   defect MOBILE-EXPERIENCE-001/MOBILE-FIXES-001 already documented and
+   tried to fix. That earlier fix (a `.feedback-widget { bottom: ... }`
+   override inside the `@media (max-width: 720px)` block above) was
+   silently shadowed: at equal selector specificity, this later,
+   unconditional rule always won the cascade regardless of viewport
+   width, so the widget never actually moved on a real phone
+   (getComputedStyle confirmed `bottom: 20px` still applied at 390px
+   width). Placing the real mobile override here — after the rule it
+   needs to beat, at the same specificity — is what actually wins the
+   cascade and lifts the widget fully clear of the nav strip. */
+@media (max-width: 720px), (orientation: landscape) and (max-height: 500px) {
+  .feedback-widget {
+    bottom: calc(var(--mobile-nav-height) + 12px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+.feedback-widget__toggle {
+  border-radius: 999px;
+  padding: 10px 18px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.feedback-widget__panel {
+  position: absolute;
+  right: 0;
+  bottom: 52px;
+  width: 300px;
+  padding: 16px;
+}
+
+.feedback-widget__textarea {
+  width: 100%;
+  min-height: 80px;
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--h3-border, rgba(111, 182, 255, 0.16));
+  background: var(--h3-surface, #0a0f1c);
+  color: var(--h3-text-primary, #e9edf7);
+  font-family: inherit;
+  resize: vertical;
 }

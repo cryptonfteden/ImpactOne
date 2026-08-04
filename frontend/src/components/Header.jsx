@@ -1,8 +1,40 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Input } from "./ui";
+import NotificationCenter from "./NotificationCenter";
 import usePortfolioEngine from "../hooks/usePortfolioEngine";
-import { intelligenceApi } from "../services/api";
+// Phase X6 — fixed a broken import: this key moved to useBetaIdentity.js
+// in Phase X4's identity-flow rewrite, but this file's import was never
+// updated — caught by the new release validation build check (Part 2).
+import { BETA_USER_LABEL_STORAGE_KEY } from "../hooks/useBetaIdentity";
+
+// Phase H3 — Account & beta-user experience. Read once at module load
+// (a resolved beta user's label never changes mid-session); falls back to
+// the existing "Guest workspace" identity when no beta user is resolved,
+// exactly the pre-H3 behavior.
+function readBetaUserLabel() {
+  try {
+    return window.localStorage.getItem(BETA_USER_LABEL_STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+import { intelligenceApi, chatApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
+import { startVisibilityAwarePolling } from "../utils/pollWhileVisible";
+import { useI18n } from "../i18n/I18nProvider";
+import { trackEvent } from "../utils/analytics";
+import { msSinceBoot } from "../utils/performanceTiming";
+
+// Sprint 40 — Search must become conversational: "Should I buy Nvidia?",
+// "What changed overnight?" etc., not just ticker lookup. A query is
+// treated as a question (routed to chatApi.ask) rather than a ticker
+// symbol if it contains whitespace or ends in "?" — real tickers are
+// always a single unspaced token.
+function looksConversational(value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return false;
+  return trimmed.includes(" ") || trimmed.endsWith("?");
+}
 
 const CORE_SYMBOLS = [
   "AAPL",
@@ -23,10 +55,15 @@ const CORE_SYMBOLS = [
 ];
 
 function Header({ watchlist = [], onQuickSearch, onNavigate }) {
+  const { t, formatCurrency } = useI18n();
   const [query, setQuery] = useState("");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
+  const [conversationalAnswer, setConversationalAnswer] = useState(null);
+  const [isAnswerLoading, setIsAnswerLoading] = useState(false);
+  const [answerError, setAnswerError] = useState("");
 
   // Sprint 15 Top App Bar (spec §4.1): portfolio value + daily P/L, reusing
   // the Sprint 14 server-owned engine already fetched elsewhere.
@@ -34,7 +71,6 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
 
   useEffect(() => {
     let cancelled = false;
-    let intervalId;
 
     async function loadAlertCount() {
       try {
@@ -48,10 +84,10 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
     }
 
     loadAlertCount();
-    intervalId = setInterval(loadAlertCount, 60000);
+    const stopPolling = startVisibilityAwarePolling(loadAlertCount, 60000);
     return () => {
       cancelled = true;
-      clearInterval(intervalId);
+      stopPolling();
     };
   }, [watchlist]);
 
@@ -78,20 +114,58 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
     }
 
     setQuery(normalized);
+    setIsSearchFocused(false);
     onQuickSearch?.(normalized);
   }, [onQuickSearch]);
+
+  const askConversationally = useCallback(async (value) => {
+    const question = String(value || "").trim();
+    if (!question) return;
+    setIsSearchFocused(false);
+    setConversationalAnswer(null);
+    setAnswerError("");
+    setIsAnswerLoading(true);
+    // Sprint 40 — a real interaction-latency measurement (question submit
+    // to answer received), not just that the feature was used.
+    const startedAt = msSinceBoot();
+    try {
+      const result = await chatApi.ask({ question });
+      setConversationalAnswer({ question, answer: result.answer || result.response || "No answer was returned." });
+    } catch (error) {
+      logError("conversational search failed", error);
+      setAnswerError("Couldn't get an answer right now — try a plain ticker symbol instead.");
+    } finally {
+      // Fires once per real attempt regardless of outcome, so usage rate
+      // and latency both reflect every real question asked, not just
+      // successful ones.
+      trackEvent("search_conversational_used", { durationMs: msSinceBoot() - startedAt });
+      setIsAnswerLoading(false);
+    }
+  }, []);
+
+  const submitSearch = useCallback((value) => {
+    if (looksConversational(value)) {
+      askConversationally(value);
+    } else {
+      submitTicker(value);
+    }
+  }, [askConversationally, submitTicker]);
+
+  const dailyPnl = Number(portfolioSummary?.dailyPnl || 0);
+  const betaUserLabel = readBetaUserLabel();
+  const accountInitial = betaUserLabel ? betaUserLabel.trim().charAt(0).toUpperCase() : "G";
 
   return (
     <header className="header-bar">
       <div className="header-title-group">
-        <h2>ImpactOne Terminal</h2>
-        <p>Live intelligence workspace</p>
+        <h2>{t("header.title")}</h2>
+        <p>{t("header.subtitle")}</p>
       </div>
 
       <div className="header-portfolio-glance">
-        <span className="header-portfolio-glance__value">${Number(portfolioSummary?.totalValue || 0).toLocaleString()}</span>
-        <span className={Number(portfolioSummary?.dailyPnl || 0) >= 0 ? "positive" : "negative"}>
-          {Number(portfolioSummary?.dailyPnl || 0) >= 0 ? "+" : ""}${Number(portfolioSummary?.dailyPnl || 0).toFixed(2)}
+        <span className="header-portfolio-glance__value">{formatCurrency(portfolioSummary?.totalValue || 0)}</span>
+        <span className={dailyPnl >= 0 ? "positive" : "negative"}>
+          {dailyPnl >= 0 ? "+" : ""}{formatCurrency(dailyPnl)}
         </span>
       </div>
 
@@ -101,18 +175,23 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
           <Input
             id="company-search"
             type="text"
-            placeholder="Ask about a ticker, portfolio, or market event"
+            placeholder={t("header.searchPlaceholder")}
             value={query}
-            onChange={(event) => setQuery(event.target.value.toUpperCase())}
+            onChange={(event) => {
+              const raw = event.target.value;
+              setQuery(looksConversational(raw) ? raw : raw.toUpperCase());
+            }}
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setTimeout(() => setIsSearchFocused(false), 150)}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
-                submitTicker(query);
+                submitSearch(query);
               }
             }}
           />
-          <Button type="button" className="search-submit" onClick={() => submitTicker(query)}>Go</Button>
+          <Button type="button" className="search-submit" onClick={() => submitSearch(query)}>{t("header.searchGo")}</Button>
         </label>
-        {suggestions.length ? (
+        {isSearchFocused && !looksConversational(query) && suggestions.length ? (
           <div className="header-autocomplete">
             {suggestions.map((symbol) => (
               <Button key={symbol} type="button" className="header-suggestion" onClick={() => submitTicker(symbol)}>
@@ -121,32 +200,49 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
             ))}
           </div>
         ) : null}
-        <div className="market-pill">Market: Open 🟢</div>
+        {isAnswerLoading || conversationalAnswer || answerError ? (
+          <div className="header-autocomplete header-conversational-answer">
+            {isAnswerLoading ? (
+              <p className="company-description subtle">Thinking…</p>
+            ) : answerError ? (
+              <p className="company-description negative">{answerError}</p>
+            ) : (
+              <>
+                <p className="company-description subtle">"{conversationalAnswer.question}"</p>
+                <p className="company-description">{conversationalAnswer.answer}</p>
+                <Button type="button" className="ghost-button" onClick={() => { setConversationalAnswer(null); setQuery(""); }}>Dismiss</Button>
+              </>
+            )}
+          </div>
+        ) : null}
+        <div className="market-pill">{t("header.marketOpen")} 🟢</div>
 
         <Button
           type="button"
           className="header-icon-button"
           onClick={() => navigateTo("Alerts")}
-          aria-label={`Open alerts${alertCount ? ` (${alertCount} unread)` : ""}`}
+          aria-label={alertCount ? t("header.openAlertsUnread", { count: alertCount }) : t("header.openAlertsLabel")}
         >
           🔔
           {alertCount > 0 ? <span className="header-icon-button__badge">{alertCount}</span> : null}
         </Button>
+
+        <NotificationCenter />
 
         <div className="header-menu">
           <Button
             type="button"
             className="header-icon-button"
             onClick={() => setIsQuickActionsOpen((value) => !value)}
-            aria-label="Quick actions"
+            aria-label={t("header.quickActions")}
           >
             ⚡
           </Button>
           {isQuickActionsOpen ? (
             <div className="header-menu__dropdown">
-              <Button type="button" className="header-menu__item" onClick={() => navigateTo("Dashboard")}>Open Dashboard</Button>
-              <Button type="button" className="header-menu__item" onClick={() => navigateTo("Portfolio")}>Open Portfolio</Button>
-              <Button type="button" className="header-menu__item" onClick={() => navigateTo("Alerts")}>Open Alerts</Button>
+              <Button type="button" className="header-menu__item" onClick={() => navigateTo("Home")}>{t("header.openDashboard")}</Button>
+              <Button type="button" className="header-menu__item" onClick={() => navigateTo("Portfolio")}>{t("header.openPortfolio")}</Button>
+              <Button type="button" className="header-menu__item" onClick={() => navigateTo("Alerts")}>{t("header.openAlerts")}</Button>
             </div>
           ) : null}
         </div>
@@ -156,14 +252,15 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
             type="button"
             className="header-icon-button header-avatar"
             onClick={() => setIsAccountMenuOpen((value) => !value)}
-            aria-label="Account menu"
+            aria-label={t("header.accountMenu")}
+            title={betaUserLabel || t("header.guestWorkspace")}
           >
-            G
+            {accountInitial}
           </Button>
           {isAccountMenuOpen ? (
             <div className="header-menu__dropdown">
-              <div className="header-menu__label">Guest workspace</div>
-              <Button type="button" className="header-menu__item" onClick={() => navigateTo("Settings")}>Settings</Button>
+              <div className="header-menu__label">{betaUserLabel ? `${betaUserLabel} · Private beta` : t("header.guestWorkspace")}</div>
+              <Button type="button" className="header-menu__item" onClick={() => navigateTo("Settings")}>{t("nav.settings")}</Button>
             </div>
           ) : null}
         </div>
