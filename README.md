@@ -1,6 +1,10 @@
 # ImpactOne
 AI-powered global news and market intelligence platform
 
+## Documentation
+
+Use the [documentation portal](docs/README.md) to browse current product, architecture, engineering, design, methodology, operations, and planning documents. Historical audits, sprint records, and release evidence are kept under `docs/archive/`.
+
 ## Quick start (clean clone)
 
 Prerequisites: Node.js 20+, a running Postgres instance.
@@ -33,7 +37,7 @@ npm run dev   # starts backend (:5000) and frontend (:5173) together
 
 Verify the backend booted correctly: `curl http://localhost:5000/health/ready` should return `{"status":"ready",...}`.
 
-See [ENVIRONMENT_SETUP.md](ENVIRONMENT_SETUP.md) for the full environment-variable reference and production process-management guidance, and [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md) for the health/readiness/shutdown contract.
+See [ENVIRONMENT_SETUP.md](docs/operations/ENVIRONMENT_SETUP.md) for the full environment-variable reference and production process-management guidance, and [PRODUCTION_DEPLOYMENT.md](docs/operations/PRODUCTION_DEPLOYMENT.md) for the health/readiness/shutdown contract.
 
 ## Running tests
 
