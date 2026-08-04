@@ -1,0 +1,789 @@
+# Documentation manifest
+
+This manifest records the first-pass documentation classification. Files were archived only when their names clearly identify point-in-time evidence. Remaining root documents require canonical-versus-superseded review before relocation.
+
+## Current root documents
+
+- `README.md` - pending canonical/supporting classification
+
+## Archived in this pass
+
+### audits (149)
+
+- [ADAPTIVE_INTELLIGENCE_AUDIT.md](archive/audits/ADAPTIVE_INTELLIGENCE_AUDIT.md)
+- [ADVANCED_CHART_REVIEW.md](archive/audits/ADVANCED_CHART_REVIEW.md)
+- [AGENT_ORCHESTRATOR_STRESS_AUDIT.md](archive/audits/AGENT_ORCHESTRATOR_STRESS_AUDIT.md)
+- [AI_ANALYSIS_REVIEW.md](archive/audits/AI_ANALYSIS_REVIEW.md)
+- [AI_CORE_001_VERDICT.md](archive/audits/AI_CORE_001_VERDICT.md)
+- [AI_GOVERNANCE_REVIEW.md](archive/audits/AI_GOVERNANCE_REVIEW.md)
+- [AI_LEARNING_REVIEW.md](archive/audits/AI_LEARNING_REVIEW.md)
+- [AI_TRUST_FINAL_REPORT.md](archive/audits/AI_TRUST_FINAL_REPORT.md)
+- [API_IMPACT_REPORT.md](archive/audits/API_IMPACT_REPORT.md)
+- [APPLE_QUALITY_AUDIT.md](archive/audits/APPLE_QUALITY_AUDIT.md)
+- [ARCHITECTURE_CONSISTENCY_AUDIT.md](archive/audits/ARCHITECTURE_CONSISTENCY_AUDIT.md)
+- [BUILD_HEALTH_REPORT.md](archive/audits/BUILD_HEALTH_REPORT.md)
+- [CALIBRATION_REPORT.md](archive/audits/CALIBRATION_REPORT.md)
+- [CALIBRATION_REVIEW.md](archive/audits/CALIBRATION_REVIEW.md)
+- [CANONICAL_DOMAIN_MODEL_AUDIT.md](archive/audits/CANONICAL_DOMAIN_MODEL_AUDIT.md)
+- [CEO_FINAL_PRODUCT_REVIEW.md](archive/audits/CEO_FINAL_PRODUCT_REVIEW.md)
+- [CLAIM_INTELLIGENCE_IMPLEMENTATION_REPORT.md](archive/audits/CLAIM_INTELLIGENCE_IMPLEMENTATION_REPORT.md)
+- [CLAIM_INTELLIGENCE_REVIEW.md](archive/audits/CLAIM_INTELLIGENCE_REVIEW.md)
+- [CLAIM_INTELLIGENCE_RISK_REPORT.md](archive/audits/CLAIM_INTELLIGENCE_RISK_REPORT.md)
+- [CLAIM_INTELLIGENCE_TEST_REPORT.md](archive/audits/CLAIM_INTELLIGENCE_TEST_REPORT.md)
+- [CODE_REVIEW.md](archive/audits/CODE_REVIEW.md)
+- [COMMITTEE_CRITIC_REPORT.md](archive/audits/COMMITTEE_CRITIC_REPORT.md)
+- [COMPANY_STRATEGY_REVIEW.md](archive/audits/COMPANY_STRATEGY_REVIEW.md)
+- [COMPONENT_CERTIFICATION.md](archive/audits/COMPONENT_CERTIFICATION.md)
+- [CONSISTENCY_AUDIT.md](archive/audits/CONSISTENCY_AUDIT.md)
+- [DAILY_USAGE_AUDIT.md](archive/audits/DAILY_USAGE_AUDIT.md)
+- [DATA_BINDING_REPORT.md](archive/audits/DATA_BINDING_REPORT.md)
+- [DATASET_AUDIT.md](archive/audits/DATASET_AUDIT.md)
+- [DATASET_CERTIFICATION.md](archive/audits/DATASET_CERTIFICATION.md)
+- [DATASET_EXIT_REVIEW.md](archive/audits/DATASET_EXIT_REVIEW.md)
+- [DATASET_POPULATION_REPORT.md](archive/audits/DATASET_POPULATION_REPORT.md)
+- [DATASET_READINESS_REPORT.md](archive/audits/DATASET_READINESS_REPORT.md)
+- [DECISION_CENTER_REVIEW.md](archive/audits/DECISION_CENTER_REVIEW.md)
+- [DEDUPLICATION_REPORT.md](archive/audits/DEDUPLICATION_REPORT.md)
+- [DEPENDENCY_AUDIT.md](archive/audits/DEPENDENCY_AUDIT.md)
+- [DEPENDENCY_CERTIFICATION.md](archive/audits/DEPENDENCY_CERTIFICATION.md)
+- [DEPENDENCY_INTEGRITY_REPORT.md](archive/audits/DEPENDENCY_INTEGRITY_REPORT.md)
+- [DEPLOYMENT_EVIDENCE_AUDIT.md](archive/audits/DEPLOYMENT_EVIDENCE_AUDIT.md)
+- [DESIGN_AUDIT.md](archive/audits/DESIGN_AUDIT.md)
+- [DESIGN_BIBLE_REVIEW.md](archive/audits/DESIGN_BIBLE_REVIEW.md)
+- [EXECUTIVE_PRODUCT_REVIEW.md](archive/audits/EXECUTIVE_PRODUCT_REVIEW.md)
+- [EXECUTIVE_TRUST_REPORT.md](archive/audits/EXECUTIVE_TRUST_REPORT.md)
+- [EXECUTIVE_VERDICT.md](archive/audits/EXECUTIVE_VERDICT.md)
+- [EXPLAINABILITY_CRITIC_REPORT.md](archive/audits/EXPLAINABILITY_CRITIC_REPORT.md)
+- [FINAL_CEO_REVIEW.md](archive/audits/FINAL_CEO_REVIEW.md)
+- [FINAL_LIVE_DATA_AUDIT.md](archive/audits/FINAL_LIVE_DATA_AUDIT.md)
+- [FINAL_VISUAL_AUDIT.md](archive/audits/FINAL_VISUAL_AUDIT.md)
+- [FINAL_VISUAL_SIGNOFF.md](archive/audits/FINAL_VISUAL_SIGNOFF.md)
+- [FIRST_TIME_USER_REVIEW.md](archive/audits/FIRST_TIME_USER_REVIEW.md)
+- [FOUNDATION_REVIEW.md](archive/audits/FOUNDATION_REVIEW.md)
+- [FOUNDER_DEPLOYMENT_REPORT.md](archive/audits/FOUNDER_DEPLOYMENT_REPORT.md)
+- [FOUNDER_MODE_REPORT.md](archive/audits/FOUNDER_MODE_REPORT.md)
+- [FOUNDER_WEEK_REVIEW.md](archive/audits/FOUNDER_WEEK_REVIEW.md)
+- [GITHUB_BACKUP_REPORT.md](archive/audits/GITHUB_BACKUP_REPORT.md)
+- [GO_NO_GO_REPORT.md](archive/audits/GO_NO_GO_REPORT.md)
+- [IDENTITY_FLOW_AUDIT.md](archive/audits/IDENTITY_FLOW_AUDIT.md)
+- [IMPACT_GRAPH_REVIEW.md](archive/audits/IMPACT_GRAPH_REVIEW.md)
+- [IMPACT_GRAPH_UX_REVIEW.md](archive/audits/IMPACT_GRAPH_UX_REVIEW.md)
+- [IMPACTONE_CTO_REVIEW.md](archive/audits/IMPACTONE_CTO_REVIEW.md)
+- [IMPACTONE_DIFFERENTIATION_REPORT.md](archive/audits/IMPACTONE_DIFFERENTIATION_REPORT.md)
+- [INTELLIGENCE_PLATFORM_REVIEW.md](archive/audits/INTELLIGENCE_PLATFORM_REVIEW.md)
+- [INTELLIGENCE_QUALITY_AUDIT.md](archive/audits/INTELLIGENCE_QUALITY_AUDIT.md)
+- [INVESTMENT_COMMITTEE_REVIEW.md](archive/audits/INVESTMENT_COMMITTEE_REVIEW.md)
+- [INVESTOR_EXPERIENCE_REVIEW.md](archive/audits/INVESTOR_EXPERIENCE_REVIEW.md)
+- [INVESTOR_SCORECARD.md](archive/audits/INVESTOR_SCORECARD.md)
+- [ISOLATION_REVIEW.md](archive/audits/ISOLATION_REVIEW.md)
+- [LAUNCH_DESIGN_SIGNOFF.md](archive/audits/LAUNCH_DESIGN_SIGNOFF.md)
+- [LEARNING_LOOP_REVIEW.md](archive/audits/LEARNING_LOOP_REVIEW.md)
+- [LIVE_DATA_AUDIT.md](archive/audits/LIVE_DATA_AUDIT.md)
+- [LIVE_DATA_SIGNOFF.md](archive/audits/LIVE_DATA_SIGNOFF.md)
+- [MARKET_POSITIONING_REVIEW.md](archive/audits/MARKET_POSITIONING_REVIEW.md)
+- [MARKET_SENTIMENT_IMPLEMENTATION_REPORT.md](archive/audits/MARKET_SENTIMENT_IMPLEMENTATION_REPORT.md)
+- [MARKET_SENTIMENT_TEST_REPORT.md](archive/audits/MARKET_SENTIMENT_TEST_REPORT.md)
+- [MISSION_CONTROL_DESIGN_REVIEW.md](archive/audits/MISSION_CONTROL_DESIGN_REVIEW.md)
+- [MISSION_CONTROL_FINAL_VERDICT.md](archive/audits/MISSION_CONTROL_FINAL_VERDICT.md)
+- [MISSION_CONTROL_FIX_REVIEW.md](archive/audits/MISSION_CONTROL_FIX_REVIEW.md)
+- [MISSION_CONTROL_IMPLEMENTATION_REVIEW.md](archive/audits/MISSION_CONTROL_IMPLEMENTATION_REVIEW.md)
+- [MISSION_CONTROL_REVIEW.md](archive/audits/MISSION_CONTROL_REVIEW.md)
+- [MOBILE_ACCEPTANCE_SCORECARD.md](archive/audits/MOBILE_ACCEPTANCE_SCORECARD.md)
+- [MOBILE_AUDIT.md](archive/audits/MOBILE_AUDIT.md)
+- [MOBILE_FIXES_REPORT.md](archive/audits/MOBILE_FIXES_REPORT.md)
+- [MOBILE_TRUST_AUDIT.md](archive/audits/MOBILE_TRUST_AUDIT.md)
+- [MODEL_QUALITY_REVIEW.md](archive/audits/MODEL_QUALITY_REVIEW.md)
+- [MVP_COMPLETION_AUDIT.md](archive/audits/MVP_COMPLETION_AUDIT.md)
+- [OBSERVABILITY_AUDIT.md](archive/audits/OBSERVABILITY_AUDIT.md)
+- [OPERATIONAL_DATASET_REPORT.md](archive/audits/OPERATIONAL_DATASET_REPORT.md)
+- [OPERATIONS_REVIEW.md](archive/audits/OPERATIONS_REVIEW.md)
+- [OPTIONS_AGENT_IMPLEMENTATION_REPORT.md](archive/audits/OPTIONS_AGENT_IMPLEMENTATION_REPORT.md)
+- [OPTIONS_AGENT_TEST_REPORT.md](archive/audits/OPTIONS_AGENT_TEST_REPORT.md)
+- [OUTCOME_ENGINE_REVIEW.md](archive/audits/OUTCOME_ENGINE_REVIEW.md)
+- [PERFORMANCE_REVIEW.md](archive/audits/PERFORMANCE_REVIEW.md)
+- [PERSONAL_INTELLIGENCE_REVIEW.md](archive/audits/PERSONAL_INTELLIGENCE_REVIEW.md)
+- [PERSONALIZATION_PRIVACY_REPORT.md](archive/audits/PERSONALIZATION_PRIVACY_REPORT.md)
+- [PERSONALIZATION_PRIVACY_REVIEW.md](archive/audits/PERSONALIZATION_PRIVACY_REVIEW.md)
+- [PERSONALIZATION_REVIEW.md](archive/audits/PERSONALIZATION_REVIEW.md)
+- [PHONE_SIGNOFF.md](archive/audits/PHONE_SIGNOFF.md)
+- [PIXEL_AUDIT.md](archive/audits/PIXEL_AUDIT.md)
+- [PIXEL_PERFECT_REPORT.md](archive/audits/PIXEL_PERFECT_REPORT.md)
+- [PLATFORM_ARCHITECTURE_REVIEW.md](archive/audits/PLATFORM_ARCHITECTURE_REVIEW.md)
+- [PLATFORM_DUPLICATION_AUDIT.md](archive/audits/PLATFORM_DUPLICATION_AUDIT.md)
+- [PLATFORM_REVIEW.md](archive/audits/PLATFORM_REVIEW.md)
+- [PLATFORM_SCALABILITY_REPORT.md](archive/audits/PLATFORM_SCALABILITY_REPORT.md)
+- [PMF_SCORECARD.md](archive/audits/PMF_SCORECARD.md)
+- [PORTFOLIO_WORKSPACE_REVIEW.md](archive/audits/PORTFOLIO_WORKSPACE_REVIEW.md)
+- [PRODUCT_001_IMPLEMENTATION_REPORT.md](archive/audits/PRODUCT_001_IMPLEMENTATION_REPORT.md)
+- [PRODUCT_ANALYTICS_REVIEW.md](archive/audits/PRODUCT_ANALYTICS_REVIEW.md)
+- [PRODUCT_ARCHITECTURE_AUDIT.md](archive/audits/PRODUCT_ARCHITECTURE_AUDIT.md)
+- [PRODUCT_AUDIT.md](archive/audits/PRODUCT_AUDIT.md)
+- [PRODUCT_CONSISTENCY_AUDIT.md](archive/audits/PRODUCT_CONSISTENCY_AUDIT.md)
+- [PRODUCT_CONSISTENCY_REPORT.md](archive/audits/PRODUCT_CONSISTENCY_REPORT.md)
+- [PRODUCT_CRITIC_REPORT.md](archive/audits/PRODUCT_CRITIC_REPORT.md)
+- [PRODUCT_IDENTITY_REVIEW.md](archive/audits/PRODUCT_IDENTITY_REVIEW.md)
+- [PRODUCT_REALITY_REPORT.md](archive/audits/PRODUCT_REALITY_REPORT.md)
+- [PRODUCTION_DEPLOYMENT_REPORT.md](archive/audits/PRODUCTION_DEPLOYMENT_REPORT.md)
+- [PRODUCTION_READINESS_REPORT.md](archive/audits/PRODUCTION_READINESS_REPORT.md)
+- [PRODUCTION_READINESS_REVIEW.md](archive/audits/PRODUCTION_READINESS_REVIEW.md)
+- [PWA_DEPLOYMENT_REPORT.md](archive/audits/PWA_DEPLOYMENT_REPORT.md)
+- [READY_OBSERVATION_REPORT.md](archive/audits/READY_OBSERVATION_REPORT.md)
+- [REGRESSION_AUDIT.md](archive/audits/REGRESSION_AUDIT.md)
+- [RELEASE_BLOCKER_REPORT.md](archive/audits/RELEASE_BLOCKER_REPORT.md)
+- [RELEASE_CANDIDATE_AUDIT.md](archive/audits/RELEASE_CANDIDATE_AUDIT.md)
+- [RELEASE_CERTIFICATION.md](archive/audits/RELEASE_CERTIFICATION.md)
+- [RELEASE_CERTIFICATION_REVIEW.md](archive/audits/RELEASE_CERTIFICATION_REVIEW.md)
+- [REMOTE_BACKUP_AUDIT.md](archive/audits/REMOTE_BACKUP_AUDIT.md)
+- [REMOTE_INTEGRITY_REPORT.md](archive/audits/REMOTE_INTEGRITY_REPORT.md)
+- [SCALABILITY_REPORT.md](archive/audits/SCALABILITY_REPORT.md)
+- [SECRET_SCANNING_REPORT.md](archive/audits/SECRET_SCANNING_REPORT.md)
+- [SECURITY_INCIDENT_REPORT.md](archive/audits/SECURITY_INCIDENT_REPORT.md)
+- [SHIP_READY_REPORT.md](archive/audits/SHIP_READY_REPORT.md)
+- [SHOWCASE_REVIEW.md](archive/audits/SHOWCASE_REVIEW.md)
+- [SKEPTIC_REVIEW.md](archive/audits/SKEPTIC_REVIEW.md)
+- [SOURCE_INTELLIGENCE_CRITIC_REPORT.md](archive/audits/SOURCE_INTELLIGENCE_CRITIC_REPORT.md)
+- [SYSTEM_HEALTH_REVIEW.md](archive/audits/SYSTEM_HEALTH_REVIEW.md)
+- [TECHNICAL_DEBT_REPORT.md](archive/audits/TECHNICAL_DEBT_REPORT.md)
+- [THEME_REVIEW.md](archive/audits/THEME_REVIEW.md)
+- [TOKEN_MIGRATION_REPORT.md](archive/audits/TOKEN_MIGRATION_REPORT.md)
+- [TOKEN_REVIEW.md](archive/audits/TOKEN_REVIEW.md)
+- [TRUST_INTEGRITY_REPORT.md](archive/audits/TRUST_INTEGRITY_REPORT.md)
+- [TRUST_VERIFICATION_REPORT.md](archive/audits/TRUST_VERIFICATION_REPORT.md)
+- [UI_DEBT_REPORT.md](archive/audits/UI_DEBT_REPORT.md)
+- [UI_INTEGRATION_IMPLEMENTATION_REPORT.md](archive/audits/UI_INTEGRATION_IMPLEMENTATION_REPORT.md)
+- [UX_CONSISTENCY_REVIEW.md](archive/audits/UX_CONSISTENCY_REVIEW.md)
+- [UX_REDESIGN_AUDIT.md](archive/audits/UX_REDESIGN_AUDIT.md)
+- [VISUAL_AUDIT.md](archive/audits/VISUAL_AUDIT.md)
+- [VISUAL_CONSISTENCY_REPORT.md](archive/audits/VISUAL_CONSISTENCY_REPORT.md)
+- [VISUAL_IDENTITY_REVIEW.md](archive/audits/VISUAL_IDENTITY_REVIEW.md)
+- [WATCHLIST_REVIEW.md](archive/audits/WATCHLIST_REVIEW.md)
+- [WORKSPACE_V2_REVIEW.md](archive/audits/WORKSPACE_V2_REVIEW.md)
+- [WORLD_CLASS_SCORECARD.md](archive/audits/WORLD_CLASS_SCORECARD.md)
+
+### releases (39)
+
+- [BETA_ACCEPTANCE_REVIEW.md](archive/releases/BETA_ACCEPTANCE_REVIEW.md)
+- [BETA_EXECUTION_PLAN.md](archive/releases/BETA_EXECUTION_PLAN.md)
+- [BETA_FEEDBACK_ANALYSIS.md](archive/releases/BETA_FEEDBACK_ANALYSIS.md)
+- [BETA_IDENTITY_FLOW.md](archive/releases/BETA_IDENTITY_FLOW.md)
+- [BETA_ISOLATION_VERIFICATION.md](archive/releases/BETA_ISOLATION_VERIFICATION.md)
+- [BETA_METRICS.md](archive/releases/BETA_METRICS.md)
+- [BETA_OPERATIONS_PLAN.md](archive/releases/BETA_OPERATIONS_PLAN.md)
+- [BETA_POLISH_REPORT.md](archive/releases/BETA_POLISH_REPORT.md)
+- [BETA_READINESS_AUDIT.md](archive/releases/BETA_READINESS_AUDIT.md)
+- [BETA_READINESS_SCORE.md](archive/releases/BETA_READINESS_SCORE.md)
+- [BETA_RELEASE_DECISION.md](archive/releases/BETA_RELEASE_DECISION.md)
+- [BETA_RISK_REVIEW.md](archive/releases/BETA_RISK_REVIEW.md)
+- [BETA_SUCCESS_METRICS.md](archive/releases/BETA_SUCCESS_METRICS.md)
+- [BETA_SUCCESS_REVIEW.md](archive/releases/BETA_SUCCESS_REVIEW.md)
+- [BETA_TRUST_REPORT.md](archive/releases/BETA_TRUST_REPORT.md)
+- [BETA_USER_ISOLATION_PLAN.md](archive/releases/BETA_USER_ISOLATION_PLAN.md)
+- [BETA_UX_AUDIT.md](archive/releases/BETA_UX_AUDIT.md)
+- [CLOSED_BETA_PLAN.md](archive/releases/CLOSED_BETA_PLAN.md)
+- [FINAL_BETA_GATE.md](archive/releases/FINAL_BETA_GATE.md)
+- [PRIVATE_BETA_CERTIFICATION.md](archive/releases/PRIVATE_BETA_CERTIFICATION.md)
+- [PRIVATE_BETA_GO_LIVE_CHECKLIST.md](archive/releases/PRIVATE_BETA_GO_LIVE_CHECKLIST.md)
+- [PRIVATE_BETA_LEARNING_PLAN.md](archive/releases/PRIVATE_BETA_LEARNING_PLAN.md)
+- [PRIVATE_BETA_OPERATIONS.md](archive/releases/PRIVATE_BETA_OPERATIONS.md)
+- [PRIVATE_BETA_PLAYBOOK.md](archive/releases/PRIVATE_BETA_PLAYBOOK.md)
+- [PRIVATE_BETA_POLISH.md](archive/releases/PRIVATE_BETA_POLISH.md)
+- [PRIVATE_BETA_READINESS.md](archive/releases/PRIVATE_BETA_READINESS.md)
+- [PRIVATE_BETA_RELEASE_NOTES.md](archive/releases/PRIVATE_BETA_RELEASE_NOTES.md)
+- [PRIVATE_BETA_REVIEW.md](archive/releases/PRIVATE_BETA_REVIEW.md)
+- [RC1_AUDIT.md](archive/releases/RC1_AUDIT.md)
+- [RC1_BLOCKER_REPORT.md](archive/releases/RC1_BLOCKER_REPORT.md)
+- [RC1_CHECKLIST.md](archive/releases/RC1_CHECKLIST.md)
+- [RC1_COMPLETION_REPORT.md](archive/releases/RC1_COMPLETION_REPORT.md)
+- [RC1_EVIDENCE_MATRIX.md](archive/releases/RC1_EVIDENCE_MATRIX.md)
+- [RC1_FINAL_DECISION.md](archive/releases/RC1_FINAL_DECISION.md)
+- [RC1_INDEPENDENT_AUDIT.md](archive/releases/RC1_INDEPENDENT_AUDIT.md)
+- [RC1_TECHNICAL_SIGNOFF.md](archive/releases/RC1_TECHNICAL_SIGNOFF.md)
+- [RC1_UI_SIGNOFF.md](archive/releases/RC1_UI_SIGNOFF.md)
+- [RC2_RELEASE_REPORT.md](archive/releases/RC2_RELEASE_REPORT.md)
+- [RC2_STABILIZATION_REPORT.md](archive/releases/RC2_STABILIZATION_REPORT.md)
+
+### sprints (100)
+
+- [H2_COMPLETION_REPORT.md](archive/sprints/H2_COMPLETION_REPORT.md)
+- [H3_COMPLETION_REPORT.md](archive/sprints/H3_COMPLETION_REPORT.md)
+- [H3_UX_REVIEW.md](archive/sprints/H3_UX_REVIEW.md)
+- [H3_VERDICT.md](archive/sprints/H3_VERDICT.md)
+- [PHASE_C_AUDIT.md](archive/sprints/PHASE_C_AUDIT.md)
+- [PHASE_C_REVIEW.md](archive/sprints/PHASE_C_REVIEW.md)
+- [PHASE_D_REVIEW.md](archive/sprints/PHASE_D_REVIEW.md)
+- [PHASE_D_ROADMAP.md](archive/sprints/PHASE_D_ROADMAP.md)
+- [PHASE_E1_REPORT.md](archive/sprints/PHASE_E1_REPORT.md)
+- [PHASE_E2_REPORT.md](archive/sprints/PHASE_E2_REPORT.md)
+- [PHASE_E3_5_REPORT.md](archive/sprints/PHASE_E3_5_REPORT.md)
+- [PHASE_E3_REPORT.md](archive/sprints/PHASE_E3_REPORT.md)
+- [PHASE_H1_REPORT.md](archive/sprints/PHASE_H1_REPORT.md)
+- [PHASE1_CERTIFICATION.md](archive/sprints/PHASE1_CERTIFICATION.md)
+- [PHASE1_SCORECARD.md](archive/sprints/PHASE1_SCORECARD.md)
+- [PHASE2_RECOMMENDATIONS.md](archive/sprints/PHASE2_RECOMMENDATIONS.md)
+- [SPRINT_18A_AUDIT.md](archive/sprints/SPRINT_18A_AUDIT.md)
+- [SPRINT_18B_RIE_IMPLEMENTATION_PLAN.md](archive/sprints/SPRINT_18B_RIE_IMPLEMENTATION_PLAN.md)
+- [SPRINT_20_PRODUCT_REVIEW.md](archive/sprints/SPRINT_20_PRODUCT_REVIEW.md)
+- [SPRINT_20_RELEASE_NOTES.md](archive/sprints/SPRINT_20_RELEASE_NOTES.md)
+- [SPRINT_20_SUMMARY.md](archive/sprints/SPRINT_20_SUMMARY.md)
+- [SPRINT_24_REPORT.md](archive/sprints/SPRINT_24_REPORT.md)
+- [SPRINT_25_REPORT.md](archive/sprints/SPRINT_25_REPORT.md)
+- [SPRINT_26_REPORT.md](archive/sprints/SPRINT_26_REPORT.md)
+- [SPRINT_27_REPORT.md](archive/sprints/SPRINT_27_REPORT.md)
+- [SPRINT_28_REPORT.md](archive/sprints/SPRINT_28_REPORT.md)
+- [SPRINT_29_REPORT.md](archive/sprints/SPRINT_29_REPORT.md)
+- [SPRINT_30_EXECUTIVE_MEMO.md](archive/sprints/SPRINT_30_EXECUTIVE_MEMO.md)
+- [SPRINT_30_REPORT.md](archive/sprints/SPRINT_30_REPORT.md)
+- [SPRINT_31_EXECUTIVE_MEMO.md](archive/sprints/SPRINT_31_EXECUTIVE_MEMO.md)
+- [SPRINT_31_REPORT.md](archive/sprints/SPRINT_31_REPORT.md)
+- [SPRINT_32_REPORT.md](archive/sprints/SPRINT_32_REPORT.md)
+- [SPRINT_33_MOBILE_EXECUTIVE_GATE.md](archive/sprints/SPRINT_33_MOBILE_EXECUTIVE_GATE.md)
+- [SPRINT_33_REPORT.md](archive/sprints/SPRINT_33_REPORT.md)
+- [SPRINT_34_EXECUTIVE_VERDICT.md](archive/sprints/SPRINT_34_EXECUTIVE_VERDICT.md)
+- [SPRINT_34_REPORT.md](archive/sprints/SPRINT_34_REPORT.md)
+- [SPRINT_35_EXECUTIVE_MEMO.md](archive/sprints/SPRINT_35_EXECUTIVE_MEMO.md)
+- [SPRINT_35_REPORT.md](archive/sprints/SPRINT_35_REPORT.md)
+- [SPRINT_36_REPORT.md](archive/sprints/SPRINT_36_REPORT.md)
+- [SPRINT_36_VERDICT.md](archive/sprints/SPRINT_36_VERDICT.md)
+- [SPRINT_37_REPORT.md](archive/sprints/SPRINT_37_REPORT.md)
+- [SPRINT_37_VERDICT.md](archive/sprints/SPRINT_37_VERDICT.md)
+- [SPRINT_38_REPORT.md](archive/sprints/SPRINT_38_REPORT.md)
+- [SPRINT_38_VERDICT.md](archive/sprints/SPRINT_38_VERDICT.md)
+- [SPRINT_39_REPORT.md](archive/sprints/SPRINT_39_REPORT.md)
+- [SPRINT_39_VERDICT.md](archive/sprints/SPRINT_39_VERDICT.md)
+- [SPRINT_40_REPORT.md](archive/sprints/SPRINT_40_REPORT.md)
+- [SPRINT_40_VERDICT.md](archive/sprints/SPRINT_40_VERDICT.md)
+- [SPRINT_41_REPORT.md](archive/sprints/SPRINT_41_REPORT.md)
+- [SPRINT_41_VERDICT.md](archive/sprints/SPRINT_41_VERDICT.md)
+- [SPRINT_42_REPORT.md](archive/sprints/SPRINT_42_REPORT.md)
+- [SPRINT_42_VERDICT.md](archive/sprints/SPRINT_42_VERDICT.md)
+- [SPRINT_43_REPORT.md](archive/sprints/SPRINT_43_REPORT.md)
+- [SPRINT_43_VERDICT.md](archive/sprints/SPRINT_43_VERDICT.md)
+- [SPRINT_D1_5_REPORT.md](archive/sprints/SPRINT_D1_5_REPORT.md)
+- [SPRINT_D1_5_VERDICT.md](archive/sprints/SPRINT_D1_5_VERDICT.md)
+- [SPRINT_D1_6_REPORT.md](archive/sprints/SPRINT_D1_6_REPORT.md)
+- [SPRINT_D1_7_REPORT.md](archive/sprints/SPRINT_D1_7_REPORT.md)
+- [SPRINT_D1_8_REPORT.md](archive/sprints/SPRINT_D1_8_REPORT.md)
+- [SPRINT_D1_REPORT.md](archive/sprints/SPRINT_D1_REPORT.md)
+- [SPRINT_D1_VERDICT.md](archive/sprints/SPRINT_D1_VERDICT.md)
+- [SPRINT17_MASTER_PLAN.md](archive/sprints/SPRINT17_MASTER_PLAN.md)
+- [X10_COMPLETION_REPORT.md](archive/sprints/X10_COMPLETION_REPORT.md)
+- [X10_VERDICT.md](archive/sprints/X10_VERDICT.md)
+- [X11_COMPLETION_REPORT.md](archive/sprints/X11_COMPLETION_REPORT.md)
+- [X11_LEARNING_LOOP_VERDICT.md](archive/sprints/X11_LEARNING_LOOP_VERDICT.md)
+- [X11_VERDICT.md](archive/sprints/X11_VERDICT.md)
+- [X12A_VERDICT.md](archive/sprints/X12A_VERDICT.md)
+- [X12B_COMPLETION_REPORT.md](archive/sprints/X12B_COMPLETION_REPORT.md)
+- [X12B_VERDICT.md](archive/sprints/X12B_VERDICT.md)
+- [X12C0_COMPLETION_REPORT.md](archive/sprints/X12C0_COMPLETION_REPORT.md)
+- [X12C0_FINAL_CERTIFICATION.md](archive/sprints/X12C0_FINAL_CERTIFICATION.md)
+- [X12C0_FINAL_FIX_REPORT.md](archive/sprints/X12C0_FINAL_FIX_REPORT.md)
+- [X12C0_POLISH_REPORT.md](archive/sprints/X12C0_POLISH_REPORT.md)
+- [X12C0_VERDICT.md](archive/sprints/X12C0_VERDICT.md)
+- [X12C1_COMPLETION_REPORT.md](archive/sprints/X12C1_COMPLETION_REPORT.md)
+- [X12C1_VERDICT.md](archive/sprints/X12C1_VERDICT.md)
+- [X12C11_COMPLETION_REPORT.md](archive/sprints/X12C11_COMPLETION_REPORT.md)
+- [X12C11_VERDICT.md](archive/sprints/X12C11_VERDICT.md)
+- [X12C2_COMPLETION_REPORT.md](archive/sprints/X12C2_COMPLETION_REPORT.md)
+- [X12C3_COMPLETION_REPORT.md](archive/sprints/X12C3_COMPLETION_REPORT.md)
+- [X12C3_VERDICT.md](archive/sprints/X12C3_VERDICT.md)
+- [X12C31_COMPLETION_REPORT.md](archive/sprints/X12C31_COMPLETION_REPORT.md)
+- [X2_COMPLETION_REPORT.md](archive/sprints/X2_COMPLETION_REPORT.md)
+- [X2_VERDICT.md](archive/sprints/X2_VERDICT.md)
+- [X3_COMPLETION_REPORT.md](archive/sprints/X3_COMPLETION_REPORT.md)
+- [X3_VERDICT.md](archive/sprints/X3_VERDICT.md)
+- [X4_COMPLETION_REPORT.md](archive/sprints/X4_COMPLETION_REPORT.md)
+- [X4_VERDICT.md](archive/sprints/X4_VERDICT.md)
+- [X5_COMPLETION_REPORT.md](archive/sprints/X5_COMPLETION_REPORT.md)
+- [X5_VERDICT.md](archive/sprints/X5_VERDICT.md)
+- [X6_VERDICT.md](archive/sprints/X6_VERDICT.md)
+- [X7_COMPLETION_REPORT.md](archive/sprints/X7_COMPLETION_REPORT.md)
+- [X7_RC_REPORT.md](archive/sprints/X7_RC_REPORT.md)
+- [X7_RC_VERDICT.md](archive/sprints/X7_RC_VERDICT.md)
+- [X7_VERDICT.md](archive/sprints/X7_VERDICT.md)
+- [X8_COMPLETION_REPORT.md](archive/sprints/X8_COMPLETION_REPORT.md)
+- [X8_VERDICT.md](archive/sprints/X8_VERDICT.md)
+- [X9_COMPLETION_REPORT.md](archive/sprints/X9_COMPLETION_REPORT.md)
+- [X9_VERDICT.md](archive/sprints/X9_VERDICT.md)
+
+## Active subject categories
+
+### architecture (46)
+
+- [ADVANCED_CHART_ARCHITECTURE.md](architecture/ADVANCED_CHART_ARCHITECTURE.md) - pending canonical/supporting review
+- [AGENT_PLATFORM_ARCHITECTURE.md](architecture/AGENT_PLATFORM_ARCHITECTURE.md) - pending canonical/supporting review
+- [ANALYTICS_SCHEMA.md](architecture/ANALYTICS_SCHEMA.md) - pending canonical/supporting review
+- [ARCHITECTURE.md](architecture/ARCHITECTURE.md) - pending canonical/supporting review
+- [ATTENTION_ENGINE_SPEC.md](architecture/ATTENTION_ENGINE_SPEC.md) - pending canonical/supporting review
+- [CANONICAL_DOMAIN_MODEL.md](architecture/CANONICAL_DOMAIN_MODEL.md) - pending canonical/supporting review
+- [CLAIM_CONTRACT.md](architecture/CLAIM_CONTRACT.md) - pending canonical/supporting review
+- [CLAIM_DATA_MODEL.md](architecture/CLAIM_DATA_MODEL.md) - pending canonical/supporting review
+- [CLAIM_INTELLIGENCE_ARCHITECTURE.md](architecture/CLAIM_INTELLIGENCE_ARCHITECTURE.md) - pending canonical/supporting review
+- [ENGINEERING_FOUNDATION_ROADMAP.md](architecture/ENGINEERING_FOUNDATION_ROADMAP.md) - pending canonical/supporting review
+- [EXPLAINABILITY_ENGINE.md](architecture/EXPLAINABILITY_ENGINE.md) - pending canonical/supporting review
+- [FIVE_YEAR_ARCHITECTURE_ROADMAP.md](architecture/FIVE_YEAR_ARCHITECTURE_ROADMAP.md) - pending canonical/supporting review
+- [IMPACTONE_3D_ARCHITECTURE.md](architecture/IMPACTONE_3D_ARCHITECTURE.md) - pending canonical/supporting review
+- [INTELLIGENCE_BUS_ARCHITECTURE.md](architecture/INTELLIGENCE_BUS_ARCHITECTURE.md) - pending canonical/supporting review
+- [INTELLIGENCE_EVENT_SCHEMA.md](architecture/INTELLIGENCE_EVENT_SCHEMA.md) - pending canonical/supporting review
+- [INTELLIGENCE_PLATFORM_BLUEPRINT.md](architecture/INTELLIGENCE_PLATFORM_BLUEPRINT.md) - pending canonical/supporting review
+- [KNOWLEDGE_GRAPH_ARCHITECTURE.md](architecture/KNOWLEDGE_GRAPH_ARCHITECTURE.md) - pending canonical/supporting review
+- [LEARNING_ARCHITECTURE.md](architecture/LEARNING_ARCHITECTURE.md) - pending canonical/supporting review
+- [LEARNING_DATA_CONTRACT.md](architecture/LEARNING_DATA_CONTRACT.md) - pending canonical/supporting review
+- [LEARNING_ENGINE.md](architecture/LEARNING_ENGINE.md) - pending canonical/supporting review
+- [MARKET_INTELLIGENCE_ENGINE.md](architecture/MARKET_INTELLIGENCE_ENGINE.md) - pending canonical/supporting review
+- [MARKET_SENTIMENT_DATA_MODEL.md](architecture/MARKET_SENTIMENT_DATA_MODEL.md) - pending canonical/supporting review
+- [MARKET_SENTIMENT_ENGINE.md](architecture/MARKET_SENTIMENT_ENGINE.md) - pending canonical/supporting review
+- [NEXT_GEN_ARCHITECTURE.md](architecture/NEXT_GEN_ARCHITECTURE.md) - pending canonical/supporting review
+- [OPTIONS_AGENT_ARCHITECTURE.md](architecture/OPTIONS_AGENT_ARCHITECTURE.md) - pending canonical/supporting review
+- [OPTIONS_AGENT_DATA_MODEL.md](architecture/OPTIONS_AGENT_DATA_MODEL.md) - pending canonical/supporting review
+- [OUTCOME_INTELLIGENCE_ENGINE.md](architecture/OUTCOME_INTELLIGENCE_ENGINE.md) - pending canonical/supporting review
+- [PERSONALIZATION_ARCHITECTURE.md](architecture/PERSONALIZATION_ARCHITECTURE.md) - pending canonical/supporting review
+- [PERSONALIZATION_ENGINE.md](architecture/PERSONALIZATION_ENGINE.md) - pending canonical/supporting review
+- [PLATFORM_CAPABILITY_ARCHITECTURE.md](architecture/PLATFORM_CAPABILITY_ARCHITECTURE.md) - pending canonical/supporting review
+- [PLATFORM_HARDENING.md](architecture/PLATFORM_HARDENING.md) - pending canonical/supporting review
+- [PLATFORM_HARDENING_2.md](architecture/PLATFORM_HARDENING_2.md) - pending canonical/supporting review
+- [PLATFORM_INTEGRATION.md](architecture/PLATFORM_INTEGRATION.md) - pending canonical/supporting review
+- [PLATFORM_INTELLIGENCE.md](architecture/PLATFORM_INTELLIGENCE.md) - pending canonical/supporting review
+- [PLATFORM_STANDARDIZATION_PLAN.md](architecture/PLATFORM_STANDARDIZATION_PLAN.md) - pending canonical/supporting review
+- [PLATFORM_TECH_DEBT.md](architecture/PLATFORM_TECH_DEBT.md) - pending canonical/supporting review
+- [POST_MVP_ARCHITECTURE.md](architecture/POST_MVP_ARCHITECTURE.md) - pending canonical/supporting review
+- [PRODUCT_EXPERIENCE_ARCHITECTURE.md](architecture/PRODUCT_EXPERIENCE_ARCHITECTURE.md) - pending canonical/supporting review
+- [RESEARCH_INTELLIGENCE_ENGINE_DESIGN.md](architecture/RESEARCH_INTELLIGENCE_ENGINE_DESIGN.md) - pending canonical/supporting review
+- [SCENARIO_ENGINE_ARCHITECTURE.md](architecture/SCENARIO_ENGINE_ARCHITECTURE.md) - pending canonical/supporting review
+- [SCENARIO_ENGINE_DATA_MODEL.md](architecture/SCENARIO_ENGINE_DATA_MODEL.md) - pending canonical/supporting review
+- [THEME_ENGINE.md](architecture/THEME_ENGINE.md) - pending canonical/supporting review
+- [UI_INTEGRATION_ARCHITECTURE.md](architecture/UI_INTEGRATION_ARCHITECTURE.md) - pending canonical/supporting review
+- [UNIFIED_CONFIDENCE_ARCHITECTURE.md](architecture/UNIFIED_CONFIDENCE_ARCHITECTURE.md) - pending canonical/supporting review
+- [VISUALIZATION_ARCHITECTURE.md](architecture/VISUALIZATION_ARCHITECTURE.md) - pending canonical/supporting review
+- [WORLD_STATE_ENGINE.md](architecture/WORLD_STATE_ENGINE.md) - pending canonical/supporting review
+
+### design (71)
+
+- [3D_COMPONENT_MAP.md](design/3D_COMPONENT_MAP.md) - pending canonical/supporting review
+- [3D_EXPERIENCE_GUIDELINES.md](design/3D_EXPERIENCE_GUIDELINES.md) - pending canonical/supporting review
+- [BRAND_VISUAL_RULES.md](design/BRAND_VISUAL_RULES.md) - pending canonical/supporting review
+- [CAMERA_STORYBOARD.md](design/CAMERA_STORYBOARD.md) - pending canonical/supporting review
+- [CAMERA_SYSTEM.md](design/CAMERA_SYSTEM.md) - pending canonical/supporting review
+- [CINEMATIC_GUIDELINES.md](design/CINEMATIC_GUIDELINES.md) - pending canonical/supporting review
+- [CINEMATIC_POLISH_3.md](design/CINEMATIC_POLISH_3.md) - pending canonical/supporting review
+- [CINEMATIC_WORLD.md](design/CINEMATIC_WORLD.md) - pending canonical/supporting review
+- [COLOR_GRADING.md](design/COLOR_GRADING.md) - pending canonical/supporting review
+- [DATA_VISUAL_DICTIONARY.md](design/DATA_VISUAL_DICTIONARY.md) - pending canonical/supporting review
+- [DATA_VISUALIZATION.md](design/DATA_VISUALIZATION.md) - pending canonical/supporting review
+- [DESIGN_EVOLUTION.md](design/DESIGN_EVOLUTION.md) - pending canonical/supporting review
+- [DESIGN_LANGUAGE.md](design/DESIGN_LANGUAGE.md) - pending canonical/supporting review
+- [DESIGN_LANGUAGE_SCORE.md](design/DESIGN_LANGUAGE_SCORE.md) - pending canonical/supporting review
+- [DESIGN_PERFECTION.md](design/DESIGN_PERFECTION.md) - pending canonical/supporting review
+- [DESIGN_SYSTEM.md](design/DESIGN_SYSTEM.md) - pending canonical/supporting review
+- [DESIGN_SYSTEM_V2.md](design/DESIGN_SYSTEM_V2.md) - pending canonical/supporting review
+- [DESIGN_TOKENS.md](design/DESIGN_TOKENS.md) - pending canonical/supporting review
+- [EMOTIONAL_DESIGN.md](design/EMOTIONAL_DESIGN.md) - pending canonical/supporting review
+- [EMOTIONAL_LANGUAGE.md](design/EMOTIONAL_LANGUAGE.md) - pending canonical/supporting review
+- [FLAGSHIP_COMPONENT_SPEC.md](design/FLAGSHIP_COMPONENT_SPEC.md) - pending canonical/supporting review
+- [FLAGSHIP_EXPERIENCE.md](design/FLAGSHIP_EXPERIENCE.md) - pending canonical/supporting review
+- [FLAGSHIP_IMPLEMENTATION.md](design/FLAGSHIP_IMPLEMENTATION.md) - pending canonical/supporting review
+- [FLAGSHIP_LAYOUT.md](design/FLAGSHIP_LAYOUT.md) - pending canonical/supporting review
+- [FLAGSHIP_POLISH.md](design/FLAGSHIP_POLISH.md) - pending canonical/supporting review
+- [FLAGSHIP_SCREEN.md](design/FLAGSHIP_SCREEN.md) - pending canonical/supporting review
+- [FLAGSHIP_STYLE_GUIDE.md](design/FLAGSHIP_STYLE_GUIDE.md) - pending canonical/supporting review
+- [FLAGSHIP_VISUAL.md](design/FLAGSHIP_VISUAL.md) - pending canonical/supporting review
+- [FUTURISTIC_DESIGN_SYSTEM.md](design/FUTURISTIC_DESIGN_SYSTEM.md) - pending canonical/supporting review
+- [HOLLYWOOD_VISUALS.md](design/HOLLYWOOD_VISUALS.md) - pending canonical/supporting review
+- [IMPACTONE_DESIGN_BIBLE.md](design/IMPACTONE_DESIGN_BIBLE.md) - pending canonical/supporting review
+- [IMPACTONE_DESIGN_SYSTEM.md](design/IMPACTONE_DESIGN_SYSTEM.md) - pending canonical/supporting review
+- [INTELLIGENCE_VISUAL_LANGUAGE.md](design/INTELLIGENCE_VISUAL_LANGUAGE.md) - pending canonical/supporting review
+- [LAST_VISUAL_FIXES.md](design/LAST_VISUAL_FIXES.md) - pending canonical/supporting review
+- [LAYOUT_FOUNDATION.md](design/LAYOUT_FOUNDATION.md) - pending canonical/supporting review
+- [MOBILE_LAYOUT_RULES.md](design/MOBILE_LAYOUT_RULES.md) - pending canonical/supporting review
+- [MOTION_FOUNDATION.md](design/MOTION_FOUNDATION.md) - pending canonical/supporting review
+- [MOTION_SYSTEM.md](design/MOTION_SYSTEM.md) - pending canonical/supporting review
+- [NOVA_DESIGN_BIBLE.md](design/NOVA_DESIGN_BIBLE.md) - pending canonical/supporting review
+- [NOVA_FOUNDATION.md](design/NOVA_FOUNDATION.md) - pending canonical/supporting review
+- [NOVA_MIGRATION.md](design/NOVA_MIGRATION.md) - pending canonical/supporting review
+- [NOVA_SHOWCASE.md](design/NOVA_SHOWCASE.md) - pending canonical/supporting review
+- [PIXEL_PERFECT_CHECKLIST.md](design/PIXEL_PERFECT_CHECKLIST.md) - pending canonical/supporting review
+- [PIXEL_POLISH.md](design/PIXEL_POLISH.md) - pending canonical/supporting review
+- [REAL_WORLD_USAGE.md](design/REAL_WORLD_USAGE.md) - pending canonical/supporting review
+- [SPATIAL_COMPOSITION.md](design/SPATIAL_COMPOSITION.md) - pending canonical/supporting review
+- [SPATIAL_INTERACTION_GUIDE.md](design/SPATIAL_INTERACTION_GUIDE.md) - pending canonical/supporting review
+- [TYPOGRAPHY_SYSTEM.md](design/TYPOGRAPHY_SYSTEM.md) - pending canonical/supporting review
+- [UI_COMPONENT_LIBRARY.md](design/UI_COMPONENT_LIBRARY.md) - pending canonical/supporting review
+- [UI_DATA_FLOW.md](design/UI_DATA_FLOW.md) - pending canonical/supporting review
+- [UI_INCONSISTENCIES.md](design/UI_INCONSISTENCIES.md) - pending canonical/supporting review
+- [UI_STANDARDIZATION.md](design/UI_STANDARDIZATION.md) - pending canonical/supporting review
+- [UX_FRICTION_LOG.md](design/UX_FRICTION_LOG.md) - pending canonical/supporting review
+- [UX_RECOMMENDATIONS.md](design/UX_RECOMMENDATIONS.md) - pending canonical/supporting review
+- [VISUAL_CONSISTENCY.md](design/VISUAL_CONSISTENCY.md) - pending canonical/supporting review
+- [VISUAL_DEFECTS.md](design/VISUAL_DEFECTS.md) - pending canonical/supporting review
+- [VISUAL_FIX_LOG.md](design/VISUAL_FIX_LOG.md) - pending canonical/supporting review
+- [VISUAL_HIERARCHY.md](design/VISUAL_HIERARCHY.md) - pending canonical/supporting review
+- [VISUAL_LANGUAGE.md](design/VISUAL_LANGUAGE.md) - pending canonical/supporting review
+- [VISUAL_OPTIMIZATION.md](design/VISUAL_OPTIMIZATION.md) - pending canonical/supporting review
+- [VISUAL_QA.md](design/VISUAL_QA.md) - pending canonical/supporting review
+- [VISUAL_SEMANTICS.md](design/VISUAL_SEMANTICS.md) - pending canonical/supporting review
+- [VISUAL_UNIFICATION.md](design/VISUAL_UNIFICATION.md) - pending canonical/supporting review
+- [WORLD_CLASS_FINISH.md](design/WORLD_CLASS_FINISH.md) - pending canonical/supporting review
+- [WORLD_CLASS_GAP_ANALYSIS.md](design/WORLD_CLASS_GAP_ANALYSIS.md) - pending canonical/supporting review
+- [WORLD_CLASS_UI.md](design/WORLD_CLASS_UI.md) - pending canonical/supporting review
+- [WORLD_DATA_LAYER.md](design/WORLD_DATA_LAYER.md) - pending canonical/supporting review
+- [WORLD_INFORMATION_DESIGN.md](design/WORLD_INFORMATION_DESIGN.md) - pending canonical/supporting review
+- [WORLD_LIGHTING.md](design/WORLD_LIGHTING.md) - pending canonical/supporting review
+- [WORLD_REACTION_MODEL.md](design/WORLD_REACTION_MODEL.md) - pending canonical/supporting review
+- [WORLD_STATES.md](design/WORLD_STATES.md) - pending canonical/supporting review
+
+### engineering (20)
+
+- [AI_PERFORMANCE_DASHBOARD.md](engineering/AI_PERFORMANCE_DASHBOARD.md) - pending canonical/supporting review
+- [API_CONTRACTS.md](engineering/API_CONTRACTS.md) - pending canonical/supporting review
+- [CHART_EXTENSION_API.md](engineering/CHART_EXTENSION_API.md) - pending canonical/supporting review
+- [CONTRACT_TESTING_STANDARD.md](engineering/CONTRACT_TESTING_STANDARD.md) - pending canonical/supporting review
+- [DATA_QUALITY_ARCHITECTURE.md](engineering/DATA_QUALITY_ARCHITECTURE.md) - pending canonical/supporting review
+- [DATA_QUALITY_OPERATIONS.md](engineering/DATA_QUALITY_OPERATIONS.md) - pending canonical/supporting review
+- [DATABASE_MIGRATION_PLAN.md](engineering/DATABASE_MIGRATION_PLAN.md) - pending canonical/supporting review
+- [DATASET_RISK_REGISTER.md](engineering/DATASET_RISK_REGISTER.md) - pending canonical/supporting review
+- [DATASET_VALIDATION_SPEC.md](engineering/DATASET_VALIDATION_SPEC.md) - pending canonical/supporting review
+- [FEATURE_FLAGS.md](engineering/FEATURE_FLAGS.md) - pending canonical/supporting review
+- [FIGMA_BUILD_SPEC.md](engineering/FIGMA_BUILD_SPEC.md) - pending canonical/supporting review
+- [MARKET_SENTIMENT_API.md](engineering/MARKET_SENTIMENT_API.md) - pending canonical/supporting review
+- [MOBILE_BETA_TEST_PLAN.md](engineering/MOBILE_BETA_TEST_PLAN.md) - pending canonical/supporting review
+- [OPTIONS_AGENT_API.md](engineering/OPTIONS_AGENT_API.md) - pending canonical/supporting review
+- [PERFORMANCE_NOTES.md](engineering/PERFORMANCE_NOTES.md) - pending canonical/supporting review
+- [REDIS_CACHE.md](engineering/REDIS_CACHE.md) - pending canonical/supporting review
+- [REGRESSION_DATABASE.md](engineering/REGRESSION_DATABASE.md) - pending canonical/supporting review
+- [SCENARIO_ENGINE_API.md](engineering/SCENARIO_ENGINE_API.md) - pending canonical/supporting review
+- [TEST_PLAN.md](engineering/TEST_PLAN.md) - pending canonical/supporting review
+- [TOOLING_GAPS.md](engineering/TOOLING_GAPS.md) - pending canonical/supporting review
+
+### methodologies (42)
+
+- [AGGREGATION_METHODOLOGY.md](methodologies/AGGREGATION_METHODOLOGY.md) - pending canonical/supporting review
+- [ALGORITHMIC_ACTIVITY_RESEARCH.md](methodologies/ALGORITHMIC_ACTIVITY_RESEARCH.md) - pending canonical/supporting review
+- [ALGORITHMIC_ACTIVITY_SCORING.md](methodologies/ALGORITHMIC_ACTIVITY_SCORING.md) - pending canonical/supporting review
+- [ANALYST_CONSENSUS_DATA_STRATEGY.md](methodologies/ANALYST_CONSENSUS_DATA_STRATEGY.md) - pending canonical/supporting review
+- [ANALYST_CONSENSUS_RESEARCH.md](methodologies/ANALYST_CONSENSUS_RESEARCH.md) - pending canonical/supporting review
+- [ANALYST_CONSENSUS_SCORING_MODEL.md](methodologies/ANALYST_CONSENSUS_SCORING_MODEL.md) - pending canonical/supporting review
+- [CALIBRATION_STRATEGY.md](methodologies/CALIBRATION_STRATEGY.md) - pending canonical/supporting review
+- [DECISION_QUALITY_MODEL.md](methodologies/DECISION_QUALITY_MODEL.md) - pending canonical/supporting review
+- [DYNAMIC_SOURCE_SCORING.md](methodologies/DYNAMIC_SOURCE_SCORING.md) - pending canonical/supporting review
+- [ETF_FLOW_DATA_STRATEGY.md](methodologies/ETF_FLOW_DATA_STRATEGY.md) - pending canonical/supporting review
+- [ETF_FLOW_RESEARCH.md](methodologies/ETF_FLOW_RESEARCH.md) - pending canonical/supporting review
+- [ETF_FLOW_SCORING_MODEL.md](methodologies/ETF_FLOW_SCORING_MODEL.md) - pending canonical/supporting review
+- [EVIDENCE_QUALITY_MODEL.md](methodologies/EVIDENCE_QUALITY_MODEL.md) - pending canonical/supporting review
+- [FAIR_VALUE_METHODOLOGY.md](methodologies/FAIR_VALUE_METHODOLOGY.md) - pending canonical/supporting review
+- [FIBONACCI_METHODOLOGY.md](methodologies/FIBONACCI_METHODOLOGY.md) - pending canonical/supporting review
+- [FIBONACCI_RESEARCH.md](methodologies/FIBONACCI_RESEARCH.md) - pending canonical/supporting review
+- [FIBONACCI_SCORING_MODEL.md](methodologies/FIBONACCI_SCORING_MODEL.md) - pending canonical/supporting review
+- [INSIDER_DATA_STRATEGY.md](methodologies/INSIDER_DATA_STRATEGY.md) - pending canonical/supporting review
+- [INSIDER_RESEARCH.md](methodologies/INSIDER_RESEARCH.md) - pending canonical/supporting review
+- [INSIDER_SCORING_MODEL.md](methodologies/INSIDER_SCORING_MODEL.md) - pending canonical/supporting review
+- [INSTITUTIONAL_DATA_STRATEGY.md](methodologies/INSTITUTIONAL_DATA_STRATEGY.md) - pending canonical/supporting review
+- [INSTITUTIONAL_RESEARCH.md](methodologies/INSTITUTIONAL_RESEARCH.md) - pending canonical/supporting review
+- [INSTITUTIONAL_SCORING_MODEL.md](methodologies/INSTITUTIONAL_SCORING_MODEL.md) - pending canonical/supporting review
+- [MACRO_DATA_STRATEGY.md](methodologies/MACRO_DATA_STRATEGY.md) - pending canonical/supporting review
+- [MACRO_RESEARCH.md](methodologies/MACRO_RESEARCH.md) - pending canonical/supporting review
+- [MACRO_SCORING_MODEL.md](methodologies/MACRO_SCORING_MODEL.md) - pending canonical/supporting review
+- [METHODOLOGY_VERSIONING.md](methodologies/METHODOLOGY_VERSIONING.md) - pending canonical/supporting review
+- [OPTIONS_DATA_RESEARCH.md](methodologies/OPTIONS_DATA_RESEARCH.md) - pending canonical/supporting review
+- [OPTIONS_SCORING_MODEL.md](methodologies/OPTIONS_SCORING_MODEL.md) - pending canonical/supporting review
+- [OUTCOME_CALIBRATION.md](methodologies/OUTCOME_CALIBRATION.md) - pending canonical/supporting review
+- [SCORING_ARCHITECTURE.md](methodologies/SCORING_ARCHITECTURE.md) - pending canonical/supporting review
+- [SENTIMENT_RESEARCH.md](methodologies/SENTIMENT_RESEARCH.md) - pending canonical/supporting review
+- [SENTIMENT_SCORING_MODEL.md](methodologies/SENTIMENT_SCORING_MODEL.md) - pending canonical/supporting review
+- [SHORT_INTEREST_DATA_STRATEGY.md](methodologies/SHORT_INTEREST_DATA_STRATEGY.md) - pending canonical/supporting review
+- [SHORT_INTEREST_RESEARCH.md](methodologies/SHORT_INTEREST_RESEARCH.md) - pending canonical/supporting review
+- [SHORT_INTEREST_SCORING_MODEL.md](methodologies/SHORT_INTEREST_SCORING_MODEL.md) - pending canonical/supporting review
+- [SOURCE_SCORING.md](methodologies/SOURCE_SCORING.md) - pending canonical/supporting review
+- [TECHNICAL_METHODOLOGY.md](methodologies/TECHNICAL_METHODOLOGY.md) - pending canonical/supporting review
+- [TECHNICAL_SCORING_MODEL.md](methodologies/TECHNICAL_SCORING_MODEL.md) - pending canonical/supporting review
+- [UNIFIED_SCORING_MODEL.md](methodologies/UNIFIED_SCORING_MODEL.md) - pending canonical/supporting review
+- [VALUATION_RESEARCH.md](methodologies/VALUATION_RESEARCH.md) - pending canonical/supporting review
+- [VALUATION_SCORING_MODEL.md](methodologies/VALUATION_SCORING_MODEL.md) - pending canonical/supporting review
+
+### operations (57)
+
+- [AGENT_OBSERVABILITY.md](operations/AGENT_OBSERVABILITY.md) - pending canonical/supporting review
+- [BLOCKER_CLASSIFICATION.md](operations/BLOCKER_CLASSIFICATION.md) - pending canonical/supporting review
+- [CLEAN_INSTALL_VERIFICATION.md](operations/CLEAN_INSTALL_VERIFICATION.md) - pending canonical/supporting review
+- [COMMERCIAL_READINESS.md](operations/COMMERCIAL_READINESS.md) - pending canonical/supporting review
+- [DEPLOYED_ENVIRONMENT_MATRIX.md](operations/DEPLOYED_ENVIRONMENT_MATRIX.md) - pending canonical/supporting review
+- [DEPLOYMENT_CHECKLIST.md](operations/DEPLOYMENT_CHECKLIST.md) - pending canonical/supporting review
+- [DEPLOYMENT_EVIDENCE_VERIFICATION.md](operations/DEPLOYMENT_EVIDENCE_VERIFICATION.md) - pending canonical/supporting review
+- [DEPLOYMENT_VERIFICATION.md](operations/DEPLOYMENT_VERIFICATION.md) - pending canonical/supporting review
+- [DEVICE_READINESS.md](operations/DEVICE_READINESS.md) - pending canonical/supporting review
+- [ENVIRONMENT_SETUP.md](operations/ENVIRONMENT_SETUP.md) - pending canonical/supporting review
+- [FINAL_PRODUCTION_READINESS.md](operations/FINAL_PRODUCTION_READINESS.md) - pending canonical/supporting review
+- [FIRST_INSTALL_CHECKLIST.md](operations/FIRST_INSTALL_CHECKLIST.md) - pending canonical/supporting review
+- [FIRST_WEEK_DEPLOYMENT_LOG.md](operations/FIRST_WEEK_DEPLOYMENT_LOG.md) - pending canonical/supporting review
+- [FOUNDER_DEPLOYMENT_CHECKLIST.md](operations/FOUNDER_DEPLOYMENT_CHECKLIST.md) - pending canonical/supporting review
+- [FOUNDER_INSTALL_GUIDE.md](operations/FOUNDER_INSTALL_GUIDE.md) - pending canonical/supporting review
+- [FOUNDER_PILOT_READINESS.md](operations/FOUNDER_PILOT_READINESS.md) - pending canonical/supporting review
+- [GO_LIVE_CHECKLIST.md](operations/GO_LIVE_CHECKLIST.md) - pending canonical/supporting review
+- [GO_LIVE_CRITERIA.md](operations/GO_LIVE_CRITERIA.md) - pending canonical/supporting review
+- [IMPACTONE_RELEASE_CHECKLIST.md](operations/IMPACTONE_RELEASE_CHECKLIST.md) - pending canonical/supporting review
+- [IMPACTONE_RELEASE_GATES.md](operations/IMPACTONE_RELEASE_GATES.md) - pending canonical/supporting review
+- [INSTALL_EXPERIENCE.md](operations/INSTALL_EXPERIENCE.md) - pending canonical/supporting review
+- [INVESTMENT_READINESS.md](operations/INVESTMENT_READINESS.md) - pending canonical/supporting review
+- [KEY_ROTATION_RUNBOOK.md](operations/KEY_ROTATION_RUNBOOK.md) - pending canonical/supporting review
+- [MISSION_CONTROL_RELEASE_READINESS.md](operations/MISSION_CONTROL_RELEASE_READINESS.md) - pending canonical/supporting review
+- [OBSERVABILITY_EVOLUTION.md](operations/OBSERVABILITY_EVOLUTION.md) - pending canonical/supporting review
+- [OBSERVABILITY_SPEC.md](operations/OBSERVABILITY_SPEC.md) - pending canonical/supporting review
+- [OPERATIONS_RUNBOOK.md](operations/OPERATIONS_RUNBOOK.md) - pending canonical/supporting review
+- [OPERATOR_DEPLOYMENT_DECISION.md](operations/OPERATOR_DEPLOYMENT_DECISION.md) - pending canonical/supporting review
+- [PHONE_INSTALLATION.md](operations/PHONE_INSTALLATION.md) - pending canonical/supporting review
+- [PHONE_INSTALLATION_RESULT.md](operations/PHONE_INSTALLATION_RESULT.md) - pending canonical/supporting review
+- [POST_DEPLOYMENT_RISK_REGISTER.md](operations/POST_DEPLOYMENT_RISK_REGISTER.md) - pending canonical/supporting review
+- [PRODUCTION_BUILD_FIX_PLAN.md](operations/PRODUCTION_BUILD_FIX_PLAN.md) - pending canonical/supporting review
+- [PRODUCTION_DEPLOYMENT.md](operations/PRODUCTION_DEPLOYMENT.md) - pending canonical/supporting review
+- [PRODUCTION_DEPLOYMENT_RESULT.md](operations/PRODUCTION_DEPLOYMENT_RESULT.md) - pending canonical/supporting review
+- [PRODUCTION_ENVIRONMENT.md](operations/PRODUCTION_ENVIRONMENT.md) - pending canonical/supporting review
+- [PRODUCTION_ENVIRONMENT_MATRIX.md](operations/PRODUCTION_ENVIRONMENT_MATRIX.md) - pending canonical/supporting review
+- [PRODUCTION_GAPS.md](operations/PRODUCTION_GAPS.md) - pending canonical/supporting review
+- [PRODUCTION_INCIDENTS.md](operations/PRODUCTION_INCIDENTS.md) - pending canonical/supporting review
+- [PRODUCTION_POLISH.md](operations/PRODUCTION_POLISH.md) - pending canonical/supporting review
+- [PRODUCTION_READINESS_CHECKLIST.md](operations/PRODUCTION_READINESS_CHECKLIST.md) - pending canonical/supporting review
+- [PRODUCTION_SMOKE_TEST.md](operations/PRODUCTION_SMOKE_TEST.md) - pending canonical/supporting review
+- [PRODUCTION_START_DECISION.md](operations/PRODUCTION_START_DECISION.md) - pending canonical/supporting review
+- [PRODUCTION_URLS.md](operations/PRODUCTION_URLS.md) - pending canonical/supporting review
+- [PRODUCTION_VALIDATION.md](operations/PRODUCTION_VALIDATION.md) - pending canonical/supporting review
+- [PROVIDER_HEALTH_MODEL.md](operations/PROVIDER_HEALTH_MODEL.md) - pending canonical/supporting review
+- [READINESS_DASHBOARD.md](operations/READINESS_DASHBOARD.md) - pending canonical/supporting review
+- [REAL_PHONE_DEPLOYMENT.md](operations/REAL_PHONE_DEPLOYMENT.md) - pending canonical/supporting review
+- [RECOMMENDED_DEPLOYMENT_ARCHITECTURE.md](operations/RECOMMENDED_DEPLOYMENT_ARCHITECTURE.md) - pending canonical/supporting review
+- [RELEASE_BLOCKERS.md](operations/RELEASE_BLOCKERS.md) - pending canonical/supporting review
+- [RELEASE_CHECKLIST.md](operations/RELEASE_CHECKLIST.md) - pending canonical/supporting review
+- [RELEASE_REPRODUCIBILITY.md](operations/RELEASE_REPRODUCIBILITY.md) - pending canonical/supporting review
+- [REMAINING_BLOCKERS.md](operations/REMAINING_BLOCKERS.md) - pending canonical/supporting review
+- [REMAINING_RELEASE_RISKS.md](operations/REMAINING_RELEASE_RISKS.md) - pending canonical/supporting review
+- [ROLLBACK_PLAN.md](operations/ROLLBACK_PLAN.md) - pending canonical/supporting review
+- [SECRET_EXPOSURE_REGISTER.md](operations/SECRET_EXPOSURE_REGISTER.md) - pending canonical/supporting review
+- [SECURITY_CLOSURE_CHECKLIST.md](operations/SECURITY_CLOSURE_CHECKLIST.md) - pending canonical/supporting review
+- [SYSTEM_HEALTH_SPEC.md](operations/SYSTEM_HEALTH_SPEC.md) - pending canonical/supporting review
+
+### planning (38)
+
+- [AI_ANALYSIS_GAPS.md](planning/AI_ANALYSIS_GAPS.md) - pending canonical/supporting review
+- [AI_EXPLANATION_VALIDATION.md](planning/AI_EXPLANATION_VALIDATION.md) - pending canonical/supporting review
+- [AUTOMATION_OPPORTUNITIES.md](planning/AUTOMATION_OPPORTUNITIES.md) - pending canonical/supporting review
+- [CEO_NEXT_12_MONTHS.md](planning/CEO_NEXT_12_MONTHS.md) - pending canonical/supporting review
+- [CHART_PLUGIN_ROADMAP.md](planning/CHART_PLUGIN_ROADMAP.md) - pending canonical/supporting review
+- [CONFIDENCE_MIGRATION_PLAN.md](planning/CONFIDENCE_MIGRATION_PLAN.md) - pending canonical/supporting review
+- [DUE_DILIGENCE_CHECKLIST.md](planning/DUE_DILIGENCE_CHECKLIST.md) - pending canonical/supporting review
+- [FIBONACCI_INTEGRATION_PLAN.md](planning/FIBONACCI_INTEGRATION_PLAN.md) - pending canonical/supporting review
+- [FIRST_1000_USERS_PLAN.md](planning/FIRST_1000_USERS_PLAN.md) - pending canonical/supporting review
+- [FOUNDER_DAILY_CHECKLIST.md](planning/FOUNDER_DAILY_CHECKLIST.md) - pending canonical/supporting review
+- [FOUNDER_PILOT_PLAN.md](planning/FOUNDER_PILOT_PLAN.md) - pending canonical/supporting review
+- [FUTURE_PRODUCT_MAP.md](planning/FUTURE_PRODUCT_MAP.md) - pending canonical/supporting review
+- [GRADING_FOLLOWUP_CHECKLIST.md](planning/GRADING_FOLLOWUP_CHECKLIST.md) - pending canonical/supporting review
+- [LAUNCH_CHECKLIST.md](planning/LAUNCH_CHECKLIST.md) - pending canonical/supporting review
+- [LAUNCH_ROADMAP.md](planning/LAUNCH_ROADMAP.md) - pending canonical/supporting review
+- [LEARNING_PRIORITIES.md](planning/LEARNING_PRIORITIES.md) - pending canonical/supporting review
+- [LEARNING_RISK_REGISTER.md](planning/LEARNING_RISK_REGISTER.md) - pending canonical/supporting review
+- [MISSION_CONTROL_EXPERIENCE_MASTERPLAN.md](planning/MISSION_CONTROL_EXPERIENCE_MASTERPLAN.md) - pending canonical/supporting review
+- [MISSION_CONTROL_UI_GAPS.md](planning/MISSION_CONTROL_UI_GAPS.md) - pending canonical/supporting review
+- [MISSION_CONTROL_UX_GAPS.md](planning/MISSION_CONTROL_UX_GAPS.md) - pending canonical/supporting review
+- [MOBILE_GAPS.md](planning/MOBILE_GAPS.md) - pending canonical/supporting review
+- [MOBILE_PRODUCT_MASTERPLAN.md](planning/MOBILE_PRODUCT_MASTERPLAN.md) - pending canonical/supporting review
+- [MVP_IMPLEMENTATION_ROADMAP.md](planning/MVP_IMPLEMENTATION_ROADMAP.md) - pending canonical/supporting review
+- [MVP_READY_CHECKLIST.md](planning/MVP_READY_CHECKLIST.md) - pending canonical/supporting review
+- [NEXT_20_IMPROVEMENTS.md](planning/NEXT_20_IMPROVEMENTS.md) - pending canonical/supporting review
+- [ORCHESTRATOR_RISK_REGISTER.md](planning/ORCHESTRATOR_RISK_REGISTER.md) - pending canonical/supporting review
+- [PERSONAL_INTELLIGENCE_GAPS.md](planning/PERSONAL_INTELLIGENCE_GAPS.md) - pending canonical/supporting review
+- [PERSONALIZATION_PRIVACY_GAPS.md](planning/PERSONALIZATION_PRIVACY_GAPS.md) - pending canonical/supporting review
+- [PHONE_VERIFICATION_CHECKLIST.md](planning/PHONE_VERIFICATION_CHECKLIST.md) - pending canonical/supporting review
+- [POST_BETA_BACKLOG.md](planning/POST_BETA_BACKLOG.md) - pending canonical/supporting review
+- [PRODUCT_CONSOLIDATION_PLAN.md](planning/PRODUCT_CONSOLIDATION_PLAN.md) - pending canonical/supporting review
+- [PRODUCT_EXECUTION_BACKLOG.md](planning/PRODUCT_EXECUTION_BACKLOG.md) - pending canonical/supporting review
+- [PRODUCT_ROADMAP_GAPS.md](planning/PRODUCT_ROADMAP_GAPS.md) - pending canonical/supporting review
+- [PRODUCT_STYLE_GAPS.md](planning/PRODUCT_STYLE_GAPS.md) - pending canonical/supporting review
+- [REAL_DEVICE_RISK_REGISTER.md](planning/REAL_DEVICE_RISK_REGISTER.md) - pending canonical/supporting review
+- [TECHNICAL_RISK_REGISTER.md](planning/TECHNICAL_RISK_REGISTER.md) - pending canonical/supporting review
+- [V2_EXECUTION_PLAN.md](planning/V2_EXECUTION_PLAN.md) - pending canonical/supporting review
+- [WATCHLIST_GAPS.md](planning/WATCHLIST_GAPS.md) - pending canonical/supporting review
+
+### product (176)
+
+- [ADAPTIVE_SAFETY_POLICY.md](product/ADAPTIVE_SAFETY_POLICY.md) - pending canonical/supporting review
+- [AGENT_BEST_PRACTICES.md](product/AGENT_BEST_PRACTICES.md) - pending canonical/supporting review
+- [AGENT_ORCHESTRATOR.md](product/AGENT_ORCHESTRATOR.md) - pending canonical/supporting review
+- [AGENT_SCALABILITY.md](product/AGENT_SCALABILITY.md) - pending canonical/supporting review
+- [AGENT_SCHEDULER.md](product/AGENT_SCHEDULER.md) - pending canonical/supporting review
+- [AI_TRUST_ANALYSIS.md](product/AI_TRUST_ANALYSIS.md) - pending canonical/supporting review
+- [ANALYST_CONSENSUS_AGENT.md](product/ANALYST_CONSENSUS_AGENT.md) - pending canonical/supporting review
+- [ANALYTICS_EVENT_MAP.md](product/ANALYTICS_EVENT_MAP.md) - pending canonical/supporting review
+- [APP_STORE_QUALITY.md](product/APP_STORE_QUALITY.md) - pending canonical/supporting review
+- [ARCHITECTURAL_DECISION_RECORD.md](product/ARCHITECTURAL_DECISION_RECORD.md) - pending canonical/supporting review
+- [BUG_SEVERITY_STANDARD.md](product/BUG_SEVERITY_STANDARD.md) - pending canonical/supporting review
+- [CEO_LETTER.md](product/CEO_LETTER.md) - pending canonical/supporting review
+- [CEO_RECOMMENDATIONS.md](product/CEO_RECOMMENDATIONS.md) - pending canonical/supporting review
+- [CEO_YEAR_2_MEMO.md](product/CEO_YEAR_2_MEMO.md) - pending canonical/supporting review
+- [CHART_PLUGIN_SYSTEM.md](product/CHART_PLUGIN_SYSTEM.md) - pending canonical/supporting review
+- [CLAIM_INTELLIGENCE_INTEGRATION.md](product/CLAIM_INTELLIGENCE_INTEGRATION.md) - pending canonical/supporting review
+- [CLAIM_LIFECYCLE.md](product/CLAIM_LIFECYCLE.md) - pending canonical/supporting review
+- [COMMERCIAL_INFRASTRUCTURE.md](product/COMMERCIAL_INFRASTRUCTURE.md) - pending canonical/supporting review
+- [COMMUNICATION_GUIDELINES.md](product/COMMUNICATION_GUIDELINES.md) - pending canonical/supporting review
+- [COMPETITIVE_POSITIONING.md](product/COMPETITIVE_POSITIONING.md) - pending canonical/supporting review
+- [COMPETITOR_INTELLIGENCE.md](product/COMPETITOR_INTELLIGENCE.md) - pending canonical/supporting review
+- [CONFLICT_RESOLUTION.md](product/CONFLICT_RESOLUTION.md) - pending canonical/supporting review
+- [CRITICAL_BUGS.md](product/CRITICAL_BUGS.md) - pending canonical/supporting review
+- [CRITICAL_USER_JOURNEYS.md](product/CRITICAL_USER_JOURNEYS.md) - pending canonical/supporting review
+- [CUSTOMER_JOURNEY_MAP.md](product/CUSTOMER_JOURNEY_MAP.md) - pending canonical/supporting review
+- [DAILY_FEED_ROOT_CAUSE.md](product/DAILY_FEED_ROOT_CAUSE.md) - pending canonical/supporting review
+- [DAILY_VALUE_FRAMEWORK.md](product/DAILY_VALUE_FRAMEWORK.md) - pending canonical/supporting review
+- [DAILY_WORKFLOW.md](product/DAILY_WORKFLOW.md) - pending canonical/supporting review
+- [DECISION_CENTER_SPEC.md](product/DECISION_CENTER_SPEC.md) - pending canonical/supporting review
+- [DECISION_CENTER_V1.md](product/DECISION_CENTER_V1.md) - pending canonical/supporting review
+- [DECISION_TIMELINE_SPEC.md](product/DECISION_TIMELINE_SPEC.md) - pending canonical/supporting review
+- [EARNINGS_AGENT.md](product/EARNINGS_AGENT.md) - pending canonical/supporting review
+- [EDUCATION_STRATEGY.md](product/EDUCATION_STRATEGY.md) - pending canonical/supporting review
+- [ETF_FLOW_AGENT.md](product/ETF_FLOW_AGENT.md) - pending canonical/supporting review
+- [EXECUTIVE_DASHBOARD_SPEC.md](product/EXECUTIVE_DASHBOARD_SPEC.md) - pending canonical/supporting review
+- [FEATURE_PRIORITY_MATRIX.md](product/FEATURE_PRIORITY_MATRIX.md) - pending canonical/supporting review
+- [FIBONACCI_AGENT.md](product/FIBONACCI_AGENT.md) - pending canonical/supporting review
+- [FINAL_DUPLICATION_CERTIFICATE.md](product/FINAL_DUPLICATION_CERTIFICATE.md) - pending canonical/supporting review
+- [FINAL_FRONTEND_POLISH.md](product/FINAL_FRONTEND_POLISH.md) - pending canonical/supporting review
+- [FINAL_SHIP.md](product/FINAL_SHIP.md) - pending canonical/supporting review
+- [FINAL_UI_UNIFICATION.md](product/FINAL_UI_UNIFICATION.md) - pending canonical/supporting review
+- [FIRST_100_USERS.md](product/FIRST_100_USERS.md) - pending canonical/supporting review
+- [FIRST_100_USERS_PLAYBOOK.md](product/FIRST_100_USERS_PLAYBOOK.md) - pending canonical/supporting review
+- [FIRST_25_USERS_PROFILE.md](product/FIRST_25_USERS_PROFILE.md) - pending canonical/supporting review
+- [FIRST_IMPRESSION.md](product/FIRST_IMPRESSION.md) - pending canonical/supporting review
+- [FIRST_READY_OBSERVATION_RUN.md](product/FIRST_READY_OBSERVATION_RUN.md) - pending canonical/supporting review
+- [FIRST_TIME_USER_FLOW.md](product/FIRST_TIME_USER_FLOW.md) - pending canonical/supporting review
+- [FIRST_USER_EXPERIENCE.md](product/FIRST_USER_EXPERIENCE.md) - pending canonical/supporting review
+- [FOUNDER_BETA_SIMULATION.md](product/FOUNDER_BETA_SIMULATION.md) - pending canonical/supporting review
+- [FOUNDER_FRICTION.md](product/FOUNDER_FRICTION.md) - pending canonical/supporting review
+- [FOUNDER_GO_NO_GO.md](product/FOUNDER_GO_NO_GO.md) - pending canonical/supporting review
+- [GLOBAL_LANGUAGE_STRATEGY.md](product/GLOBAL_LANGUAGE_STRATEGY.md) - pending canonical/supporting review
+- [GO_NO_GO_BOARD.md](product/GO_NO_GO_BOARD.md) - pending canonical/supporting review
+- [GO_NO_GO_ISOLATION.md](product/GO_NO_GO_ISOLATION.md) - pending canonical/supporting review
+- [GROWTH_PLAYBOOK.md](product/GROWTH_PLAYBOOK.md) - pending canonical/supporting review
+- [HEBREW_LOCALIZATION_GUIDE.md](product/HEBREW_LOCALIZATION_GUIDE.md) - pending canonical/supporting review
+- [HELP_CENTER_STRUCTURE.md](product/HELP_CENTER_STRUCTURE.md) - pending canonical/supporting review
+- [HOSTING_COMPARISON.md](product/HOSTING_COMPARISON.md) - pending canonical/supporting review
+- [IMMERSIVE_INTERACTIONS.md](product/IMMERSIVE_INTERACTIONS.md) - pending canonical/supporting review
+- [IMPACT_GRAPH_SPEC.md](product/IMPACT_GRAPH_SPEC.md) - pending canonical/supporting review
+- [IMPACT_GRAPH_V1.md](product/IMPACT_GRAPH_V1.md) - pending canonical/supporting review
+- [IMPACTONE_2031.md](product/IMPACTONE_2031.md) - pending canonical/supporting review
+- [IMPACTONE_ANTI_PATTERNS.md](product/IMPACTONE_ANTI_PATTERNS.md) - pending canonical/supporting review
+- [IMPACTONE_DEFINITION_OF_DONE.md](product/IMPACTONE_DEFINITION_OF_DONE.md) - pending canonical/supporting review
+- [IMPACTONE_SIGNATURE_MOMENTS.md](product/IMPACTONE_SIGNATURE_MOMENTS.md) - pending canonical/supporting review
+- [INSIDER_AGENT.md](product/INSIDER_AGENT.md) - pending canonical/supporting review
+- [INSTITUTIONAL_AGENT.md](product/INSTITUTIONAL_AGENT.md) - pending canonical/supporting review
+- [INTELLIGENCE_COMPONENT_MAP.md](product/INTELLIGENCE_COMPONENT_MAP.md) - pending canonical/supporting review
+- [INTELLIGENCE_SUBSCRIPTION_MODEL.md](product/INTELLIGENCE_SUBSCRIPTION_MODEL.md) - pending canonical/supporting review
+- [INTELLIGENCE_WORKSPACE.md](product/INTELLIGENCE_WORKSPACE.md) - pending canonical/supporting review
+- [INVESTMENT_INTELLIGENCE_MODEL.md](product/INVESTMENT_INTELLIGENCE_MODEL.md) - pending canonical/supporting review
+- [INVESTOR_PSYCHOLOGY_MODEL.md](product/INVESTOR_PSYCHOLOGY_MODEL.md) - pending canonical/supporting review
+- [KNOWN_LIMITATIONS.md](product/KNOWN_LIMITATIONS.md) - pending canonical/supporting review
+- [LAST_1_PERCENT.md](product/LAST_1_PERCENT.md) - pending canonical/supporting review
+- [LEARNING_LOOP.md](product/LEARNING_LOOP.md) - pending canonical/supporting review
+- [LEARNING_SYSTEM_BLUEPRINT.md](product/LEARNING_SYSTEM_BLUEPRINT.md) - pending canonical/supporting review
+- [LEGACY_STYLE_INVENTORY.md](product/LEGACY_STYLE_INVENTORY.md) - pending canonical/supporting review
+- [LEGACY_UI_REMAINING.md](product/LEGACY_UI_REMAINING.md) - pending canonical/supporting review
+- [LIVE_DATA_STATUS.md](product/LIVE_DATA_STATUS.md) - pending canonical/supporting review
+- [LIVING_WORLD.md](product/LIVING_WORLD.md) - pending canonical/supporting review
+- [LONG_TERM_RETENTION.md](product/LONG_TERM_RETENTION.md) - pending canonical/supporting review
+- [MACRO_AGENT.md](product/MACRO_AGENT.md) - pending canonical/supporting review
+- [MARKET_INTELLIGENCE_SPEC.md](product/MARKET_INTELLIGENCE_SPEC.md) - pending canonical/supporting review
+- [MARKET_MEMORY.md](product/MARKET_MEMORY.md) - pending canonical/supporting review
+- [MARKET_MICROSTRUCTURE_GUIDE.md](product/MARKET_MICROSTRUCTURE_GUIDE.md) - pending canonical/supporting review
+- [MARKET_MOODS.md](product/MARKET_MOODS.md) - pending canonical/supporting review
+- [MARKET_POSITIONING_SPEC.md](product/MARKET_POSITIONING_SPEC.md) - pending canonical/supporting review
+- [METRICS_GAP_ANALYSIS.md](product/METRICS_GAP_ANALYSIS.md) - pending canonical/supporting review
+- [MISSION_CONTROL_SCORE.md](product/MISSION_CONTROL_SCORE.md) - pending canonical/supporting review
+- [MOBILE_BETA_INTERVIEW_SCRIPT.md](product/MOBILE_BETA_INTERVIEW_SCRIPT.md) - pending canonical/supporting review
+- [MOBILE_FIRST_7_DAYS.md](product/MOBILE_FIRST_7_DAYS.md) - pending canonical/supporting review
+- [MONTHLY_COST_ESTIMATE.md](product/MONTHLY_COST_ESTIMATE.md) - pending canonical/supporting review
+- [MORNING_BRIEF_SPEC.md](product/MORNING_BRIEF_SPEC.md) - pending canonical/supporting review
+- [MORNING_EXPERIENCE_BLUEPRINT.md](product/MORNING_EXPERIENCE_BLUEPRINT.md) - pending canonical/supporting review
+- [MVP_HOME_DASHBOARD_SPEC.md](product/MVP_HOME_DASHBOARD_SPEC.md) - pending canonical/supporting review
+- [MVP_LAUNCH_PLAYBOOK.md](product/MVP_LAUNCH_PLAYBOOK.md) - pending canonical/supporting review
+- [MVP_VS_V2.md](product/MVP_VS_V2.md) - pending canonical/supporting review
+- [NAVIGATION_CONSOLIDATION.md](product/NAVIGATION_CONSOLIDATION.md) - pending canonical/supporting review
+- [NEWS_AGENT.md](product/NEWS_AGENT.md) - pending canonical/supporting review
+- [NEWS_EXPERIENCE_GUIDE.md](product/NEWS_EXPERIENCE_GUIDE.md) - pending canonical/supporting review
+- [NEWS_PRIORITIZATION_RULES.md](product/NEWS_PRIORITIZATION_RULES.md) - pending canonical/supporting review
+- [NEWS_SUCCESS_METRICS.md](product/NEWS_SUCCESS_METRICS.md) - pending canonical/supporting review
+- [NOTIFICATION_CENTER_SPEC.md](product/NOTIFICATION_CENTER_SPEC.md) - pending canonical/supporting review
+- [ONE_METRIC_THAT_MATTERS.md](product/ONE_METRIC_THAT_MATTERS.md) - pending canonical/supporting review
+- [OPERATIONS_DASHBOARD.md](product/OPERATIONS_DASHBOARD.md) - pending canonical/supporting review
+- [OPPORTUNITY_SCORE_SPEC.md](product/OPPORTUNITY_SCORE_SPEC.md) - pending canonical/supporting review
+- [OPTIONS_AGENT.md](product/OPTIONS_AGENT.md) - pending canonical/supporting review
+- [OPTIONS_PROVIDER_COMPARISON.md](product/OPTIONS_PROVIDER_COMPARISON.md) - pending canonical/supporting review
+- [PERSONAL_INTELLIGENCE.md](product/PERSONAL_INTELLIGENCE.md) - pending canonical/supporting review
+- [PERSONALIZATION_PRINCIPLES.md](product/PERSONALIZATION_PRINCIPLES.md) - pending canonical/supporting review
+- [PHONE_READY.md](product/PHONE_READY.md) - pending canonical/supporting review
+- [PILOT_START_DECISION.md](product/PILOT_START_DECISION.md) - pending canonical/supporting review
+- [PILOT_SUCCESS_METRICS.md](product/PILOT_SUCCESS_METRICS.md) - pending canonical/supporting review
+- [PLACEHOLDER_ELIMINATION.md](product/PLACEHOLDER_ELIMINATION.md) - pending canonical/supporting review
+- [PORTFOLIO_COMPONENT_MAP.md](product/PORTFOLIO_COMPONENT_MAP.md) - pending canonical/supporting review
+- [PORTFOLIO_WORKSPACE.md](product/PORTFOLIO_WORKSPACE.md) - pending canonical/supporting review
+- [PORTFOLIO_WORKSPACE_SCORE.md](product/PORTFOLIO_WORKSPACE_SCORE.md) - pending canonical/supporting review
+- [PREMIUM_EXECUTION.md](product/PREMIUM_EXECUTION.md) - pending canonical/supporting review
+- [PREMIUM_FINISH.md](product/PREMIUM_FINISH.md) - pending canonical/supporting review
+- [PREMIUM_POLISH.md](product/PREMIUM_POLISH.md) - pending canonical/supporting review
+- [PREMIUM_REFINEMENTS.md](product/PREMIUM_REFINEMENTS.md) - pending canonical/supporting review
+- [PRODUCT_EXCELLENCE_SCORE.md](product/PRODUCT_EXCELLENCE_SCORE.md) - pending canonical/supporting review
+- [PRODUCT_EXPERIENCE_BLUEPRINT.md](product/PRODUCT_EXPERIENCE_BLUEPRINT.md) - pending canonical/supporting review
+- [PRODUCT_GAP_ANALYSIS.md](product/PRODUCT_GAP_ANALYSIS.md) - pending canonical/supporting review
+- [PRODUCT_IDENTITY.md](product/PRODUCT_IDENTITY.md) - pending canonical/supporting review
+- [PRODUCT_IDENTITY_SCORE.md](product/PRODUCT_IDENTITY_SCORE.md) - pending canonical/supporting review
+- [PRODUCT_METRICS_SYSTEM.md](product/PRODUCT_METRICS_SYSTEM.md) - pending canonical/supporting review
+- [PRODUCT_REVIEW_LOG.md](product/PRODUCT_REVIEW_LOG.md) - pending canonical/supporting review
+- [PROJECT_STATUS.md](product/PROJECT_STATUS.md) - pending canonical/supporting review
+- [PROVIDER_ABSTRACTION_2.md](product/PROVIDER_ABSTRACTION_2.md) - pending canonical/supporting review
+- [REAL_DEVICE_FEEDBACK_TEMPLATE.md](product/REAL_DEVICE_FEEDBACK_TEMPLATE.md) - pending canonical/supporting review
+- [REAL_DEVICE_VERIFICATION.md](product/REAL_DEVICE_VERIFICATION.md) - pending canonical/supporting review
+- [RECOMMENDATION_QUALITY.md](product/RECOMMENDATION_QUALITY.md) - pending canonical/supporting review
+- [RED_FLAGS.md](product/RED_FLAGS.md) - pending canonical/supporting review
+- [REPOSITORY_CLEANUP.md](product/REPOSITORY_CLEANUP.md) - pending canonical/supporting review
+- [RESEARCH_ORGANIZATION.md](product/RESEARCH_ORGANIZATION.md) - pending canonical/supporting review
+- [RETENTION_SYSTEM.md](product/RETENTION_SYSTEM.md) - pending canonical/supporting review
+- [REVISION_NOTES.md](product/REVISION_NOTES.md) - pending canonical/supporting review
+- [ROOT_CAUSE_ANALYSIS.md](product/ROOT_CAUSE_ANALYSIS.md) - pending canonical/supporting review
+- [SCALABILITY_RECOMMENDATIONS.md](product/SCALABILITY_RECOMMENDATIONS.md) - pending canonical/supporting review
+- [SCALING_FAILURE_SCENARIOS.md](product/SCALING_FAILURE_SCENARIOS.md) - pending canonical/supporting review
+- [SCALING_GATES.md](product/SCALING_GATES.md) - pending canonical/supporting review
+- [SCREEN_BLUEPRINTS.md](product/SCREEN_BLUEPRINTS.md) - pending canonical/supporting review
+- [SCREEN_POLISH_LOG.md](product/SCREEN_POLISH_LOG.md) - pending canonical/supporting review
+- [SCREEN_TO_SERVICE_MAPPING.md](product/SCREEN_TO_SERVICE_MAPPING.md) - pending canonical/supporting review
+- [SENTIMENT_AGENT.md](product/SENTIMENT_AGENT.md) - pending canonical/supporting review
+- [SENTIMENT_SOURCE_STRATEGY.md](product/SENTIMENT_SOURCE_STRATEGY.md) - pending canonical/supporting review
+- [SEVEN_DAY_USAGE_SCRIPT.md](product/SEVEN_DAY_USAGE_SCRIPT.md) - pending canonical/supporting review
+- [SHORT_INTEREST_AGENT.md](product/SHORT_INTEREST_AGENT.md) - pending canonical/supporting review
+- [SHOWCASE_COMPONENT_MAP.md](product/SHOWCASE_COMPONENT_MAP.md) - pending canonical/supporting review
+- [SHOWCASE_SCREEN_GUIDE.md](product/SHOWCASE_SCREEN_GUIDE.md) - pending canonical/supporting review
+- [SIGNATURE_ELEMENTS.md](product/SIGNATURE_ELEMENTS.md) - pending canonical/supporting review
+- [STARTUP_VALIDATION.md](product/STARTUP_VALIDATION.md) - pending canonical/supporting review
+- [SUCCESS_METRICS.md](product/SUCCESS_METRICS.md) - pending canonical/supporting review
+- [TECHNICAL_AGENT.md](product/TECHNICAL_AGENT.md) - pending canonical/supporting review
+- [TECHNICAL_SIGNAL_PRIORITY.md](product/TECHNICAL_SIGNAL_PRIORITY.md) - pending canonical/supporting review
+- [THE_100_YEAR_COMPANY.md](product/THE_100_YEAR_COMPANY.md) - pending canonical/supporting review
+- [TOKEN_COVERAGE.md](product/TOKEN_COVERAGE.md) - pending canonical/supporting review
+- [TOP_10_OPERATIONAL_RISKS.md](product/TOP_10_OPERATIONAL_RISKS.md) - pending canonical/supporting review
+- [TRUST_AUDIT_LOG.md](product/TRUST_AUDIT_LOG.md) - pending canonical/supporting review
+- [TRUST_RECOVERY_PLAYBOOK.md](product/TRUST_RECOVERY_PLAYBOOK.md) - pending canonical/supporting review
+- [TRUST_SCORE_MODEL.md](product/TRUST_SCORE_MODEL.md) - pending canonical/supporting review
+- [TRUTH.md](product/TRUTH.md) - pending canonical/supporting review
+- [UNIFIED_STOCK_INTELLIGENCE.md](product/UNIFIED_STOCK_INTELLIGENCE.md) - pending canonical/supporting review
+- [UNSUPPORTED_VALUE_REGISTER.md](product/UNSUPPORTED_VALUE_REGISTER.md) - pending canonical/supporting review
+- [USABILITY_FIXES.md](product/USABILITY_FIXES.md) - pending canonical/supporting review
+- [USER_INTERVIEW_GUIDE.md](product/USER_INTERVIEW_GUIDE.md) - pending canonical/supporting review
+- [USER_JOURNEY.md](product/USER_JOURNEY.md) - pending canonical/supporting review
+- [VALUATION_AGENT.md](product/VALUATION_AGENT.md) - pending canonical/supporting review
+- [VALUE_PROPOSITION.md](product/VALUE_PROPOSITION.md) - pending canonical/supporting review
+- [VISION.md](product/VISION.md) - pending canonical/supporting review
+- [WATCHLIST_ALERT_RED_TEAM.md](product/WATCHLIST_ALERT_RED_TEAM.md) - pending canonical/supporting review
+- [WATCHLIST_ALERTS_SPEC.md](product/WATCHLIST_ALERTS_SPEC.md) - pending canonical/supporting review
+- [WORKFLOW_FRICTION_MAP.md](product/WORKFLOW_FRICTION_MAP.md) - pending canonical/supporting review
+- [WORKSPACE_RESPONSIBILITY_MAP.md](product/WORKSPACE_RESPONSIBILITY_MAP.md) - pending canonical/supporting review
+- [WORKSPACE_V2_SPEC.md](product/WORKSPACE_V2_SPEC.md) - pending canonical/supporting review
+
+## Classification policy
+
+- **Canonical:** current source of truth, maintained with product behavior.
+- **Supporting:** useful durable context that does not define current behavior.
+- **Archive:** point-in-time evidence such as audits, sprint reports, reviews, verdicts, and sign-offs.
+- **Duplicate:** byte-identical exported evidence; retained pending a separate approved deduplication pass.
+- **Undecided:** overlapping or potentially superseded documents requiring human review.
+
+Generated by `scripts/docs/organize-docs.ps1`.
