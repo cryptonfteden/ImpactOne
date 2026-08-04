@@ -52,3 +52,50 @@ This file's header comment carries the changelog (the "no versioning plan" gap `
 ## Categories implemented
 
 Color (primitive + semantic), Surface, Elevation, Blur, Radius, Borders, Glow, Shadows, Opacity, Typography (family/weight/size/line-height/tracking), Motion (duration/curve), Spacing (strict 8px scale), Z-index, Breakpoints — all 14 categories the mission requires, in one file.
+
+---
+
+## Addendum (Phase IMPACTONE-VISUAL-DIRECTION-001) — proposed `--orbit-*` layer, not yet implemented
+
+**Nothing above this line was changed by this addendum.** Every real NOVA token described above remains exactly as `X12B` left it, still the only design tokens actually wired into `frontend/src/main.jsx` today. What follows is a **new, clearly-separated, proposed token namespace** for the "Orbit" cinematic direction detailed in [IMPACTONE_DESIGN_SYSTEM.md](IMPACTONE_DESIGN_SYSTEM.md), [VISUAL_LANGUAGE.md](VISUAL_LANGUAGE.md), [3D_EXPERIENCE_GUIDELINES.md](3D_EXPERIENCE_GUIDELINES.md), [UI_COMPONENT_LIBRARY.md](UI_COMPONENT_LIBRARY.md), and [MOTION_SYSTEM.md](MOTION_SYSTEM.md). These values exist only in this document — no `--orbit-*` custom property exists in `tokens.css` today, and none should be added without an explicit decision to actually build toward this direction.
+
+### Why a separate namespace, not an extension of `--nova-*`
+
+The Orbit direction's own color/material/motion values are frequently incompatible with NOVA's existing semantic roles (e.g., NOVA's restrained glass-Level-3-only rule vs. Orbit's more liberal translucency). Reusing `--nova-*` names for values that mean something different would silently corrupt the existing, real, contrast-verified system. A new `--orbit-*` namespace keeps both directions independently valid and comparable side by side.
+
+### Color
+
+| Token | Value | Rule |
+|---|---|---|
+| `--orbit-color-void` | `#05060B` | Base environment background. Never used for text. |
+| `--orbit-color-energy-purple` | `#8B5CF6` | Ambient/chrome accent only. Never a financial-meaning color. |
+| `--orbit-color-energy-blue` | `#6fb6ff` | Same value as NOVA's real `--nova-primitive-blue-300` — deliberately reconciled, not reinvented, per `DESIGN_TOKENS.md`'s own existing reconciliation precedent above. |
+| `--orbit-color-positive` | `#34D399` | Reserved exclusively for real, positive market/portfolio facts. Never decorative. |
+| `--orbit-color-risk` | `#F87171` | Reserved exclusively for real risk/negative facts. Never decorative. |
+
+### Depth planes (`3D_EXPERIENCE_GUIDELINES.md` §2)
+
+| Token | Meaning |
+|---|---|
+| `--orbit-depth-focus-scale` | `1.0` (baseline size multiplier) |
+| `--orbit-depth-active-scale` | `0.72` |
+| `--orbit-depth-ambient-scale` | `0.5` |
+| `--orbit-depth-ambient-opacity` | `0.55` |
+| `--orbit-depth-horizon-opacity` | `0.3` |
+
+### Motion (`MOTION_SYSTEM.md` timing table, as tokens)
+
+| Token | Value |
+|---|---|
+| `--orbit-motion-interaction-ease` | `cubic-bezier(0.22, 1, 0.36, 1)` |
+| `--orbit-motion-camera-ease` | `cubic-bezier(0.65, 0, 0.35, 1)` |
+| `--orbit-motion-proximity-duration` | `180ms` |
+| `--orbit-motion-focus-duration` | `260ms` |
+| `--orbit-motion-camera-adjacent-duration` | `900ms` |
+| `--orbit-motion-camera-cross-duration` | `1400ms` |
+| `--orbit-motion-alert-onset-duration` | `120ms` |
+| `--orbit-motion-alert-fade-duration` | `600ms` |
+
+### Governance for this addendum specifically
+
+Per this file's own existing governance rule above: if any `--orbit-*` token is ever promoted into real `tokens.css`, that change must bump the file's version, add a dated changelog entry, and update this table — the same discipline already applied to every real NOVA token. Until that happens, this whole addendum remains a proposal, not an implementation.

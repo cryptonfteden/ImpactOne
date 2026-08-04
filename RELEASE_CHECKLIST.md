@@ -84,3 +84,52 @@ Design only — this is the checklist to execute before and during the beta, not
 
 - [ ] Run the exit debrief question with all 5 users (`BETA_OPERATIONS_PLAN.md` §9).
 - [ ] Compile: feedback volume/themes, error-reporting volume/themes, analytics funnel (onboarding → first recommendation viewed → returning-user rate), and a plain readiness verdict for the next phase.
+
+---
+
+# Agent Platform Release Checklist — Phase PRODUCTION-READINESS-REVIEW-001
+
+Grounded entirely in `PRODUCTION_READINESS_REVIEW.md`'s evidence (`backend/services/agentOrchestrator/`, `agentScheduler/`, `agentObservability/`, through commit `6cdf905`). Nothing here is a new finding. No code was written or modified to produce this checklist. Follows this document's own standing rule above: every item must be independently re-verified against real, committed source and a real test run before being checked off — never accepted from a commit message's own claim, and never accepted from uncommitted/in-progress work until it lands and is independently re-checked.
+
+## Release Blockers — must be resolved before ANY production traffic, no exceptions
+
+- [ ] **Bound `schedulerMetrics.js`'s `waitMsSamples`/`execMsSamples` arrays** (or replace with a running-aggregate/reservoir-sampling approach that doesn't retain every sample forever). Unbounded memory growth on a running process, independent of agent count — the single most urgent fix in this review.
+- [ ] **Fix the `AgentExecutionLog` retention-vs-agent-count relationship** (`DEFAULT_MAX_RECORDS` currently divides directly by registered agent count per run — restated from `OBSERVABILITY_AUDIT.md`, still true in the committed code).
+- [ ] **Add authentication and/or rate limiting** to `/v2/agent-orchestrator/:symbol` and `/v2/agent-observability/:symbol` (and any new diagnostics endpoint) before exposing them beyond a trusted internal network — each endpoint can individually contend for the platform's entire fixed concurrency pool.
+- [ ] **Stand up a real diagnostics/metrics surface** for the Agent Platform (scheduler concurrency/queue-depth/metrics, observability log size) reachable via HTTP — currently zero visibility exists in the committed code without attaching a debugger to a live process.
+
+## High — must be resolved before scaling past ~20 agents or meaningful production traffic
+
+- [ ] Expose `sharedScheduler.getMetrics()` on a real endpoint (independently valuable even before a full diagnostics endpoint exists).
+- [ ] Make scheduler defaults (concurrency, timeout, retries, backoff, aging factor) configurable via environment variables, following this codebase's own established `backend/config/env.js` pattern.
+- [ ] Wire cancellation (`cancelJob`/`cancelSymbol`) through to real HTTP client disconnects, so an abandoned request releases its scheduler slot instead of holding it until its own timeout/retry cycle finishes.
+- [ ] Add logging (even minimal structured log lines) for timeouts, retries, cancellations, and agent failures across `agentScheduler`/`agentOrchestrator`/`agentObservability` — currently zero log output exists anywhere in this subsystem.
+- [ ] Integrate Agent Platform status into the existing `systemHealthService.js`/`/health` endpoint — currently zero awareness of the Agent Platform exists in the platform's one general health-check surface.
+- [ ] Return `correlationId` to the actual HTTP caller of `/v2/agent-orchestrator/:symbol` (restated from `OBSERVABILITY_AUDIT.md`, still true in the committed code).
+- [ ] Wrap `runObserved()`'s call to `agentOrchestrator.run()` in a try/catch so request-level failures are recorded, not silently invisible to the observability layer (restated from `OBSERVABILITY_AUDIT.md`, still true in the committed code).
+- [ ] Decide and document the platform's horizontal-scaling story before relying on the scheduler's concurrency ceiling as a true platform-wide guarantee — today it is only global per-process; multiple instances silently multiply the effective limit and fragment every piece of observability with no shared coordination layer.
+
+## Medium — should be resolved before the 100-agent target, not urgent for today's ~13-agent registry
+
+- [ ] Add a dedicated `CANCELLED` code to `failureTaxonomy.js` once cancellation is reachable from real HTTP traffic.
+- [ ] Add percentile (p50/p95/p99) computation to both metrics systems (`metricsCollector.js` and `schedulerMetrics.js`) — both are simple arithmetic means today.
+- [ ] Add a graceful-shutdown path (`SIGTERM`/`SIGINT` handling) that drains in-flight agent executions and/or persists the execution log before process exit.
+- [ ] Re-evaluate `ExecutionQueue`'s O(n) dequeue scan once real queue depth is measured under real traffic (not urgent today, explicitly disclosed as a future heap upgrade).
+- [ ] Thread `agentOrchestrator.run()`'s own default `timeoutMs`/`maxRetries` from the same live-updatable source the scheduler itself will eventually use, once/if runtime-configurable scheduler config lands.
+
+## Low — track, no release-blocking urgency
+
+- [ ] Consider a per-symbol or per-caller retention floor for the execution log (already covered in `OBSERVABILITY_AUDIT.md`).
+- [ ] Exercise the registry against synthetic "slow agent" load tests before the 100-agent target — no real measurement of scheduler behavior under many genuinely slow agents exists yet in this codebase (today's registry is 3 real agents, 10 near-instant honest stubs).
+
+## Explicitly NOT required before a first production release at today's actual registry size (~13 agents)
+
+- Horizontal-scaling coordination (relevant only once this service is actually run as more than one instance).
+- Percentile metrics (relevant once agent-count/variance is high enough that a mean meaningfully misleads).
+- A binary-heap execution queue (relevant only if real queue depth reaches the thousands).
+
+## Verdict gate for "can this host 20 / 50 / 100 agents"
+
+- [ ] 20 agents: may proceed once the four Release Blockers above are resolved (concurrency ceiling already matches registry size at this count).
+- [ ] 50 agents: additionally requires the High items above (configurable concurrency, exposed metrics, logging) plus an explicit, monitored latency SLA — the scheduler protects platform stability at this count but not single-request latency (~3 sequential dispatch rounds worst case).
+- [ ] 100 agents: additionally requires a resolved horizontal-scaling story and a real load test against genuinely slow (not stub) agents — worst-case single-request latency reasoning (~5 sequential rounds) has not been empirically exercised in this codebase.
