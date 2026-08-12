@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import PortfolioScreen from "./PortfolioScreen";
+import { I18nProvider } from "../i18n/I18nProvider";
 
 vi.mock("../hooks/useWatchlist", () => ({
   default: () => ({ watchlist: [], addTicker: vi.fn(), removeTicker: vi.fn(), toggleTicker: vi.fn() }),
@@ -54,21 +55,25 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
+function renderScreen() {
+  return render(<I18nProvider><PortfolioScreen /></I18nProvider>);
+}
+
 describe("PortfolioScreen feature flag", () => {
   it("renders the legacy localStorage-driven screen by default", () => {
-    render(<PortfolioScreen />);
+    renderScreen();
     expect(screen.getByText("Virtual agent portfolio and paper trading")).toBeInTheDocument();
   });
 
   it("renders the legacy screen when the flag is explicitly \"legacy\"", () => {
     vi.stubEnv("VITE_PORTFOLIO_ENGINE", "legacy");
-    render(<PortfolioScreen />);
+    renderScreen();
     expect(screen.getByText("Virtual agent portfolio and paper trading")).toBeInTheDocument();
   });
 
   it("renders the new server-backed engine screen when the flag is \"api\"", () => {
     vi.stubEnv("VITE_PORTFOLIO_ENGINE", "api");
-    render(<PortfolioScreen />);
+    renderScreen();
     expect(screen.getByText("Persistent paper-trading engine")).toBeInTheDocument();
     expect(screen.queryByText("Virtual agent portfolio and paper trading")).not.toBeInTheDocument();
   });
@@ -76,7 +81,7 @@ describe("PortfolioScreen feature flag", () => {
 
 describe("Sprint 40 — Portfolio AI Advisor Insights", () => {
   it("shows an honest empty state when there are no open positions or sector allocation", () => {
-    render(<PortfolioScreen />);
+    renderScreen();
     expect(screen.getByText("AI Advisor Insights")).toBeInTheDocument();
     expect(screen.getByText("No open positions yet — no sector concentration to report.")).toBeInTheDocument();
     expect(screen.getByText("No open positions yet — no opportunity to report.")).toBeInTheDocument();

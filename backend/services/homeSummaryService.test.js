@@ -111,6 +111,23 @@ test("surfaces the real canonical action when an active recommendation exists fo
   );
 });
 
+test("excludes sub-80 quality recommendations from the Home summary", async () => {
+  await autonomousRecommendationRepository.createRecommendation(recommendationData({ symbol: "NVDA", qualityScore: 79 }));
+
+  await withMocks(
+    {
+      feed: [{ headline: "NVDA news", whyItMatters: "Matters.", relatedTickers: ["NVDA"], affectedAssets: [] }],
+      portfolioSummary: buildPortfolioSummary({ positions: [{ symbol: "NVDA", marketValue: 20000 }] }),
+    },
+    async () => {
+      const summary = await homeSummaryService.buildHomeSummary({});
+      assert.equal(summary.shouldIDoAnythingToday.hasAction, false);
+      assert.equal(summary.topRecommendations.length, 0);
+      assert.doesNotMatch(summary.personalBrief.join(" "), /Top for you: NVDA/);
+    }
+  );
+});
+
 test("whatChangedForMyPortfolio and whatChangedSinceYesterday are always present, honest-empty when there's no prior data", async () => {
   await withMocks({ feed: [], portfolioSummary: buildPortfolioSummary({}) }, async () => {
     const summary = await homeSummaryService.buildHomeSummary({});
@@ -239,7 +256,7 @@ test("Sprint 28 — buildHomeSummary's Morning Brief merges topRecommendations, 
 
   await withMocks(
     {
-      feed: [{ headline: "Macro update", whyItMatters: "General context.", relatedTickers: [], affectedAssets: [], timeBucket: "last-hour", timeHorizon: "1-3 months" }],
+      feed: [{ headline: "Macro update", eventType: "macro", whyItMatters: "General context.", relatedTickers: [], affectedAssets: [], timeBucket: "last-hour", timeHorizon: "1-3 months" }],
       portfolioSummary: buildPortfolioSummary({ positions: [{ symbol: "AAPL", marketValue: 5000 }], totalValue: 105000 }),
     },
     async () => {

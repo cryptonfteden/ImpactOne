@@ -35,3 +35,4 @@ export { optionsAgentApi } from "./optionsAgentApi";
 export { marketSentimentApi } from "./marketSentimentApi";
 export { morningBriefApi } from "./morningBriefApi";
 export { personalizationApi } from "./personalizationApi";
+export { agentOrchestratorApi } from "./agentOrchestratorApi";

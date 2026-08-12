@@ -17,9 +17,19 @@ let task = null;
 let lastRunAt = null;
 let lastRunResult = null;
 
+// Only providers with a real fetch implementation may create ingestion
+// history. Registered placeholders remain discoverable as FIXTURE or
+// UNCONFIGURED, but are never scheduled and can no longer generate
+// misleading zero-item SUCCESS rows.
+const ACTIVE_PROVIDER_IDS = new Set(["reutersBloombergWire", "cftcCot", "usTreasury", "fda", "nasa", "majorEarnings", "fed", "fomc", "ecb", "finraShortVolume", "spdr", "coinglass"]);
+
+function listScheduledProviders() {
+  return providerRegistry.listProviders().filter((provider) => ACTIVE_PROVIDER_IDS.has(provider.providerId));
+}
+
 async function runNow() {
   const results = [];
-  for (const provider of providerRegistry.listProviders()) {
+  for (const provider of listScheduledProviders()) {
     const result = await providerIngestionService.runProviderIngestion(provider.providerId);
     results.push(result);
   }
@@ -55,4 +65,4 @@ function getStatus() {
   return { running: Boolean(task), lastRunAt, lastRunResult };
 }
 
-module.exports = { start, stop, getStatus, runNow };
+module.exports = { start, stop, getStatus, runNow, listScheduledProviders };

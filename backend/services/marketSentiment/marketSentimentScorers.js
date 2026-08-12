@@ -154,7 +154,7 @@ function scoreFearGreed({ macroData, polymarketData = [], market, now = new Date
   if (!MARKET_REGISTRY[market].macroRelevant) {
     return unavailable("FEAR_GREED", "No macro data source exists for this market region — only US/Fed-based data is available.");
   }
-  if (!macroData) {
+  if (!macroData?.regime?.riskMode) {
     return unavailable("FEAR_GREED", "Macro regime data is currently unavailable.");
   }
 
@@ -240,7 +240,7 @@ function scoreMacroEvents({ macroData, cotResult, market, now = new Date() } = {
   if (!MARKET_REGISTRY[market].macroRelevant) {
     return unavailable("MACRO_EVENTS", "No macro data source exists for this market region — only US/Fed-based data is available.");
   }
-  if (!macroData) {
+  if (!macroData?.regime?.inflationPressure || !macroData?.regime?.recessionRisk) {
     return unavailable("MACRO_EVENTS", "Macro regime data is currently unavailable.");
   }
 

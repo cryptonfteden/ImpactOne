@@ -13,6 +13,8 @@ export const marketPositioningApi = {
     return apiClient.get("/v2/market/alert-types");
   },
   getChart(symbol, range = "3mo") {
-    return apiClient.get(`/v2/market/chart/${encodeURIComponent(symbol)}?range=${encodeURIComponent(range)}`);
+    // A chart must never reuse a stale empty response after a provider
+    // reconnects. The server cache still protects real provider calls.
+    return apiClient.get(`/v2/market/chart/${encodeURIComponent(symbol)}?range=${encodeURIComponent(range)}&refresh=${Date.now()}`);
   },
 };

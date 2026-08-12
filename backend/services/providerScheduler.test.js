@@ -30,6 +30,6 @@ test("runNow() ingests every registered provider directly and records lastRunAt"
   const results = await providerScheduler.runNow();
   // Derived from the real registry rather than hardcoded, so this never
   // needs updating again as providers are added (Sprint 37 added 7).
-  assert.equal(results.length, providerRegistry.listProviders().length);
+  assert.equal(results.length, providerScheduler.listScheduledProviders().length);
   assert.ok(providerScheduler.getStatus().lastRunAt);
 });

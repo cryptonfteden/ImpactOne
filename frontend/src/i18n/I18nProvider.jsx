@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import en from "./locales/en.json";
-import { isRtlLocale } from "./rtlLocales";
+import he from "./locales/he.json";
 import { formatCurrency, formatDate, formatDateTime, formatNumber, formatPercent, formatRelativeTime, formatTime } from "./formatters";
 
 const LOCALE_STORAGE_KEY = "impactone-locale";
@@ -14,7 +14,18 @@ const LOCALE_STORAGE_KEY = "impactone-locale";
 // direction/formatting are derived from the active locale automatically.
 const LOCALE_REGISTRY = {
   en: { label: "English", dictionary: en },
+  he: { label: "עברית", dictionary: he },
 };
+
+// Hebrew is a content preference, not a shell-language switch. Financial
+// symbols, charts and the product controls remain in their established
+// English/LTR layout; only dedicated translated editorial surfaces may opt
+// into Hebrew copy. This avoids the confusing mixed-direction dashboard.
+const HEBREW_CONTENT_PREFIXES = ["news.", "recommendations."];
+
+function usesHebrewContent(locale, key) {
+  return locale === "he" && HEBREW_CONTENT_PREFIXES.some((prefix) => key.startsWith(prefix));
+}
 
 function readStoredLocale() {
   if (typeof window === "undefined") return null;
@@ -48,8 +59,8 @@ export function I18nProvider({ children }) {
   const [locale, setLocaleState] = useState(() => readStoredLocale() || detectBrowserLocale());
 
   useEffect(() => {
-    const dir = isRtlLocale(locale) ? "rtl" : "ltr";
-    document.documentElement.setAttribute("lang", locale);
+    const dir = "ltr";
+    document.documentElement.setAttribute("lang", locale === "he" ? "en" : locale);
     document.documentElement.setAttribute("dir", dir);
   }, [locale]);
 
@@ -60,28 +71,29 @@ export function I18nProvider({ children }) {
   }, []);
 
   const t = useCallback((key, params) => {
-    const activeDictionary = LOCALE_REGISTRY[locale]?.dictionary || en;
+    const activeDictionary = usesHebrewContent(locale, key) ? he : en;
     const value = resolveKey(activeDictionary, key) ?? resolveKey(en, key);
     if (value === undefined) return key;
     return interpolate(value, params);
   }, [locale]);
 
   const value = useMemo(() => {
-    const dir = isRtlLocale(locale) ? "rtl" : "ltr";
+    const dir = "ltr";
     return {
       locale,
       setLocale,
       dir,
-      isRtl: dir === "rtl",
+      isRtl: false,
+      contentLocale: locale,
       t,
       availableLocales: Object.entries(LOCALE_REGISTRY).map(([code, { label }]) => ({ code, label })),
-      formatDate: (value, options) => formatDate(value, locale, options),
-      formatTime: (value, options) => formatTime(value, locale, options),
-      formatDateTime: (value, options) => formatDateTime(value, locale, options),
-      formatNumber: (value, options) => formatNumber(value, locale, options),
-      formatCurrency: (value, currencyCode, options) => formatCurrency(value, locale, currencyCode, options),
-      formatPercent: (value, options) => formatPercent(value, locale, options),
-      formatRelativeTime: (value) => formatRelativeTime(value, locale),
+      formatDate: (value, options) => formatDate(value, "en", options),
+      formatTime: (value, options) => formatTime(value, "en", options),
+      formatDateTime: (value, options) => formatDateTime(value, "en", options),
+      formatNumber: (value, options) => formatNumber(value, "en", options),
+      formatCurrency: (value, currencyCode, options) => formatCurrency(value, "en", currencyCode, options),
+      formatPercent: (value, options) => formatPercent(value, "en", options),
+      formatRelativeTime: (value) => formatRelativeTime(value, "en"),
     };
   }, [locale, setLocale, t]);
 

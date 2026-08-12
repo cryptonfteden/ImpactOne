@@ -3,6 +3,7 @@ const { getDailyBrief } = require("./dailyBriefService");
 const { analyzeIntelligence, analyzePortfolioIntelligence } = require("./impactIntelligenceService");
 const { getAltDataSummary } = require("./altDataService");
 const { getQuote } = require("./finnhubService");
+const canonicalEventRepository = require("./canonicalEventRepository");
 // Namespace-style (not destructured) so tests can monkey-patch it, matching
 // the testability convention already used for finnhubService elsewhere in
 // this codebase (e.g. portfolioEngineService.js).
@@ -737,6 +738,78 @@ async function processEvent({ event, sourceUrl = null, sourceName = null, publis
   };
 }
 
+// Projects already-persisted provider evidence into the existing Daily Feed
+// shape. Unlike processEvent(), this does not invoke AI analysis or infer
+// new causal claims: the source summary, confidence and affected entities
+// remain the values recorded during provider ingestion.
+function mapCanonicalEventToFeedItem(event, watchlist = []) {
+  const headline = event.summary || "Provider event";
+  const eventType = classifyEventType(`${event.eventType || ""} ${headline}`);
+  const symbols = Array.isArray(event.symbols) ? event.symbols : [];
+  const relatedTickers = symbols.filter((symbol) => watchlist.includes(symbol));
+  const credibility = Number.isFinite(event.credibilityScore) ? event.credibilityScore : sourceQualityScore(event.sourceName);
+  const freshness = Number.isFinite(event.freshnessScore) ? event.freshnessScore : recencyScore(event.publishedAt);
+  const sourceConfidence = Number.isFinite(event.confidence) ? event.confidence : 60;
+  const importanceScore = clamp(Math.round(sourceConfidence * 0.5 + credibility * 0.3 + freshness * 0.2 + (relatedTickers.length ? 10 : 0)), 0, 100);
+  const urgency = mapUrgency(importanceScore);
+
+  return {
+    id: `canonical:${event.id}`,
+    headline,
+    sourceUrl: event.sourceUrl || null,
+    sourceName: event.sourceName || "Provider",
+    publishedAt: event.publishedAt ? new Date(event.publishedAt).toISOString() : null,
+    eventType,
+    // Preserve the provider's own precise classification for presentation.
+    // eventType above remains the broader internal category used for ranking.
+    sourceEventType: event.eventType || null,
+    importanceScore,
+    confidence: sourceConfidence,
+    urgency,
+    probability: clamp(Math.round((sourceConfidence + importanceScore) / 2), 0, 100),
+    marketScope: mapScope(eventType),
+    affectedRegions: Array.isArray(event.countries) && event.countries.length ? event.countries : ["Global"],
+    affectedSectors: Array.isArray(event.sectors) ? event.sectors : [],
+    affectedAssets: symbols,
+    relatedTickers,
+    timeHorizon: "Current provider update",
+    expectedDuration: "Source update",
+    reliability: mapReliability(sourceConfidence, [event.sourceName]),
+    whyItMatters: headline,
+    supportingData: [],
+    historicalAnalogue: "Unavailable",
+    historicalAnalogs: [],
+    bestHistoricalOutcome: null,
+    worstHistoricalOutcome: null,
+    marketImpactPrediction: "Provider update; market impact has not been inferred.",
+    portfolioImpactPrediction: relatedTickers.length ? `Watchlist overlap: ${relatedTickers.join(", ")}.` : "No direct watchlist overlap detected.",
+    actionability: buildActionability(importanceScore, urgency, relatedTickers.length > 0),
+    riskLevel: buildRiskLevel(eventType, importanceScore),
+    timeBucket: "provider-update",
+    impactType: "neutral",
+    explainability: {
+      evidence: [],
+      reasoning: "Direct provider event; no additional causal analysis was generated.",
+      dataSources: [event.sourceName || "Provider"],
+      confidence: sourceConfidence,
+      counterarguments: ["This source update may not result in a material market move."],
+      invalidationSignals: ["A newer provider update supersedes this item."],
+    },
+  };
+}
+
+function mergeFeedItems(newsItems = [], providerItems = []) {
+  const seen = new Set();
+  return [...newsItems, ...providerItems]
+    .filter((item) => {
+      const key = item.sourceUrl || `${item.sourceName || ""}:${item.headline}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => b.importanceScore - a.importanceScore);
+}
+
 /**
  * Sprint 16 Phase C — turns real portfolio/watchlist/sector/recommendation
  * state into a deduped, priority-ordered list of news query terms.
@@ -804,12 +877,13 @@ async function getAutonomousOverview({ watchlist = DEFAULT_WATCHLIST, scenarios 
   const portfolioInput = normalizedWatchlist.map((symbol) => ({ symbol, weight: 1 / normalizedWatchlist.length }));
   const portfolioExposure = analyzePortfolioIntelligence({ holdings: portfolioInput });
 
-  const [dailyBrief, anchorAlt, quotesBySymbol, altSignalsBySymbol, liveNews] = await Promise.all([
+  const [dailyBrief, anchorAlt, quotesBySymbol, altSignalsBySymbol, liveNews, canonicalEvents] = await Promise.all([
     getDailyBrief({ watchlist: normalizedWatchlist, scenarios: normalizedScenarios, sessionType }),
     getAltDataSummary({ symbol: normalizedWatchlist[0] }).catch(() => null),
     Promise.all(normalizedWatchlist.map(async (symbol) => ({ symbol, payload: await getQuote(symbol).catch(() => null) }))),
     Promise.all(normalizedWatchlist.map(async (symbol) => ({ symbol, payload: await getAltDataSummary({ symbol }).catch(() => null) }))),
     fetchPersonalizedNews(portfolioContext),
+    canonicalEventRepository.listRecent({ limit: 50 }).catch(() => []),
   ]);
 
   const quotesMap = Object.fromEntries(quotesBySymbol.map(({ symbol, payload }) => [symbol, payload]));
@@ -832,7 +906,8 @@ async function getAutonomousOverview({ watchlist = DEFAULT_WATCHLIST, scenarios 
     anchorSymbol: normalizedWatchlist[0],
   })));
 
-  const feed = processedFeed.sort((a, b) => b.importanceScore - a.importanceScore);
+  const providerFeed = canonicalEvents.map((event) => mapCanonicalEventToFeedItem(event, normalizedWatchlist));
+  const feed = mergeFeedItems(processedFeed, providerFeed);
   const watchlistRankings = await buildWatchlistRanks({
     watchlist: normalizedWatchlist,
     feed,
@@ -903,5 +978,7 @@ module.exports = {
   buildInvalidation,
   buildCounterarguments,
   classifyEventType,
+  mapCanonicalEventToFeedItem,
+  mergeFeedItems,
   DEFAULT_WATCHLIST,
 };

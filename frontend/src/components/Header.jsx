@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Button, Input } from "./ui";
 import NotificationCenter from "./NotificationCenter";
 import usePortfolioEngine from "../hooks/usePortfolioEngine";
@@ -36,34 +36,73 @@ function looksConversational(value) {
   return trimmed.includes(" ") || trimmed.endsWith("?");
 }
 
-const CORE_SYMBOLS = [
-  "AAPL",
-  "MSFT",
-  "NVDA",
-  "AMZN",
-  "GOOGL",
-  "META",
-  "TSLA",
-  "PLTR",
-  "AMD",
-  "NFLX",
-  "AVGO",
-  "JPM",
-  "V",
-  "MA",
-  "COST",
-];
+const NEW_YORK_TIME_ZONE = "America/New_York";
+
+function newYorkDateParts(value) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: NEW_YORK_TIME_ZONE,
+    weekday: "short",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(value);
+  const read = (type) => parts.find((part) => part.type === type)?.value;
+  return { year: Number(read("year")), month: Number(read("month")), day: Number(read("day")), hour: Number(read("hour")), minute: Number(read("minute")), weekday: read("weekday") };
+}
+
+function newYorkOffsetMinutes(value) {
+  const offset = new Intl.DateTimeFormat("en-US", { timeZone: NEW_YORK_TIME_ZONE, timeZoneName: "longOffset" })
+    .formatToParts(value).find((part) => part.type === "timeZoneName")?.value || "GMT";
+  const match = offset.match(/GMT([+-])(\d{2}):(\d{2})/);
+  if (!match) return 0;
+  const minutes = Number(match[2]) * 60 + Number(match[3]);
+  return match[1] === "+" ? minutes : -minutes;
+}
+
+function newYorkTimeToUtc({ year, month, day, hour, minute }) {
+  const localTimestamp = Date.UTC(year, month - 1, day, hour, minute, 0);
+  let timestamp = localTimestamp;
+  for (let attempt = 0; attempt < 2; attempt += 1) timestamp = localTimestamp - newYorkOffsetMinutes(new Date(timestamp)) * 60_000;
+  return timestamp;
+}
+
+function formatCountdown(milliseconds) {
+  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+  return [Math.floor(totalSeconds / 3600), Math.floor((totalSeconds % 3600) / 60), totalSeconds % 60]
+    .map((part) => String(part).padStart(2, "0")).join(":");
+}
+
+export function getMarketSession(now = new Date()) {
+  const parts = newYorkDateParts(now);
+  const weekdayIndex = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(parts.weekday);
+  const currentMinutes = parts.hour * 60 + parts.minute;
+  const isWeekday = weekdayIndex >= 1 && weekdayIndex <= 5;
+  const today = { year: parts.year, month: parts.month, day: parts.day };
+  if (isWeekday && currentMinutes >= 570 && currentMinutes < 960) {
+    return { isOpen: true, label: "Closes in", countdown: formatCountdown(newYorkTimeToUtc({ ...today, hour: 16, minute: 0 }) - now.getTime()) };
+  }
+  const daysUntilOpen = !isWeekday || currentMinutes >= 960 ? (isWeekday ? 1 : (8 - weekdayIndex) % 7 || 1) : 0;
+  const nextDate = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + daysUntilOpen));
+  const opensAt = newYorkTimeToUtc({ year: nextDate.getUTCFullYear(), month: nextDate.getUTCMonth() + 1, day: nextDate.getUTCDate(), hour: 9, minute: 30 });
+  return { isOpen: false, label: "Opens in", countdown: formatCountdown(opensAt - now.getTime()) };
+}
 
 function Header({ watchlist = [], onQuickSearch, onNavigate }) {
-  const { t, formatCurrency } = useI18n();
+  const { t, formatCurrency, locale, setLocale, availableLocales } = useI18n();
   const [query, setQuery] = useState("");
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
   const [conversationalAnswer, setConversationalAnswer] = useState(null);
   const [isAnswerLoading, setIsAnswerLoading] = useState(false);
   const [answerError, setAnswerError] = useState("");
+  const [marketSession, setMarketSession] = useState(() => getMarketSession());
+  const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
+  const headerRef = useRef(null);
 
   // Sprint 15 Top App Bar (spec §4.1): portfolio value + daily P/L, reusing
   // the Sprint 14 server-owned engine already fetched elsewhere.
@@ -91,21 +130,49 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
     };
   }, [watchlist]);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => setMarketSession(getMarketSession()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    function closeWhenAnotherOverlayOpens(event) {
+      const activeOverlay = event.detail;
+      setIsQuickActionsOpen(activeOverlay === "quick-actions" ? (value) => value : false);
+      setIsAccountMenuOpen(activeOverlay === "account" ? (value) => value : false);
+      setIsLanguageMenuOpen(activeOverlay === "language" ? (value) => value : false);
+    }
+    function closeOnOutsidePointerDown(event) {
+      if (!headerRef.current?.contains(event.target)) {
+        setIsQuickActionsOpen(false);
+        setIsAccountMenuOpen(false);
+        setIsLanguageMenuOpen(false);
+      }
+    }
+    function closeOnEscape(event) {
+      if (event.key === "Escape") {
+        setIsQuickActionsOpen(false);
+        setIsAccountMenuOpen(false);
+        setIsLanguageMenuOpen(false);
+        setConversationalAnswer(null);
+        setAnswerError("");
+      }
+    }
+    window.addEventListener("impactone:header-overlay-open", closeWhenAnotherOverlayOpens);
+    document.addEventListener("pointerdown", closeOnOutsidePointerDown);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("impactone:header-overlay-open", closeWhenAnotherOverlayOpens);
+      document.removeEventListener("pointerdown", closeOnOutsidePointerDown);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
+
   const navigateTo = useCallback((screen) => {
     onNavigate?.(screen);
     setIsQuickActionsOpen(false);
     setIsAccountMenuOpen(false);
   }, [onNavigate]);
-
-  const suggestions = useMemo(() => {
-    const merged = Array.from(new Set([...(watchlist || []), ...CORE_SYMBOLS]));
-    const normalizedQuery = query.trim().toUpperCase();
-    if (!normalizedQuery) {
-      return merged.slice(0, 8);
-    }
-
-    return merged.filter((symbol) => symbol.startsWith(normalizedQuery)).slice(0, 8);
-  }, [query, watchlist]);
 
   const submitTicker = useCallback((value) => {
     const normalized = String(value || "").trim().toUpperCase();
@@ -114,14 +181,12 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
     }
 
     setQuery(normalized);
-    setIsSearchFocused(false);
     onQuickSearch?.(normalized);
   }, [onQuickSearch]);
 
   const askConversationally = useCallback(async (value) => {
     const question = String(value || "").trim();
     if (!question) return;
-    setIsSearchFocused(false);
     setConversationalAnswer(null);
     setAnswerError("");
     setIsAnswerLoading(true);
@@ -156,10 +221,44 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
   const accountInitial = betaUserLabel ? betaUserLabel.trim().charAt(0).toUpperCase() : "G";
 
   return (
-    <header className="header-bar">
-      <div className="header-title-group">
-        <h2>{t("header.title")}</h2>
-        <p>{t("header.subtitle")}</p>
+    <header ref={headerRef} className="header-bar">
+      <button type="button" className="header-title-group header-title-group--home" onClick={() => onNavigate?.("Home")} aria-label="Go to home">
+        <img className="impact-logo-image impact-logo-image--header" src="/brand/impactone-app-icon.png" alt="" />
+        <div>
+          <h2>{t("header.title")}</h2>
+          <p>{t("header.subtitle")}</p>
+        </div>
+      </button>
+
+      <div className={`header-market-orbit ${marketSession.isOpen ? "is-open" : "is-closed"}`} title="Regular NYSE hours only; holidays and special sessions are not included.">
+        <div className="header-language-menu">
+          <Button
+            type="button"
+            className="header-language-menu__trigger"
+            aria-label="Choose display language"
+            aria-expanded={isLanguageMenuOpen}
+            onClick={() => { window.dispatchEvent(new CustomEvent("impactone:header-overlay-open", { detail: "language" })); setIsLanguageMenuOpen((value) => !value); }}
+          >
+            {locale.toUpperCase()}
+          </Button>
+          {isLanguageMenuOpen ? (
+            <div className="header-language-menu__dropdown">
+              {availableLocales.map((option) => (
+                <Button
+                  key={option.code}
+                  type="button"
+                  className={option.code === locale ? "header-language-menu__option active" : "header-language-menu__option"}
+                  onClick={() => { setLocale(option.code); setIsLanguageMenuOpen(false); }}
+                >
+                  {option.label}
+                </Button>
+              ))}
+              <span className="header-language-menu__option disabled" title="Hebrew translation is not available yet">עברית · בקרוב</span>
+            </div>
+          ) : null}
+        </div>
+        <span className="header-market-orbit__status">{marketSession.isOpen ? t("header.marketOpen") : t("header.marketClosed")}<i aria-hidden="true" /></span>
+        <span className="header-market-orbit__countdown">{marketSession.isOpen ? t("header.closesIn") : t("header.opensIn")} <strong dir="ltr">{marketSession.countdown}</strong></span>
       </div>
 
       <div className="header-portfolio-glance">
@@ -171,35 +270,25 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
 
       <div className="header-controls">
         <label className="search-box" htmlFor="company-search">
-          <span aria-hidden="true">🔎</span>
+          <span className="search-box__glyph" aria-hidden="true">⌕</span>
           <Input
             id="company-search"
-            type="text"
-            placeholder={t("header.searchPlaceholder")}
+            type="search"
+            placeholder=""
+            aria-label="Search a ticker or ask a market question"
             value={query}
             onChange={(event) => {
               const raw = event.target.value;
               setQuery(looksConversational(raw) ? raw : raw.toUpperCase());
             }}
-            onFocus={() => setIsSearchFocused(true)}
-            onBlur={() => setTimeout(() => setIsSearchFocused(false), 150)}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 submitSearch(query);
               }
             }}
           />
-          <Button type="button" className="search-submit" onClick={() => submitSearch(query)}>{t("header.searchGo")}</Button>
+          <Button type="button" className="search-submit" aria-label="Run search" title="Run search" onClick={() => submitSearch(query)}>↗</Button>
         </label>
-        {isSearchFocused && !looksConversational(query) && suggestions.length ? (
-          <div className="header-autocomplete">
-            {suggestions.map((symbol) => (
-              <Button key={symbol} type="button" className="header-suggestion" onClick={() => submitTicker(symbol)}>
-                {symbol}
-              </Button>
-            ))}
-          </div>
-        ) : null}
         {isAnswerLoading || conversationalAnswer || answerError ? (
           <div className="header-autocomplete header-conversational-answer">
             {isAnswerLoading ? (
@@ -215,8 +304,6 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
             )}
           </div>
         ) : null}
-        <div className="market-pill">{t("header.marketOpen")} 🟢</div>
-
         <Button
           type="button"
           className="header-icon-button"
@@ -233,7 +320,7 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
           <Button
             type="button"
             className="header-icon-button"
-            onClick={() => setIsQuickActionsOpen((value) => !value)}
+            onClick={() => { window.dispatchEvent(new CustomEvent("impactone:header-overlay-open", { detail: "quick-actions" })); setIsQuickActionsOpen((value) => !value); }}
             aria-label={t("header.quickActions")}
           >
             ⚡
@@ -251,7 +338,7 @@ function Header({ watchlist = [], onQuickSearch, onNavigate }) {
           <Button
             type="button"
             className="header-icon-button header-avatar"
-            onClick={() => setIsAccountMenuOpen((value) => !value)}
+            onClick={() => { window.dispatchEvent(new CustomEvent("impactone:header-overlay-open", { detail: "account" })); setIsAccountMenuOpen((value) => !value); }}
             aria-label={t("header.accountMenu")}
             title={betaUserLabel || t("header.guestWorkspace")}
           >

@@ -85,6 +85,10 @@ function qualityPillClass(score) {
   return "pill risk";
 }
 
+function formatScoreOutOfTen(score) {
+  return Number.isFinite(Number(score)) ? `${(Number(score) / 10).toFixed(1)}/10` : "—";
+}
+
 function formatTimestamp(value) {
   if (!value) return null;
   const date = new Date(value);
@@ -318,6 +322,11 @@ function RecommendationCard({ recommendation, isExpanded, onToggleExpand }) {
         {qualityScore !== null ? <span className={qualityPillClass(qualityScore)}>Quality {qualityScore}/100</span> : null}
       </div>
 
+      <div className="recommendation-priority" aria-label={qualityScore === null ? "Priority unavailable" : `Decision priority ${qualityScore} out of 100`}>
+        <div><span>Decision priority</span><strong>{formatScoreOutOfTen(qualityScore)}</strong></div>
+        <div className="recommendation-priority__track"><i style={{ width: `${qualityScore ?? 0}%` }} /></div>
+      </div>
+
       {/* Sprint 36 Priority 4 — Recommendation optimization: reduce
           reading. These 6 numbers used to be 3 separate sentences (~35
           words to parse before reaching the thesis); a scannable pill
@@ -326,12 +335,10 @@ function RecommendationCard({ recommendation, isExpanded, onToggleExpand }) {
           line below already states it — the same fact was previously
           written twice on one collapsed card. */}
       <div className="rec-stat-row">
-        <span className="pill">Confidence {Number(recommendation.confidenceScore)}/100</span>
-        {Number.isFinite(uncertainty) ? <span className="pill">Uncertainty {uncertainty}/100</span> : null}
-        <span className="pill">Risk {recommendation.riskLabel}</span>
-        <span className="pill opportunity">Upside {recommendation.expectedUpside}</span>
-        <span className="pill risk">Downside {recommendation.expectedDownside}</span>
-        <span className="pill">Size {recommendation.positionSizeSuggestion}</span>
+        <span className="pill">Confidence {Number(recommendation.confidenceScore)}%</span>
+        <span className="pill">Risk: {recommendation.riskLabel}</span>
+        <span className="pill">Horizon: {recommendation.timeHorizon || "—"}</span>
+        {isExpanded && Number.isFinite(uncertainty) ? <span className="pill">Uncertainty {uncertainty}/100</span> : null}
       </div>
 
       {explanation.thesis ? <p className="company-description">{explanation.thesis}</p> : null}
@@ -344,7 +351,9 @@ function RecommendationCard({ recommendation, isExpanded, onToggleExpand }) {
           object — nothing new is fetched, nothing is fabricated to fill a
           slot: a question with no real answer in the data is simply
           omitted rather than padded with a placeholder. */}
-      <div className="rec-at-a-glance">
+      <details className="rec-at-a-glance rec-at-a-glance--collapsed">
+        <summary>Why this call</summary>
+        <div>
         <p className="company-description subtle">
           <strong>Why now:</strong> {isFromToday ? "Generated today" : formatTimestamp(recommendation.createdAt) || "Recently"}, timed to the {recommendation.timeHorizon || "stated"} horizon
           {isFromToday ? " — not a carried-over call from a previous day." : "."}
@@ -370,7 +379,8 @@ function RecommendationCard({ recommendation, isExpanded, onToggleExpand }) {
             <strong>Watch next:</strong> {explanation.keyRisks[0]}
           </p>
         ) : null}
-      </div>
+        </div>
+      </details>
 
       {isExpanded ? (
         <>

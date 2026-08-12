@@ -73,11 +73,13 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
   const trendContext = analyzeTrendContext(metrics.dailyTrendSignal);
   const dailySwing = detectPrimarySwing(metrics.dailyBars);
   const weeklySwing = detectPrimarySwing(metrics.weeklyBars, WEEKLY_SWING_LOOKBACK);
+  const monthlySwing = detectPrimarySwing(metrics.monthlyBars, metrics.monthlyBars.length);
 
   const timeframe = analyzeTimeframeAgreement(dailySwing, weeklySwing, metrics.dailyTrendSignal, metrics.weeklyTrendSignal);
   const dynamicLevels = analyzeDynamicLevels(metrics.dailyBars);
 
   const retracementLevels = calculateRetracementLevels(dailySwing);
+  const monthlyScanLevels = calculateRetracementLevels(monthlySwing, { activeRatios: [0.236, 0.382, 0.5, 0.618, 0.786] });
   const extensionTargets = calculateExtensionTargets(dailySwing);
 
   const allLevels = [
@@ -113,6 +115,8 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
     trendContext,
     primarySwing: dailySwing,
     retracementLevels,
+    monthlyScanLevels,
+    monthlySwing,
     extensionTargets,
     confluenceZones,
     highProbabilityZones,

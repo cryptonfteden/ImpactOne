@@ -7,6 +7,7 @@
     "server": "node backend/server.js",
     "client": "cd frontend && npm run dev",
     "client:5174": "cd frontend && npm run dev -- --host 127.0.0.1 --port 5174",
+    "site": "node mission-control-site/server.js",
     "build": "cd frontend && npm run build",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

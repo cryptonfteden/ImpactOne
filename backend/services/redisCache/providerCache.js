@@ -20,7 +20,7 @@ function createProviderCache({ now = Date.now } = {}) {
   let misses = 0;
   let bypassed = 0; // real Redis errors / unavailability — distinct from an honest cache miss
 
-  async function getOrCompute(cacheKey, computeFn, { ttlMs = 0 } = {}) {
+  async function getOrCompute(cacheKey, computeFn, { ttlMs = 0, shouldCache = () => true } = {}) {
     if (!(ttlMs > 0)) {
       misses += 1;
       return computeFn();
@@ -53,7 +53,9 @@ function createProviderCache({ now = Date.now } = {}) {
     const result = await computeFn();
 
     try {
-      await client.set(cacheKey, JSON.stringify(result), { PX: ttlMs });
+      if (shouldCache(result)) {
+        await client.set(cacheKey, JSON.stringify(result), { PX: ttlMs });
+      }
     } catch {
       // A real write failure never affects the real, already-computed
       // result being returned to the caller — only the cache is

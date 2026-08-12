@@ -7,12 +7,37 @@ import { logError } from "../../utils/errorHandling";
 import { performanceMetricsApi } from "../../services/api";
 
 const TIMEFRAMES = [
-  { key: "1mo", label: "1M" },
-  { key: "3mo", label: "3M" },
-  { key: "6mo", label: "6M" },
   { key: "1y", label: "1Y" },
-  { key: "5y", label: "5Y" },
+  { key: "3mo", label: "3M" },
+  { key: "1mo", label: "1M" },
+  { key: "1w", label: "1W" },
+  { key: "1d", label: "1D" },
+  { key: "4h", label: "4H" },
+  { key: "15m", label: "15m" },
 ];
+
+const CHART_TYPES = [
+  { key: "candles", label: "Candles" },
+  { key: "hollow", label: "Hollow candles" },
+  { key: "bars", label: "OHLC bars" },
+  { key: "line", label: "Line" },
+  { key: "area", label: "Area" },
+  { key: "baseline", label: "Baseline" },
+  { key: "step", label: "Step line" },
+  { key: "highLow", label: "High–low" },
+  { key: "columns", label: "Columns" },
+];
+
+const FIBONACCI_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+const FIBONACCI_STYLE = {
+  0: { color: "#8aa8ff", label: "0.000" },
+  0.236: { color: "#66d7ff", label: "0.236" },
+  0.382: { color: "#57e7cc", label: "0.382" },
+  0.5: { color: "#f5c968", label: "0.500" },
+  0.618: { color: "#ff9f70", label: "0.618" },
+  0.786: { color: "#e68bff", label: "0.786" },
+  1: { color: "#fa7185", label: "1.000" },
+};
 
 const MIN_VISIBLE_BARS = 10;
 const DEFAULT_VISIBLE_BARS = 60;
@@ -32,6 +57,20 @@ function fastMinMax(values) {
   return { min, max };
 }
 
+function findFibonacciAnchors(bars) {
+  let lowIndex = 0;
+  let highIndex = 0;
+  bars.forEach((bar, index) => {
+    if (Number(bar.low) < Number(bars[lowIndex].low)) lowIndex = index;
+    if (Number(bar.high) > Number(bars[highIndex].high)) highIndex = index;
+  });
+  // The older pivot is the start point; this preserves a readable diagonal
+  // direction whether the real visible swing is rising or falling.
+  return lowIndex < highIndex
+    ? { startIndex: lowIndex, endIndex: highIndex, from: Number(bars[lowIndex].low), to: Number(bars[highIndex].high) }
+    : { startIndex: highIndex, endIndex: lowIndex, from: Number(bars[highIndex].high), to: Number(bars[lowIndex].low) };
+}
+
 /**
  * Phase X2/X3 — Advanced Market Chart. Real OHLCV data only (the
  * existing, already-real priceHistoryProvider via
@@ -46,7 +85,7 @@ function fastMinMax(values) {
  * overlay remain deliberately NOT implemented — the layers exist and are
  * empty by design, pending CEO approval.
  */
-export default function AdvancedChart({ symbol, height = 420 }) {
+export default function AdvancedChart({ symbol, height = 420, initialRange = "3mo" }) {
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
   const overlayCanvasRef = useRef(null);
@@ -63,12 +102,18 @@ export default function AdvancedChart({ symbol, height = 420 }) {
     toolManagerRef.current = new ToolManager(OVERLAY_REGISTRY);
   }
 
-  const [range, setRange] = useState("3mo");
+  const [range, setRange] = useState(initialRange);
   const [bars, setBars] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [reloadToken, setReloadToken] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
-  const [crosshair, setCrosshair] = useState(null); // { index, x } or null
+  const [crosshair, setCrosshair] = useState(null); // { index, x, y } or null
+  const [showFibonacci, setShowFibonacci] = useState(true);
+  const [showVolume, setShowVolume] = useState(true);
+  const [chartType, setChartType] = useState("candles");
+  const [isDrawingFibonacci, setIsDrawingFibonacci] = useState(false);
+  const [fibonacciAnchors, setFibonacciAnchors] = useState(null);
 
   // The pan/zoom state: which slice of `bars` is currently visible.
   const [view, setView] = useState({ start: 0, end: 0 });
@@ -107,7 +152,13 @@ export default function AdvancedChart({ symbol, height = 420 }) {
     return () => {
       cancelled = true;
     };
-  }, [symbol, range, defaultView]);
+  }, [symbol, range, defaultView, reloadToken]);
+
+  useEffect(() => {
+    if (isLoading || error || bars.length) return undefined;
+    const retry = window.setTimeout(() => setReloadToken((value) => value + 1), 2200);
+    return () => window.clearTimeout(retry);
+  }, [isLoading, error, bars.length]);
 
   // Responsive: real ResizeObserver, not a fixed width assumption.
   // Re-runs when the loading/error/empty state changes, since the
@@ -117,6 +168,10 @@ export default function AdvancedChart({ symbol, height = 420 }) {
   // containerWidth would never leave 0.
   useEffect(() => {
     if (!containerRef.current) return undefined;
+    if (typeof ResizeObserver !== "function") {
+      setContainerWidth(Math.floor(containerRef.current.getBoundingClientRect().width || 720));
+      return undefined;
+    }
     const observer = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect?.width;
       if (width) setContainerWidth(Math.floor(width));
@@ -129,7 +184,7 @@ export default function AdvancedChart({ symbol, height = 420 }) {
 
   const geometry = useMemo(() => {
     if (!visibleBars.length || !containerWidth) return null;
-    const volumePaneHeight = height * 0.2;
+    const volumePaneHeight = showVolume ? height * 0.2 : 0;
     const pricePaneHeight = height - volumePaneHeight - 24;
     const { min: minPrice, max: maxPrice } = fastMinMax(visibleBars.flatMap((bar) => [Number(bar.high), Number(bar.low)]));
     const priceRange = maxPrice - minPrice || 1;
@@ -137,7 +192,7 @@ export default function AdvancedChart({ symbol, height = 420 }) {
     const barWidth = containerWidth / visibleBars.length;
     const yFor = (price) => pricePaneHeight - ((price - minPrice) / priceRange) * pricePaneHeight;
     return { volumePaneHeight, pricePaneHeight, minPrice, maxPrice, maxVolume: maxVolume || 1, barWidth, yFor };
-  }, [visibleBars, containerWidth, height]);
+  }, [visibleBars, containerWidth, height, showVolume]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -156,6 +211,20 @@ export default function AdvancedChart({ symbol, height = 420 }) {
     const { pricePaneHeight, maxPrice, minPrice, maxVolume, barWidth, yFor } = geometry;
     const candleWidth = Math.max(1, barWidth * 0.6);
 
+    // A terminal-style grid anchors the live candles and price axis.
+    ctx.save();
+    ctx.strokeStyle = "rgba(117, 152, 214, 0.13)";
+    ctx.lineWidth = 1;
+    for (let row = 1; row < 6; row += 1) {
+      const y = (pricePaneHeight / 6) * row;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(containerWidth, y); ctx.stroke();
+    }
+    for (let column = 1; column < 7; column += 1) {
+      const x = (containerWidth / 7) * column;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+    }
+    ctx.restore();
+
     // Symbol watermark — large, faint, behind the candles.
     ctx.save();
     ctx.font = "700 64px Inter, sans-serif";
@@ -164,7 +233,8 @@ export default function AdvancedChart({ symbol, height = 420 }) {
     ctx.fillText(symbol, containerWidth / 2, pricePaneHeight / 2);
     ctx.restore();
 
-    visibleBars.forEach((bar, index) => {
+    const drawCandle = chartType === "candles" || chartType === "hollow";
+    if (drawCandle) visibleBars.forEach((bar, index) => {
       const x = index * barWidth + barWidth / 2;
       const open = Number(bar.open);
       const closeVal = Number(bar.close);
@@ -181,13 +251,112 @@ export default function AdvancedChart({ symbol, height = 420 }) {
 
       const bodyTop = yFor(Math.max(open, closeVal));
       const bodyHeight = Math.max(1, Math.abs(yFor(open) - yFor(closeVal)));
-      ctx.fillRect(x - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
+      if (chartType === "hollow") {
+        ctx.lineWidth = 1.4;
+        ctx.strokeRect(x - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
+      } else {
+        ctx.fillRect(x - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
+      }
 
-      const volume = Number(bar.volume) || 0;
-      const volHeight = (volume / maxVolume) * geometry.volumePaneHeight;
-      ctx.fillStyle = isUp ? "rgba(52, 211, 153, 0.4)" : "rgba(248, 113, 113, 0.4)";
-      ctx.fillRect(x - candleWidth / 2, height - volHeight, candleWidth, volHeight);
+      if (showVolume) {
+        const volume = Number(bar.volume) || 0;
+        const volHeight = (volume / maxVolume) * geometry.volumePaneHeight;
+        ctx.fillStyle = isUp ? "rgba(52, 211, 153, 0.4)" : "rgba(248, 113, 113, 0.4)";
+        ctx.fillRect(x - candleWidth / 2, height - volHeight, candleWidth, volHeight);
+      }
     });
+
+    if (chartType === "bars") visibleBars.forEach((bar, index) => {
+      const x = index * barWidth + barWidth / 2;
+      const open = Number(bar.open); const closeVal = Number(bar.close);
+      ctx.strokeStyle = closeVal >= open ? "#34d399" : "#f87171";
+      ctx.lineWidth = 1.35;
+      ctx.beginPath();
+      ctx.moveTo(x, yFor(Number(bar.high))); ctx.lineTo(x, yFor(Number(bar.low)));
+      ctx.moveTo(x - candleWidth / 2, yFor(open)); ctx.lineTo(x, yFor(open));
+      ctx.moveTo(x, yFor(closeVal)); ctx.lineTo(x + candleWidth / 2, yFor(closeVal));
+      ctx.stroke();
+    });
+
+    if (["line", "area", "baseline", "step", "highLow", "columns"].includes(chartType)) {
+      const points = visibleBars.map((bar, index) => ({ x: index * barWidth + barWidth / 2, y: yFor(Number(bar.close)), close: Number(bar.close), high: Number(bar.high), low: Number(bar.low) }));
+      const rising = points.at(-1)?.close >= points[0]?.close;
+      const lineColor = chartType === "baseline" ? (rising ? "#44dfa8" : "#fb7185") : "#66d7ff";
+      ctx.save();
+      if (chartType === "highLow") {
+        ctx.strokeStyle = "rgba(113, 223, 218, .78)";
+        ctx.lineWidth = Math.max(1, candleWidth * .45);
+        points.forEach((point) => { ctx.beginPath(); ctx.moveTo(point.x, yFor(point.high)); ctx.lineTo(point.x, yFor(point.low)); ctx.stroke(); });
+      } else if (chartType === "columns") {
+        points.forEach((point) => {
+          ctx.fillStyle = point.close >= Number(visibleBars[0].open) ? "rgba(79, 226, 169, .64)" : "rgba(248, 113, 133, .62)";
+          ctx.fillRect(point.x - candleWidth / 2, point.y, candleWidth, pricePaneHeight - point.y);
+        });
+      } else {
+        ctx.beginPath();
+        points.forEach((point, index) => {
+          if (!index) ctx.moveTo(point.x, point.y);
+          else if (chartType === "step") { ctx.lineTo(point.x, points[index - 1].y); ctx.lineTo(point.x, point.y); }
+          else ctx.lineTo(point.x, point.y);
+        });
+        if (chartType === "area" || chartType === "baseline") {
+          ctx.lineTo(points.at(-1).x, pricePaneHeight); ctx.lineTo(points[0].x, pricePaneHeight); ctx.closePath();
+          ctx.fillStyle = rising ? "rgba(68, 223, 168, .17)" : "rgba(251, 113, 133, .16)";
+          ctx.fill();
+        }
+        ctx.beginPath();
+        points.forEach((point, index) => {
+          if (!index) ctx.moveTo(point.x, point.y);
+          else if (chartType === "step") { ctx.lineTo(point.x, points[index - 1].y); ctx.lineTo(point.x, point.y); }
+          else ctx.lineTo(point.x, point.y);
+        });
+        ctx.strokeStyle = lineColor; ctx.lineWidth = 2; ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    if (showFibonacci) {
+      const anchors = fibonacciAnchors || findFibonacciAnchors(visibleBars);
+      const swingRange = anchors.to - anchors.from || 1;
+      const startX = anchors.startIndex * barWidth + barWidth / 2;
+      const endX = anchors.endIndex * barWidth + barWidth / 2;
+      ctx.save();
+      const priceForRatio = (ratio) => anchors.to > anchors.from
+        ? anchors.to - swingRange * ratio
+        : anchors.to + swingRange * ratio;
+      ctx.strokeStyle = "rgba(192, 207, 244, 0.55)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(startX, yFor(anchors.from));
+      ctx.lineTo(endX, yFor(anchors.to));
+      ctx.stroke();
+      ctx.font = "600 10px ui-monospace, SFMono-Regular, Menlo, monospace";
+      FIBONACCI_LEVELS.forEach((ratio) => {
+        const price = priceForRatio(ratio);
+        const y = yFor(price);
+        const style = FIBONACCI_STYLE[ratio];
+        const keyLevel = ratio === 0.382 || ratio === 0.5 || ratio === 0.618;
+        ctx.strokeStyle = style.color;
+        ctx.globalAlpha = keyLevel ? 0.9 : 0.58;
+        ctx.lineWidth = keyLevel ? 1.25 : 1;
+        ctx.setLineDash(keyLevel ? [] : [4, 5]);
+        ctx.beginPath(); ctx.moveTo(startX, y); ctx.lineTo(containerWidth - 2, y); ctx.stroke();
+        const label = `${style.label} (${price.toFixed(2)})`;
+        const labelX = Math.min(containerWidth - 120, startX + 5);
+        const labelY = Math.max(10, Math.min(pricePaneHeight - 4, y - 4));
+        ctx.globalAlpha = 0.96;
+        ctx.fillStyle = style.color;
+        ctx.textAlign = "left";
+        ctx.fillText(label, labelX, labelY);
+      });
+      ctx.setLineDash([]);
+      [
+        { x: startX, y: yFor(anchors.from) },
+        { x: endX, y: yFor(anchors.to) },
+      ].forEach((point) => { ctx.fillStyle = "#d8ecff"; ctx.beginPath(); ctx.arc(point.x, point.y, 3.4, 0, Math.PI * 2); ctx.fill(); });
+      ctx.restore();
+    }
 
     // Axis labels — real min/max, tabular-style right-aligned.
     ctx.fillStyle = "#93a1c2";
@@ -206,9 +375,15 @@ export default function AdvancedChart({ symbol, height = 420 }) {
       ctx.moveTo(x, 0);
       ctx.lineTo(x, height);
       ctx.stroke();
+      if (Number.isFinite(crosshair.y) && crosshair.y >= 0 && crosshair.y <= pricePaneHeight) {
+        ctx.beginPath();
+        ctx.moveTo(0, crosshair.y);
+        ctx.lineTo(containerWidth, crosshair.y);
+        ctx.stroke();
+      }
       ctx.restore();
     }
-  }, [visibleBars, containerWidth, height, geometry, symbol, crosshair]);
+  }, [visibleBars, containerWidth, height, geometry, symbol, crosshair, showFibonacci, showVolume, fibonacciAnchors]);
 
   // Performance: batch every redraw trigger onto a single
   // requestAnimationFrame rather than painting synchronously on every
@@ -237,19 +412,37 @@ export default function AdvancedChart({ symbol, height = 420 }) {
 
   // Pan — real drag over the loaded bars array, clamped to real bounds.
   function handlePointerDown(event) {
+    if (isDrawingFibonacci && geometry) {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const x = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
+      const y = Math.max(0, Math.min(geometry.pricePaneHeight, event.clientY - rect.top));
+      const index = Math.max(0, Math.min(visibleBars.length - 1, Math.floor(x / geometry.barWidth)));
+      const price = geometry.minPrice + ((geometry.pricePaneHeight - y) / geometry.pricePaneHeight) * (geometry.maxPrice - geometry.minPrice);
+      setFibonacciAnchors((current) => {
+        if (!current || current.complete) {
+          return { startIndex: index, endIndex: index, from: price, to: price, complete: false };
+        }
+        setIsDrawingFibonacci(false);
+        return { ...current, endIndex: index, to: price, complete: true };
+      });
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+      return;
+    }
     dragState.current = { startX: event.clientX, startView: { ...view } };
   }
 
-  function updateCrosshairFromClientX(clientX) {
+  function updateCrosshairFromPointer(clientX, clientY) {
     if (!containerRef.current || !geometry) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const index = Math.floor(x / geometry.barWidth);
-    setCrosshair({ index, x });
+    const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
+    const y = Math.max(0, Math.min(height, clientY - rect.top));
+    const index = Math.max(0, Math.min(visibleBars.length - 1, Math.floor(x / geometry.barWidth)));
+    setCrosshair({ index, x, y });
   }
 
   function handlePointerMove(event) {
-    updateCrosshairFromClientX(event.clientX);
+    updateCrosshairFromPointer(event.clientX, event.clientY);
     if (!dragState.current || !containerWidth || !bars.length) return;
     const deltaX = event.clientX - dragState.current.startX;
     const barsVisible = dragState.current.startView.end - dragState.current.startView.start;
@@ -320,6 +513,12 @@ export default function AdvancedChart({ symbol, height = 420 }) {
     setView(defaultView(bars.length));
   }
 
+  function toggleFibDrawing() {
+    setShowFibonacci(true);
+    setIsDrawingFibonacci((value) => !value);
+    setFibonacciAnchors(null);
+  }
+
   // Auto-fit — distinct from reset: fits the view to every real bar
   // currently loaded for this range, not just the default recent window.
   function autoFit() {
@@ -375,7 +574,21 @@ export default function AdvancedChart({ symbol, height = 420 }) {
             </button>
           ))}
         </div>
+        <label className="advanced-chart__type-picker">
+          <span>Chart</span>
+          <select value={chartType} onChange={(event) => setChartType(event.target.value)} aria-label="Chart type">
+            {CHART_TYPES.map((type) => <option key={type.key} value={type.key}>{type.label}</option>)}
+          </select>
+        </label>
         <div className="advanced-chart__toolbar-actions">
+          <button
+            type="button"
+            className={`ghost-button${showVolume ? " active" : ""}`}
+            onClick={() => setShowVolume((value) => !value)}
+            title="Show or hide real trading volume."
+          >
+            Volume
+          </button>
           <button type="button" className="ghost-button" onClick={autoFit} title="Fit all loaded data (F)">Auto-fit</button>
           <button type="button" className="ghost-button" onClick={resetZoom} title="Reset to default view (R)">Reset</button>
           {/* Phase X6 — Part 7, Fibonacci Placeholder. UI location
@@ -386,11 +599,19 @@ export default function AdvancedChart({ symbol, height = 420 }) {
               no further change when that flag flips. */}
           <button
             type="button"
-            className="ghost-button"
-            disabled
-            title="Custom Fibonacci — coming soon, powered by your TradingView profile."
+            className={`ghost-button${showFibonacci ? " active" : ""}`}
+            onClick={() => setShowFibonacci((value) => !value)}
+            title="Show or hide Fibonacci retracement levels."
           >
-            Fibonacci (coming soon)
+            {showFibonacci ? "Fibonacci on" : "Fibonacci"}
+          </button>
+          <button
+            type="button"
+            className={`ghost-button${isDrawingFibonacci ? " active" : ""}`}
+            onClick={toggleFibDrawing}
+            title="Place Fibonacci start and end points on the chart."
+          >
+            {isDrawingFibonacci ? "Tap 2 points" : "Draw fib"}
           </button>
         </div>
       </div>
@@ -400,7 +621,11 @@ export default function AdvancedChart({ symbol, height = 420 }) {
       ) : error ? (
         <ErrorState message={error} />
       ) : !visibleBars.length ? (
-        <p className="company-description subtle">No chart data available for {symbol} right now.</p>
+        <div className="advanced-chart__empty-state">
+          <strong>Reconnecting to live market data…</strong>
+          <span>No chart data available for {symbol} right now. The chart retries automatically.</span>
+          <button type="button" className="ghost-button" onClick={() => setReloadToken((value) => value + 1)}>Retry now</button>
+        </div>
       ) : (
         <div
           ref={containerRef}
@@ -442,6 +667,7 @@ export default function AdvancedChart({ symbol, height = 420 }) {
               <div className="advanced-chart__tooltip-row"><strong>Vol</strong> {Number(hoveredBar.volume || 0).toLocaleString()}</div>
             </div>
           ) : null}
+          {isDrawingFibonacci ? <div className="advanced-chart__drawing-hint">Tap the low, then the high</div> : null}
         </div>
       )}
     </div>

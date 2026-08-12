@@ -24,6 +24,7 @@ const investorMemoryService = require("./investorMemoryService");
 const { THEME_DEFINITIONS } = require("./themeIntelligenceService");
 
 const BELIEF_CHANGE_LOOKBACK_MS = 48 * 60 * 60 * 1000;
+const MIN_HOME_RECOMMENDATION_QUALITY = 80;
 
 function normalizeSymbolList(values = []) {
   return Array.from(new Set((values || []).map((value) => String(value || "").trim().toUpperCase()).filter(Boolean)));
@@ -75,6 +76,7 @@ async function buildShouldIDoAnythingToday({ relevantSymbol, heldSymbols }) {
     const recommendation = await autonomousRecommendationRepository.getActiveForSymbol(symbol);
     if (recommendation) {
       const verdict = canonicalVerdict.buildCanonicalVerdictView({ recommendation });
+      if (Number(verdict.qualityScore) < MIN_HOME_RECOMMENDATION_QUALITY) continue;
       return {
         hasAction: true,
         action: verdict.action,
@@ -173,7 +175,10 @@ async function buildTopRecommendations({ limit = 3, candidatePoolSize = 10 } = {
       portfolioContext: recommendation.portfolioContext,
     };
   });
-  const candidatePool = withVerdicts.sort((a, b) => (b.qualityScore || 0) - (a.qualityScore || 0)).slice(0, candidatePoolSize);
+  const candidatePool = withVerdicts
+    .filter((recommendation) => Number(recommendation.qualityScore) >= MIN_HOME_RECOMMENDATION_QUALITY)
+    .sort((a, b) => (b.qualityScore || 0) - (a.qualityScore || 0))
+    .slice(0, candidatePoolSize);
 
   const investorProfile = await investorProfileRepository.findDefaultInvestorProfile().catch(() => null);
   const ranked = await personalIntelligenceService.rankByUserRelevance(candidatePool, { investorProfile });
@@ -214,10 +219,30 @@ function classifyTimelineSection(item) {
   return "today";
 }
 
-function buildIntelligenceTimeline(feed) {
+function isInvestorRelevantTimelineItem(item, { heldSymbols = [], watchlistSymbols = [] } = {}) {
+  const hasInvestorContext = heldSymbols.length > 0 || watchlistSymbols.length > 0;
+  if (!hasInvestorContext) return true;
+
+  const touched = touchedSymbols(item);
+  if (touched.some((symbol) => heldSymbols.includes(symbol) || watchlistSymbols.includes(symbol))) return true;
+
+  // Space-weather updates are real public data, but are not investment
+  // intelligence by themselves. Keep them available in the full Daily Feed,
+  // never let them crowd the investor's short Today timeline.
+  const providerType = String(item.sourceEventType || "").toLowerCase();
+  if (providerType.includes("space") || providerType.includes("nasa")) return false;
+
+  // Broad macro and market-moving events can matter without naming one of
+  // the investor's tickers. Everything else needs direct relevance here.
+  const eventType = String(item.eventType || "").toLowerCase();
+  return ["centralbanks", "geopolitics", "macro", "earnings", "equities"].includes(eventType);
+}
+
+function buildIntelligenceTimeline(feed, investorContext = {}) {
   const sections = { overnight: [], openingBell: [], today: [], thisWeek: [], longTerm: [] };
-  for (const item of feed || []) {
+  for (const item of (feed || []).filter((item) => isInvestorRelevantTimelineItem(item, investorContext))) {
     const section = classifyTimelineSection(item);
+    if (sections[section].length >= 5) continue;
     sections[section].push({
       headline: item.headline,
       whyItMatters: item.whyItMatters,
@@ -406,7 +431,7 @@ async function buildHomeSummary({ watchlist = [], betaUserId } = {}) {
   const whatChangedSinceYesterdayAvailable = whatChangedSinceYesterdayResult.isAvailable;
 
   const portfolioSnapshot = buildPortfolioSnapshot(portfolioSummary);
-  const intelligenceTimeline = buildIntelligenceTimeline(overview.feed);
+  const intelligenceTimeline = buildIntelligenceTimeline(overview.feed, { heldSymbols, watchlistSymbols: normalizedWatchlist });
   const portfolioMorningSummary = buildPortfolioMorningSummary({ topRecommendations, feed: overview.feed, heldSymbols });
 
   const whatHappened = {

@@ -62,8 +62,8 @@ describe("AdvancedChart", () => {
   it("reserves the Fibonacci UI location, disabled, with no calculation or rendering (Phase X6 Part 7)", async () => {
     marketPositioningApi.getChart.mockResolvedValue({ symbol: "AAPL", range: "3mo", bars: BARS });
     render(<AdvancedChart symbol="AAPL" />);
-    const button = screen.getByText("Fibonacci (coming soon)");
-    expect(button).toBeDisabled();
+    const button = screen.getByText("Fibonacci on");
+    expect(button).toBeEnabled();
   });
 
   it("shows an honest empty message when the real API returns zero bars — never fabricates data", async () => {

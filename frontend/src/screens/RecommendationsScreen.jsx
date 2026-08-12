@@ -1,16 +1,25 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import SectionCard from "../components/SectionCard";
 import { Button, EmptyState, ErrorState, Skeleton } from "../components/ui";
 import useRecommendations from "../hooks/useRecommendations";
 import useWatchlist from "../hooks/useWatchlist";
+import useVirtualPortfolio from "../hooks/useVirtualPortfolio";
 import RecommendationCard from "../components/recommendations/RecommendationCard";
-import { outcomeIntelligenceApi, calibrationReportApi } from "../services/api";
+import { outcomeIntelligenceApi, calibrationReportApi, intelligenceApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 import { trackEvent } from "../utils/analytics";
 import { msSinceBoot } from "../utils/performanceTiming";
 
 function recommendationKey(recommendation) {
   return recommendation.id;
+}
+
+const MIN_RECOMMENDATION_QUALITY = 80;
+
+function recommendationPriority(recommendation) {
+  const quality = Number(recommendation?.qualityScore);
+  const confidence = Number(recommendation?.confidenceScore);
+  return (Number.isFinite(quality) ? quality : 0) * 1000 + (Number.isFinite(confidence) ? confidence : 0);
 }
 
 // Phase E3.5 — Lessons Learned dedup. buildLessonText (backend, unchanged
@@ -53,6 +62,8 @@ function dedupeLessons(lessons) {
 export default function RecommendationsScreen() {
   const { recommendations, status, isLoading, isRunning, error, actionError, runNow } = useRecommendations();
   const { watchlist } = useWatchlist();
+  const [portfolioOverview, setPortfolioOverview] = useState(null);
+  const { portfolio } = useVirtualPortfolio({ watchlist, overview: portfolioOverview, autoSync: true });
   const [expandedId, setExpandedId] = useState(null);
   // Sprint 36 Priority 5 — a stable function reference (empty deps, pure
   // functional setState) so RecommendationCard's memo() actually prevents
@@ -64,6 +75,25 @@ export default function RecommendationsScreen() {
   }, []);
   const [lessons, setLessons] = useState([]);
   const [calibration, setCalibration] = useState(null);
+  const priorityRecommendations = useMemo(() => recommendations
+    .filter((recommendation) => Number(recommendation.qualityScore) >= MIN_RECOMMENDATION_QUALITY)
+    .sort((left, right) => recommendationPriority(right) - recommendationPriority(left)), [recommendations]);
+  const positions = portfolio?.positions || [];
+  const trades = portfolio?.trades || [];
+  const latestAgentTrade = trades.length ? trades[trades.length - 1] : null;
+  const deployedCapital = Math.max(0, Number(portfolio?.totalPortfolioValue || 0) - Number(portfolio?.cashBalance || 0));
+
+  useEffect(() => {
+    let cancelled = false;
+    intelligenceApi.overview({
+      watchlist: watchlist.length ? watchlist : ["AAPL", "NVDA", "TSLA", "BTC"],
+      scenarios: ["Oil spike", "Fed rate hike", "BTC ETF approval", "Israel conflict"],
+      sessionType: "morning",
+    }).then((data) => {
+      if (!cancelled) setPortfolioOverview(data);
+    }).catch((loadError) => logError("For You portfolio intelligence load failed", loadError));
+    return () => { cancelled = true; };
+  }, [watchlist]);
 
   // Sprint 31 Priority 4 — Outcome Intelligence. Fetched once; this list
   // only grows as real outcomes get graded, so there's no need to poll.
@@ -114,15 +144,16 @@ export default function RecommendationsScreen() {
 
   return (
     <div className="screen-page">
-      <section className="screen-hero">
+      <section className="screen-hero for-you-hero">
         <div>
           <p className="eyebrow">Recommendations — Advisory Only</p>
-          <h1>Autonomous Recommendation Engine</h1>
+          <h1>Your agent-managed portfolio</h1>
           <p className="subtext">
             Analyzes market events and real portfolio exposure to suggest what to do, with confidence, expected
             upside/downside, and risk. It never places a trade — every action here is manual.
           </p>
         </div>
+        <div className="for-you-hero__signal" aria-label={`${priorityRecommendations.length} priority recommendations`}><strong>{priorityRecommendations.length}</strong><span>priority calls</span></div>
         <Button type="button" className="ghost-button" onClick={() => runNow(watchlist)} disabled={isRunning}>
           {isRunning ? "Running..." : "Run now"}
         </Button>
@@ -133,7 +164,16 @@ export default function RecommendationsScreen() {
       ) : null}
       {actionError ? <p className="company-description subtle negative">{actionError}</p> : null}
 
-      <SectionCard title="Engine Status" subtitle="Read-only, never executes trades" className="screen-card">
+      <SectionCard title="Agent portfolio" subtitle="Paper trading · agents act only after the full risk gate passes" className="screen-card agent-portfolio-card">
+        <div className="agent-portfolio-card__metrics">
+          <div><span>Active positions</span><strong>{positions.length}</strong><small>{positions.length ? "Being monitored live" : "No qualified trade yet"}</small></div>
+          <div><span>Capital deployed</span><strong>${deployedCapital.toLocaleString()}</strong><small>${Number(portfolio?.cashBalance || 0).toLocaleString()} available</small></div>
+          <div><span>Latest agent decision</span><strong>{latestAgentTrade ? `${latestAgentTrade.action} · ${latestAgentTrade.ticker}` : "Watching"}</strong><small>{latestAgentTrade ? `Confidence ${latestAgentTrade.confidence}%` : "Waiting for a qualified setup"}</small></div>
+        </div>
+        <p className="agent-portfolio-card__note">Market, news, technical, valuation and risk signals are checked together. A virtual position opens only when the configured confidence, risk/reward, committee and market-regime gates agree.</p>
+      </SectionCard>
+
+      <SectionCard title="Engine status" subtitle="Read-only · never executes trades" className="screen-card for-you-engine-card">
         <div className="widget-list">
           <div className="widget-list-item"><strong>Enabled</strong><span>{status?.enabled ? "Yes" : "No"}</span></div>
           <div className="widget-list-item"><strong>Interval</strong><span>{status?.intervalMinutes ? `${status.intervalMinutes} min` : "—"}</span></div>
@@ -145,10 +185,10 @@ export default function RecommendationsScreen() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Active Recommendations" subtitle="Ranked by most recent" className="screen-card">
-        {recommendations.length ? (
+      <SectionCard title="Priority calls" subtitle="Quality 8/10+ · highest conviction first" className="screen-card for-you-results-card">
+        {priorityRecommendations.length ? (
           <div className="opportunity-grid">
-            {recommendations.map((recommendation) => {
+            {priorityRecommendations.map((recommendation) => {
               const key = recommendationKey(recommendation);
               return (
                 <RecommendationCard
@@ -176,7 +216,7 @@ export default function RecommendationsScreen() {
         )}
       </SectionCard>
 
-      <SectionCard title="Calibration" subtitle="Expected confidence vs. real outcomes, by recommendation family" className="screen-card">
+      <SectionCard title="Calibration" subtitle="Expected confidence vs. real outcomes, by recommendation family" className="screen-card for-you-optional-card">
         {calibration?.families?.length ? (
           <div className="widget-list">
             {calibration.families.map((family) => (
@@ -197,7 +237,7 @@ export default function RecommendationsScreen() {
         )}
       </SectionCard>
 
-      <SectionCard title="Lessons Learned" subtitle="From completed recommendations — never rewritten, only added to" className="screen-card">
+      <SectionCard title="Lessons Learned" subtitle="From completed recommendations — never rewritten, only added to" className="screen-card for-you-optional-card">
         {lessons.length ? (
           <ul className="stack-list">
             {lessons.map((lesson) => (

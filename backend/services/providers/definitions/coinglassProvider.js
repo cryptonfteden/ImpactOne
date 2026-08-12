@@ -1,22 +1,53 @@
-// Sprint 37 — CoinGlass's full derivatives dataset (funding rate history,
-// liquidation heatmaps, multi-exchange OI) requires their paid API tier;
-// the free tier is heavily rate-limited and missing most fields this
-// sprint's cryptoDerivativesService model needs. No credential exists in
-// this environment. Complete, contract-conforming adapter boundary;
-// honestly UNCONFIGURED until a real subscription is provisioned.
-const { createProvider, honestStubFetch } = require("../providerFactory");
+const axios = require("axios");
+const { createUnifiedProvider } = require("../providerAbstraction");
 
-const CONFIGURATION_REQUIREMENT = "CoinGlass API — paid tier required for funding-rate history, liquidation, and multi-exchange OI data (https://www.coinglass.com/pricing).";
+const BINANCE_FUTURES_URL = "https://fapi.binance.com";
+const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
 
-module.exports = createProvider(
+function toCryptoDerivativesEvent(symbol, funding, openInterest) {
+  const fundingRate = Number(funding?.fundingRate);
+  const contracts = Number(openInterest?.openInterest);
+  const timestamp = Number(funding?.fundingTime || openInterest?.time);
+  if (!Number.isFinite(fundingRate) || !Number.isFinite(contracts)) return null;
+
+  return {
+    eventType: "binance-futures-derivatives",
+    sourceType: "crypto-derivatives",
+    sourceName: "Binance USDⓈ-M Futures",
+    sourceUrl: "https://developers.binance.com/en/docs/derivatives/usds-margined-futures/market-data/rest-api",
+    publishedAt: Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : new Date().toISOString(),
+    symbols: [symbol],
+    sectors: [],
+    summary: `${symbol} on Binance Futures: latest funding rate ${(fundingRate * 100).toFixed(4)}%; open interest ${contracts.toLocaleString()} contracts. This is single-exchange derivatives data, not a market-wide measure.`,
+    rawReference: { fundingRate, fundingTime: funding?.fundingTime || null, openInterest: contracts, openInterestTime: openInterest?.time || null },
+    credibilityScore: 80,
+    freshnessScore: 90,
+    confidence: 75,
+  };
+}
+
+async function fetchCryptoDerivativesEvents() {
+  const results = await Promise.allSettled(SYMBOLS.map(async (symbol) => {
+    const [fundingResponse, openInterestResponse] = await Promise.all([
+      axios.get(`${BINANCE_FUTURES_URL}/fapi/v1/fundingRate`, { params: { symbol, limit: 1 }, timeout: 15000 }),
+      axios.get(`${BINANCE_FUTURES_URL}/fapi/v1/openInterest`, { params: { symbol }, timeout: 15000 }),
+    ]);
+    return toCryptoDerivativesEvent(symbol, fundingResponse.data?.[0], openInterestResponse.data);
+  }));
+  return results.filter((result) => result.status === "fulfilled").map((result) => result.value).filter(Boolean);
+}
+
+module.exports = createUnifiedProvider(
   {
     providerId: "coinglass",
-    label: "CoinGlass Crypto Derivatives",
+    label: "Crypto Derivatives (Binance Futures)",
     sourceType: "crypto-derivatives",
     category: "crypto",
     defaultThemes: [],
     rateLimit: { maxPerMinute: 20 },
   },
-  honestStubFetch
+  fetchCryptoDerivativesEvents,
+  { cacheTtlMs: 5 * 60 * 1000 }
 );
-module.exports.configurationRequirement = CONFIGURATION_REQUIREMENT;
+
+module.exports.toCryptoDerivativesEvent = toCryptoDerivativesEvent;

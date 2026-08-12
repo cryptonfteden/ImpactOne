@@ -1,5 +1,6 @@
 import { memo, useState } from "react";
 import { Button } from "../components/ui";
+import { useI18n } from "../i18n/I18nProvider";
 
 // Phase X5 — Part 1 (Single Product Entry). The flat 14-item list this
 // replaced read as "several products in a trenchcoat": two competing
@@ -22,19 +23,22 @@ import { Button } from "../components/ui";
 // their own tests — same "unreachable, not deleted" precedent as
 // Sprint 40's Dashboard removal.
 const PRIMARY_ITEMS = [
-  { key: "Home", label: "Today" },
+  { key: "Home", labelKey: "nav.home" },
   // Phase FLAGSHIP-SCREEN-001 — the single flagship screen: everything
   // that matters, on one cinematic, Earth-centered screen. Pinned first
   // among the immersive entries per the mission's own framing as "the
   // foundation of every future screen."
-  { key: "Flagship", label: "Flagship" },
-  { key: "Market Dashboard", label: "Market Dashboard" },
-  { key: "Decision Center", label: "Decision Center" },
-  { key: "Portfolio", label: "Portfolio" },
-  { key: "Watchlist Folders", label: "Workspaces" },
+  { key: "Daily Feed", labelKey: "nav.feed" },
+  { key: "Decision Center", labelKey: "core.decisionCenter" },
+  { key: "Portfolio", labelKey: "nav.portfolio" },
+  { key: "Market Chart", labelKey: "nav.chart" },
+  { key: "Stock Scanner", label: "Stock Scanner" },
 ];
 
 const ADVANCED_ITEMS = [
+  { key: "Flagship", label: "Flagship" },
+  { key: "Market Dashboard", label: "Market Dashboard" },
+  { key: "Watchlist Folders", label: "Workspaces" },
   // Phase RC1-BLOCKERS-001 — demoted from Primary. A live founder review
   // (FOUNDER_WEEK_REVIEW.md) found this and Flagship read as two
   // near-identical co-equal 3D entry points (same workspace3d-root shell,
@@ -62,7 +66,6 @@ const ADVANCED_ITEMS = [
   { key: "Global Intelligence", label: "Global Intelligence" },
   { key: "AI Analysis", label: "AI Analysis" },
   { key: "Recommendations", label: "Recommendations" },
-  { key: "Daily Feed", label: "Daily Feed" },
   { key: "Themes", label: "Themes" },
   { key: "Alerts", label: "Alerts" },
 ];
@@ -79,8 +82,8 @@ if (import.meta.env.VITE_DEV_CONSOLE === "true") {
 }
 
 const ACCOUNT_ITEMS = [
-  { key: "My Profile", label: "My Profile" },
-  { key: "Settings", label: "Settings" },
+  { key: "My Profile", labelKey: "nav.myProfile" },
+  { key: "Settings", labelKey: "nav.settings" },
 ];
 
 // Phase X6 — Part 1, Startup Validation. Every real key this sidebar can
@@ -90,6 +93,7 @@ const ACCOUNT_ITEMS = [
 export const SIDEBAR_NAV_KEYS = [...PRIMARY_ITEMS, ...ADVANCED_ITEMS, ...ACCOUNT_ITEMS].map((item) => item.key);
 
 function NavLink({ item, activeView, onNavigate }) {
+  const { t } = useI18n();
   const isActive = activeView === item.key;
   return (
     <Button
@@ -97,12 +101,13 @@ function NavLink({ item, activeView, onNavigate }) {
       className={`sidebar-link ${isActive ? "active" : ""}`.trim()}
       onClick={() => onNavigate(item.key)}
     >
-      {item.label}
+      {item.labelKey ? t(item.labelKey) : item.label}
     </Button>
   );
 }
 
 function Sidebar({ activeView, onNavigate, favorites = [], onSelectFavorite }) {
+  const { t } = useI18n();
   // Advanced tools are collapsed by default (reduces sidebar complexity per
   // the mission) but auto-expand if the user is already on one of them —
   // e.g. arriving via a deep link — so the sidebar never hides where you
@@ -112,7 +117,7 @@ function Sidebar({ activeView, onNavigate, favorites = [], onSelectFavorite }) {
 
   return (
     <aside className="sidebar">
-      <div className="logo">ImpactOne</div>
+      <div className="logo"><img className="impact-logo-image impact-logo-image--sidebar" src="/brand/impactone-app-icon.png" alt="" /><span>Impact<span>One</span></span></div>
 
       <nav className="sidebar-nav" aria-label="Sidebar navigation">
         {PRIMARY_ITEMS.map((item) => (
@@ -138,7 +143,7 @@ function Sidebar({ activeView, onNavigate, favorites = [], onSelectFavorite }) {
       </nav>
 
       <div className="sidebar-section">
-        <div className="sidebar-section__title">Watchlist</div>
+        <div className="sidebar-section__title">{t("nav.watchlist")}</div>
         {favorites.length ? (
           <div className="favorites-list">
             {favorites.map((ticker) => (

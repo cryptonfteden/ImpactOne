@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#050914" />
+    <title>ImpactOne Mission Control</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="stars" aria-hidden="true"></div>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#top" aria-label="ImpactOne Mission Control home"><span class="brand-mark">✦</span><span>IMPACT<span>ONE</span></span></a>
+        <nav aria-label="Main navigation">
+          <a class="active" href="#top"><i>◈</i>Mission Control</a>
+          <a href="#portfolio"><i>▣</i>Portfolio</a>
+          <a href="#intelligence"><i>◉</i>News Intelligence</a>
+          <a href="#markets"><i>⌁</i>Market Intelligence</a>
+          <a href="#watchlist"><i>☆</i>Watchlist</a>
+          <a href="#recommendations"><i>✦</i>AI Analysis</a>
+        </nav>
+        <div class="private-card"><span class="status-dot"></span><div><b>Private workspace</b><small>Local access only</small></div></div>
+      </aside>
+
+      <main id="top">
+        <header>
+          <div class="crumb">MISSION CONTROL <span>/ LIVE SYSTEM VIEW</span></div>
+          <div class="header-actions">
+            <form id="symbol-search" class="search"><span>⌕</span><input id="search" autocomplete="off" placeholder="Search symbol or company…" aria-label="Search symbol or company" /><button type="submit" aria-label="Open symbol">↵</button></form>
+            <button id="assistant-button" class="ghost">✦ AI Assistant</button><button id="refresh-button" class="icon" aria-label="Refresh live data">↻</button>
+          </div>
+        </header>
+        <section class="intro"><div><p class="eyebrow">MISSION CONTROL</p><h1>Market Pulse</h1><p>Real-time intelligence for smarter decisions.</p></div><div class="clock"><b id="time">--:--</b><span>LOCAL TIME</span></div></section>
+        <section id="markets" class="market-strip" aria-label="Market overview"></section>
+
+        <section class="dashboard-stage">
+          <div class="earth-stage" id="analysis">
+            <span class="data-flare data-flare--one"></span><span class="data-flare data-flare--two"></span>
+            <article class="card sentiment-card"><p class="card-title">Market Sentiment</p><div class="ring"><div><b id="sentiment-score">—</b><small>/100</small></div></div><strong id="sentiment-label">Awaiting live data</strong><div class="mini-facts"><span>Momentum <b>Live</b></span><span>Confidence <b id="sentiment-confidence">—</b></span><span>Agent network <b id="agent-live">—</b></span></div></article>
+            <article class="signal-float"><div><p class="card-title">MARKET SIGNAL</p><b id="network-title">Connecting sources</b><span id="network-copy">Requesting verified data from ImpactOne.</span></div><strong>⌁</strong></article>
+            <article class="card events-card"><div class="section-heading"><p class="card-title">Global Events</p><span class="live-pill">LIVE</span></div><ul id="events"><li class="empty">No verified market event is available yet.</li></ul><a href="#intelligence">View all events</a></article>
+          </div>
+          <aside id="intelligence" class="card intelligence"><div class="section-heading"><div><p class="card-title">Top Intelligence</p><h2>Signals worth your attention</h2></div></div><div id="signals" class="signals"><p class="empty">Loading verified signals…</p></div><a class="view-all" href="#recommendations">View full analysis</a></aside>
+        </section>
+
+        <section class="action-row">
+          <a href="#intelligence"><i class="purple">✣</i><span><small>Today’s priority</small><b id="priority-count">0 verified signals</b></span></a>
+          <a href="#portfolio"><i class="green">⌁</i><span><small>Portfolio</small><b id="portfolio-action-copy">Loading positions…</b></span></a>
+          <button id="scanner-button"><i class="gold">◫</i><span><small>Smart scanner</small><b>Analyze a symbol now</b></span></button>
+          <button id="analysis-button" class="primary-action">✦ Ask ImpactOne</button>
+        </section>
+        <section id="live-chart" class="card live-chart-panel">
+          <div class="chart-toolbar">
+            <div><p class="card-title">LIVE MARKET CHART</p><h2><span id="chart-symbol">SPY</span> <small id="chart-price">Loading…</small></h2></div>
+            <div id="chart-ranges" class="chart-ranges" aria-label="Chart time range">
+              <button data-range="1d">1D</button><button data-range="5d">1W</button><button data-range="1mo">1M</button><button class="active" data-range="3mo">3M</button><button data-range="1y">1Y</button>
+            </div>
+          </div>
+          <div class="chart-meta"><span><i></i> Live OHLCV</span><span id="chart-change">—</span><span id="chart-updated">Connecting…</span></div>
+          <div id="main-chart" class="main-chart"><div class="symbol-loading"><span></span>Loading live SPY chart…</div></div>
+          <div class="chart-legend"><span><i class="candle-up"></i> Price up</span><span><i class="candle-down"></i> Price down</span><span><i class="volume-key"></i> Volume</span><small>Click a market card above to change the chart.</small></div>
+        </section>
+        <section id="portfolio" class="workspace-grid">
+          <article class="card portfolio-panel"><div class="section-heading"><div><p class="card-title">YOUR PORTFOLIO</p><h2>Live positions</h2></div><strong id="portfolio-total">—</strong></div><div id="portfolio-kpis" class="portfolio-kpis"></div><div id="positions" class="positions"></div></article>
+          <article id="watchlist" class="card watchlist-panel"><div class="section-heading"><div><p class="card-title">WATCHLIST</p><h2>Markets you follow</h2></div><span class="live-pill">LIVE</span></div><div id="watchlist-items" class="watchlist-items"></div></article>
+        </section>
+        <section id="recommendations" class="card recommendations-panel"><div class="section-heading"><div><p class="card-title">AGENT COMMITTEE</p><h2>Current portfolio decisions</h2></div><span class="system-badge">Advisory only</span></div><div id="recommendation-items" class="recommendation-items"></div></section>
+        <footer><span id="source-status">Checking sources…</span><span id="updated">—</span></footer>
+      </main>
+    </div>
+
+    <dialog id="symbol-dialog" class="symbol-dialog"><button id="dialog-close" class="dialog-close" aria-label="Close">×</button><div id="symbol-content" class="symbol-content"><p class="empty">Search a symbol to load live analysis.</p></div></dialog>
+    <dialog id="assistant-dialog" class="assistant-dialog"><button id="assistant-close" class="dialog-close" aria-label="Close">×</button><div class="assistant-head"><span>✦</span><div><p class="card-title">IMPACTONE ASSISTANT</p><h2>Ask your market system</h2><small>Answers use the live portfolio and intelligence context shown here.</small></div></div><div id="assistant-answer" class="assistant-answer">Ask about your portfolio, a market event, risk, or a ticker.</div><form id="assistant-form"><input id="assistant-question" autocomplete="off" placeholder="What deserves my attention today?" required /><button type="submit">Ask</button></form></dialog>
+    <script src="/app.js"></script>
+  </body>
+</html>

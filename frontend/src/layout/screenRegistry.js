@@ -19,6 +19,7 @@ import {
   HealthDashboardFeature,
   WatchlistFoldersFeature,
   MarketPositioningFeature,
+  MarketChartFeature,
   DecisionCenterFeature,
   DecisionTimelineFeature,
   ExecutiveDashboardFeature,
@@ -32,6 +33,7 @@ import {
   AiAnalysisWorkspaceFeature,
   MarketIntelligenceWorkspaceFeature,
   PersonalIntelligenceWorkspaceFeature,
+  StockScannerFeature,
 } from "../features";
 
 // Phase X6 — Part 1/4. Extracted from MainLayout.jsx into its own module
@@ -77,6 +79,8 @@ export const screenMap = {
   Portfolio: PortfolioFeature,
   "Watchlist Folders": WatchlistFoldersFeature,
   "Market Positioning": MarketPositioningFeature,
+  "Market Chart": MarketChartFeature,
+  "Stock Scanner": StockScannerFeature,
   "Decision Center": DecisionCenterFeature,
   "Decision Timeline": DecisionTimelineFeature,
   "Market Dashboard": ExecutiveDashboardFeature,

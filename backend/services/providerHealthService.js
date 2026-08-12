@@ -3,13 +3,22 @@ const providerRunLogRepository = require("./providerRunLogRepository");
 
 function summarizeRuns(runs) {
   if (!runs.length) {
-    return { lastRunAt: null, lastStatus: null, successRate: null };
+    return { lastRunAt: null, lastStatus: null, successRate: null, lastRunFetchedItems: null, lastRunPersistedItems: null, dataState: "NO_RUN_HISTORY" };
   }
   const successCount = runs.filter((run) => run.status === "SUCCESS").length;
+  const latest = runs[0];
+  const lastRunFetchedItems = Number(latest.itemsFetched || 0);
+  const lastRunPersistedItems = Number(latest.itemsPersisted || 0);
   return {
-    lastRunAt: runs[0].startedAt,
-    lastStatus: runs[0].status,
+    lastRunAt: latest.startedAt,
+    lastStatus: latest.status,
     successRate: Math.round((successCount / runs.length) * 100),
+    lastRunFetchedItems,
+    lastRunPersistedItems,
+    // A completed request with zero items means the transport completed —
+    // not that this source supplied usable intelligence. Keep those truths
+    // separate so the product never paints an empty stub as "live data".
+    dataState: latest.status === "SUCCESS" && lastRunFetchedItems === 0 ? "NO_DATA" : latest.status === "SUCCESS" ? "DATA_RECEIVED" : "RUN_FAILED",
   };
 }
 

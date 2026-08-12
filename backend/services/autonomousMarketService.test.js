@@ -23,6 +23,40 @@ test("getRepresentativeEvents prioritizes live news headlines with their sourceU
   assert.equal(result[0].headline, "Fed signals pause on rate hikes", "live news should be prioritized first");
 });
 
+test("canonical provider events retain their saved evidence when projected into the Daily Feed", () => {
+  const item = autonomousMarketService.mapCanonicalEventToFeedItem({
+    id: "event-1",
+    eventType: "fomc-communication",
+    summary: "Federal Reserve issues FOMC statement",
+    sourceName: "Federal Reserve — FOMC",
+    sourceUrl: "https://example.com/fomc",
+    publishedAt: new Date("2026-08-07T12:00:00Z"),
+    symbols: ["SPY"],
+    sectors: ["Financial Services"],
+    countries: ["US"],
+    credibilityScore: 100,
+    freshnessScore: 90,
+    confidence: 90,
+  }, ["SPY"]);
+
+  assert.equal(item.headline, "Federal Reserve issues FOMC statement");
+  assert.deepEqual(item.relatedTickers, ["SPY"]);
+  assert.equal(item.sourceEventType, "fomc-communication");
+  assert.match(item.explainability.reasoning, /no additional causal analysis/);
+});
+
+test("Daily Feed merge removes an exact duplicate source URL while preserving provider-only events", () => {
+  const merged = autonomousMarketService.mergeFeedItems(
+    [{ headline: "News", sourceName: "News", sourceUrl: "https://example.com/same", importanceScore: 60 }],
+    [
+      { headline: "Same event", sourceName: "Provider", sourceUrl: "https://example.com/same", importanceScore: 90 },
+      { headline: "Provider only", sourceName: "Provider", sourceUrl: "https://example.com/unique", importanceScore: 80 },
+    ]
+  );
+  assert.equal(merged.length, 2);
+  assert.equal(merged[0].headline, "Provider only");
+});
+
 test("getRepresentativeEvents carries the article's source name alongside its sourceUrl", () => {
   const result = autonomousMarketService.getRepresentativeEvents({
     scenarios: [],

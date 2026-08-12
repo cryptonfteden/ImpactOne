@@ -3,7 +3,7 @@
 // price source. Real OHLCV per bar, never fabricated.
 const priceHistoryProvider = require("../services/intelligence/priceHistoryProvider");
 
-const VALID_RANGES = ["1mo", "3mo", "6mo", "1y", "2y", "5y"];
+const VALID_RANGES = ["1y", "3mo", "1mo", "1w", "1d", "4h", "15m"];
 
 async function getChartData(req, res, next) {
   try {

@@ -24,10 +24,18 @@ test("a new UNCONFIGURED provider (e.g. finviz) is honestly reported as UNCONFIG
   assert.ok(finviz.licensingRestriction.includes("Finviz Elite"));
 });
 
-test("the real live CFTC COT provider is never reported as FIXTURE", async () => {
+test("real connected providers are never reported as FIXTURE", async () => {
   const inventory = await providerInventoryService.generateInventory();
-  const cot = inventory.find((row) => row.providerId === "cftcCot");
-  assert.notEqual(cot.status, "FIXTURE");
+  for (const providerId of ["cftcCot", "usTreasury", "fda", "nasa", "majorEarnings", "fed", "fomc", "ecb", "finraShortVolume", "spdr", "coinglass"]) {
+    const provider = inventory.find((row) => row.providerId === providerId);
+    assert.notEqual(provider.status, "FIXTURE", `${providerId} must not be reported as a fixture`);
+  }
+});
+
+test("keyed connected sources disclose their local authentication requirement", async () => {
+  const inventory = await providerInventoryService.generateInventory();
+  assert.match(inventory.find((row) => row.providerId === "majorEarnings").authenticationRequirement, /FINNHUB_API_KEY/);
+  assert.match(inventory.find((row) => row.providerId === "reutersBloombergWire").authenticationRequirement, /NEWS_API_KEY/);
 });
 
 test("a stub legacy provider with no run history yet is reported LIVE=false with honest 'no run history' reliability, never fabricated success", async () => {
@@ -35,6 +43,24 @@ test("a stub legacy provider with no run history yet is reported LIVE=false with
   const reddit = inventory.find((row) => row.providerId === "reddit");
   assert.equal(reddit.status, "FIXTURE");
   assert.equal(reddit.lastSuccessfulRetrieval, null);
+});
+
+test("a live integration that completes with no events is marked NO_DATA, never LIVE", async () => {
+  const providerHealthService = require("../providerHealthService");
+  const originalGetHealthSummary = providerHealthService.getHealthSummary;
+  providerHealthService.getHealthSummary = async () => providerRegistry.listProviders().map((provider) => ({
+    providerId: provider.providerId,
+    lastRunAt: new Date(),
+    lastStatus: "SUCCESS",
+    successRate: 100,
+    dataState: provider.providerId === "fed" ? "NO_DATA" : "DATA_RECEIVED",
+  }));
+  try {
+    const inventory = await providerInventoryService.generateInventory();
+    assert.equal(inventory.find((row) => row.providerId === "fed").status, "NO_DATA");
+  } finally {
+    providerHealthService.getHealthSummary = originalGetHealthSummary;
+  }
 });
 
 test("every inventory row carries every field the mission requires", async () => {

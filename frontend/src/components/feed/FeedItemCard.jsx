@@ -72,6 +72,18 @@ const THEME_LABELS = {
   healthcare: "Healthcare",
 };
 
+// Provider events carry a machine-readable eventType. Show it plainly next
+// to the source so a reader can distinguish, for example, an official rate
+// decision from a market-data observation without guessing from the headline.
+function formatEventType(eventType) {
+  if (!eventType) return null;
+  return String(eventType)
+    .split("-")
+    .filter(Boolean)
+    .map((word) => word.toUpperCase() === "ETF" ? "ETF" : word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
 /**
  * Sprint 20, Part 4 — one Daily Feed item, showing every required field:
  * headline, AI summary, importance, confidence, affected sectors/companies,
@@ -127,15 +139,17 @@ function hasMeaningfulImpact(item, overlappingClaims) {
   return Boolean(item.isHeld || overlappingClaims.length || item.affectedAssets?.length);
 }
 
-function FeedItemCard({ item, activeClaims }) {
+function FeedItemCard({ item, activeClaims, rank }) {
   const explainability = item.explainability || {};
   const themeLabel = THEME_LABELS[item.eventType];
+  const eventTypeLabel = formatEventType(item.sourceEventType || item.eventType);
   const freshnessLabel = computeFreshnessLabel(item.publishedAt);
   const readTimeMinutes = estimateReadTimeMinutes(item);
   const actionability = computeActionability(item);
   const overlappingClaims = (activeClaims || []).filter((claim) => claim.symbols?.some((symbol) => item.affectedAssets?.includes(symbol)));
   const changedClaimsText = computeChangedClaimsText(item, activeClaims);
   const isRelevant = hasMeaningfulImpact(item, overlappingClaims);
+  const importanceScore = Number.isFinite(Number(item.importanceScore)) ? Math.max(0, Math.min(100, Number(item.importanceScore))) : null;
 
   // Sprint 33 Priority 5 — mobile Feed needs a concise collapsed state;
   // sectors/companies/portfolio-impact/reasoning/evidence all move behind
@@ -152,6 +166,7 @@ function FeedItemCard({ item, activeClaims }) {
   return (
     <article className="news-item news-item--premium feed-item-card">
       <div className="opportunity-item__top">
+        {rank ? <span className="feed-item-card__rank" aria-label={`Priority rank ${rank}`}>#{rank}</span> : null}
         <h4>{item.headline}</h4>
         {item.impactType ? <span className={IMPACT_PILL_CLASS[item.impactType] || "pill"}>{item.impactType}</span> : null}
         {themeLabel ? <span className="pill monitor">{themeLabel}</span> : null}
@@ -166,6 +181,11 @@ function FeedItemCard({ item, activeClaims }) {
         ) : null}
       </p>
 
+      <div className="feed-item-card__importance" aria-label={importanceScore === null ? "Importance unavailable" : `Importance ${importanceScore} out of 100`}>
+        <div className="feed-item-card__importance-label"><span>Importance</span><strong>{importanceScore === null ? "—" : `${Math.round(importanceScore / 10)}/10`}</strong></div>
+        <div className="feed-item-card__importance-track"><i style={{ width: `${importanceScore ?? 0}%` }} /></div>
+      </div>
+
       <div className="feed-item-card__stats">
         <span>Importance {item.importanceScore ?? "—"}/100</span>
         <span>Confidence {item.confidence ?? "—"}/100</span>
@@ -179,7 +199,9 @@ function FeedItemCard({ item, activeClaims }) {
           real portfolio relevance, and the item's real Attention Score.
           When none of that is real for this item, it says so honestly
           rather than showing an empty-looking block. */}
-      {isRelevant ? (
+      <details className="feed-item-card__relevance">
+        <summary>Portfolio relevance</summary>
+        {isRelevant ? (
         <div className="company-description subtle feed-item-card__why-i-care">
           <p>{changedClaimsText}</p>
           <p>
@@ -192,18 +214,28 @@ function FeedItemCard({ item, activeClaims }) {
           <p>{item.isHeld ? "Portfolio relevance: directly relevant to your portfolio." : "Portfolio relevance: not directly relevant to your portfolio."}</p>
           <p>{Number.isFinite(item.attentionScore) ? `Attention score: ${item.attentionScore}/100.` : "Attention score: not yet available."}</p>
         </div>
-      ) : (
+        ) : (
         <p className="company-description subtle feed-item-card__why-i-care">No meaningful impact detected.</p>
-      )}
+        )}
+      </details>
 
-      {item.sourceUrl ? (
-        <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="matched-event__source">
-          {item.sourceName || "Source"}
-          {formatTimestamp(item.publishedAt) ? ` · ${formatTimestamp(item.publishedAt)}` : ""}
-        </a>
-      ) : item.sourceName ? (
-        <p className="company-description subtle">{item.sourceName}</p>
-      ) : null}
+      <div className="feed-item-card__source-row">
+        {item.sourceUrl ? (
+          <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="matched-event__source">
+            {item.sourceName || "Source"}
+            {eventTypeLabel ? ` · ${eventTypeLabel}` : ""}
+            {formatTimestamp(item.publishedAt) ? ` · ${formatTimestamp(item.publishedAt)}` : ""}
+            <span aria-hidden="true">↗</span>
+          </a>
+        ) : item.sourceName ? (
+          <p className="company-description subtle">
+            {item.sourceName}
+            {eventTypeLabel ? ` · ${eventTypeLabel}` : ""}
+          </p>
+        ) : eventTypeLabel ? (
+          <p className="company-description subtle">{eventTypeLabel}</p>
+        ) : null}
+      </div>
 
       {hasExpandableDetail ? (
         <details className="feed-item-card__trace">

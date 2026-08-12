@@ -25,6 +25,7 @@
 const priceHistoryProvider = require("../../intelligence/priceHistoryProvider");
 const technicalIntelligenceService = require("../../intelligence/technicalIntelligenceService");
 const { aggregateToWeeklyBars } = require("./weeklyBarAggregator");
+const { aggregateToMonthlyBars } = require("./monthlyBarAggregator");
 
 const MIN_BARS_FOR_ANALYSIS = 20;
 
@@ -40,6 +41,7 @@ function emptyMetrics(symbol, reason) {
     currentPrice: null,
     dailyBars: [],
     weeklyBars: [],
+    monthlyBars: [],
     dailyTrendSignal: null,
     weeklyTrendSignal: null,
   };
@@ -54,6 +56,7 @@ function createFibonacciDataProvider({ range = "2y", timeframe = "1D" } = {}) {
 
     const dailyAnalysis = technicalIntelligenceService.analyzeBars(dailyBars, { timeframe });
     const weeklyBars = aggregateToWeeklyBars(dailyBars);
+    const monthlyBars = aggregateToMonthlyBars(dailyBars);
     const weeklyAnalysis = weeklyBars.length >= MIN_BARS_FOR_ANALYSIS ? technicalIntelligenceService.analyzeBars(weeklyBars, { timeframe: "1W" }) : null;
 
     const lastBar = dailyBars[dailyBars.length - 1];
@@ -69,6 +72,7 @@ function createFibonacciDataProvider({ range = "2y", timeframe = "1D" } = {}) {
       currentPrice: Number.isFinite(lastBar?.close) ? lastBar.close : null,
       dailyBars,
       weeklyBars,
+      monthlyBars,
       dailyTrendSignal: dailyAnalysis.signals?.trend || null,
       weeklyTrendSignal: weeklyAnalysis?.signals?.trend || null,
     };

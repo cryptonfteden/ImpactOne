@@ -46,6 +46,22 @@ describe("FeedItemCard", () => {
     expect(screen.getByText("AI")).toBeInTheDocument();
   });
 
+  it("shows the saved event type beside its source so data provenance is clear", () => {
+    render(
+      <FeedItemCard
+        item={{
+          ...ITEM_FIXTURE,
+          sourceName: "U.S. Treasury",
+          sourceUrl: "https://home.treasury.gov/",
+          eventType: "macro",
+          sourceEventType: "treasury-yield-curve",
+        }}
+      />
+    );
+
+    expect(screen.getByRole("link", { name: /U\.S\. Treasury.*Treasury Yield Curve/ })).toBeInTheDocument();
+  });
+
   it("shows the event's real explainability block as the reasoning trace, not a fabricated one", () => {
     render(<FeedItemCard item={ITEM_FIXTURE} />);
 

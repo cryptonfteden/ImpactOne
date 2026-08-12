@@ -6,7 +6,7 @@ const { getMarket } = require("../controllers/marketController");
 const { analyze } = require("../controllers/aiController");
 const { getComparison } = require("../controllers/comparisonController");
 const { getPortfolio } = require("../controllers/portfolioController");
-const { getQuoteController } = require("../controllers/quoteController");
+const { getQuoteController, getShortVolumeRangeController } = require("../controllers/quoteController");
 const { getHomeSummary } = require("../controllers/homeSummaryController");
 const {
 	getCot,
@@ -85,6 +85,7 @@ router.post("/ai/analyze", analyze);
 router.get("/compare", getComparison);
 router.get("/portfolio", getPortfolio);
 router.get("/quote", getQuoteController);
+router.get("/quote/short-volume", getShortVolumeRangeController);
 router.get("/alt-data/cot", getCot);
 router.get("/alt-data/polymarket", getPolymarket);
 router.get("/alt-data/macro", getMacro);

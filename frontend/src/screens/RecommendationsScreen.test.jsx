@@ -15,10 +15,17 @@ vi.mock("../services/api", () => ({
   },
   outcomeIntelligenceApi: { listLessons: vi.fn() },
   calibrationReportApi: { get: vi.fn() },
+  intelligenceApi: { overview: vi.fn().mockResolvedValue({}) },
 }));
 
 vi.mock("../hooks/useWatchlist", () => ({
   default: () => ({ watchlist: ["PLTR"], addTicker: vi.fn() }),
+}));
+
+vi.mock("../hooks/useVirtualPortfolio", () => ({
+  default: () => ({
+    portfolio: { cashBalance: 100000, totalPortfolioValue: 100000, positions: [], trades: [] },
+  }),
 }));
 
 const RECOMMENDATION_FIXTURE = {
@@ -79,8 +86,8 @@ describe("RecommendationsScreen", () => {
     await waitFor(() => expect(screen.getByText("NVDA")).toBeInTheDocument());
 
     expect(screen.getByText("Buy")).toBeInTheDocument();
-    expect(screen.getByText(/Confidence 88\/100/)).toBeInTheDocument();
-    expect(screen.getByText(/Upside 10-16%/)).toBeInTheDocument();
+    expect(screen.getByText("Confidence 88%")).toBeInTheDocument();
+    expect(screen.getByText("8.2/10")).toBeInTheDocument();
     expect(screen.getByText("From your portfolio")).toBeInTheDocument();
     expect(screen.getByText("Quality 82/100")).toBeInTheDocument();
     expect(screen.getByText("Buy NVDA: AI capex supercycle.")).toBeInTheDocument();

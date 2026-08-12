@@ -1,4 +1,6 @@
-# ImpactOne Project Status
+# ImpactOne Project Status — Historical Snapshot
+
+> **Do not use this file as the current product or live-data status.** It records an early AI Analysis milestone and still mentions superseded details such as Yahoo Finance chart data. The maintained source of truth is [PROJECT_ONE_PAGER.md](PROJECT_ONE_PAGER.md), last reviewed 2026-08-09. Provider availability is also described there; unconnected patents, Telegram, Reddit and paid/licensed sources remain explicitly deferred.
 
 ## 1. What was built today
 - Built a working AI Analysis experience for US stock tickers.

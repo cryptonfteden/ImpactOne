@@ -7,6 +7,7 @@ import { intelligenceApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 import { startVisibilityAwarePolling } from "../utils/pollWhileVisible";
 import PortfolioEngineScreen from "./PortfolioEngineScreen";
+import { useI18n } from "../i18n/I18nProvider";
 
 const DEFAULT_SCENARIOS = ["Oil spike", "Fed rate hike", "BTC ETF approval", "Israel conflict"];
 
@@ -70,6 +71,7 @@ export default function PortfolioScreen() {
 }
 
 function LegacyPortfolioScreen() {
+  const { t } = useI18n();
   const { watchlist } = useWatchlist();
   const [overview, setOverview] = useState(null);
   const [error, setError] = useState("");
@@ -112,18 +114,22 @@ function LegacyPortfolioScreen() {
   const positions = portfolio?.positions || [];
   const trades = portfolio?.trades || [];
   const insights = buildAdvisorInsights(portfolio);
+  const hasPortfolioActivity = positions.length > 0 || trades.length > 0;
 
   return (
     <div className="screen-page">
-      <section className="screen-hero">
+      <section className="screen-hero portfolio-hero">
         <div>
-          <p className="eyebrow">Portfolio</p>
-          <h1>Virtual agent portfolio and paper trading</h1>
-          <p className="subtext">
-            Virtual portfolio - simulated trades only. No broker connectivity. No live order execution.
-          </p>
+          <p className="eyebrow">{t("core.portfolio")}</p>
+          <h1>{t("core.portfolioTitle")}</h1>
+          <p className="subtext">Simulation only. Your agents open a paper trade only when it clears the defined confidence and risk rules.</p>
         </div>
-        <ConfirmButton label="Reset virtual portfolio" onConfirm={reset} />
+        <div className="portfolio-hero__status" aria-label="Virtual portfolio status">
+          <span>Paper mode</span>
+          <strong>{positions.length} active</strong>
+          <small>${Number(portfolio?.cashBalance || 0).toLocaleString()} ready</small>
+        </div>
+        {hasPortfolioActivity ? <ConfirmButton label={t("core.resetPortfolio")} onConfirm={reset} /> : null}
       </section>
 
       {error ? (
@@ -135,17 +141,21 @@ function LegacyPortfolioScreen() {
       ) : null}
 
       <SectionCard title="AI Advisor Insights" subtitle="Not positions — what actually deserves your attention today" className="screen-card">
-        <div className="widget-list">
+        {hasPortfolioActivity ? <div className="widget-list">
           <div className="widget-list-item"><strong>Largest hidden risk</strong><span>{insights.largestHiddenRisk}</span></div>
           <div className="widget-list-item"><strong>Largest opportunity</strong><span>{insights.largestOpportunity}</span></div>
           <div className="widget-list-item"><strong>Sector concentration</strong><span>{insights.sectorConcentration}</span></div>
           <div className="widget-list-item"><strong>Macro exposure</strong><span>{insights.macroExposure}</span></div>
           <div className="widget-list-item"><strong>AI warning</strong><span>{insights.aiWarning}</span></div>
           <div className="widget-list-item"><strong>Deserves attention today</strong><span>{insights.whatDeservesAttentionToday}</span></div>
-        </div>
+        </div> : <div className="portfolio-ready-state">
+          <div><span className="portfolio-ready-state__orb" /><strong>Portfolio ready</strong><p>Your $100,000 virtual capital is ready. No open simulated positions yet.</p></div>
+          <div className="portfolio-ready-state__rules"><span>Confidence 75%+</span><span>Risk / reward 1.5+</span><span>No leverage</span></div>
+          <div hidden><span>{insights.largestHiddenRisk}</span><span>{insights.largestOpportunity}</span><span>{insights.aiWarning}</span><span>{insights.macroExposure}</span></div>
+        </div>}
       </SectionCard>
 
-      <div className="portfolio-grid">
+      <div className="portfolio-grid portfolio-summary-grid">
         <SectionCard title="Cash Balance" subtitle="Available capital" className="screen-card">
           <div className="portfolio-metric">${Number(portfolio?.cashBalance || 0).toLocaleString()}</div>
           <div className="portfolio-metric__label">Starting capital $100,000</div>
@@ -167,6 +177,7 @@ function LegacyPortfolioScreen() {
         </SectionCard>
       </div>
 
+      {hasPortfolioActivity ? <>
       <div className="screen-grid">
         <SectionCard title="Open Positions" subtitle="Simulated holdings" className="screen-card">
           <div className="table-wrapper">
@@ -273,6 +284,14 @@ function LegacyPortfolioScreen() {
           </table>
         </div>
       </SectionCard>
+
+      </> : <SectionCard title="How the virtual portfolio works" subtitle="Only real qualifying agent signals can open a simulated trade" className="screen-card portfolio-onboarding-card">
+        <div className="portfolio-onboarding-card__steps">
+          <div><b>01</b><span>Agents analyze the market, data sources and your watchlist.</span></div>
+          <div><b>02</b><span>A trade is simulated only after it clears the confidence and risk rules.</span></div>
+          <div><b>03</b><span>When a position opens, its live performance, exposure and decision context appear here.</span></div>
+        </div>
+      </SectionCard>}
 
       <SectionCard title="Portfolio Rules" subtitle="Simulation controls" className="screen-card">
         <ul className="stack-list">

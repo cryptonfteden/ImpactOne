@@ -30,9 +30,10 @@ const EXPECTED_PROVIDER_IDS = [
   "cftcCot",
   "coinglass",
   "optionsFlow",
+  "finraShortVolume",
 ];
 
-test("listProviders registers all 22 named sources", () => {
+test("listProviders registers all named sources", () => {
   const ids = providerRegistry.listProviders().map((provider) => provider.providerId);
   assert.deepEqual([...ids].sort(), [...EXPECTED_PROVIDER_IDS].sort());
 });

@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Button } from "./ui";
 import { notificationsApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
@@ -80,6 +80,7 @@ function NotificationRow({ notification, onMarkRead, onPin, onClear }) {
  * X-Beta-User-Id header every other request carries.
  */
 function NotificationCenter() {
+  const rootRef = useRef(null);
   const [notifications, setNotifications] = useState([]);
   const [grouped, setGrouped] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -87,6 +88,34 @@ function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState("");
   const [groupBy, setGroupBy] = useState("");
+
+  useEffect(() => {
+    function closeWhenAnotherOverlayOpens(event) {
+      if (event.detail !== "notifications") setIsOpen(false);
+    }
+    function closeOnOutsidePointer(event) {
+      if (rootRef.current && !rootRef.current.contains(event.target)) setIsOpen(false);
+    }
+    function closeOnEscape(event) {
+      if (event.key === "Escape") setIsOpen(false);
+    }
+    window.addEventListener("impactone:header-overlay-open", closeWhenAnotherOverlayOpens);
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("impactone:header-overlay-open", closeWhenAnotherOverlayOpens);
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
+
+  function togglePanel() {
+    setIsOpen((current) => {
+      const next = !current;
+      if (next) window.dispatchEvent(new CustomEvent("impactone:header-overlay-open", { detail: "notifications" }));
+      return next;
+    });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -157,11 +186,11 @@ function NotificationCenter() {
   const rowProps = { onMarkRead: handleMarkRead, onPin: handlePin, onClear: handleClear };
 
   return (
-    <div className="header-menu">
+    <div className="header-menu" ref={rootRef}>
       <Button
         type="button"
         className="header-icon-button notification-bell"
-        onClick={() => setIsOpen((value) => !value)}
+        onClick={togglePanel}
         aria-label={unreadCount ? `Open notifications, ${unreadCount} unread` : "Open notifications"}
       >
         📣
@@ -176,6 +205,7 @@ function NotificationCenter() {
                 Triggered price alerts{pinnedCount ? ` — ${pinnedCount} pinned` : ""}
               </p>
             </div>
+            <Button type="button" className="notification-panel__close" onClick={() => setIsOpen(false)} aria-label="Close notifications">×</Button>
           </div>
           <div className="decision-filters" role="group" aria-label="Group notifications">
             {GROUP_MODES.map((mode) => (

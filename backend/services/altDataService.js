@@ -1,8 +1,8 @@
 const axios = require("axios");
-const { OPENAI_API_KEY } = require("../config/env");
+const { OPENAI_API_KEY, SEC_EDGAR_USER_AGENT } = require("../config/env");
 const { getCached, setCached } = require("./altDataCache");
 
-const SEC_USER_AGENT = "ImpactOne/1.0 (support@impactone.local)";
+const SEC_USER_AGENT = SEC_EDGAR_USER_AGENT;
 
 const SECTOR_TICKER_MAP = {
   technology: ["AAPL", "MSFT", "NVDA", "TSLA"],
@@ -47,27 +47,20 @@ function inferAssetFromSymbol(symbol = "") {
   return "equities";
 }
 
-function fallbackCot(symbol = "AAPL") {
-  const asset = inferAssetFromSymbol(symbol);
-  const market = asset === "energy" ? "WTI Crude Oil" : asset === "crypto" ? "Bitcoin Futures" : "S&P 500 E-mini";
-  const nonCommercialLong = asset === "crypto" ? 28241 : 198533;
-  const nonCommercialShort = asset === "crypto" ? 17220 : 154442;
-  const commercialLong = asset === "energy" ? 314220 : 245331;
-  const commercialShort = asset === "energy" ? 359002 : 268901;
-  const netPositioning = nonCommercialLong - nonCommercialShort;
-  const weeklyChange = asset === "energy" ? -2340 : 3211;
-
+function unavailableCot(symbol = "AAPL") {
   return {
-    asset,
-    market,
-    commercialLong,
-    commercialShort,
-    nonCommercialLong,
-    nonCommercialShort,
-    netPositioning,
-    weeklyChange,
-    signal: classifyPositioning(netPositioning, weeklyChange),
-    source: "fallback",
+    asset: inferAssetFromSymbol(symbol),
+    market: null,
+    commercialLong: null,
+    commercialShort: null,
+    nonCommercialLong: null,
+    nonCommercialShort: null,
+    netPositioning: null,
+    weeklyChange: null,
+    signal: null,
+    source: "unavailable",
+    unavailable: true,
+    reason: "CFTC COT data could not be retrieved.",
   };
 }
 
@@ -79,32 +72,35 @@ async function getCotData({ symbol = "AAPL" } = {}) {
   }
 
   try {
-    const response = await axios.get("https://publicreporting.cftc.gov/resource/72hh-3qpy.json", {
+    const asset = inferAssetFromSymbol(symbol);
+    const marketHint = asset === "energy" ? "CRUDE" : asset === "crypto" ? "BITCOIN" : "S&P";
+    // TFF (Traders in Financial Futures) is the CFTC report that covers
+    // equity-index and financial futures. The prior disaggregated report
+    // covers physical commodities, which made an S&P proxy unreliable.
+    const response = await axios.get("https://publicreporting.cftc.gov/resource/gpe5-46if.json", {
       params: {
-        $limit: 60,
+        $limit: 300,
         $order: "report_date_as_yyyy_mm_dd desc",
       },
       timeout: 12000,
     });
 
-    const asset = inferAssetFromSymbol(symbol);
-    const marketHint = asset === "energy" ? "crude" : asset === "crypto" ? "bitcoin" : "s&p";
     const rows = Array.isArray(response.data) ? response.data : [];
-    const picked = rows.find((row) => String(row.market_and_exchange_names || "").toLowerCase().includes(marketHint)) || rows[0];
+    const picked = rows.find((row) => String(row.market_and_exchange_names || "").toUpperCase().includes(marketHint)) || rows[0];
     if (!picked) {
       throw new Error("COT dataset returned no rows");
     }
 
-    const nonCommercialLong = toNumber(picked.noncomm_positions_long_all || picked.noncomm_positions_long || picked.noncommercial_positions_long_all);
-    const nonCommercialShort = toNumber(picked.noncomm_positions_short_all || picked.noncomm_positions_short || picked.noncommercial_positions_short_all);
-    const commercialLong = toNumber(picked.comm_positions_long_all || picked.commercial_positions_long_all || picked.comm_positions_long);
-    const commercialShort = toNumber(picked.comm_positions_short_all || picked.commercial_positions_short_all || picked.comm_positions_short);
+    const nonCommercialLong = toNumber(picked.lev_money_positions_long_all || picked.lev_money_positions_long);
+    const nonCommercialShort = toNumber(picked.lev_money_positions_short_all || picked.lev_money_positions_short);
+    const commercialLong = toNumber(picked.dealer_positions_long_all || picked.dealer_positions_long);
+    const commercialShort = toNumber(picked.dealer_positions_short_all || picked.dealer_positions_short);
     const netPositioning = nonCommercialLong - nonCommercialShort;
-    const weeklyChange = toNumber(picked.change_in_noncomm_long_all || picked.change_in_noncomm_positions_long_all || 0) - toNumber(picked.change_in_noncomm_short_all || picked.change_in_noncomm_positions_short_all || 0);
+    const weeklyChange = toNumber(picked.change_in_lev_money_long_all || 0) - toNumber(picked.change_in_lev_money_short_all || 0);
 
     const normalized = {
       asset,
-      market: picked.market_and_exchange_names || fallbackCot(symbol).market,
+      market: picked.market_and_exchange_names || null,
       commercialLong,
       commercialShort,
       nonCommercialLong,
@@ -118,9 +114,7 @@ async function getCotData({ symbol = "AAPL" } = {}) {
     setCached("alt", cacheKey, normalized, 6 * 60 * 60 * 1000);
     return normalized;
   } catch (error) {
-    const fallback = fallbackCot(symbol);
-    setCached("alt", cacheKey, fallback, 45 * 60 * 1000);
-    return fallback;
+    return unavailableCot(symbol);
   }
 }
 
@@ -137,29 +131,6 @@ function inferPolymarketSectors(event = "") {
   const sectors = new Set();
   tickers.forEach((ticker) => sectors.add(inferSectorFromSymbol(ticker)));
   return Array.from(sectors);
-}
-
-function fallbackPolymarket(symbol = "AAPL") {
-  const asset = inferAssetFromSymbol(symbol);
-  const event = asset === "crypto"
-    ? "Will BTC close above $100k this quarter?"
-    : asset === "energy"
-      ? "Will WTI oil average above $90 this quarter?"
-      : "Will the Fed cut rates by year-end?";
-
-  return [
-    {
-      event,
-      category: asset === "crypto" ? "Crypto" : asset === "energy" ? "Commodities" : "Macro",
-      probability: asset === "crypto" ? 0.54 : asset === "energy" ? 0.48 : 0.63,
-      volume: asset === "crypto" ? 1820000 : 1260000,
-      liquidity: asset === "crypto" ? 840000 : 510000,
-      trend: "Stable",
-      relatedSectors: inferPolymarketSectors(event),
-      relatedTickers: inferPolymarketTickers(event),
-      source: "fallback",
-    },
-  ];
 }
 
 async function getPolymarketData({ symbol = "AAPL" } = {}) {
@@ -196,13 +167,11 @@ async function getPolymarketData({ symbol = "AAPL" } = {}) {
       };
     });
 
-    const result = normalized.length ? normalized : fallbackPolymarket(symbol);
+    const result = normalized;
     setCached("alt", cacheKey, result, 20 * 60 * 1000);
     return result;
   } catch (error) {
-    const fallback = fallbackPolymarket(symbol);
-    setCached("alt", cacheKey, fallback, 20 * 60 * 1000);
-    return fallback;
+    return [];
   }
 }
 
@@ -246,20 +215,17 @@ async function fetchFredSeries(seriesId) {
   };
 }
 
-function fallbackMacroRegime() {
+function unavailableMacroRegime() {
   return {
-    rates: { id: "FEDFUNDS", latest: 5.25, previous: 5.25, change: 0, asOf: "n/a" },
-    cpi: { id: "CPIAUCSL", latest: 313.5, previous: 312.8, change: 0.7, asOf: "n/a" },
-    unemployment: { id: "UNRATE", latest: 4.1, previous: 4.0, change: 0.1, asOf: "n/a" },
-    m2: { id: "M2SL", latest: 20900, previous: 20840, change: 60, asOf: "n/a" },
-    tenYearYield: { id: "DGS10", latest: 4.25, previous: 4.19, change: 0.06, asOf: "n/a" },
-    regime: {
-      riskMode: "risk-on",
-      inflationPressure: "moderate",
-      recessionRisk: "medium",
-      liquidityTrend: "improving",
-    },
-    source: "fallback",
+    rates: null,
+    cpi: null,
+    unemployment: null,
+    m2: null,
+    tenYearYield: null,
+    regime: null,
+    source: "unavailable",
+    unavailable: true,
+    reason: "FRED macro data could not be retrieved.",
   };
 }
 
@@ -306,9 +272,7 @@ async function getMacroData() {
     setCached("alt", cacheKey, result, 12 * 60 * 60 * 1000);
     return result;
   } catch (error) {
-    const fallback = fallbackMacroRegime();
-    setCached("alt", cacheKey, fallback, 45 * 60 * 1000);
-    return fallback;
+    return unavailableMacroRegime();
   }
 }
 
@@ -339,15 +303,14 @@ async function getSecTickerMap() {
   return map;
 }
 
-function fallbackSecData(symbol = "AAPL") {
+function unavailableSecData(symbol = "AAPL") {
   return {
     symbol,
-    filings: [
-      { form: "10-Q", filedAt: "N/A", accessionNumber: "N/A", primaryDocument: "N/A" },
-      { form: "8-K", filedAt: "N/A", accessionNumber: "N/A", primaryDocument: "N/A" },
-    ],
-    signal: `No live SEC feed available for ${symbol}. Monitoring for material filings.`,
-    source: "fallback",
+    filings: [],
+    signal: null,
+    source: "unavailable",
+    unavailable: true,
+    reason: `SEC filings could not be retrieved for ${symbol}.`,
   };
 }
 
@@ -451,9 +414,7 @@ async function getSecData({ symbol = "AAPL" } = {}) {
     setCached("alt", cacheKey, result, 4 * 60 * 60 * 1000);
     return result;
   } catch (error) {
-    const fallback = fallbackSecData(normalized);
-    setCached("alt", cacheKey, fallback, 30 * 60 * 1000);
-    return fallback;
+    return unavailableSecData(normalized);
   }
 }
 
@@ -506,36 +467,12 @@ async function getCongressData({ symbol = "AAPL" } = {}) {
       symbol: normalized,
       trades: [],
       signal: "Congress trading feed unavailable. Monitoring remains active.",
-      source: "fallback",
+      source: "unavailable",
+      unavailable: true,
     };
     setCached("alt", cacheKey, fallback, 45 * 60 * 1000);
     return fallback;
   }
-}
-
-function fallbackEvents(symbol = "AAPL") {
-  const now = new Date();
-  const day = 24 * 60 * 60 * 1000;
-  return [
-    {
-      date: new Date(now.getTime() + day).toISOString().slice(0, 10),
-      event: "US CPI Release",
-      category: "Macro",
-      importance: "High",
-      relatedTickers: [symbol, "SPY"],
-      relatedSectors: [inferSectorFromSymbol(symbol)],
-      source: "fallback",
-    },
-    {
-      date: new Date(now.getTime() + 3 * day).toISOString().slice(0, 10),
-      event: "FOMC Rate Decision",
-      category: "Rates",
-      importance: "High",
-      relatedTickers: ["JPM", "TLT"],
-      relatedSectors: ["rates"],
-      source: "fallback",
-    },
-  ];
 }
 
 async function getEconomicEvents({ symbol = "AAPL" } = {}) {
@@ -595,13 +532,11 @@ async function getEconomicEvents({ symbol = "AAPL" } = {}) {
       }));
 
     const result = [...macroEvents, ...earningsEvents].slice(0, 10);
-    const normalizedResult = result.length ? result : fallbackEvents(normalized);
+    const normalizedResult = result;
     setCached("alt", cacheKey, normalizedResult, 2 * 60 * 60 * 1000);
     return normalizedResult;
   } catch (error) {
-    const fallback = fallbackEvents(normalized);
-    setCached("alt", cacheKey, fallback, 30 * 60 * 1000);
-    return fallback;
+    return [];
   }
 }
 
@@ -626,13 +561,13 @@ function unique(values) {
 }
 
 function computeConfidenceScore({ cot, polymarket, macro, sec, congress, events }) {
-  let score = 45;
-  if (cot?.source !== "fallback") score += 10;
-  if ((polymarket || []).some((item) => item.source !== "fallback")) score += 10;
-  if (macro?.source !== "fallback") score += 10;
-  if (sec?.source !== "fallback") score += 10;
-  if (congress?.source !== "fallback") score += 8;
-  if ((events || []).some((item) => item.source !== "fallback")) score += 7;
+  let score = 0;
+  if (cot?.source === "cftc") score += 20;
+  if ((polymarket || []).some((item) => item.source === "polymarket")) score += 20;
+  if (macro?.source === "fred") score += 20;
+  if (sec?.source === "sec") score += 15;
+  if (congress?.source === "house-stock-watcher") score += 10;
+  if ((events || []).some((item) => item.source === "fmp")) score += 15;
   return Math.max(0, Math.min(100, score));
 }
 
@@ -656,10 +591,10 @@ function normalizeSummary({ symbol, cot, polymarket, macro, sec, congress, event
   return {
     symbol,
     smartMoneyPositioning: {
-      netPositioning: cot.netPositioning,
-      weeklyChange: cot.weeklyChange,
-      signal: cot.signal,
-      market: cot.market,
+      netPositioning: cot?.netPositioning ?? null,
+      weeklyChange: cot?.weeklyChange ?? null,
+      signal: cot?.signal ?? null,
+      market: cot?.market ?? null,
     },
     predictionMarketProbabilities: topPrediction
       ? {
@@ -671,9 +606,9 @@ function normalizeSummary({ symbol, cot, polymarket, macro, sec, congress, event
         liquidity: topPrediction.liquidity,
       }
       : null,
-    macroRegime: macro.regime,
-    secFilingSignal: sec.signal,
-    politicalTradingSignal: congress.signal,
+    macroRegime: macro?.regime ?? null,
+    secFilingSignal: sec?.signal ?? null,
+    politicalTradingSignal: congress?.signal ?? null,
     optionsStatus: buildOptionsPlaceholder(),
     onChainStatus: buildOnChainPlaceholder(),
     upcomingEventRisk: upcomingHighRisk,

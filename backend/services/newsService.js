@@ -3,13 +3,7 @@ const { NEWS_API_KEY } = require("../config/env");
 
 async function getNews(query = "finance") {
   if (!NEWS_API_KEY) {
-    return [
-      {
-        title: "AI infrastructure demand remains strong",
-        description: "Institutional capital continues to flow into compute and cloud leaders.",
-        url: "https://example.com/news/1",
-      },
-    ];
+    return [];
   }
 
   try {

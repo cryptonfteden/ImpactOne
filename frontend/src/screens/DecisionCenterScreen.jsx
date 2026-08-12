@@ -4,6 +4,8 @@ import { Button, EmptyState, ErrorState, LoadingSpinner } from "../components/ui
 import { decisionCenterApi } from "../services/api";
 import { openSymbolPanel } from "../utils/symbolPanel";
 import { logError } from "../utils/errorHandling";
+import OrbitVisual from "../components/OrbitVisual";
+import { useI18n } from "../i18n/I18nProvider";
 
 const SOURCE_LABELS = {
   priceAlert: "Price Alert",
@@ -73,6 +75,7 @@ function DecisionItem({ item, onPin, onDismiss, onComplete }) {
  * portfolio impact/time.
  */
 export default function DecisionCenterScreen() {
+  const { t } = useI18n();
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -147,12 +150,13 @@ export default function DecisionCenterScreen() {
 
   return (
     <div className="screen-page">
-      <section className="screen-hero">
+      <section className="screen-hero screen-hero--orbital decision-hero">
         <div>
-          <p className="eyebrow">Command Center — Decision Center</p>
-          <h1>What decisions require your attention today?</h1>
-          <p className="subtext">Every item is real — triggered alerts and graded/new AI recommendations on symbols you track.</p>
+          <p className="eyebrow">{t("core.decisionCenter")}</p>
+          <h1>{t("core.decisionTitle")}</h1>
+          <p className="subtext">{t("core.decisionSubtitle")}</p>
         </div>
+        <OrbitVisual variant="decision" label="Decision signals orbit" />
       </section>
 
       {error ? <ErrorState message={error} reason="This is usually temporary — a slow connection or a brief server hiccup." onRetry={load} /> : null}

@@ -77,16 +77,16 @@ beforeEach(() => {
 });
 
 describe("HomeScreen", () => {
-  it("renders the five merged Morning Brief cards and nothing else", async () => {
+  it("renders only the investor decision cards on Today", async () => {
     homeApi.getSummary.mockResolvedValue(SUMMARY_NO_ACTION);
     renderHomeScreen({ onNavigate: vi.fn() });
 
-    await waitFor(() => expect(screen.getByText("Morning Brief")).toBeInTheDocument());
-    expect(screen.getByText("Today For You")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Portfolio")).toBeInTheDocument());
     expect(screen.getByText("Portfolio")).toBeInTheDocument();
-    expect(screen.getByText("What changed in the platform's beliefs?")).toBeInTheDocument();
     expect(screen.getByText("Recommendations")).toBeInTheDocument();
     expect(screen.getByText("Intelligence Timeline")).toBeInTheDocument();
+    expect(screen.queryByText("Today For You")).not.toBeInTheDocument();
+    expect(screen.queryByText("What changed in the platform's beliefs?")).not.toBeInTheDocument();
 
     // Six adaptive cards despite three brand-new sections (Today For You,
     // Portfolio Morning Summary, Intelligence Timeline) — overlapping old
@@ -95,7 +95,7 @@ describe("HomeScreen", () => {
     // top of the adaptive six — a real, intentional addition, not a
     // regression of the "reduce repeated cards" goal.
     const cards = document.querySelectorAll(".home-card");
-    expect(cards).toHaveLength(7);
+    expect(cards).toHaveLength(4);
     expect(screen.getByText("Active Alerts")).toBeInTheDocument();
   });
 
@@ -104,12 +104,7 @@ describe("HomeScreen", () => {
     renderHomeScreen({ onNavigate: vi.fn() });
 
     await waitFor(() => expect(screen.getAllByText(/No action needed today/).length).toBeGreaterThan(0));
-    expect(screen.getByText(/No material change vs\. yesterday/)).toBeInTheDocument();
-    expect(screen.getByText(/No theme thesis has changed recently/)).toBeInTheDocument();
     expect(screen.getByText(/No prior-day snapshot yet/)).toBeInTheDocument();
-    expect(screen.getByText(/Nothing prioritized for you right now/)).toBeInTheDocument();
-    expect(screen.getByText(/No standout opportunity today/)).toBeInTheDocument();
-    expect(screen.getByText(/No standout risk today/)).toBeInTheDocument();
   });
 
   it("shows real change data when it exists — belief change, portfolio delta, and yesterday diff", async () => {
@@ -117,9 +112,7 @@ describe("HomeScreen", () => {
     renderHomeScreen({ onNavigate: vi.fn() });
 
     await waitFor(() => expect(screen.getAllByText("BUY").length).toBeGreaterThan(0));
-    expect(screen.getByText(/Top driver shifted from Fed policy/)).toBeInTheDocument();
     expect(screen.getAllByText(/Portfolio value up 1.2%/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/AI capex remains elevated/)).toBeInTheDocument();
   });
 
   it("shows an at-a-glance strip summarizing action/portfolio/belief state without any new data fetch", async () => {
@@ -144,7 +137,8 @@ describe("HomeScreen", () => {
     homeApi.getSummary.mockResolvedValue(SUMMARY_WITH_ACTION);
     renderHomeScreen({ onNavigate: vi.fn() });
 
-    await waitFor(() => expect(screen.getByText(/You hold a position this directly affects/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Portfolio")).toBeInTheDocument());
+    expect(screen.queryByText(/You hold a position this directly affects/)).not.toBeInTheDocument();
   });
 
   it("Sprint 28 — Portfolio card shows the real biggest opportunity and biggest risk, and matters-today/can-wait counts", async () => {
@@ -153,27 +147,27 @@ describe("HomeScreen", () => {
 
     await waitFor(() => expect(screen.getByText(/Biggest opportunity: NVDA/)).toBeInTheDocument());
     expect(screen.getByText(/Biggest risk: META/)).toBeInTheDocument();
-    expect(screen.getByText(/Matters today: 1/)).toBeInTheDocument();
-    expect(screen.getByText(/Can wait: 2/)).toBeInTheDocument();
+    expect(screen.getByText("Matters today")).toBeInTheDocument();
+    expect(screen.getByText("Can wait")).toBeInTheDocument();
   });
 
   it("Sprint 28 — Recommendations card lists topRecommendations beyond the single canonical verdict", async () => {
     homeApi.getSummary.mockResolvedValue(SUMMARY_WITH_ACTION);
     renderHomeScreen({ onNavigate: vi.fn() });
 
-    await waitFor(() => expect(screen.getAllByText(/META/).length).toBeGreaterThan(0));
-    expect(screen.getByText(/quality 50\/100/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByText(/NVDA/).length).toBeGreaterThan(0));
+    expect(screen.queryByText(/quality 50\/100/)).not.toBeInTheDocument();
   });
 
   it("Sprint 28 — Intelligence Timeline defaults to Today and switches sections on click, with real per-section counts", async () => {
     homeApi.getSummary.mockResolvedValue(SUMMARY_WITH_ACTION);
     renderHomeScreen({ onNavigate: vi.fn() });
 
-    await waitFor(() => expect(screen.getByText("Overnight (1)")).toBeInTheDocument());
-    expect(screen.getByText("Today (1)")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Overnight")).toBeInTheDocument());
+    expect(screen.getAllByText("Today").length).toBeGreaterThan(0);
     expect(screen.getAllByText("NVDA supply deal").length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByText("Overnight (1)"));
+    fireEvent.click(screen.getByText("Overnight"));
     expect(screen.getByText("Overnight macro print")).toBeInTheDocument();
   });
 
@@ -184,6 +178,8 @@ describe("HomeScreen", () => {
     await waitFor(() => expect(screen.getByLabelText("Morning personal brief")).toBeInTheDocument());
     const brief = screen.getByLabelText("Morning personal brief");
     expect(brief.querySelectorAll("li").length).toBe(4);
+    expect(brief.querySelectorAll(".morning-brief-list__orbit")).toHaveLength(4);
+    expect(screen.getByLabelText("Today's date")).toBeInTheDocument();
     expect(screen.getByText("Market: NVDA supply deal")).toBeInTheDocument();
     expect(screen.getByText("Top for you: NVDA — BUY (quality 82/100)")).toBeInTheDocument();
   });
@@ -198,14 +194,15 @@ describe("HomeScreen", () => {
     // headlines, not a second time as the Morning Brief card's own
     // duplicate headline paragraph.
     const bareHeadlineMatches = screen.getAllByText("NVDA supply deal");
-    expect(bareHeadlineMatches.length).toBe(2); // todayForYou item + Intelligence Timeline "Today" item
+    expect(bareHeadlineMatches.length).toBe(1);
   });
 
   it("Sprint 35 Priority 4 — the Morning Brief card DOES show the headline when the hero brief has no lines to cover it", async () => {
     homeApi.getSummary.mockResolvedValue({ ...SUMMARY_NO_ACTION, personalBrief: [] });
     renderHomeScreen({ onNavigate: vi.fn() });
 
-    await waitFor(() => expect(screen.getByText("Generic market headline")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Portfolio")).toBeInTheDocument());
+    expect(screen.queryByText("Generic market headline")).not.toBeInTheDocument();
   });
 
   it("Sprint 30 — Morning Personal Brief renders nothing when the backend sends no lines, never a fabricated placeholder", async () => {
@@ -223,9 +220,9 @@ describe("HomeScreen", () => {
     });
     renderHomeScreen({ onNavigate: vi.fn() });
 
-    await waitFor(() => expect(screen.getByText("Morning Brief")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Recommendations")).toBeInTheDocument());
     const headings = screen.getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent);
-    const cardTitles = ["Morning Brief", "Recommendations", "Intelligence Timeline", "Portfolio", "What changed in the platform's beliefs?", "Today For You"];
+    const cardTitles = ["Recommendations", "Intelligence Timeline", "Portfolio"];
     const positions = cardTitles.map((title) => headings.findIndex((heading) => heading.includes(title)));
     for (let i = 1; i < positions.length; i += 1) {
       expect(positions[i]).toBeGreaterThan(positions[i - 1]);

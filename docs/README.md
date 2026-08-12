@@ -6,6 +6,7 @@ This directory separates maintained product documentation from historical delive
 
 - [Repository overview](../README.md)
 - [Project one-pager](PROJECT_ONE_PAGER.md)
+- [Master specification](specification/README.md)
 - [Documentation manifest](DOCUMENTATION_MANIFEST.md)
 - [Current project status](product/PROJECT_STATUS.md)
 - [System architecture](architecture/ARCHITECTURE.md)

@@ -1,30 +1,20 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { getDailyBars } = require("./priceHistoryProvider");
+const { getDailyBars, rangeToYahooRange, fetchYahooDailyBars } = require("./priceHistoryProvider");
 const { sharedProviderCache } = require("../redisCache/providerCache");
 const redisClient = require("../redisCache/redisClient");
 
 function fakeAxiosResponse(bars) {
   return {
     data: {
-      chart: {
-        result: [
-          {
-            timestamp: bars.map((bar) => Math.floor(new Date(bar.date).getTime() / 1000)),
-            indicators: {
-              quote: [
-                {
-                  open: bars.map((bar) => bar.open),
-                  high: bars.map((bar) => bar.high),
-                  low: bars.map((bar) => bar.low),
-                  close: bars.map((bar) => bar.close),
-                  volume: bars.map((bar) => bar.volume),
-                },
-              ],
-            },
-          },
-        ],
-      },
+      results: bars.map((bar) => ({
+        t: new Date(bar.date).getTime(),
+        o: bar.open,
+        h: bar.high,
+        l: bar.low,
+        c: bar.close,
+        v: bar.volume,
+      })),
     },
   };
 }
@@ -105,6 +95,28 @@ test("getDailyBars: different real symbols/ranges never share a real cache entry
 test("getDailyBars: honestly returns an empty array with no symbol, exactly as before this phase", async () => {
   const bars = await getDailyBars("");
   assert.deepEqual(bars, []);
+});
+
+test("rangeToYahooRange maps each supported chart selector to an honest daily-history window", () => {
+  assert.equal(rangeToYahooRange("15m"), "5d");
+  assert.equal(rangeToYahooRange("4h"), "5d");
+  assert.equal(rangeToYahooRange("1w"), "1mo");
+  assert.equal(rangeToYahooRange("1y"), "1y");
+});
+
+test("fetchYahooDailyBars keeps only verified Yahoo OHLCV rows", async () => {
+  const originalGet = require("axios").get;
+  require("axios").get = async () => ({
+    data: { chart: { result: [{ timestamp: [1783555200, 1783641600], indicators: { quote: [{ open: [100, null], high: [104, 105], low: [99, 101], close: [102, 103], volume: [2000, 3000] }] } }] } },
+  });
+  try {
+    const bars = await fetchYahooDailyBars("SPY", "1mo");
+    assert.equal(bars.length, 1);
+    assert.equal(bars[0].close, 102);
+    assert.equal(bars[0].volume, 2000);
+  } finally {
+    require("axios").get = originalGet;
+  }
 });
 
 test("getDailyBars: a real network failure still gracefully returns an empty array, exactly as before this phase", async () => {

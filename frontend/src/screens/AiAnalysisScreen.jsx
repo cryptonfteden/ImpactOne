@@ -3,47 +3,47 @@ import SectionCard from "../components/SectionCard";
 import { SafeList, SafeValue } from "../components/SafeValue";
 import useWatchlist from "../hooks/useWatchlist";
 import { Button, Input, LoadingSpinner, EmptyState } from "../components/ui";
-import { altDataApi, analysisApi, intelligenceApi, marketApi, performanceMetricsApi, claimsApi } from "../services/api";
-import { openSymbolPanel } from "../utils/symbolPanel";
+import { altDataApi, analysisApi, intelligenceApi, marketApi, performanceMetricsApi, claimsApi, agentOrchestratorApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 
-function PriceChart({ points }) {
-  if (!points?.length) {
-    return <p className="company-description">No chart history is available for this ticker yet.</p>;
+const SHORT_VOLUME_RANGES = [
+  { id: "15M", label: "15m", sessions: 0 },
+  { id: "4H", label: "4h", sessions: 0 },
+  { id: "1D", label: "Day", sessions: 1 },
+  { id: "1W", label: "Week", sessions: 5 },
+  { id: "1M", label: "Month", sessions: 20 },
+  { id: "3M", label: "3 months", sessions: 60 },
+  { id: "1Y", label: "Year", sessions: 252 },
+];
+
+function formatSignalVolume(value) {
+  return Number.isFinite(Number(value)) ? new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(Number(value)) : "--";
+}
+
+function getShortVolumeRange(signal, rangeId) {
+  if (!signal?.available) return { available: false, reason: signal?.reason || "FINRA short-volume data is unavailable." };
+  const range = SHORT_VOLUME_RANGES.find((item) => item.id === rangeId) || SHORT_VOLUME_RANGES[1];
+  if (range.sessions === 0) {
+    return { available: false, reason: "FINRA publishes short-volume data by trading day, not intraday." };
   }
-
-  const width = 320;
-  const height = 160;
-  const padding = 16;
-  const values = points.map((point) => point.value);
-  const minValue = Math.min(...values);
-  const maxValue = Math.max(...values);
-
-  const charts = points.map((point, index) => {
-    const x = padding + (index / Math.max(points.length - 1, 1)) * (width - padding * 2);
-    const y = height - padding - ((point.value - minValue) / Math.max(maxValue - minValue, 1)) * (height - padding * 2);
-    return { ...point, x, y };
-  });
-
-  const path = charts.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
-  const areaPath = `${path} L ${charts[charts.length - 1].x.toFixed(2)} ${height - padding} L ${charts[0].x.toFixed(2)} ${height - padding} Z`;
-
-  return (
-    <div className="chart-card">
-      <svg viewBox={`0 0 ${width} ${height}`} className="price-chart">
-        <path d={areaPath} className="price-chart__area" />
-        <path d={path} className="price-chart__line" />
-        {charts.map((point) => (
-          <circle key={`${point.label}-${point.value}`} cx={point.x} cy={point.y} r="3.5" className="price-chart__dot" />
-        ))}
-      </svg>
-      <div className="chart-labels">
-        {charts.slice(0, 4).map((point) => (
-          <span key={point.label}>{point.label}</span>
-        ))}
-      </div>
-    </div>
-  );
+  const history = Array.isArray(signal.dailyHistory) && signal.dailyHistory.length ? signal.dailyHistory : [{
+    date: signal.date,
+    shortVolume: signal.shortVolume,
+    nonShortVolume: signal.nonShortVolume,
+    totalVolume: signal.totalVolume,
+  }];
+  if (history.length < range.sessions) {
+    return { available: false, reason: `Only ${history.length} verified trading sessions are currently available; ${range.label.toLowerCase()} needs ${range.sessions}.` };
+  }
+  const rows = history.slice(-range.sessions);
+  return {
+    available: true,
+    label: range.label,
+    date: rows.at(-1)?.date,
+    sessions: rows.length,
+    shortVolume: rows.reduce((total, row) => total + Number(row.shortVolume || 0), 0),
+    nonShortVolume: rows.reduce((total, row) => total + Number(row.nonShortVolume || 0), 0),
+  };
 }
 
 export default function AiAnalysisScreen() {
@@ -56,6 +56,11 @@ export default function AiAnalysisScreen() {
   const [news, setNews] = useState([]);
   const [chart, setChart] = useState([]);
   const [fearGreed, setFearGreed] = useState(null);
+  const [snapshotSignals, setSnapshotSignals] = useState(null);
+  const [shortVolumeRange, setShortVolumeRange] = useState("1D");
+  const [shortVolumeHistory, setShortVolumeHistory] = useState(null);
+  const [isShortVolumeLoading, setIsShortVolumeLoading] = useState(false);
+  const [activeSection, setActiveSection] = useState("ai-overview");
   const [aiReport, setAiReport] = useState(null);
   const [aiNotice, setAiNotice] = useState("");
   const [aiError, setAiError] = useState("");
@@ -82,6 +87,8 @@ export default function AiAnalysisScreen() {
   // when no active claim exists for this symbol yet.
   const [claims, setClaims] = useState([]);
   const [claimsError, setClaimsError] = useState("");
+  const [agentIntelligence, setAgentIntelligence] = useState(null);
+  const [cotReport, setCotReport] = useState(null);
 
   const { watchlist, toggleTicker } = useWatchlist();
 
@@ -96,6 +103,65 @@ export default function AiAnalysisScreen() {
 
     window.addEventListener("impactone:select-ticker", handleTickerSelection);
     return () => window.removeEventListener("impactone:select-ticker", handleTickerSelection);
+  }, []);
+
+  // Keep the global market-sentiment dial current even when Fast Refresh
+  // preserves an older screen state after a backend or UI update.
+  useEffect(() => {
+    let active = true;
+    async function refreshFearGreed() {
+      try {
+        const payload = await marketApi.getQuote(ticker.toUpperCase());
+        if (active && payload?.fearGreed) setFearGreed(payload.fearGreed);
+      } catch {
+        // The existing quote request owns user-facing error reporting.
+      }
+    }
+    refreshFearGreed();
+    const timer = window.setInterval(refreshFearGreed, 60000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [ticker]);
+
+  // The primary quote stays fast with the latest month of verified FINRA
+  // sessions. Longer windows load only when the investor selects them.
+  useEffect(() => {
+    const range = SHORT_VOLUME_RANGES.find((item) => item.id === shortVolumeRange);
+    if (!range || range.sessions <= 20) {
+      setShortVolumeHistory(null);
+      setIsShortVolumeLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    setShortVolumeHistory(null);
+    setIsShortVolumeLoading(true);
+    marketApi.getShortVolumeRange(ticker.toUpperCase(), range.sessions)
+      .then((payload) => {
+        if (active) setShortVolumeHistory(payload?.available ? payload : null);
+      })
+      .catch(() => {
+        if (active) setShortVolumeHistory(null);
+      })
+      .finally(() => {
+        if (active) setIsShortVolumeLoading(false);
+      });
+    return () => { active = false; };
+  }, [ticker, shortVolumeRange]);
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return undefined;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (visible) setActiveSection(visible.target.id);
+      },
+      { rootMargin: "-145px 0px -52% 0px", threshold: [0.05, 0.25, 0.5] },
+    );
+    const sections = document.querySelectorAll(".analysis-section-block[id]");
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
@@ -128,6 +194,8 @@ export default function AiAnalysisScreen() {
             setComparisonRows([]);
             setClaims([]);
             setClaimsError("");
+            setAgentIntelligence(null);
+            setCotReport(null);
             setErrorMessage(quoteData.error || "Unable to load live stock analysis from Finnhub right now.");
             setStatusMessage("Live market data request failed.");
             return;
@@ -140,6 +208,7 @@ export default function AiAnalysisScreen() {
           setNews(quoteData.news || []);
           setChart(quoteData.chart || []);
           setFearGreed(quoteData.fearGreed || null);
+          setSnapshotSignals(quoteData.snapshotSignals || null);
           setComparisonRows([]);
           setAiNotice("");
           setAiLastUpdated("");
@@ -150,7 +219,7 @@ export default function AiAnalysisScreen() {
           // Phase X9 — Part 6, Performance Monitoring. Real elapsed time
           // for the real AI analysis call — reported fire-and-forget.
           const aiCallStart = performance.now();
-          const [aiResponse, compareResponse, altResponse, intelligenceResponse, claimsResponse] = await Promise.allSettled([
+          const [aiResponse, compareResponse, altResponse, intelligenceResponse, claimsResponse, agentResponse, cotResponse] = await Promise.allSettled([
             analysisApi.analyze({
                 symbol: normalizedTicker,
                 context: {
@@ -168,6 +237,8 @@ export default function AiAnalysisScreen() {
             altDataApi.getSummary(normalizedTicker),
             intelligenceApi.analyze({ event: eventHint, symbol: normalizedTicker }),
             claimsApi.listBySymbol(normalizedTicker, { limit: 50 }),
+            agentOrchestratorApi.getStockIntelligence(normalizedTicker),
+            altDataApi.getCot(normalizedTicker),
           ]);
           performanceMetricsApi.recordClientTiming("aiResponse", performance.now() - aiCallStart).catch(() => {});
 
@@ -256,6 +327,9 @@ export default function AiAnalysisScreen() {
               logError("Claims request failed", claimsResponse.reason);
               setClaimsError("Claims are temporarily unavailable for this symbol.");
             }
+
+            setAgentIntelligence(agentResponse.status === "fulfilled" ? agentResponse.value || null : null);
+            setCotReport(cotResponse.status === "fulfilled" ? cotResponse.value?.cot || null : null);
           }
         }
       } catch (error) {
@@ -280,6 +354,8 @@ export default function AiAnalysisScreen() {
           setIntelligenceError("Intelligence engine is temporarily unavailable.");
           setClaims([]);
           setClaimsError("Claims are temporarily unavailable for this symbol.");
+          setAgentIntelligence(null);
+          setCotReport(null);
           setCommittee(null);
           setCio(null);
           setCommitteeError("Investment committee is temporarily unavailable.");
@@ -319,7 +395,32 @@ export default function AiAnalysisScreen() {
   const whyMovingToday = marketImpact?.whyMovingToday || [];
   const sectorImpact = marketImpact?.sectorImpact || null;
   const marketOpportunities = marketImpact?.marketOpportunities || [];
-  const finalRating = aiReport?.investmentRating || aiReport?.finalRating || "Hold";
+  const finalRating = aiReport?.investmentRating || aiReport?.finalRating || recommendation?.label || "Unavailable";
+  const selectedShortVolume = isShortVolumeLoading
+    ? { available: false, label: SHORT_VOLUME_RANGES.find((item) => item.id === shortVolumeRange)?.label, reason: "Loading verified FINRA sessions…" }
+    : getShortVolumeRange(shortVolumeHistory || snapshotSignals?.shortLongVolume, shortVolumeRange);
+  const shortLongTotal = selectedShortVolume.available ? selectedShortVolume.shortVolume + selectedShortVolume.nonShortVolume : 0;
+  const shortPercent = shortLongTotal > 0 ? Math.round(selectedShortVolume.shortVolume / shortLongTotal * 100) : null;
+  const longPercent = shortPercent === null ? null : 100 - shortPercent;
+  const analystVotes = recommendation?.counts || {};
+  const analystVoteTotal = Number(analystVotes.buy || 0) + Number(analystVotes.hold || 0) + Number(analystVotes.sell || 0);
+  const fearGreedValue = Number(fearGreed?.value);
+  const fearGreedTone = Number.isFinite(fearGreedValue) ? (fearGreedValue < 40 ? "fear" : fearGreedValue > 60 ? "greed" : "neutral") : "waiting";
+  const fearGreedDirection = Number.isFinite(fearGreedValue) ? (fearGreedValue < 40 ? `${40 - fearGreedValue} points inside the Fear zone` : fearGreedValue > 60 ? `${fearGreedValue - 60} points inside the Greed zone` : "Balanced around Neutral") : "Live direction is loading";
+  const analystScoreMap = { "STRONG BUY": 85, BUY: 72, HOLD: 50, SELL: 28, "STRONG SELL": 15 };
+  const availableBuyInputs = [];
+  const analystScore = analystScoreMap[String(recommendation?.label || "").toUpperCase()];
+  if (Number.isFinite(analystScore)) availableBuyInputs.push(analystScore);
+  if (snapshotSignals?.sentiment?.available && Number.isFinite(Number(snapshotSignals.sentiment.score))) availableBuyInputs.push(Number(snapshotSignals.sentiment.score));
+  if (quote?.analystPriceFit?.available && Number.isFinite(Number(quote.analystPriceFit.score))) availableBuyInputs.push(Number(quote.analystPriceFit.score) * 10);
+  if (snapshotSignals?.insider?.available && Number(snapshotSignals.insider.buyCount) > 0) availableBuyInputs.push(70);
+  const hasAiConfidence = Number.isFinite(Number(aiReport?.confidenceScore)) && Number(aiReport.confidenceScore) > 0;
+  const buyRatingScore = hasAiConfidence
+    ? Math.round(Number(aiReport.confidenceScore))
+    : availableBuyInputs.length ? Math.round(availableBuyInputs.reduce((total, value) => total + value, 0) / availableBuyInputs.length) : null;
+  const buyRatingDetail = hasAiConfidence
+    ? "AI confidence based on the available criteria."
+    : availableBuyInputs.length ? `${availableBuyInputs.length} live inputs: analyst consensus, sentiment, valuation${snapshotSignals?.insider?.buyCount ? ", and insider buying" : ""}.` : "No live rating inputs are available yet.";
   const isPartialReport = Boolean(aiReport && aiReport.source && aiReport.source !== "openai");
   // Phase UI-INTEGRATION-001 — presentation-only pick of the
   // highest-confidence open Claim as "current belief," same rule used by
@@ -328,8 +429,16 @@ export default function AiAnalysisScreen() {
   const OPEN_CLAIM_STATUSES = ["DRAFT", "ACTIVE", "STRENGTHENING", "WEAKENING", "CONTESTED"];
   const openClaims = claims.filter((claim) => OPEN_CLAIM_STATUSES.includes(claim.status));
   const currentBeliefClaim = [...openClaims].sort((a, b) => (b.confidence ?? -1) - (a.confidence ?? -1))[0] || null;
+  const agentResult = (id) => agentIntelligence?.agents?.find((agent) => agent.agentId === id)?.result?.raw || null;
+  const earningsReport = agentResult("earnings");
+  const valuationReport = agentResult("valuation");
+  const fibonacciReport = agentResult("fibonacci");
+  const moneyFormat = (value) => Number.isFinite(Number(value)) ? `$${Number(value).toFixed(2)}` : "--";
+  const cotAvailable = cotReport && !cotReport.unavailable;
   const sectionTabs = [
     { id: "ai-overview", label: "Overview" },
+    { id: "ai-fundamentals", label: "Financials" },
+    { id: "ai-positioning", label: "COT" },
     { id: "ai-report", label: "AI Report" },
     { id: "ai-claims", label: "Claims-Based Analysis" },
     { id: "ai-impact", label: "Market Impact" },
@@ -353,8 +462,9 @@ export default function AiAnalysisScreen() {
       </section>
 
       <nav className="analysis-sticky-nav" aria-label="AI Analysis sections">
+        <span className="analysis-sticky-nav__beacon" aria-hidden="true"><i /> Analysis map</span>
         {sectionTabs.map((item) => (
-          <a key={item.id} href={`#${item.id}`} className="analysis-sticky-nav__link">{item.label}</a>
+          <a key={item.id} href={`#${item.id}`} onClick={() => setActiveSection(item.id)} className={`analysis-sticky-nav__link${activeSection === item.id ? " is-active" : ""}`} aria-current={activeSection === item.id ? "location" : undefined}><i aria-hidden="true" />{item.label}</a>
         ))}
       </nav>
 
@@ -386,31 +496,34 @@ export default function AiAnalysisScreen() {
       <div className="analysis-grid">
         <SectionCard title="Market snapshot" subtitle="Live quote details" icon="◉" className="screen-card">
           <div className="quote-card">
-            <div className="quote-card__symbol">{ticker}</div>
+            <div className="quote-card__identity">
+              <div className="quote-card__symbol">{ticker}</div>
+              <span className="quote-card__sector">{company?.industry || "Sector unavailable"}</span>
+            </div>
             <div className="quote-card__price">${Number(quote?.price || 0).toFixed(2)}</div>
             <div className={`quote-card__change ${quote?.change >= 0 ? "positive" : "negative"}`}>
               {quote?.change >= 0 ? "+" : ""}{Number(quote?.change || 0).toFixed(2)}%
             </div>
             <div className="quote-metrics">
               <div><span>Market Cap</span><strong>{quote?.marketCap || "--"}</strong></div>
-              <div><span>P/E</span><strong>{quote?.pe || "--"}</strong></div>
-              <div><span>Volume</span><strong>{quote?.volume || "--"}</strong></div>
-              <div><span>52w High/Low</span><strong>{quote?.weekHigh || "--"}/{quote?.weekLow || "--"}</strong></div>
+              <div className="quote-metrics__valuation"><span>P/E</span><strong>{quote?.pe || "--"}</strong>{quote?.analystPriceFit?.available ? <><div className="quote-metrics__fit" title="This score uses the live analyst mean price target when available. Otherwise it is a P/E-only context score, not an intrinsic-value estimate."><i style={{ width: `${Math.max(0, Math.min(10, Number(quote.analystPriceFit.score || 0))) * 10}%` }} /></div><small>{quote.analystPriceFit.source === "analyst-target" ? `${quote.analystPriceFit.score}/10 price fit` : `${quote.analystPriceFit.score}/10 P/E context`}</small></> : <small className="quote-metrics__pending">Valuation signal loading</small>}</div>
+              <div className="quote-metrics__volume"><span>Volume</span><strong>{quote?.volume || "--"}</strong>{quote?.volumeActivity?.available ? <><div className="quote-metrics__volume-track"><i style={{ width: `${Math.max(8, Math.min(100, Number(quote.volumeActivity.ratio) * 50))}%` }} /></div><small><b>{quote.volumeActivity.state}</b> · {quote.volumeActivity.ratio.toFixed(2)}× avg {formatSignalVolume(quote.volumeActivity.averageVolume)}</small></> : <small className="quote-metrics__pending">Volume baseline loading</small>}</div>
+            </div>
+            <div className="market-snapshot-card__signals" aria-label="Stock intelligence signals">
+              <div className="market-snapshot-card__range-tabs" aria-label="Short volume period">
+                {SHORT_VOLUME_RANGES.map((range) => <Button key={range.id} type="button" className={shortVolumeRange === range.id ? "active" : ""} onClick={() => setShortVolumeRange(range.id)} disabled={range.sessions === 0} title={range.sessions === 0 ? "FINRA publishes verified short-volume data once per trading day." : undefined}>{range.label}</Button>)}
+              </div>
+              <div className="market-snapshot-card__signal market-snapshot-card__signal--short"><span>Short · {selectedShortVolume.label || shortVolumeRange}</span><strong>{shortPercent === null ? "—" : `${shortPercent}%`}</strong><div className="market-snapshot-card__share-track"><i style={{ width: `${shortPercent || 0}%` }} /></div></div>
+              <div className="market-snapshot-card__signal market-snapshot-card__signal--long"><span>Non-short · {selectedShortVolume.label || shortVolumeRange}</span><strong>{longPercent === null ? "—" : `${longPercent}%`}</strong><div className="market-snapshot-card__share-track"><i style={{ width: `${longPercent || 0}%` }} /></div></div>
+              <div className="market-snapshot-card__signal"><span>Sentiment</span><strong>{snapshotSignals?.sentiment?.available ? `${snapshotSignals.sentiment.state} · ${snapshotSignals.sentiment.score}/100` : "Unavailable"}</strong><small>{snapshotSignals?.sentiment?.available ? `${snapshotSignals.sentiment.articleCount} news articles analyzed for this symbol.` : snapshotSignals?.sentiment?.reason || "Loading symbol sentiment…"}</small></div>
+              <div className="market-snapshot-card__signal"><span>Insider buying · last 12 months</span><strong>{snapshotSignals?.insider?.available ? (snapshotSignals.insider.buyCount ? `${snapshotSignals.insider.buyCount} purchases` : "No open-market purchases") : "Unavailable"}</strong><small>{snapshotSignals?.insider?.available ? (snapshotSignals.insider.averagePrice ? `Weighted average purchase price: $${snapshotSignals.insider.averagePrice.toFixed(2)}.` : "No qualifying Form 4 purchases in the last 12 months.") : snapshotSignals?.insider?.reason || "Loading SEC Form 4 data…"}</small></div>
+              <div className="market-snapshot-card__signal"><span>News score</span><strong>{snapshotSignals?.sentiment?.available ? `${snapshotSignals.sentiment.newsScore}/10` : "Unavailable"}</strong><small>{snapshotSignals?.sentiment?.available ? "Derived from the live symbol news-sentiment score." : snapshotSignals?.sentiment?.reason || "Loading news score…"}</small></div>
+              <div className="market-snapshot-card__signal market-snapshot-card__signal--rating"><span>ImpactOne buy rating</span><strong>{finalRating}</strong><div className="market-snapshot-card__rating-track" aria-label="Investment rating confidence"><i style={{ width: `${Math.max(0, Math.min(100, Number(buyRatingScore || 0)))}%` }} /></div><small>{buyRatingScore !== null ? `${buyRatingScore}/100 — ${buyRatingDetail}` : buyRatingDetail}</small></div>
             </div>
             {quote?.companyLogo ? (
               <img className="company-logo" src={quote.companyLogo} alt={`${ticker} logo`} />
             ) : null}
             <div className="company-description"><SafeValue value={quote?.companyDescription || "Company description is currently unavailable."} /></div>
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Company information" subtitle="Profile" icon="◌" className="screen-card">
-          <div className="company-profile">
-            <div className="company-profile__name">{company?.name || ticker}</div>
-            <div className="company-profile__meta">{company?.exchange || "US exchange"} • {company?.country || "US"}</div>
-            <div className="company-profile__meta">Industry: {company?.industry || "Unknown"}</div>
-            <div className="company-profile__meta">Currency: {company?.currency || "USD"}</div>
-            {company?.website ? <a className="company-profile__link" href={company.website} target="_blank" rel="noreferrer">Visit website</a> : null}
           </div>
         </SectionCard>
 
@@ -422,27 +535,31 @@ export default function AiAnalysisScreen() {
             engine + committee). Title/copy renamed to remove any
             implication these are the same thing. */}
         <SectionCard title="Wall Street Analyst Consensus" subtitle="Third-party data — not an ImpactOne recommendation" icon="▲" className="screen-card">
-          <div className="score-card">
-            <div className={`score-card__recommendation ${recommendation?.label ? recommendation.label.toLowerCase().replace(/\s+/g, "-") : "hold"}`}>
-              {recommendation?.label || "Hold"}
+          <div className="score-card analyst-consensus-card">
+            <div className="analyst-consensus-card__topline">
+              <div className={`score-card__recommendation ${recommendation?.label ? recommendation.label.toLowerCase().replace(/\s+/g, "-") : "hold"}`}>
+                {recommendation?.label || "Hold"}
+              </div>
+              <div className="analyst-consensus-card__orbit" aria-hidden="true"><i /><i /><i /></div>
             </div>
             <div className="company-description"><SafeValue value={recommendation?.reason || "Analyst consensus data is being loaded."} /></div>
-            <div className="company-description subtle"><SafeValue value={recommendation?.details || "-"} /></div>
+            <div className="analyst-consensus-card__votes" aria-label="Analyst vote distribution">
+              {[{ label: "Buy", value: analystVotes.buy, tone: "buy" }, { label: "Hold", value: analystVotes.hold, tone: "hold" }, { label: "Sell", value: analystVotes.sell, tone: "sell" }].map((vote) => (
+                <div className={`analyst-consensus-card__vote analyst-consensus-card__vote--${vote.tone}`} key={vote.label}><span>{vote.label}</span><strong>{Number(vote.value || 0)}</strong><i><b style={{ width: `${analystVoteTotal ? Number(vote.value || 0) / analystVoteTotal * 100 : 0}%` }} /></i></div>
+              ))}
+            </div>
             <div className="company-description subtle">Consensus trend: <SafeValue value={recommendationTrend?.direction || "Unknown"} /></div>
             <div className="company-description subtle"><SafeValue value={recommendationTrend?.summary || "-"} /></div>
           </div>
         </SectionCard>
 
-        <SectionCard title="Fear & Greed" subtitle="Sentiment indicator" icon="◔" className="screen-card">
-          {fearGreed ? (
-            <div className="fear-greed-card">
-              <div className="fear-greed-card__value">{fearGreed.value}</div>
-              <div className="fear-greed-card__label">{fearGreed.classification}</div>
-              <p className="company-description">Updated {new Date(Number(fearGreed.timestamp) * 1000).toLocaleString()}</p>
-            </div>
-          ) : (
-            <p className="company-description">Fear and greed data is unavailable right now.</p>
-          )}
+        <SectionCard title="Fear & Greed" subtitle="Sentiment indicator" icon="◔" className="screen-card fear-greed-shell">
+          <div className={`fear-greed-card ${fearGreed ? "is-live" : "is-waiting"} fear-greed-card--${fearGreedTone}`} style={{ "--sentiment-position": `${Number.isFinite(fearGreedValue) ? fearGreedValue : 50}%` }}>
+            <div className="fear-greed-card__radar" aria-label={fearGreed ? `Fear and Greed value ${fearGreed.value}` : "Fear and Greed awaiting data"}><i /><i /><i /><b style={{ transform: `rotate(${fearGreed ? Math.max(-74, Math.min(74, (Number(fearGreed.value) - 50) * 1.48)) : 0}deg)` }} /><em>{fearGreed ? fearGreed.value : "—"}<small>/100</small></em></div>
+            <div className="fear-greed-card__reading"><span>Current direction</span><strong>{fearGreed?.classification || "Awaiting live pulse"}</strong><small>{fearGreedDirection}</small></div>
+            <div className="fear-greed-card__scale"><span>Fear</span><i /><span>Neutral</span><i /><span>Greed</span></div>
+            <p className="fear-greed-card__stamp">{fearGreed ? `Updated ${new Date(Number(fearGreed.timestamp) * 1000).toLocaleString()}` : "Global sentiment feed reconnecting"}</p>
+          </div>
         </SectionCard>
 
         {/* Phase X3 — Chart Integration. This 30-day glance stays as a
@@ -451,13 +568,6 @@ export default function AiAnalysisScreen() {
             opens the same shared Side Analysis Panel every other screen
             uses (StockSidePanel/AdvancedChart), the single source of
             truth per CHART_EXTENSION_API.md. */}
-        <SectionCard title="Price chart" subtitle="30-day daily close" icon="◣" className="screen-card">
-          <PriceChart points={chart} />
-          <button type="button" className="ghost-button" onClick={() => openSymbolPanel(ticker)} style={{ marginTop: 10 }}>
-            Open full chart &amp; analysis
-          </button>
-        </SectionCard>
-
         <SectionCard title="Recent news" subtitle="Latest company coverage" icon="◍" className="screen-card">
           <div className="news-list">
             {news.length ? news.map((item) => (
@@ -468,6 +578,52 @@ export default function AiAnalysisScreen() {
               </div>
             )) : <p className="company-description">No recent news is available for this ticker.</p>}
           </div>
+        </SectionCard>
+      </div>
+
+      <div id="ai-fundamentals" className="analysis-section-block analysis-section-block--split">
+        <SectionCard title="Quarterly earnings & value" subtitle="Live company fundamentals · not investment advice" icon="◈" className="screen-card intelligence-card">
+          {valuationReport?.dataAvailable ? (
+            <div className="fundamentals-card">
+              <div className="fundamentals-card__verdict">
+                <span>Fair-value view</span><strong>{String(valuationReport.valuationStatus || "Unknown").replaceAll("_", " ")}</strong>
+                <div className="fundamentals-card__score"><i style={{ width: `${Math.max(0, Math.min(10, Number(valuationReport.confidence || 0))) * 10}%` }} /></div>
+                <small>Estimate confidence {Number(valuationReport.confidence || 0)}/10</small>
+              </div>
+              <div className="fundamentals-card__facts">
+                <div><span>Estimated fair value</span><strong>{moneyFormat(valuationReport.estimatedFairValue)}</strong></div>
+                <div><span>Price vs fair value</span><strong className={Number(valuationReport.discountToFairValue) >= 0 ? "positive" : "negative"}>{Number.isFinite(Number(valuationReport.discountToFairValue)) ? `${Number(valuationReport.discountToFairValue).toFixed(1)}%` : "--"}</strong></div>
+                <div><span>Latest earnings health</span><strong>{earningsReport?.earningsHealth || "Loading"}</strong></div>
+                <div><span>Forward outlook</span><strong>{earningsReport?.forwardOutlook || "Loading"}</strong></div>
+              </div>
+              <p className="company-description subtle">{valuationReport.aiSummary}</p>
+            </div>
+          ) : <p className="company-description">{valuationReport?.unavailableReason || "Financial valuation is loading from the connected live provider."}</p>}
+        </SectionCard>
+
+        <SectionCard title="Fibonacci map" subtitle="Daily / monthly swing levels from verified price history" icon="⌁" className="screen-card intelligence-card">
+          {fibonacciReport?.dataAvailable ? (
+            <div className="fib-map-card">
+              <div className="fib-map-card__headline"><span>{fibonacciReport.primarySwing?.trend || "Current swing"}</span><strong>{fibonacciReport.entryZone?.label || "Watch zone"}</strong></div>
+              <div className="fib-map-card__levels">{(fibonacciReport.retracementLevels || []).slice(0, 5).map((level) => <div key={level.ratio}><span>{Number(level.ratio) * 100}%</span><i /><strong>{moneyFormat(level.price)}</strong></div>)}</div>
+              <p className="company-description subtle">{fibonacciReport.aiSummary}</p>
+            </div>
+          ) : <p className="company-description">{fibonacciReport?.unavailableReason || "Fibonacci levels are loading from real historical candles."}</p>}
+        </SectionCard>
+      </div>
+
+      <div id="ai-positioning" className="analysis-section-block">
+        <SectionCard title="Weekly COT positioning" subtitle="CFTC futures positioning · market proxy, not individual-stock ownership" icon="◌" className="screen-card cot-card">
+          {cotAvailable ? (
+            <div className="cot-card__content">
+              <div className="cot-card__signal"><span>{cotReport.market || "CFTC market"}</span><strong>{cotReport.signal}</strong><small>Weekly non-commercial net: {Number(cotReport.netPositioning || 0).toLocaleString()}</small></div>
+              <div className="cot-card__groups">
+                <div><span>Dealers & intermediaries</span><strong className="cot-card__long">Long {Number(cotReport.commercialLong || 0).toLocaleString()}</strong><strong className="cot-card__short">Short {Number(cotReport.commercialShort || 0).toLocaleString()}</strong></div>
+                <div><span>Leveraged funds</span><strong className="cot-card__long">Long {Number(cotReport.nonCommercialLong || 0).toLocaleString()}</strong><strong className="cot-card__short">Short {Number(cotReport.nonCommercialShort || 0).toLocaleString()}</strong></div>
+              </div>
+              <p className="company-description subtle">The CFTC TFF report does not identify central-bank positions. It reports weekly futures positions by trader category; equities therefore use S&amp;P futures as a broad risk-positioning proxy.</p>
+            </div>
+          ) : <p className="company-description">{cotReport?.reason || "CFTC positioning data is loading."}</p>}
         </SectionCard>
       </div>
 
@@ -917,6 +1073,23 @@ export default function AiAnalysisScreen() {
         )}
       </SectionCard>
       </div>
+
+      <section className="company-identity-section" aria-label="Company profile">
+        <div className="company-identity-section__orb" aria-hidden="true"><i /><i /><i /></div>
+        <div className="company-identity-section__content">
+          <p className="eyebrow">Company identity</p>
+          <div className="company-identity-section__title-row">
+            {quote?.companyLogo ? <img src={quote.companyLogo} alt="" className="company-identity-section__logo" /> : <span className="company-identity-section__monogram">{ticker.slice(0, 1)}</span>}
+            <div><h2>{company?.name || ticker}</h2><p>{ticker} · {company?.industry || "Sector unavailable"}</p></div>
+          </div>
+          <div className="company-identity-section__facts">
+            <span>{company?.exchange || "US exchange"}</span>
+            <span>{company?.country || "US"}</span>
+            <span>{company?.currency || "USD"}</span>
+          </div>
+          {company?.website ? <a className="company-identity-section__link" href={company.website} target="_blank" rel="noreferrer">Visit company website <span aria-hidden="true">↗</span></a> : null}
+        </div>
+      </section>
     </div>
   );
 }

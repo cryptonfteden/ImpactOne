@@ -104,6 +104,23 @@ function createAgentScheduler({
         // eslint-disable-next-line no-await-in-loop
         const result = await withTimeout(Promise.resolve().then(() => agent.execute(symbol)), timeoutMs, signal);
         const confidence = Number(agent.confidence(result));
+        // Agents deliberately return a well-formed report when their source
+        // is unavailable so the UI can explain the gap. That is a successful
+        // *execution*, but not a fulfilled intelligence result. Surface the
+        // distinction in the scheduler status instead of inflating the
+        // orchestrator's "fulfilled" count with empty reports.
+        if (result?.raw?.dataAvailable === false) {
+          return {
+            status: "unavailable",
+            health,
+            result,
+            error: result.raw.unavailableReason || "No verified source data is available.",
+            confidence: 0,
+            evidence: [],
+            direction: null,
+            attempts,
+          };
+        }
         return {
           status: "fulfilled",
           health,

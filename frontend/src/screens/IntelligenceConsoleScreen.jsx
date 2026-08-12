@@ -10,6 +10,7 @@ import { logError } from "../utils/errorHandling";
 // together into one ambiguous "active" label.
 const INVENTORY_STATUS_CLASS = {
   LIVE: "pill opportunity",
+  NO_DATA: "pill monitor",
   DEGRADED: "pill monitor",
   FIXTURE: "pill",
   DISABLED: "pill risk",

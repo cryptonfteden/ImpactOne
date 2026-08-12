@@ -23,13 +23,33 @@ beforeEach(() => {
 });
 
 describe("Header search", () => {
+  it("shows the integrated language selector with the honest Hebrew availability state", async () => {
+    renderHeader();
+    await waitFor(() => expect(intelligenceApi.liveFeed).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose display language" }));
+
+    expect(screen.getByText("English")).toBeInTheDocument();
+    expect(screen.getByText(/עברית.*בקרוב/)).toBeInTheDocument();
+  });
+
+  it("keeps focus on search without opening a default list of stock symbols", async () => {
+    renderHeader({ watchlist: ["AAPL", "NVDA"] });
+    await waitFor(() => expect(intelligenceApi.liveFeed).toHaveBeenCalled());
+
+    fireEvent.focus(screen.getByLabelText("Search a ticker or ask a market question"));
+
+    expect(screen.queryByRole("button", { name: "AAPL" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "NVDA" })).not.toBeInTheDocument();
+  });
+
   it("Sprint 40 — a plain ticker submission still calls onQuickSearch, never the chat endpoint", async () => {
     const onQuickSearch = vi.fn();
     renderHeader({ onQuickSearch });
     await waitFor(() => expect(intelligenceApi.liveFeed).toHaveBeenCalled());
 
-    fireEvent.change(screen.getByPlaceholderText(/Ask about a ticker/i), { target: { value: "NVDA" } });
-    fireEvent.click(screen.getByText("Go"));
+    fireEvent.change(screen.getByLabelText("Search a ticker or ask a market question"), { target: { value: "NVDA" } });
+    fireEvent.click(screen.getByRole("button", { name: "Run search" }));
 
     expect(onQuickSearch).toHaveBeenCalledWith("NVDA");
     expect(chatApi.ask).not.toHaveBeenCalled();
@@ -41,8 +61,8 @@ describe("Header search", () => {
     renderHeader({ onQuickSearch });
     await waitFor(() => expect(intelligenceApi.liveFeed).toHaveBeenCalled());
 
-    fireEvent.change(screen.getByPlaceholderText(/Ask about a ticker/i), { target: { value: "Should I buy Nvidia?" } });
-    fireEvent.click(screen.getByText("Go"));
+    fireEvent.change(screen.getByLabelText("Search a ticker or ask a market question"), { target: { value: "Should I buy Nvidia?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Run search" }));
 
     await waitFor(() => expect(screen.getByText(/Nvidia's committee currently leans supportive/)).toBeInTheDocument());
     expect(onQuickSearch).not.toHaveBeenCalled();
@@ -54,8 +74,8 @@ describe("Header search", () => {
     renderHeader();
     await waitFor(() => expect(intelligenceApi.liveFeed).toHaveBeenCalled());
 
-    fireEvent.change(screen.getByPlaceholderText(/Ask about a ticker/i), { target: { value: "What changed overnight?" } });
-    fireEvent.click(screen.getByText("Go"));
+    fireEvent.change(screen.getByLabelText("Search a ticker or ask a market question"), { target: { value: "What changed overnight?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Run search" }));
 
     await waitFor(() => expect(screen.getByText(/Couldn't get an answer right now/)).toBeInTheDocument());
   });

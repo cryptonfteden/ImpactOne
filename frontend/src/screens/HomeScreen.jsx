@@ -18,7 +18,10 @@ const ACTION_PILL_CLASS = {
 // Sprint 32 Priority 2 — fallback order if the backend ever omits
 // cardOrder (e.g. an older cached response) — identical to the fixed
 // order this screen always used before Adaptive Home existed.
-const DEFAULT_CARD_ORDER = ["morningBrief", "todayForYou", "portfolio", "beliefs", "recommendations", "intelligenceTimeline"];
+const DEFAULT_CARD_ORDER = ["portfolio", "recommendations", "intelligenceTimeline"];
+// Today is a decision surface, not an index of every module. Deeper context
+// stays available from Feed and Advanced tools.
+const PRIMARY_CARD_KEYS = new Set(["portfolio", "recommendations", "intelligenceTimeline"]);
 
 // Sprint 33 Priority 7 — returning users need real data freshness, not a
 // guess: generatedAt is the actual server timestamp for this response
@@ -58,12 +61,13 @@ function formatFreshness(generatedAt, t, formatRelativeTime, formatDateTime) {
  * screen simply renders whatever order the backend returns.
  */
 export default function HomeScreen({ onNavigate }) {
-  const { t, formatRelativeTime, formatDateTime } = useI18n();
+  const { t, formatRelativeTime, formatDateTime, formatDate } = useI18n();
   const { watchlist } = useWatchlist();
   const [summary, setSummary] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTimelineSection, setActiveTimelineSection] = useState("today");
+  const [timelineExpanded, setTimelineExpanded] = useState(false);
   // Phase H3 — Command Center: real active/recently-triggered price alerts,
   // isolated per beta user (X-Beta-User-Id, same as every H2/H3 request).
   // Best-effort: this card degrades to empty rather than blocking the rest
@@ -209,6 +213,9 @@ export default function HomeScreen({ onNavigate }) {
   } = summary;
 
   const freshnessLabel = generatedAt ? formatFreshness(generatedAt, t, formatRelativeTime, formatDateTime) : null;
+  const todayLabel = formatDate(new Date());
+  const shouldShowAction = shouldIDoAnythingToday.hasAction && Number(shouldIDoAnythingToday.qualityScore) >= 80;
+  const qualifiedTopRecommendations = topRecommendations.filter((recommendation) => Number(recommendation.qualityScore) >= 80);
 
   // Sprint 35 Priority 4 — Morning Brief polish. The hero's own
   // personalBrief (always visible, no scrolling) already leads with
@@ -220,12 +227,13 @@ export default function HomeScreen({ onNavigate }) {
   const heroAlreadyStatedHeadline = personalBrief.includes(`Market: ${whatHappened.headline}`);
 
   const glancePills = [
-    { label: t("home.actionNeeded"), value: shouldIDoAnythingToday.hasAction ? t("home.actionYes", { symbol: shouldIDoAnythingToday.symbol }) : t("home.actionNo"), tone: shouldIDoAnythingToday.hasAction ? "opportunity" : "" },
+    { label: t("home.actionNeeded"), value: shouldShowAction ? t("home.actionYes", { symbol: shouldIDoAnythingToday.symbol }) : t("home.actionNo"), tone: shouldShowAction ? "opportunity" : "" },
     { label: t("home.portfolioLabel"), value: whatChangedForMyPortfolio?.changes?.length ? t("home.portfolioChanges", { count: whatChangedForMyPortfolio.changes.length }) : t("home.portfolioUnchanged"), tone: whatChangedForMyPortfolio?.changes?.length ? "monitor" : "" },
     { label: t("home.beliefsLabel"), value: whatChangedInBeliefs.length ? t("home.beliefsUpdated", { count: whatChangedInBeliefs.length }) : t("home.portfolioUnchanged"), tone: whatChangedInBeliefs.length ? "monitor" : "" },
   ];
 
   const activeSectionItems = intelligenceTimeline[activeTimelineSection] || [];
+  const visibleTimelineItems = timelineExpanded ? activeSectionItems : activeSectionItems.slice(0, 3);
 
   const cardsByKey = {
     morningBrief: (
@@ -267,21 +275,21 @@ export default function HomeScreen({ onNavigate }) {
       </SectionCard>
     ),
     portfolio: (
-      <SectionCard key="portfolio" title={t("home.cards.portfolio")} icon="◐" className="screen-card home-card">
-        <p className="company-description">{whatChangedForMyPortfolio?.summary}</p>
+      <SectionCard key="portfolio" title={t("home.cards.portfolio")} subtitle="Your position, simplified" icon="◐" className="screen-card home-card home-card--portfolio">
+        <p className="home-card__lead">{whatChangedForMyPortfolio?.summary}</p>
         {whatChangedForMyPortfolio?.changes?.length ? (
           <ul className="stack-list">
             {whatChangedForMyPortfolio.changes.map((change) => (
-              <li key={change.dimension} className="company-description subtle">
+              <li key={change.dimension}>
                 {change.label}: {change.beforeValue} → {change.afterValue}
                 {change.changePct !== null ? ` (${change.changePct >= 0 ? "+" : ""}${change.changePct}%)` : ""}
               </li>
             ))}
           </ul>
         ) : null}
-        <div className="opportunity-item__actions">
-          <span className="pill">{t("home.mattersToday", { count: portfolioMorningSummary?.mattersToday?.length || 0 })}</span>
-          <span className="pill">{t("home.canWait", { count: portfolioMorningSummary?.canWaitCount || 0 })}</span>
+        <div className="home-card__stat-row">
+          <span className="home-card__stat home-card__stat--attention"><b>{portfolioMorningSummary?.mattersToday?.length || 0}</b>Matters today</span>
+          <span className="home-card__stat"><b>{portfolioMorningSummary?.canWaitCount || 0}</b>Can wait</span>
         </div>
         {portfolioMorningSummary?.biggestOpportunity ? (
           <p className="company-description subtle positive">
@@ -316,7 +324,7 @@ export default function HomeScreen({ onNavigate }) {
     ),
     recommendations: (
       <SectionCard key="recommendations" title={t("home.cards.recommendations")} icon="▲" className="screen-card home-card">
-        {shouldIDoAnythingToday.hasAction ? (
+        {shouldShowAction ? (
           <>
             <div className="opportunity-item__top">
               <strong>{shouldIDoAnythingToday.symbol}</strong>
@@ -330,9 +338,9 @@ export default function HomeScreen({ onNavigate }) {
         ) : (
           <p className="company-description">{t("home.empty.recommendations")}</p>
         )}
-        {topRecommendations.length ? (
-          <ul className="stack-list">
-            {topRecommendations.map((rec) => (
+        {qualifiedTopRecommendations.length ? (
+          <ul className="home-card__change-list">
+            {qualifiedTopRecommendations.map((rec) => (
               <li key={rec.symbol} className="company-description subtle">
                 {rec.symbol}: <span className={ACTION_PILL_CLASS[rec.action] || "pill"}>{rec.action}</span> quality {rec.qualityScore}/100
               </li>
@@ -342,28 +350,29 @@ export default function HomeScreen({ onNavigate }) {
       </SectionCard>
     ),
     intelligenceTimeline: (
-      <SectionCard key="intelligenceTimeline" title={t("home.cards.intelligenceTimeline")} icon="⏱" className="screen-card home-card">
-        <div className="opportunity-item__actions">
+      <SectionCard key="intelligenceTimeline" title={t("home.cards.intelligenceTimeline")} subtitle="Signals worth your attention" icon="⏱" className="screen-card home-card home-card--timeline">
+        <div className="home-timeline__tabs">
           {TIMELINE_SECTIONS.map((section) => (
             <button
               key={section.key}
               type="button"
-              className={activeTimelineSection === section.key ? "pill opportunity" : "pill"}
-              onClick={() => setActiveTimelineSection(section.key)}
+              className={activeTimelineSection === section.key ? "is-active" : ""}
+              onClick={() => { setActiveTimelineSection(section.key); setTimelineExpanded(false); }}
             >
-              {section.label} ({(intelligenceTimeline[section.key] || []).length})
+              <span>{section.label}</span><b>{(intelligenceTimeline[section.key] || []).length}</b>
             </button>
           ))}
         </div>
         {activeSectionItems.length ? (
-          <ul className="stack-list">
-            {activeSectionItems.map((item, index) => (
-              <li key={index} className="company-description subtle">{item.headline}</li>
+          <ul className="home-timeline__items">
+            {visibleTimelineItems.map((item, index) => (
+              <li key={index}><span className={`home-timeline__signal home-timeline__signal--${index % 3}`} aria-hidden="true" /><p>{item.headline}</p></li>
             ))}
           </ul>
         ) : (
-          <p className="company-description subtle">{t("home.empty.timelineWindow")}</p>
+          <p className="home-timeline__empty">{t("home.empty.timelineWindow")}</p>
         )}
+        {activeSectionItems.length > 3 ? <button type="button" className="home-timeline__more" onClick={() => setTimelineExpanded((value) => !value)}>{timelineExpanded ? "Show less" : `Show ${activeSectionItems.length - 3} more signals`}</button> : null}
       </SectionCard>
     ),
   };
@@ -380,15 +389,21 @@ export default function HomeScreen({ onNavigate }) {
           {t("home.refreshFailedBanner", { error, age: freshnessLabel ? freshnessLabel.replace(`${t("common.updated")} `, "") : "your last successful load" })}
         </p>
       ) : null}
-      <section className="screen-hero">
+      <section className="screen-hero screen-hero--orbital home-hero">
         <div>
-          <p className="eyebrow">{t("home.eyebrow")}</p>
+          <div className="home-hero__eyebrow-row">
+            <p className="eyebrow">{t("home.eyebrow")}</p>
+            <span className="home-hero__date" aria-label="Today's date">{todayLabel}</span>
+          </div>
           <h1>{t("home.title")}</h1>
           {freshnessLabel ? <p className="company-description subtle">{freshnessLabel}</p> : null}
           {personalBrief.length ? (
-            <ul className="stack-list" aria-label={t("home.morningBriefLabel")}>
+            <ul className="stack-list morning-brief-list" aria-label={t("home.morningBriefLabel")}>
               {personalBrief.map((line, index) => (
-                <li key={index} className="company-description">{line}</li>
+                <li key={index} className="company-description">
+                  <span className="morning-brief-list__orbit" aria-hidden="true" />
+                  {line}
+                </li>
               ))}
             </ul>
           ) : null}
@@ -405,16 +420,19 @@ export default function HomeScreen({ onNavigate }) {
               never a dead end. */}
           <div className="opportunity-item__actions">
             <button type="button" className="ghost-button" onClick={() => onNavigate?.("Decision Center")}>
-              Review today's decisions
+              {t("core.reviewDecisions")}
             </button>
             <button type="button" className="ghost-button" onClick={() => onNavigate?.("Portfolio")}>
-              Open portfolio
+              {t("core.openPortfolio")}
+            </button>
+            <button type="button" className="ghost-button" onClick={() => onNavigate?.("Market Chart")}>
+              {t("core.openChart")}
             </button>
           </div>
         </div>
       </section>
 
-      {cardOrder.map((key) => cardsByKey[key]).filter(Boolean)}
+      {cardOrder.filter((key) => PRIMARY_CARD_KEYS.has(key)).map((key) => cardsByKey[key]).filter(Boolean)}
 
       {/* Phase H3 — Command Center priority: what happened / why it
           matters / what to watch / portfolio impact are all already

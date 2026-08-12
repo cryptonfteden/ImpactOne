@@ -67,9 +67,9 @@ function FeedbackWidget({ currentScreen }) {
   }
 
   return (
-    <div className="feedback-widget">
+    <div className={`feedback-widget${isOpen ? " is-open" : ""}`}>
       <Button type="button" className="feedback-widget__toggle" onClick={() => setIsOpen((value) => !value)} aria-label="Give feedback">
-        Feedback
+        <span className="feedback-widget__live-dot" aria-hidden="true" />Feedback
       </Button>
       {isOpen ? (
         <div className="panel-card feedback-widget__panel">

@@ -19,6 +19,7 @@ test("getHealthSummary reports every registered provider, even ones with no run 
   assert.equal(sec.lastRunAt, null);
   assert.equal(sec.lastStatus, null);
   assert.equal(sec.successRate, null);
+  assert.equal(sec.dataState, "NO_RUN_HISTORY");
 });
 
 test("getHealthSummary reflects a real run's outcome", async () => {
@@ -27,6 +28,8 @@ test("getHealthSummary reflects a real run's outcome", async () => {
   const reddit = summary.find((entry) => entry.providerId === "reddit");
   assert.equal(reddit.lastStatus, "SUCCESS");
   assert.equal(reddit.successRate, 100);
+  assert.equal(reddit.dataState, "NO_DATA");
+  assert.equal(reddit.lastRunFetchedItems, 0);
   assert.ok(reddit.lastRunAt);
 });
 

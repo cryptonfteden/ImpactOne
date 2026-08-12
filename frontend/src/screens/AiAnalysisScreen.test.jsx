@@ -1,14 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import AiAnalysisScreen from "./AiAnalysisScreen";
-import { marketApi, analysisApi, altDataApi, intelligenceApi, claimsApi } from "../services/api";
+import { marketApi, analysisApi, altDataApi, intelligenceApi, claimsApi, agentOrchestratorApi } from "../services/api";
 
 vi.mock("../services/api", () => ({
   marketApi: { getQuote: vi.fn() },
   analysisApi: { analyze: vi.fn(), compare: vi.fn() },
-  altDataApi: { getSummary: vi.fn() },
+  altDataApi: { getSummary: vi.fn(), getCot: vi.fn() },
   intelligenceApi: { analyze: vi.fn() },
   claimsApi: { listBySymbol: vi.fn() },
+  agentOrchestratorApi: { getStockIntelligence: vi.fn() },
   performanceMetricsApi: { recordClientTiming: vi.fn().mockResolvedValue() },
 }));
 
@@ -87,8 +88,10 @@ function mockSuccessfulLoad() {
   });
   analysisApi.compare.mockResolvedValue({ comparison: [] });
   altDataApi.getSummary.mockResolvedValue({ signals: null });
+  altDataApi.getCot.mockResolvedValue({ available: false, reason: "No COT data for this test." });
   intelligenceApi.analyze.mockResolvedValue(null);
   claimsApi.listBySymbol.mockResolvedValue({ claims: [] });
+  agentOrchestratorApi.getStockIntelligence.mockResolvedValue({ agents: [] });
 }
 
 describe("AiAnalysisScreen — Investment Committee panel (Sprint 18A, unified Sprint 41)", () => {
