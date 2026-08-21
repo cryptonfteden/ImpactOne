@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import HomeScreen from "./HomeScreen";
 import { homeApi } from "../services/api";
+import { insiderOpportunitiesApi, weeklyFibonacciOpportunitiesApi } from "../services/api";
 import { clearRequestCache } from "../services/requestCache";
 import { I18nProvider } from "../i18n/I18nProvider";
 
@@ -18,6 +19,9 @@ vi.mock("../services/api", () => ({
   // Phase H3 — Active Alerts card; resolves to no alerts by default so
   // existing Home tests are unaffected by this additive card.
   priceAlertsApi: { list: vi.fn().mockResolvedValue({ alerts: [] }) },
+  insiderOpportunitiesApi: { list: vi.fn().mockResolvedValue({ opportunities: [], coverage: {} }) },
+  weeklyFibonacciOpportunitiesApi: { list: vi.fn().mockResolvedValue({ opportunities: [], coverage: {} }) },
+  dailyAgentPicksApi: { list: vi.fn().mockResolvedValue({ categories: [], gold: [], coverage: {} }) },
 }));
 
 vi.mock("../hooks/useWatchlist", () => ({
@@ -77,6 +81,15 @@ beforeEach(() => {
 });
 
 describe("HomeScreen", () => {
+  it("loads the canonical market-wide opportunity reports instead of personalizing the main board by watchlist", async () => {
+    homeApi.getSummary.mockResolvedValue(SUMMARY_NO_ACTION);
+    renderHomeScreen({ onNavigate: vi.fn() });
+
+    await waitFor(() => expect(insiderOpportunitiesApi.list).toHaveBeenCalled());
+    expect(insiderOpportunitiesApi.list).toHaveBeenCalledWith();
+    expect(weeklyFibonacciOpportunitiesApi.list).toHaveBeenCalledWith();
+  });
+
   it("renders only the investor decision cards on Today", async () => {
     homeApi.getSummary.mockResolvedValue(SUMMARY_NO_ACTION);
     renderHomeScreen({ onNavigate: vi.fn() });
@@ -91,11 +104,10 @@ describe("HomeScreen", () => {
     // Six adaptive cards despite three brand-new sections (Today For You,
     // Portfolio Morning Summary, Intelligence Timeline) — overlapping old
     // cards were merged rather than stacked on top (Sprint 28 Priority 6).
-    // Phase H3 adds one further, always-present card (Active Alerts) on
-    // top of the adaptive six — a real, intentional addition, not a
-    // regression of the "reduce repeated cards" goal.
+    // Active Alerts and the source-verified Daily Agent board are the two
+    // intentional additions above the five adaptive decision cards.
     const cards = document.querySelectorAll(".home-card");
-    expect(cards).toHaveLength(4);
+    expect(cards).toHaveLength(7);
     expect(screen.getByText("Active Alerts")).toBeInTheDocument();
   });
 

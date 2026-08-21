@@ -19,7 +19,10 @@ const FULL_INPUTS = {
   macroData: { source: "fred", regime: { riskMode: "risk-on", inflationPressure: "low", recessionRisk: "low" }, rates: { asOf: "2026-07-25" }, cpi: { asOf: "2026-07-01" } },
   polymarketData: [{ trend: "Up", source: "polymarket" }],
   cotResult: { status: "LIVE", errorState: null, netPositionChangePct: 4, asOf: "2026-07-20" },
-  analyses: [{ symbol: "SPY", signals: { volatilityRegime: { enoughData: true, signal: "LOW_VOLATILITY", calculationInputs: {}, freshness: { lastBarDate: "2026-07-25" } } } }],
+  analyses: [{ symbol: "SPY", signals: {
+    trend: { enoughDataStatus: "SUFFICIENT", calculationInputs: { lastClose: 110, sma50: 100, sma200: 90 }, freshness: { lastBarDate: "2026-07-25" } },
+    volatilityRegime: { enoughDataStatus: "SUFFICIENT", signal: "LOW_VOLATILITY", calculationInputs: {}, freshness: { lastBarDate: "2026-07-25" } },
+  } }],
 };
 
 test("all inputs available: every implemented dimension is available and the overall score is a real, finite number", () => {
@@ -32,7 +35,7 @@ test("all inputs available: every implemented dimension is available and the ove
   assert.ok(Number.isFinite(result.confidence));
 });
 
-test("the 3 dimensions with no real data source are always reported unavailable, never fabricated", () => {
+test("dimensions with no real data source are always reported unavailable, never fabricated", () => {
   const result = computeMarketSentiment({ market: "US", dimensionInputs: FULL_INPUTS, now: NOW });
   for (const dimension of NOT_YET_IMPLEMENTED_DIMENSIONS) {
     const reading = result.dimensionReadings.find((entry) => entry.dimension === dimension);

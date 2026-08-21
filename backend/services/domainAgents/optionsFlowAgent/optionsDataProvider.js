@@ -40,6 +40,8 @@
 const optionsFlowProvider = require("../../providers/definitions/optionsFlowProvider");
 const repository = require("../../optionsAgent/optionsFlowRepository");
 const aggregator = require("../../optionsAgent/optionsFlowAggregator");
+const { fetchOccCustomerVolume } = require("./occOptionsVolumeProvider");
+const { sharedProviderCache } = require("../../redisCache/providerCache");
 
 const DEFAULT_LOOKBACK_MS = 24 * 60 * 60 * 1000; // one trading-day window, matching optionsAgentService's own recency conventions
 const DEFAULT_UNUSUAL_CONTRACT_LIMIT = 50;
@@ -58,6 +60,7 @@ function emptyMetrics(symbol, reason) {
     unusualContracts: [],
     skew: null,
     greeks: { iv: null, ivRank: null, ivPercentile: null, delta: null, gammaExposure: null },
+    historicalContext: null,
   };
 }
 
@@ -71,10 +74,44 @@ function emptyMetrics(symbol, reason) {
  * optionsAgentService.getSymbolView's existing, already-tested honesty
  * discipline.
  */
-function createInternalOptionsDataProvider({ now = () => new Date(), lookbackMs = DEFAULT_LOOKBACK_MS } = {}) {
+function createInternalOptionsDataProvider({ now = () => new Date(), lookbackMs = DEFAULT_LOOKBACK_MS, occProvider = fetchOccCustomerVolume } = {}) {
   async function getSymbolMetrics(symbol) {
     if (!optionsFlowProvider.isConfigured()) {
-      return emptyMetrics(symbol, optionsFlowProvider.configurationRequirement || "Options flow provider is not connected yet.");
+      const occ = occProvider === fetchOccCustomerVolume
+        ? await sharedProviderCache.getOrCompute(
+          `provider:occ-options-volume:${String(symbol).toUpperCase()}`,
+          () => occProvider(symbol, { now: now() }),
+          { ttlMs: 12 * 60 * 60 * 1000, shouldCache: (value) => Boolean(value?.dataAvailable) }
+        )
+        : await occProvider(symbol, { now: now() });
+      if (!occ.dataAvailable) {
+        return {
+          ...emptyMetrics(symbol, occ.unavailableReason || optionsFlowProvider.configurationRequirement),
+          sourceProvider: occ.source || "OCC Volume Query",
+          sourceUrl: occ.sourceUrl || null,
+          dataFreshness: occ.freshness || "end-of-day",
+        };
+      }
+      return {
+        symbol: occ.symbol,
+        asOf: occ.asOf,
+        dataAvailable: true,
+        unavailableReason: null,
+        optionVolume: { call: occ.callVolume, put: occ.putVolume, total: occ.totalVolume },
+        openInterest: { call: null, put: null, total: null },
+        putCallRatio: occ.putCallRatio,
+        volumeOiRatio: null,
+        largeBlockTrades: [],
+        unusualContracts: [],
+        skew: null,
+        greeks: { iv: null, ivRank: null, ivPercentile: null, delta: null, gammaExposure: null },
+        sourceProvider: occ.source,
+        sourceUrl: occ.sourceUrl,
+        dataFreshness: occ.freshness,
+        reportDate: occ.reportDate,
+        historicalContext: occ.historicalContext || null,
+        limitations: occ.limitations,
+      };
     }
 
     const sinceDate = new Date(now().getTime() - lookbackMs);
@@ -133,6 +170,9 @@ function createInternalOptionsDataProvider({ now = () => new Date(), lookbackMs 
       volumeOiRatio: totalOi ? totalVolume / totalOi : null,
       largeBlockTrades,
       unusualContracts,
+      sourceProvider: "Configured licensed options-flow provider",
+      sourceUrl: null,
+      dataFreshness: "intraday",
       // Same sign convention as optionsSignalDetectors.detectCallPutSkew:
       // a positive Z-score means today's call/put volume ratio sits
       // above its historical baseline (relatively more call activity) —
@@ -142,6 +182,7 @@ function createInternalOptionsDataProvider({ now = () => new Date(), lookbackMs 
       // field, which is not a column on the OptionsSignal model.
       skew: skewSignal ? { direction: skewSignal.putCallSkewZScore >= 0 ? "BULLISH_LEANING" : "BEARISH_LEANING", putCallSkewZScore: skewSignal.putCallSkewZScore } : null,
       greeks: { iv: null, ivRank: null, ivPercentile: null, delta: null, gammaExposure: null },
+      historicalContext: null,
     };
   }
 

@@ -21,10 +21,10 @@ router.get("/live", (req, res) => {
 // Readiness: can this process actually serve real traffic right now?
 // The one real, required dependency is the database — Redis is
 // optional-by-design (services/redisCache/redisClient.js already
-// degrades to always-miss without it), so its absence is reported but
+// degrades to a bounded local-memory cache without it), so its absence is reported but
 // never fails readiness.
 router.get("/ready", async (req, res) => {
-  const checks = { database: false, redis: null };
+  const checks = { database: false, redis: env.REDIS_URL ? false : "local-memory-fallback" };
 
   try {
     const prisma = getPrismaClient();

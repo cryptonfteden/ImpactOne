@@ -7,12 +7,15 @@ import WatchlistPriorityPanel from "./dashboard/WatchlistPriorityPanel";
 import AskImpactOnePanel from "./dashboard/AskImpactOnePanel";
 import OpportunityModule from "./dashboard/OpportunityModule";
 import RecommendationsPreview from "./dashboard/RecommendationsPreview";
+import InsiderOpportunityRadar from "./dashboard/InsiderOpportunityRadar";
+import WeeklyFibonacciRadar from "./dashboard/WeeklyFibonacciRadar";
+import StrategyLabCard from "./dashboard/StrategyLabCard";
 import DailyBriefArchive from "./dashboard/DailyBriefArchive";
 import DashboardFooter from "./dashboard/DashboardFooter";
 import useWatchlist from "../hooks/useWatchlist";
 import usePortfolioEngine from "../hooks/usePortfolioEngine";
 import useRecommendations from "../hooks/useRecommendations";
-import { altDataApi, intelligenceApi, marketApi, watchlistApi } from "../services/api";
+import { altDataApi, insiderOpportunitiesApi, intelligenceApi, marketApi, strategyLabApi, watchlistApi, weeklyFibonacciOpportunitiesApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 import { computeDiversification, computeRiskScore, rankPriorityCards, sortMoversByChange } from "../utils/dashboardMetrics";
 import { startVisibilityAwarePolling } from "../utils/pollWhileVisible";
@@ -25,6 +28,7 @@ const INDEX_PROXIES = [
 ];
 
 function selectTicker(symbol) {
+  window.sessionStorage.setItem("impactone:selected-ticker", String(symbol || "").toUpperCase());
   window.dispatchEvent(new CustomEvent("impactone:select-ticker", { detail: symbol }));
 }
 
@@ -49,6 +53,55 @@ export default function DashboardHome({ onNavigate }) {
   const [archive, setArchive] = useState([]);
   const [archiveError, setArchiveError] = useState("");
   const [isArchiveLoading, setIsArchiveLoading] = useState(true);
+  const [insiderReport, setInsiderReport] = useState(null);
+  const [insiderError, setInsiderError] = useState("");
+  const [isInsiderLoading, setIsInsiderLoading] = useState(true);
+  const [weeklyFibReport, setWeeklyFibReport] = useState(null);
+  const [weeklyFibError, setWeeklyFibError] = useState("");
+  const [isWeeklyFibLoading, setIsWeeklyFibLoading] = useState(true);
+  const [strategyLab, setStrategyLab] = useState(null);
+  const [strategyLabError, setStrategyLabError] = useState("");
+  const [isStrategyLabLoading, setIsStrategyLabLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    strategyLabApi.status().then((payload) => { if (!cancelled) setStrategyLab(payload); }).catch((error) => { if (!cancelled) setStrategyLabError(error?.message || "Unable to load Strategy Lab."); }).finally(() => { if (!cancelled) setIsStrategyLabLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadInsiderRadar() {
+      try {
+        const payload = await insiderOpportunitiesApi.list();
+        if (!cancelled) { setInsiderReport(payload); setInsiderError(""); }
+      } catch (error) {
+        logError("Insider opportunity scan failed", error);
+        if (!cancelled) setInsiderError(error?.message || "Unable to load insider opportunities.");
+      } finally {
+        if (!cancelled) setIsInsiderLoading(false);
+      }
+    }
+    loadInsiderRadar();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadWeeklyFibonacci() {
+      try {
+        const payload = await weeklyFibonacciOpportunitiesApi.list();
+        if (!cancelled) { setWeeklyFibReport(payload); setWeeklyFibError(""); }
+      } catch (error) {
+        logError("Weekly Fibonacci radar load failed", error);
+        if (!cancelled) setWeeklyFibError(error?.message || "Unable to load the weekly Fibonacci scan.");
+      } finally {
+        if (!cancelled) setIsWeeklyFibLoading(false);
+      }
+    }
+    loadWeeklyFibonacci();
+    return () => { cancelled = true; };
+  }, []);
 
   // Daily brief + priority feed + alpha discovery + alerts share one payload.
   useEffect(() => {
@@ -317,6 +370,22 @@ export default function DashboardHome({ onNavigate }) {
         watchlist={watchlist}
         onAddToWatchlist={addTicker}
       />
+
+      <InsiderOpportunityRadar
+        isLoading={isInsiderLoading}
+        error={insiderError}
+        report={insiderReport}
+        onOpenTicker={(symbol) => { selectTicker(symbol); onNavigate?.("Market Chart"); }}
+      />
+
+      <WeeklyFibonacciRadar
+        isLoading={isWeeklyFibLoading}
+        error={weeklyFibError}
+        report={weeklyFibReport}
+        onOpenTicker={(symbol) => { selectTicker(symbol); onNavigate?.("Market Chart"); }}
+      />
+
+      <StrategyLabCard data={strategyLab} error={strategyLabError} isLoading={isStrategyLabLoading} onOpenTicker={(symbol) => { selectTicker(symbol); onNavigate?.("Market Chart"); }} />
 
       <RecommendationsPreview
         isLoading={isRecommendationsLoading}

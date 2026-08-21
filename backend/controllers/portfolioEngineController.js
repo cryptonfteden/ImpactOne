@@ -26,6 +26,18 @@ async function placeOrder(req, res, next) {
   }
 }
 
+async function openPaperPosition(req, res, next) {
+  try {
+    const { symbol, direction, quantity, sector, assetType } = req.body || {};
+    const result = await portfolioEngineService.openPaperPosition({ symbol, direction, quantity, sector, assetType, betaUserId: req.betaUserId });
+    res.status(201).json(result);
+  } catch (error) { handleKnownError(error, res, next); }
+}
+async function closePaperPosition(req, res, next) {
+  try { res.json(await portfolioEngineService.closePaperPosition({ symbol: req.body?.symbol, betaUserId: req.betaUserId })); }
+  catch (error) { handleKnownError(error, res, next); }
+}
+
 async function getTradeHistory(req, res, next) {
   try {
     const limit = req.query.limit ? Number(req.query.limit) : undefined;
@@ -86,6 +98,8 @@ async function resetPortfolio(req, res, next) {
 module.exports = {
   getPortfolioSummary,
   placeOrder,
+  openPaperPosition,
+  closePaperPosition,
   getTradeHistory,
   getTransactionLog,
   getPerformanceTimeline,

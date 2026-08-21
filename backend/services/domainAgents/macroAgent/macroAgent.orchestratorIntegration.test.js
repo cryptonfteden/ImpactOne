@@ -33,7 +33,7 @@ test("running the full orchestrator surfaces the real macro report via the stand
   const [macroResult] = report.agents;
 
   assert.equal(macroResult.agentId, "macro");
-  assert.ok(["fulfilled", "error", "timeout"].includes(macroResult.status), "a real network call may succeed, gracefully degrade, or (rarely) time out in this environment");
+  assert.ok(["fulfilled", "unavailable", "error", "timeout"].includes(macroResult.status), "a real provider call may succeed, report verified data unavailable, fail, or time out");
   if (macroResult.status === "fulfilled") {
     assert.equal(typeof macroResult.result.summary, "string");
     assert.ok(Array.isArray(macroResult.result.evidence));

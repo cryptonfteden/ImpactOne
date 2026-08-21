@@ -5,7 +5,16 @@ const { generateReport } = require("./macroAgent");
 const FORBIDDEN_COMMITTEE_KEYS = ["action", "decision", "verdict", "finalDecision", "recommendation"];
 
 function fakeSeries(seriesId, value, priorValue, changeYoY) {
-  return { seriesId, dataAvailable: true, unavailableReason: null, latest: { date: "2026-06-01", value }, priorYearAgo: { date: "2025-06-01", value: priorValue }, changeYoY, observations: [] };
+  return {
+    seriesId,
+    dataAvailable: true,
+    unavailableReason: null,
+    latest: { date: "2026-06-01", value },
+    priorYearAgo: { date: "2025-06-01", value: priorValue },
+    changeYoY,
+    changeYoYPercentagePoints: Math.round((value - priorValue) * 100) / 100,
+    observations: [],
+  };
 }
 function fakeProxy(symbol, latestClose, priorClose, changePercent) {
   return { symbol, dataAvailable: true, unavailableReason: null, latestClose, priorClose, changePercent };

@@ -28,7 +28,15 @@ test("unavailable provider: listSignals returns an honestly empty array with una
 });
 
 test("unavailable provider: getSymbolView honestly reports unavailable rather than a zero-value score", async () => {
-  const view = await optionsAgentService.getSymbolView("NVDA");
+  const view = await optionsAgentService.getSymbolView("NVDA", {
+    activityProvider: {
+      getSymbolMetrics: async () => ({
+        asOf: new Date().toISOString(),
+        dataAvailable: false,
+        unavailableReason: optionsAgentService.NOT_CONNECTED_MESSAGE,
+      }),
+    },
+  });
   assert.equal(view.unavailable, true);
   assert.equal(view.activeSignalCount, 0);
   assert.equal(view.highestAnomalyScore, null);

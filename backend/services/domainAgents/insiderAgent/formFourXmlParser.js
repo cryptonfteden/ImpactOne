@@ -58,6 +58,15 @@ function parseReportingOwner(xml) {
   };
 }
 
+function parseIssuer(xml) {
+  const issuerBlock = extractRaw(xml, "issuer");
+  return {
+    issuerCik: issuerBlock ? extractLeaf(issuerBlock, "issuerCik") : null,
+    issuerName: issuerBlock ? extractLeaf(issuerBlock, "issuerName") : null,
+    issuerTradingSymbol: issuerBlock ? extractLeaf(issuerBlock, "issuerTradingSymbol") : null,
+  };
+}
+
 function parseNonDerivativeTransaction(block) {
   return {
     transactionDate: extractLeaf(block, "transactionDate"),
@@ -75,12 +84,13 @@ function parseNonDerivativeTransaction(block) {
  */
 function parseFormFourXml(xml) {
   const owner = parseReportingOwner(xml);
+  const issuer = parseIssuer(xml);
   const transactionBlocks = extractAllRaw(xml, "nonDerivativeTransaction");
   const transactions = transactionBlocks
     .map(parseNonDerivativeTransaction)
     .filter((transaction) => transaction.transactionDate && transaction.transactionCode && Number.isFinite(transaction.shares));
 
-  return { ...owner, transactions };
+  return { ...issuer, ...owner, transactions };
 }
 
 module.exports = { parseFormFourXml, extractLeaf, extractLeafNumber, extractLeafBoolean, extractAllRaw };

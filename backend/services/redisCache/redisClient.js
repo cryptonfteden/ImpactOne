@@ -32,7 +32,7 @@ let hasLoggedUnavailable = false;
 function warnOnceUnavailable(reason) {
   if (hasLoggedUnavailable) return;
   hasLoggedUnavailable = true;
-  console.warn(`[redisClient] Redis is unavailable (${reason}) — the provider cache will gracefully fall back to always-miss (real, uncached provider calls). No business logic is affected.`);
+    console.warn(`[redisClient] Redis is unavailable (${reason}) — the provider cache is using its bounded in-process TTL/LRU fallback. Configure Redis before horizontal scaling.`);
 }
 
 /**

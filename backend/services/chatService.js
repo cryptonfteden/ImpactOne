@@ -1,5 +1,5 @@
-const axios = require("axios");
 const { OPENAI_API_KEY } = require("../config/env");
+const { requestChatCompletion } = require("./openAiGateway");
 
 const chatCache = new Map();
 const CACHE_TTL_MS = 2 * 60 * 1000;
@@ -54,9 +54,7 @@ async function askImpactOne({ question, context = {} } = {}) {
   }
 
   try {
-    const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
+    const response = await requestChatCompletion({
         model: "gpt-4o-mini",
         messages: [
           {
@@ -69,15 +67,7 @@ async function askImpactOne({ question, context = {} } = {}) {
           },
         ],
         temperature: 0.3,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        timeout: 20000,
-      }
-    );
+      });
 
     const answer = response.data?.choices?.[0]?.message?.content || "No answer was generated.";
     const result = {

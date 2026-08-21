@@ -33,7 +33,7 @@ test("running the full orchestrator surfaces the real analyst consensus report v
   const [analystResult] = report.agents;
 
   assert.equal(analystResult.agentId, "analyst-consensus");
-  assert.ok(["fulfilled", "error", "timeout"].includes(analystResult.status), "a real network call may succeed, gracefully degrade, or (rarely) time out in this environment");
+  assert.ok(["fulfilled", "unavailable", "error", "timeout"].includes(analystResult.status), "a real provider call may succeed, report verified data unavailable, fail, or time out");
   if (analystResult.status === "fulfilled") {
     assert.equal(typeof analystResult.result.summary, "string");
     assert.ok(Array.isArray(analystResult.result.evidence));

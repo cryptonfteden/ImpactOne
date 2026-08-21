@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import SectionCard from "../components/SectionCard";
+import InsiderOpportunityRadar from "../components/dashboard/InsiderOpportunityRadar";
+import WeeklyFibonacciRadar from "../components/dashboard/WeeklyFibonacciRadar";
+import DailyAgentPicks from "../components/dashboard/DailyAgentPicks";
 import { LoadingSpinner, EmptyState } from "../components/ui";
-import { homeApi, priceAlertsApi } from "../services/api";
+import { dailyAgentPicksApi, homeApi, insiderOpportunitiesApi, priceAlertsApi, weeklyFibonacciOpportunitiesApi } from "../services/api";
 import { withRequestCache } from "../services/requestCache";
 import useWatchlist from "../hooks/useWatchlist";
 import { logError } from "../utils/errorHandling";
@@ -22,6 +25,11 @@ const DEFAULT_CARD_ORDER = ["portfolio", "recommendations", "intelligenceTimelin
 // Today is a decision surface, not an index of every module. Deeper context
 // stays available from Feed and Advanced tools.
 const PRIMARY_CARD_KEYS = new Set(["portfolio", "recommendations", "intelligenceTimeline"]);
+
+function selectTicker(symbol) {
+  window.sessionStorage.setItem("impactone:selected-ticker", String(symbol || "").toUpperCase());
+  window.dispatchEvent(new CustomEvent("impactone:select-ticker", { detail: symbol }));
+}
 
 // Sprint 33 Priority 7 — returning users need real data freshness, not a
 // guess: generatedAt is the actual server timestamp for this response
@@ -73,6 +81,56 @@ export default function HomeScreen({ onNavigate }) {
   // Best-effort: this card degrades to empty rather than blocking the rest
   // of Home if a beta user isn't resolved or the request fails.
   const [alerts, setAlerts] = useState([]);
+  const [insiderReport, setInsiderReport] = useState(null);
+  const [insiderError, setInsiderError] = useState("");
+  const [isInsiderLoading, setIsInsiderLoading] = useState(true);
+  const [weeklyFibReport, setWeeklyFibReport] = useState(null);
+  const [weeklyFibError, setWeeklyFibError] = useState("");
+  const [isWeeklyFibLoading, setIsWeeklyFibLoading] = useState(true);
+  const [dailyAgentReport, setDailyAgentReport] = useState(null);
+  const [dailyAgentError, setDailyAgentError] = useState("");
+  const [isDailyAgentLoading, setIsDailyAgentLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    dailyAgentPicksApi.list().then((result) => { if (!cancelled) { setDailyAgentReport(result); setDailyAgentError(""); } })
+      .catch((scanError) => { if (!cancelled) setDailyAgentError(scanError?.message || "Unable to load daily agent picks."); })
+      .finally(() => { if (!cancelled) setIsDailyAgentLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    insiderOpportunitiesApi
+      .list()
+      .then((result) => {
+        if (!cancelled) {
+          setInsiderReport(result);
+          setInsiderError("");
+        }
+      })
+      .catch((scanError) => {
+        if (!cancelled) setInsiderError(scanError?.message || "Unable to load verified insider activity.");
+      })
+      .finally(() => {
+        if (!cancelled) setIsInsiderLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    weeklyFibonacciOpportunitiesApi
+      .list()
+      .then((result) => {
+        if (!cancelled) { setWeeklyFibReport(result); setWeeklyFibError(""); }
+      })
+      .catch((scanError) => {
+        if (!cancelled) setWeeklyFibError(scanError?.message || "Unable to load the weekly Fibonacci scan.");
+      })
+      .finally(() => { if (!cancelled) setIsWeeklyFibLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -433,6 +491,27 @@ export default function HomeScreen({ onNavigate }) {
       </section>
 
       {cardOrder.filter((key) => PRIMARY_CARD_KEYS.has(key)).map((key) => cardsByKey[key]).filter(Boolean)}
+
+      <DailyAgentPicks
+        isLoading={isDailyAgentLoading}
+        error={dailyAgentError}
+        report={dailyAgentReport}
+        onOpenTicker={(symbol) => { selectTicker(symbol); onNavigate?.("Market Chart"); }}
+      />
+
+      <InsiderOpportunityRadar
+        isLoading={isInsiderLoading}
+        error={insiderError}
+        report={insiderReport}
+        onOpenTicker={(symbol) => { selectTicker(symbol); onNavigate?.("Market Chart"); }}
+      />
+
+      <WeeklyFibonacciRadar
+        isLoading={isWeeklyFibLoading}
+        error={weeklyFibError}
+        report={weeklyFibReport}
+        onOpenTicker={(symbol) => { selectTicker(symbol); onNavigate?.("Market Chart"); }}
+      />
 
       {/* Phase H3 — Command Center priority: what happened / why it
           matters / what to watch / portfolio impact are all already

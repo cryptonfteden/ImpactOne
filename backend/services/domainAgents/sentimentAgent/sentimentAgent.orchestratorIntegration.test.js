@@ -34,7 +34,7 @@ test("running the full orchestrator surfaces the rich sentiment report via the s
   const [sentimentResult] = report.agents;
 
   assert.equal(sentimentResult.agentId, "symbol-sentiment");
-  assert.ok(["fulfilled", "error", "timeout"].includes(sentimentResult.status), "a real network call may succeed, gracefully degrade, or (rarely) time out in this environment");
+  assert.ok(["fulfilled", "unavailable", "error", "timeout"].includes(sentimentResult.status), "a real provider call may succeed, report verified data unavailable, fail, or time out");
   if (sentimentResult.status === "fulfilled") {
     assert.equal(typeof sentimentResult.result.summary, "string");
     assert.ok(Array.isArray(sentimentResult.result.evidence));

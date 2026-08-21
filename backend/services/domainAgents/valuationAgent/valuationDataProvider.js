@@ -44,6 +44,7 @@
 // unrelated field.
 const axios = require("axios");
 const { FINNHUB_API_KEY } = require("../../../config/env");
+const { createSecValuationProvider } = require("./secValuationProvider");
 
 const DEFAULT_TIMEOUT_MS = 8000;
 
@@ -79,6 +80,20 @@ function extractFirstFinite(source, candidateKeys) {
   return null;
 }
 
+function hasUsableValuationData(metrics) {
+  if (!Number.isFinite(metrics.price) || metrics.price <= 0) return false;
+  const observations = [
+    metrics.eps?.trailing,
+    metrics.eps?.forward,
+    metrics.revenuePerShare,
+    metrics.bookValuePerShare,
+    metrics.fcfPerShare,
+    metrics.ebitdaPerShare,
+    ...Object.values(metrics.directRatios || {}),
+  ];
+  return observations.some(Number.isFinite);
+}
+
 /**
  * The default, real implementation: Finnhub's `/stock/metric?metric=all`
  * (the same endpoint finnhubService.js's getQuote() already calls) and
@@ -87,9 +102,10 @@ function extractFirstFinite(source, candidateKeys) {
  * for the rest of this platform's live data.
  */
 function createFinnhubValuationDataProvider({ timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+  const secFallback = createSecValuationProvider({ timeoutMs });
   async function getSymbolValuation(symbol) {
     if (!isConfigured()) {
-      return emptyMetrics(symbol, "No Finnhub API key is configured — set FINNHUB_API_KEY.");
+      return secFallback.getSymbolValuation(symbol);
     }
 
     let metric;
@@ -105,12 +121,18 @@ function createFinnhubValuationDataProvider({ timeoutMs = DEFAULT_TIMEOUT_MS } =
       profile = profileResponse.data || {};
       quote = quoteResponse.data || {};
     } catch (error) {
-      return emptyMetrics(symbol, error?.message || "Failed to fetch real valuation data.");
+      const sec = await secFallback.getSymbolValuation(symbol);
+      if (sec.dataAvailable) {
+        sec.primaryUnavailableReason = `Finnhub request failed: ${error?.message || "unknown error"}`;
+        return sec;
+      }
+      return emptyMetrics(symbol, `Finnhub request failed: ${error?.message || "unknown error"}. SEC fallback unavailable: ${sec.unavailableReason}`);
     }
 
-    return {
+    const result = {
       symbol,
       asOf: new Date().toISOString(),
+      sourceProvider: "Finnhub",
       dataAvailable: true,
       unavailableReason: null,
       price: Number.isFinite(quote.c) ? quote.c : null,
@@ -136,9 +158,18 @@ function createFinnhubValuationDataProvider({ timeoutMs = DEFAULT_TIMEOUT_MS } =
         fcfYield: extractFirstFinite(metric, ["fcfYieldTTM", "freeCashFlowYieldTTM"]),
       },
     };
+    if (!hasUsableValuationData(result)) {
+      const sec = await secFallback.getSymbolValuation(symbol);
+      if (sec.dataAvailable && hasUsableValuationData(sec)) {
+        sec.primaryUnavailableReason = "Finnhub returned no usable price-plus-fundamental valuation set.";
+        return sec;
+      }
+      return emptyMetrics(symbol, `No verified price-plus-fundamental valuation set is available. SEC fallback: ${sec.unavailableReason || "insufficient data"}`);
+    }
+    return result;
   }
 
   return { getSymbolValuation };
 }
 
-module.exports = { createFinnhubValuationDataProvider, emptyMetrics, isConfigured, extractFirstFinite };
+module.exports = { createFinnhubValuationDataProvider, emptyMetrics, isConfigured, extractFirstFinite, hasUsableValuationData };

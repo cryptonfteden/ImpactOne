@@ -5,11 +5,11 @@
 // domain agent built this session.
 function describeTarget(report) {
   const via = report.isDirectEtf ? `directly analyzing ${report.targetEtf}` : `via its sector proxy ${report.targetEtf} (${report.sector})`;
-  return `ETF Flow analysis for ${report.symbol}, ${via}.`;
+  return `Sector ETF momentum for ${report.symbol}, ${via}.`;
 }
 
 function describeBias(report) {
-  return `ETF Flow Bias is ${report.etfFlowBias} (net flow score ${report.netFlowScore}), flow strength ${report.flowStrength.classification.toLowerCase()}, persistence ${report.flowPersistence.classification.toLowerCase()}.`;
+  return `Price-and-volume momentum is ${report.etfFlowBias} (proxy score ${report.netFlowScore}), with ${report.flowStrength.classification.toLowerCase()} activity and ${report.flowPersistence.classification.toLowerCase()} persistence.`;
 }
 
 function describeRotation(report) {
@@ -18,7 +18,7 @@ function describeRotation(report) {
 }
 
 function describePassiveActive(report) {
-  return `Passive/active classification: ${report.passiveFlowImpact.classification.toLowerCase()}, flow magnitude ${report.passiveFlowImpact.magnitudeTier.toLowerCase()}.`;
+  return `The ETF is classified as ${report.passiveFlowImpact.classification.toLowerCase()}; observed trading-activity magnitude is ${report.passiveFlowImpact.magnitudeTier.toLowerCase()}. This is not creation/redemption cash flow.`;
 }
 
 /**
@@ -27,7 +27,7 @@ function describePassiveActive(report) {
  */
 function generateAiSummary(report) {
   if (!report.dataAvailable) {
-    return `ETF flow analysis is unavailable for ${report.symbol}: ${report.unavailableReason}`;
+    return `Sector ETF momentum is unavailable for ${report.symbol}: ${report.unavailableReason}`;
   }
 
   const sentences = [

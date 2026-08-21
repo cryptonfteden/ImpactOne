@@ -1,0 +1,12 @@
+/* One verified company identity treatment across every stock surface. */
+.company-symbol-logo{position:relative;isolation:isolate;display:inline-grid;flex:0 0 28px;width:28px;height:28px;overflow:hidden;place-items:center;border:1px solid rgba(110,184,245,.32);border-radius:9px;color:#dcecff;background:linear-gradient(145deg,rgba(25,49,88,.9),rgba(6,15,35,.96));box-shadow:0 4px 12px rgba(0,0,0,.25),inset 0 1px rgba(255,255,255,.08);vertical-align:middle}
+.company-symbol-logo img{position:absolute;z-index:2;inset:0;width:100%;height:100%;padding:3px;object-fit:contain;background:#f7f9fc}
+.company-symbol-logo b{position:relative;z-index:1;font:800 .48rem "Space Grotesk";letter-spacing:-.03em}
+.company-symbol-logo--small{flex-basis:22px;width:22px;height:22px;border-radius:7px}.company-symbol-logo--small b{font-size:.4rem}
+.company-symbol-logo--large{flex-basis:34px;width:34px;height:34px;border-radius:10px}
+.daily-agent-board__groups article>button{justify-content:flex-start}.daily-agent-board__groups article>button>strong{margin-left:auto}
+.daily-agent-board__gold button{grid-template-columns:34px 1fr;column-gap:.5rem;min-width:150px;text-align:left}.daily-agent-board__gold button>.company-symbol-logo{grid-row:1/5}.daily-agent-board__gold button>span,.daily-agent-board__gold button>b,.daily-agent-board__gold button>strong,.daily-agent-board__gold button>small{grid-column:2}
+.weekly-fib-radar__title{justify-content:flex-start;align-items:center}.weekly-fib-radar__title>em{margin-left:auto}
+.insider-radar__top{justify-content:flex-start;align-items:center}.insider-radar__top>em{margin-left:auto}
+.widget-list-item>strong{display:flex;align-items:center;gap:.5rem}
+.opportunity-item__top>strong,.watchlist-priority-row__top>strong,.strategy-lab-plans header>b{display:flex;align-items:center;gap:.55rem}

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import DashboardHome from "./DashboardHome";
+import { insiderOpportunitiesApi, weeklyFibonacciOpportunitiesApi } from "../services/api";
 
 // Composition test: does DashboardHome render all 9 MVP spec sections plus
 // Sprint 16 Phase B's Recommendations preview, in order? Child components
@@ -16,6 +17,9 @@ vi.mock("./dashboard/PortfolioRiskPanel", () => ({ default: () => <div data-test
 vi.mock("./dashboard/WatchlistPriorityPanel", () => ({ default: () => <div data-testid="section">WatchlistPriorityPanel</div> }));
 vi.mock("./dashboard/AskImpactOnePanel", () => ({ default: () => <div data-testid="section">AskImpactOnePanel</div> }));
 vi.mock("./dashboard/OpportunityModule", () => ({ default: () => <div data-testid="section">OpportunityModule</div> }));
+vi.mock("./dashboard/InsiderOpportunityRadar", () => ({ default: () => <div data-testid="section">InsiderOpportunityRadar</div> }));
+vi.mock("./dashboard/WeeklyFibonacciRadar", () => ({ default: () => <div data-testid="section">WeeklyFibonacciRadar</div> }));
+vi.mock("./dashboard/StrategyLabCard", () => ({ default: () => <div data-testid="section">StrategyLabCard</div> }));
 vi.mock("./dashboard/RecommendationsPreview", () => ({ default: () => <div data-testid="section">RecommendationsPreview</div> }));
 vi.mock("./dashboard/DailyBriefArchive", () => ({ default: () => <div data-testid="section">DailyBriefArchive</div> }));
 vi.mock("./dashboard/DashboardFooter", () => ({ default: () => <div data-testid="section">DashboardFooter</div> }));
@@ -49,14 +53,24 @@ vi.mock("../services/api", () => ({
   altDataApi: { getSummary: vi.fn().mockResolvedValue(null) },
   marketApi: { getQuote: vi.fn().mockResolvedValue({ quote: { changePercent: 0 }, chart: [] }) },
   watchlistApi: { getIntelligence: vi.fn().mockResolvedValue({ watchlist: [] }) },
+  insiderOpportunitiesApi: { list: vi.fn().mockResolvedValue({ opportunities: [], coverage: {} }) },
+  weeklyFibonacciOpportunitiesApi: { list: vi.fn().mockResolvedValue({ opportunities: [], coverage: {} }) },
+  strategyLabApi: { status: vi.fn().mockResolvedValue({ portfolio: { positions: [] }, plans: [] }) },
 }));
 
 describe("DashboardHome", () => {
+  it("uses the same canonical opportunity reports as the investor home", async () => {
+    render(<DashboardHome onNavigate={vi.fn()} />);
+    await waitFor(() => expect(insiderOpportunitiesApi.list).toHaveBeenCalled());
+    expect(insiderOpportunitiesApi.list).toHaveBeenCalledWith();
+    expect(weeklyFibonacciOpportunitiesApi.list).toHaveBeenCalledWith();
+  });
+
   it("renders all 9 MVP dashboard sections plus the Recommendations preview, in order", async () => {
     render(<DashboardHome onNavigate={vi.fn()} />);
 
     await waitFor(() => {
-      expect(screen.getAllByTestId("section").length).toBeGreaterThanOrEqual(10);
+      expect(screen.getAllByTestId("section").length).toBeGreaterThanOrEqual(12);
     });
 
     const sectionNames = screen.getAllByTestId("section").map((el) => el.textContent);
@@ -69,6 +83,9 @@ describe("DashboardHome", () => {
       "WatchlistPriorityPanel",
       "AskImpactOnePanel",
       "OpportunityModule",
+      "InsiderOpportunityRadar",
+      "WeeklyFibonacciRadar",
+      "StrategyLabCard",
       "RecommendationsPreview",
       "DailyBriefArchive",
       "DashboardFooter",

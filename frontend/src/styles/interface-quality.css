@@ -1,0 +1,87 @@
+/* Cross-screen quality guardrails. Keep every workspace readable and operable
+   without replacing its visual identity. */
+:where(button,a,[role="button"],input,select,textarea):focus-visible{outline:2px solid #72dcff;outline-offset:3px;box-shadow:0 0 0 5px rgba(91,202,255,.13),0 0 20px rgba(100,112,255,.18)}
+:where(button,[role="button"]){touch-action:manipulation}
+:where(.screen-page,.screen-shell,.dashboard-screen,.home-screen) :where(h1,h2,h3,p,small,strong,span){overflow-wrap:anywhere}
+:where(.screen-page,.screen-shell,.dashboard-screen,.home-screen) :where(h1,h2,h3){text-wrap:balance}
+:where(.screen-page,.screen-shell,.dashboard-screen,.home-screen) :where(p,li){line-height:1.5}
+:where(.screen-page,.screen-shell,.dashboard-screen,.home-screen) :where(button,a){line-height:1.25}
+:where(.card,.section-card,.panel,.glass-panel,.nova-card){min-width:0}
+:where(dialog,[role="dialog"]){max-width:min(94vw,920px);max-height:90dvh;overflow:auto;overscroll-behavior:contain}
+:where(input,select,textarea){max-width:100%;font-size:max(16px,1rem)}
+@media(pointer:coarse){:where(button,a,[role="button"],input,select){min-height:44px}}
+@media(max-width:720px){:where(.screen-page,.screen-shell,.dashboard-screen,.home-screen){padding-inline:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}:where(dialog,[role="dialog"]){width:calc(100vw - 20px);max-width:none}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+.screen-loading-state{display:grid;gap:1rem}
+.screen-loading-state__hero,.screen-loading-state__grid{display:grid;gap:.85rem}
+.screen-loading-state__hero{padding:clamp(1.25rem,4vw,2.5rem);border:1px solid rgba(95,202,255,.22);border-radius:1.4rem;background:rgba(4,13,32,.72)}
+.screen-loading-state__eyebrow{width:9rem}.screen-loading-state__title{width:min(24rem,78%)}.screen-loading-state__copy{width:min(38rem,92%)}
+.screen-loading-state__title .skeleton{min-height:2.4rem}
+.screen-loading-state__grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.screen-loading-state__card .skeleton{min-height:10rem}
+@media(max-width:760px){.screen-loading-state__grid{grid-template-columns:1fr}}
+
+.source-status-hero{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.source-status-summary{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:1rem;padding:1rem 1.2rem;border:1px solid rgba(100,213,255,.25);border-radius:1.1rem;background:rgba(5,17,38,.78)}
+.source-status-summary div{display:grid}.source-status-summary small,.source-status-card small{color:#93a6c8}.source-status-summary time{color:#aebbd2;font-size:.82rem}
+.source-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin-top:1rem}
+.source-status-card{display:grid;gap:.8rem;padding:1rem;border:1px solid rgba(101,145,211,.24);border-radius:1rem;background:linear-gradient(145deg,rgba(7,22,48,.92),rgba(6,12,29,.8))}
+.source-status-card header,.source-status-card footer{display:flex;align-items:center;gap:.65rem}.source-status-card header strong{flex:1}.source-status-card header b{font-size:.7rem;letter-spacing:.08em}.source-status-card p{margin:0;color:#dce9ff}.source-status-card footer{justify-content:space-between;border-top:1px solid rgba(119,159,219,.15);padding-top:.7rem;font-size:.78rem;color:#93a6c8}
+.source-status-dot{width:.65rem;height:.65rem;border-radius:50%;background:#7d8aa6;box-shadow:0 0 12px currentColor}.is-live>.source-status-dot,.source-status-dot.is-live,.source-status-card.is-live .source-status-dot{background:#55e9ad;color:#55e9ad}.is-delayed>.source-status-dot,.source-status-dot.is-delayed,.source-status-card.is-delayed .source-status-dot{background:#ffd166;color:#ffd166}.is-offline>.source-status-dot,.source-status-dot.is-offline,.source-status-card.is-offline .source-status-dot{background:#ff6f91;color:#ff6f91}
+.source-status-note{padding:1rem;border-left:3px solid #65d8ff;color:#9eb0ce;background:rgba(7,19,42,.7)}
+@media(max-width:900px){.source-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.source-status-hero{align-items:flex-start;flex-direction:column}.source-status-grid{grid-template-columns:1fr}.source-status-summary{grid-template-columns:auto 1fr}.source-status-summary time{grid-column:2}}
+/* SIGNAL-CARDS-003 — shared with Mission Control: animated readable headings
+   and a truthful FINRA short/non-short split. */
+.daily-agent-board__groups article>header{position:relative;padding-left:1rem}
+.daily-agent-board__groups article>header::before{content:"";position:absolute;left:0;top:.22rem;width:.5rem;height:.5rem;border-radius:50%;background:#64ddff;box-shadow:0 0 .55rem #64ddff;animation:appSignalPulse 3.4s ease-in-out infinite}
+.daily-agent-board__groups article>header b{font-size:.78rem;background:linear-gradient(90deg,#78e5ff,#b49aff 72%,#62e0ae);-webkit-background-clip:text;background-clip:text;color:transparent}
+.daily-agent-board__groups article:has(.daily-agent-flow-split){align-self:start}
+.daily-agent-flow-split{display:grid;grid-template-columns:1fr;gap:.5rem;margin-top:.45rem}
+.daily-agent-flow-split>section{min-width:0;padding:.5rem;border:1px solid rgba(105,154,218,.17);border-radius:.75rem;background:rgba(4,14,32,.52)}
+.daily-agent-flow-split h4{margin:0 0 .35rem;font-size:.62rem;letter-spacing:.06em;text-transform:uppercase}.daily-agent-flow-split .is-short h4{color:#f1809f}.daily-agent-flow-split .is-market h4{color:#63dfb1}
+.daily-agent-flow-split>section>button{display:flex;gap:.4rem;align-items:center;width:100%;margin-top:.35rem;padding:.45rem;border:1px solid rgba(100,151,217,.13);border-radius:.65rem;color:inherit;text-align:left;background:rgba(8,21,43,.6)}
+.daily-agent-flow-split>section>button span{min-width:0}.daily-agent-flow-split>section>button span b,.daily-agent-flow-split>section>button span small{display:block}.daily-agent-flow-split>section>button span small{overflow:hidden;color:#7e93b1;font-size:.56rem;text-overflow:ellipsis;white-space:nowrap}.daily-agent-flow-split>section>button>strong{margin-left:auto;color:#63dfad}
+.daily-agent-flow-split>section>span{display:grid;min-height:3rem;place-content:center;color:#7085a4;font-size:.58rem;text-align:center}
+@keyframes appSignalPulse{0%,100%{opacity:.58;transform:scale(.82)}50%{opacity:1;transform:scale(1.12)}}
+@media(max-width:520px){.daily-agent-flow-split>section>button span b i{display:none}}
+@media(prefers-reduced-motion:reduce){.daily-agent-board__groups article>header::before{animation:none}}
+
+/* IMPACT SCROLL RAIL — one restrained space-console scrollbar language for
+   every native scrolling surface. The transparent border keeps the glowing
+   thumb away from content while removing the heavy Windows arrow buttons. */
+:root{
+  scrollbar-width:thin;
+  scrollbar-color:rgba(105,155,255,.72) rgba(3,10,25,.34);
+  --impact-scroll-track:rgba(3,10,25,.34);
+  --impact-scroll-edge:rgba(88,202,255,.2);
+  --impact-scroll-thumb-a:#52d9ff;
+  --impact-scroll-thumb-b:#765cff;
+  --impact-scroll-thumb-c:#5ce4b0;
+}
+*{scrollbar-width:thin;scrollbar-color:rgba(105,155,255,.72) var(--impact-scroll-track)}
+*::-webkit-scrollbar{width:10px;height:10px}
+*::-webkit-scrollbar-track{
+  border:1px solid var(--impact-scroll-edge);
+  border-radius:999px;
+  background:linear-gradient(90deg,rgba(2,7,18,.3),rgba(14,28,57,.6),rgba(2,7,18,.3));
+  box-shadow:inset 0 0 8px rgba(2,8,21,.9);
+}
+*::-webkit-scrollbar-thumb{
+  min-width:42px;
+  min-height:42px;
+  border:2px solid transparent;
+  border-radius:999px;
+  background:linear-gradient(90deg,var(--impact-scroll-thumb-a),var(--impact-scroll-thumb-b) 52%,var(--impact-scroll-thumb-c)) padding-box;
+  box-shadow:0 0 10px rgba(91,194,255,.24),inset 0 0 0 1px rgba(230,247,255,.2);
+}
+*::-webkit-scrollbar-thumb:hover{
+  background:linear-gradient(90deg,#83eaff,#967bff 50%,#79f1c5) padding-box;
+  box-shadow:0 0 14px rgba(101,211,255,.46),inset 0 0 0 1px rgba(255,255,255,.34);
+}
+*::-webkit-scrollbar-thumb:active{background:linear-gradient(90deg,#b0f3ff,#a794ff 48%,#a1f7d6) padding-box}
+*::-webkit-scrollbar-corner{background:transparent}
+*::-webkit-scrollbar-button{display:none;width:0;height:0}
+:where([class*="scroll"],[class*="strip"],[class*="tabs"],[class*="rail"],dialog,[role="dialog"]){overscroll-behavior:contain}
+@media(forced-colors:active){*{scrollbar-color:auto}*::-webkit-scrollbar-track,*::-webkit-scrollbar-thumb{border-color:ButtonText;background:Canvas}}

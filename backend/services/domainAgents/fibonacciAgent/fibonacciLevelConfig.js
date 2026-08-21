@@ -10,7 +10,8 @@
 const SUPPORTED_RETRACEMENT_RATIOS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 0.886, 1];
 
 // Approved configuration: only 0, 0.886, and 1 are active by default.
-const DEFAULT_ACTIVE_RETRACEMENT_RATIOS = [0, 0.886, 1];
+const { IMPACTONE_FIBONACCI_PROFILE } = require("./impactOneFibonacciProfile");
+const DEFAULT_ACTIVE_RETRACEMENT_RATIOS = [...IMPACTONE_FIBONACCI_PROFILE.activeRatios];
 
 function isRatioActiveByDefault(ratio) {
   return DEFAULT_ACTIVE_RETRACEMENT_RATIOS.includes(ratio);

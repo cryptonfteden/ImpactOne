@@ -10,26 +10,27 @@ test("with zero real signals available, outlook is honestly UNKNOWN with zero co
   assert.equal(result.confidenceContribution, 0);
 });
 
-test("a high growth score and high surprise score alone (no guidance/revisions) produce a real POSITIVE outlook", () => {
+test("strong historical growth and surprises alone do not become a forward forecast", () => {
   const metrics = emptyMetrics("NVDA", null);
   metrics.dataAvailable = true;
   const result = analyzeOutlook({ growth: { growthScore: 90 }, surprise: { surpriseScore: 85 }, metrics });
-  assert.equal(result.outlook, "POSITIVE");
-  assert.ok(result.confidenceContribution > 0 && result.confidenceContribution < 100, "confidence must reflect that only 2 of 4 possible signal categories are real");
+  assert.equal(result.outlook, "UNKNOWN");
+  assert.equal(result.confidenceContribution, 0);
+  assert.equal(result.contributions.historicalGrowth, 90);
 });
 
-test("a low growth score and low surprise score alone produce a real NEGATIVE outlook", () => {
+test("weak historical growth and surprises alone do not become a forward forecast", () => {
   const metrics = emptyMetrics("NVDA", null);
   metrics.dataAvailable = true;
   const result = analyzeOutlook({ growth: { growthScore: 10 }, surprise: { surpriseScore: 15 }, metrics });
-  assert.equal(result.outlook, "NEGATIVE");
+  assert.equal(result.outlook, "UNKNOWN");
 });
 
-test("scores near the 50-midpoint produce NEUTRAL, not a coin-flip POSITIVE/NEGATIVE", () => {
+test("historical midpoint scores remain context only without forward evidence", () => {
   const metrics = emptyMetrics("NVDA", null);
   metrics.dataAvailable = true;
   const result = analyzeOutlook({ growth: { growthScore: 52 }, surprise: { surpriseScore: 50 }, metrics });
-  assert.equal(result.outlook, "NEUTRAL");
+  assert.equal(result.outlook, "UNKNOWN");
 });
 
 test("a real RAISED guidance direction contributes positively when present", () => {
@@ -57,7 +58,7 @@ test("a real UP analyst-revision direction contributes positively when present",
   assert.equal(result.outlook, "POSITIVE");
 });
 
-test("confidenceContribution reaches 100 only when all four signal categories are real and present", () => {
+test("confidenceContribution reaches 100 when both forward evidence categories are present", () => {
   const metrics = emptyMetrics("NVDA", null);
   metrics.dataAvailable = true;
   metrics.guidance.direction = "MAINTAINED";

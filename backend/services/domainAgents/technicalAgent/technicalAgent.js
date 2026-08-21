@@ -23,11 +23,32 @@ const { generateAiSummary } = require("./aiSummary");
 
 const defaultProvider = createTechnicalDataProvider();
 
+function assessDataQuality(metrics) {
+  const ageDays = Number(metrics?.freshness?.ageDays);
+  const barsUsed = Number(metrics?.barsUsed) || 0;
+  const blockers = [
+    ...(metrics?.enoughDataStatus !== "SUFFICIENT" ? ["Indicator history is insufficient."] : []),
+    ...(barsUsed < 60 ? ["Fewer than 60 daily bars were verified."] : []),
+    ...(!Number.isFinite(ageDays) ? ["Latest-bar freshness is unknown."] : ageDays > 7 ? [`Latest bar is ${ageDays} days old.`] : []),
+  ];
+  return {
+    source: "verified OHLCV price history",
+    barsUsed,
+    latestBarDate: metrics?.freshness?.lastBarDate || null,
+    ageDays: Number.isFinite(ageDays) ? ageDays : null,
+    blockers,
+    signalEligible: Boolean(metrics?.dataAvailable) && blockers.length === 0,
+  };
+}
+
 function buildUnavailableReport(symbol, asOf, reason, inputs) {
+  const dataQuality = assessDataQuality(inputs);
   const report = {
     symbol,
     generatedAt: asOf,
     dataAvailable: false,
+    signalEligible: false,
+    dataQuality,
     unavailableReason: reason,
     trend: "NEUTRAL",
     trendStrength: 0,
@@ -65,11 +86,14 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
   const breakoutResult = analyzeBreakoutProbability(metrics, metrics.adx);
   const riskResult = analyzeRiskLevel(metrics.signals);
   const confidenceResult = computeConfidence(metrics, trendResult.trend, momentumResult.state);
+  const dataQuality = assessDataQuality(metrics);
 
   const report = {
     symbol: metrics.symbol,
     generatedAt: metrics.asOf,
     dataAvailable: true,
+    signalEligible: dataQuality.signalEligible,
+    dataQuality,
     unavailableReason: null,
     trend: trendResult.trend,
     trendStrength: trendResult.trendStrength,
@@ -87,4 +111,4 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
   return report;
 }
 
-module.exports = { generateReport, createTechnicalDataProvider };
+module.exports = { generateReport, createTechnicalDataProvider, assessDataQuality };

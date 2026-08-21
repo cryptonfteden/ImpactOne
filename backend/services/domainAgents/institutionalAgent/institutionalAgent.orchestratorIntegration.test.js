@@ -33,7 +33,7 @@ test("running the full orchestrator surfaces the rich institutional report via t
   const [institutionalResult] = report.agents;
 
   assert.equal(institutionalResult.agentId, "institutional");
-  assert.ok(["fulfilled", "error", "timeout"].includes(institutionalResult.status), "a real network call may succeed, gracefully degrade, or (rarely) time out in this environment");
+  assert.ok(["fulfilled", "unavailable", "error", "timeout"].includes(institutionalResult.status), "a real provider call may succeed, report verified data unavailable, fail, or time out");
   if (institutionalResult.status === "fulfilled") {
     assert.equal(typeof institutionalResult.result.summary, "string");
     assert.ok(Array.isArray(institutionalResult.result.evidence));

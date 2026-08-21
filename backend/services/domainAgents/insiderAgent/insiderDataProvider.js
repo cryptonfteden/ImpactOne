@@ -22,8 +22,7 @@
 //                  transactionCode, acquiredDisposedCode, shares,
 //                  pricePerShare, sharesOwnedAfter, filingDate, filingUrl }
 //   filingsFetched number — how many real Form 4 filings were actually parsed
-const axios = require("axios");
-const env = require("../../../config/env");
+const { getSec } = require("../../secEdgarClient");
 const cikResolver = require("./cikResolver");
 const { parseFormFourFilings, buildFilingDocumentUrl } = require("./submissionsParser");
 const { parseFormFourXml } = require("./formFourXmlParser");
@@ -59,7 +58,7 @@ function createInsiderDataProvider({ maxFilings = DEFAULT_MAX_FILINGS, lookbackD
     }
 
     const submissions = await safeFetch(
-      () => axios.get(`https://data.sec.gov/submissions/CIK${owner.cik}.json`, { headers: { "User-Agent": env.SEC_EDGAR_USER_AGENT }, timeout: REQUEST_TIMEOUT_MS }).then((response) => response.data),
+      () => getSec(`https://data.sec.gov/submissions/CIK${owner.cik}.json`, { timeout: REQUEST_TIMEOUT_MS }).then((response) => response.data),
       null
     );
     if (!submissions) {
@@ -78,7 +77,7 @@ function createInsiderDataProvider({ maxFilings = DEFAULT_MAX_FILINGS, lookbackD
     for (const filing of filings) {
       const url = buildFilingDocumentUrl(owner.cik, filing);
       const xml = await safeFetch(
-        () => axios.get(url, { headers: { "User-Agent": env.SEC_EDGAR_USER_AGENT }, timeout: REQUEST_TIMEOUT_MS }).then((response) => response.data),
+        () => getSec(url, { accept: "application/xml,text/xml,*/*", timeout: REQUEST_TIMEOUT_MS }).then((response) => response.data),
         null
       );
       if (!xml || typeof xml !== "string") continue;

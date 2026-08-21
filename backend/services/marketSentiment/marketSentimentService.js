@@ -64,10 +64,10 @@ async function fetchDimensionInputs(market) {
 }
 
 function buildDataFreshness(dimensionReadings, now) {
-  const ages = dimensionReadings
+  const freshnessEntries = dimensionReadings
     .flatMap((reading) => reading.contributors || [])
-    .map((contributor) => contributor.freshness?.ageMs)
-    .filter((ageMs) => Number.isFinite(ageMs));
+    .map((contributor) => ({ source: contributor.source, ...(contributor.freshness || {}) }));
+  const ages = freshnessEntries.map((entry) => entry.ageMs).filter((ageMs) => Number.isFinite(ageMs));
 
   if (!ages.length) {
     return { oldestInputAgeMs: null, newestInputAgeMs: null, isStale: true, reason: "No timestamped real inputs were available to evaluate freshness against." };
@@ -75,8 +75,15 @@ function buildDataFreshness(dimensionReadings, now) {
 
   const oldestInputAgeMs = Math.max(...ages);
   const newestInputAgeMs = Math.min(...ages);
-  const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000; // one trading day — this engine's readings are daily-cadence by design (no scheduler this phase; see MARKET_SENTIMENT_ENGINE.md §12)
-  return { oldestInputAgeMs, newestInputAgeMs, isStale: oldestInputAgeMs > STALE_THRESHOLD_MS, asOfNow: now.toISOString() };
+  const staleSources = freshnessEntries.filter((entry) => entry.isStale === true).map((entry) => entry.source);
+  return {
+    oldestInputAgeMs,
+    newestInputAgeMs,
+    isStale: staleSources.length > 0,
+    staleSources,
+    reason: staleSources.length ? `${staleSources.length} source(s) exceeded their disclosed update cadence.` : null,
+    asOfNow: now.toISOString(),
+  };
 }
 
 function buildProvenance(dimensionReadings) {

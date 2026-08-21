@@ -36,3 +36,7 @@ export { marketSentimentApi } from "./marketSentimentApi";
 export { morningBriefApi } from "./morningBriefApi";
 export { personalizationApi } from "./personalizationApi";
 export { agentOrchestratorApi } from "./agentOrchestratorApi";
+export { insiderOpportunitiesApi } from "./insiderOpportunitiesApi";
+export { weeklyFibonacciOpportunitiesApi } from "./weeklyFibonacciOpportunitiesApi";
+export { dailyAgentPicksApi } from "./dailyAgentPicksApi";
+export { strategyLabApi } from "./strategyLabApi";

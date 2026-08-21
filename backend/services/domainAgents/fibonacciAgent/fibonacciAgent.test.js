@@ -21,6 +21,24 @@ function fakeProvider(metrics) {
   return { getSymbolFibonacciData: async () => metrics };
 }
 
+function makeWeeklySetupBars() {
+  const start = new Date("2025-01-03T00:00:00Z");
+  const closes = [112, 104, 100, 116, 130, 145, 160, 178, 192, 200, 190, 178, 166, 152, 140, 130, 122, 118, 116, 115, 114, 115];
+  return closes.map((close, index) => {
+    const date = new Date(start.getTime() + index * 7 * 86400000).toISOString().slice(0, 10);
+    const previous = index ? closes[index - 1] : close;
+    return {
+      date,
+      weekKey: date,
+      open: previous,
+      high: index === 9 ? 200 : close + 2,
+      low: index === 2 ? 100 : close - 2,
+      close,
+      volume: 1000 + index * 25,
+    };
+  });
+}
+
 test("generateReport: unavailable data produces an honest, fully-populated unavailable report (never partial/fabricated)", async () => {
   const metrics = { symbol: "NOPE", asOf: "2026-07-27T00:00:00.000Z", dataAvailable: false, unavailableReason: "Not enough data." };
   const report = await generateReport("NOPE", { provider: fakeProvider(metrics) });
@@ -33,8 +51,9 @@ test("generateReport: unavailable data produces an honest, fully-populated unava
   assert.deepEqual(report.displayConfig, DEFAULT_DISPLAY_CONFIG);
 });
 
-test("generateReport: composes every mission-required output field from real, available data (real uptrending bars)", async () => {
+test("generateReport: available bars remain neutral when the latest completed week is moving away from 0.886", async () => {
   const dailyBars = makeBars(300, { dailyMove: 0.5, volatility: 0.3 });
+  const weeklyBars = makeWeeklySetupBars();
   const metrics = {
     symbol: "FAKE",
     asOf: "2026-07-27T00:00:00.000Z",
@@ -43,18 +62,21 @@ test("generateReport: composes every mission-required output field from real, av
     barsUsed: dailyBars.length,
     enoughDataStatus: "SUFFICIENT",
     freshness: { lastBarDate: dailyBars[dailyBars.length - 1].date, ageDays: 1 },
-    currentPrice: dailyBars[dailyBars.length - 1].close,
+    currentPrice: weeklyBars[weeklyBars.length - 1].close,
     dailyBars,
-    weeklyBars: dailyBars, // stand-in; only tested independently in weeklyBarAggregator.test.js
+    weeklyBars,
     dailyTrendSignal: { signal: "UPTREND", enoughDataStatus: "SUFFICIENT" },
     weeklyTrendSignal: { signal: "UPTREND", enoughDataStatus: "SUFFICIENT" },
   };
 
-  const report = await generateReport("FAKE", { provider: fakeProvider(metrics) });
+  const report = await generateReport("FAKE", { provider: fakeProvider(metrics), now: new Date("2025-06-01T12:00:00Z") });
 
   assert.equal(report.symbol, "FAKE");
   assert.equal(report.dataAvailable, true);
-  assert.equal(report.trendContext, "BULLISH");
+  assert.equal(report.trendContext, "NEUTRAL");
+  assert.equal(report.signalEligible, false);
+  assert.equal(report.alertStatus, "NO_WEEKLY_ENTRY_ALERT");
+  assert.equal(report.weeklyStrategy.movingTowardTarget, false);
   assert.ok(report.primarySwing);
   assert.equal(report.primarySwing.direction, "UP");
   assert.ok(Array.isArray(report.retracementLevels));
@@ -64,10 +86,13 @@ test("generateReport: composes every mission-required output field from real, av
     report.retracementLevels.map((level) => level.ratio).sort((a, b) => a - b),
     [...DEFAULT_ACTIVE_RETRACEMENT_RATIOS].sort((a, b) => a - b)
   );
-  assert.ok(Array.isArray(report.extensionTargets));
+  assert.equal(report.extensionTargets, null);
   assert.ok(Array.isArray(report.confluenceZones));
   assert.ok(Array.isArray(report.highProbabilityZones));
-  assert.ok(["AGREE", "CONFLICT", "SINGLE_TIMEFRAME_ONLY", "UNKNOWN"].includes(report.timeframeAgreement));
+  assert.equal(report.timeframeAgreement, "WEEKLY_ONLY");
+  assert.equal(report.dataQuality.timeframe, "1W");
+  assert.equal(report.dataQuality.candleState, "COMPLETED_ONLY");
+  assert.equal(report.dataQuality.status, "VERIFIED");
   assert.ok(Number.isFinite(report.confidence.confidence));
   assert.ok(typeof report.aiSummary === "string" && report.aiSummary.length > 0);
   assert.deepEqual(report.displayConfig, DEFAULT_DISPLAY_CONFIG);

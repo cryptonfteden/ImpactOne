@@ -32,7 +32,7 @@ test("running the full orchestrator surfaces the rich earnings report via the st
   const [earningsResult] = report.agents;
 
   assert.equal(earningsResult.agentId, "earnings");
-  assert.ok(["fulfilled", "error", "timeout"].includes(earningsResult.status), "a real network call may succeed, gracefully degrade, or (rarely) time out in this environment");
+  assert.ok(["fulfilled", "unavailable", "error", "timeout"].includes(earningsResult.status), "a real provider call may succeed, report verified data unavailable, fail, or time out");
   if (earningsResult.status === "fulfilled") {
     assert.equal(typeof earningsResult.result.summary, "string");
     assert.ok(Array.isArray(earningsResult.result.evidence));

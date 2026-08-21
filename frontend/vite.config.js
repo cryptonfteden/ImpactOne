@@ -18,4 +18,22 @@ import react from "@vitejs/plugin-react";
 // on any actual rule).
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rolldownOptions: {
+      output: {
+        // Keep the expensive WebGL runtime in its own long-lived cache unit.
+        // The application shell and ordinary screens must never be invalidated
+        // or downloaded again merely because the 3D experience changes.
+        manualChunks(id) {
+          if (id.includes("node_modules/three/") || id.includes("node_modules/@react-three/")) {
+            return "vendor-three";
+          }
+          if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/")) {
+            return "vendor-react";
+          }
+          return undefined;
+        },
+      },
+    },
+  },
 });

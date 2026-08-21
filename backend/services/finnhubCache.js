@@ -1,4 +1,5 @@
 const cache = new Map();
+const { FINNHUB_QUOTE_CACHE_TTL_MS = 5 * 60 * 1000 } = require("../config/env");
 
 function getCacheKey(symbol) {
   return symbol.toUpperCase();
@@ -10,7 +11,7 @@ function getCachedQuote(symbol) {
 
   if (!item) return null;
 
-  if (Date.now() - item.timestamp > 60000) {
+  if (Date.now() - item.timestamp > FINNHUB_QUOTE_CACHE_TTL_MS) {
     cache.delete(key);
     return null;
   }

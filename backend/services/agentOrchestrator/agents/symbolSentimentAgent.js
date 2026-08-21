@@ -30,12 +30,14 @@ async function execute(symbol) {
     // The orchestrator only compares this string for equality with other
     // agents' directions (structural conflict detection) — it never
     // interprets it. NEUTRAL sentiment state reports no opinion.
-    direction: report.sentimentState === "NEUTRAL" ? null : report.sentimentState,
+    direction: report.signalEligible === false || report.sentimentState === "NEUTRAL" ? null : report.sentimentState,
     evidence: [
       { observedFact: `Sentiment: ${report.sentimentState} (score ${report.sentimentScore}/100), trend ${report.sentimentTrend}.` },
       { observedFact: `Based on ${report.sourceQuality.totalArticleCount} real article(s) from ${report.sourceQuality.distinctSourceCount} distinct source(s).` },
       ...(report.divergence.divergence !== "NONE" ? [{ observedFact: `Sentiment-price divergence detected: ${report.divergence.divergence}.` }] : []),
       ...(report.abnormalActivity.hasAbnormalActivity ? [{ observedFact: "Abnormal sentiment/volume activity detected in this window." }] : []),
+      { observedFact: `Sentiment evidence: ${report.dataQuality.articleCount} articles from ${report.dataQuality.distinctSourceCount} sources; ${report.dataQuality.tier1ArticleCount} tier-1 article(s).` },
+      ...(report.dataQuality.queryIdentity ? [{ observedFact: `News search identity verified as "${report.dataQuality.queryIdentity}"; ticker-only ambiguity was not used.` }] : []),
     ],
     raw: report,
   };
@@ -51,7 +53,7 @@ async function health() {
 }
 
 module.exports = {
-  metadata: { id: "symbol-sentiment", name: "Sentiment Intelligence Agent", category: "SENTIMENT", priority: 6 },
+  metadata: { id: "symbol-sentiment", name: "Sentiment Intelligence Agent", category: "SENTIMENT", priority: 5 },
   execute,
   confidence,
   health,

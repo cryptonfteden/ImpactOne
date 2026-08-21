@@ -2,8 +2,8 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { analyzePolicyDirection } = require("./policyDirectionAnalyzer");
 
-function series(changeYoY, value = 3.63, dataAvailable = true) {
-  return { dataAvailable, changeYoY, latest: { value } };
+function series(changeYoYPercentagePoints, value = 3.63, dataAvailable = true) {
+  return { dataAvailable, changeYoYPercentagePoints, latest: { value } };
 }
 
 test("classifies TIGHTENING when the real Fed funds rate rises YoY beyond threshold", () => {
@@ -11,7 +11,9 @@ test("classifies TIGHTENING when the real Fed funds rate rises YoY beyond thresh
 });
 
 test("classifies EASING when the real Fed funds rate falls YoY beyond threshold", () => {
-  assert.equal(analyzePolicyDirection(series(-16.17)).direction, "EASING");
+  const result = analyzePolicyDirection(series(-0.7));
+  assert.equal(result.direction, "EASING");
+  assert.equal(result.fedFundsChangeYoY, -0.7);
 });
 
 test("classifies HOLDING within the threshold band", () => {

@@ -97,8 +97,8 @@ test("Fear & Greed: fallback macro data (not live FRED) still computes, but with
 
 test("Volatility: real per-symbol volatility regimes aggregate into one score", () => {
   const analyses = [
-    { symbol: "SPY", signals: { volatilityRegime: { enoughData: true, signal: "LOW_VOLATILITY", calculationInputs: { percentile: 10 }, freshness: { lastBarDate: "2026-07-25" } } } },
-    { symbol: "QQQ", signals: { volatilityRegime: { enoughData: true, signal: "HIGH_VOLATILITY", calculationInputs: { percentile: 90 }, freshness: { lastBarDate: "2026-07-25" } } } },
+    { symbol: "SPY", signals: { volatilityRegime: { enoughDataStatus: "SUFFICIENT", signal: "LOW_VOLATILITY", calculationInputs: { percentile: 10 }, freshness: { lastBarDate: "2026-07-25" } } } },
+    { symbol: "QQQ", signals: { volatilityRegime: { enoughDataStatus: "SUFFICIENT", signal: "HIGH_VOLATILITY", calculationInputs: { percentile: 90 }, freshness: { lastBarDate: "2026-07-25" } } } },
   ];
   const reading = scorers.scoreVolatility({ analyses, market: "US", now: NOW });
   assert.equal(reading.unavailable, false);
@@ -106,10 +106,28 @@ test("Volatility: real per-symbol volatility regimes aggregate into one score", 
 });
 
 test("Volatility: honestly unavailable when no proxy symbol has enough real price history", () => {
-  const analyses = [{ symbol: "SPY", signals: { volatilityRegime: { enoughData: false } } }];
+  const analyses = [{ symbol: "SPY", signals: { volatilityRegime: { enoughDataStatus: "INSUFFICIENT" } } }];
   const reading = scorers.scoreVolatility({ analyses, market: "US", now: NOW });
   assert.equal(reading.unavailable, true);
   assert.match(reading.reason, /sufficient real price history/);
+});
+
+test("Market breadth: verified proxy closes are compared with their own 50/200-day averages", () => {
+  const analyses = [
+    { symbol: "SPY", signals: { trend: { enoughDataStatus: "SUFFICIENT", calculationInputs: { lastClose: 110, sma50: 100, sma200: 90 }, freshness: { lastBarDate: "2026-07-25" } } } },
+    { symbol: "QQQ", signals: { trend: { enoughDataStatus: "SUFFICIENT", calculationInputs: { lastClose: 80, sma50: 90, sma200: 85 }, freshness: { lastBarDate: "2026-07-25" } } } },
+  ];
+  const reading = scorers.scoreMarketBreadth({ analyses, market: "US", now: NOW });
+  assert.equal(reading.unavailable, false);
+  assert.equal(reading.score, 50);
+  assert.equal(reading.proxyCoverage.usable, 2);
+  assert.match(reading.missingInputs[0], /proxy, not an exchange-wide/);
+});
+
+test("Market breadth: insufficient proxy history remains explicitly unavailable", () => {
+  const reading = scorers.scoreMarketBreadth({ analyses: [{ symbol: "SPY", signals: {} }], market: "US", now: NOW });
+  assert.equal(reading.unavailable, true);
+  assert.equal(reading.score, null);
 });
 
 test("Macro Events: real regime + real COT data compose, and the event-calendar gap is always disclosed", () => {

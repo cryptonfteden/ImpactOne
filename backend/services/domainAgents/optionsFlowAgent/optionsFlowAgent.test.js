@@ -49,7 +49,8 @@ test("generateReport accepts an injected provider — the swappable-provider sea
   assert.equal(report.dataAvailable, true);
   assert.equal(report.marketBias, "BULLISH");
   assert.ok(report.confidence > 0);
-  assert.match(report.aiSummary, /bullish/i);
+  assert.equal(report.signalEligible, false, "a raw call/put split is not an unusual-flow signal without verified anomaly evidence");
+  assert.match(report.aiSummary, /context only/i);
 });
 
 test("generateReport's marketBias/confidence/aiSummary are always mutually consistent (no contradiction between fields)", async () => {
@@ -74,7 +75,8 @@ test("generateReport's marketBias/confidence/aiSummary are always mutually consi
 
   const report = await generateReport("SPY", { provider: bearishProvider });
   assert.equal(report.marketBias, "BEARISH");
-  assert.match(report.aiSummary, /bearish/i);
+  assert.equal(report.signalEligible, false);
+  assert.match(report.aiSummary, /context only/i);
   assert.ok(!/bullish/i.test(report.aiSummary));
 });
 
@@ -82,6 +84,62 @@ test("generateReport retains the full raw inputs for auditability", async () => 
   const report = await generateReport("NVDA");
   assert.ok(report.inputs);
   assert.equal(report.inputs.symbol, "NVDA");
+});
+
+test("ordinary OCC end-of-day volume remains context and cannot emit a directional signal", async () => {
+  const provider = {
+    async getSymbolMetrics(symbol) {
+      return {
+        symbol,
+        asOf: "2026-08-20T00:00:00.000Z",
+        dataAvailable: true,
+        unavailableReason: null,
+        optionVolume: { call: 6100, put: 3900, total: 10000 },
+        openInterest: { call: null, put: null, total: null },
+        putCallRatio: 3900 / 6100,
+        volumeOiRatio: null,
+        largeBlockTrades: [],
+        unusualContracts: [],
+        skew: null,
+        greeks: { iv: null, ivRank: null, ivPercentile: null, delta: null, gammaExposure: null },
+        sourceProvider: "OCC Volume Query",
+        sourceUrl: "https://www.theocc.com/market-data",
+        dataFreshness: "end-of-day",
+        historicalContext: { activityLevel: "NORMAL", volumeVsAverage: 0.8, baselineSessions: 4 },
+      };
+    },
+  };
+
+  const report = await generateReport("NVDA", { provider });
+  assert.equal(report.marketBias, "BULLISH");
+  assert.equal(report.signalEligible, false);
+  assert.equal(report.dataQuality.anomalyVerified, false);
+  assert.match(report.aiSummary, /context only/i);
+});
+
+test("an OCC anomaly still requires enough directional confidence", async () => {
+  const metrics = {
+    symbol: "NVDA",
+    asOf: "2026-08-20T00:00:00.000Z",
+    dataAvailable: true,
+    unavailableReason: null,
+    optionVolume: { call: 5200, put: 4800, total: 10000 },
+    openInterest: { call: null, put: null, total: null },
+    putCallRatio: 4800 / 5200,
+    volumeOiRatio: null,
+    largeBlockTrades: [],
+    unusualContracts: [],
+    skew: null,
+    greeks: { iv: null, ivRank: null, ivPercentile: null, delta: null, gammaExposure: null },
+    sourceProvider: "OCC Volume Query",
+    sourceUrl: "https://www.theocc.com/market-data",
+    dataFreshness: "end-of-day",
+    historicalContext: { activityLevel: "UNUSUALLY_HIGH", volumeVsAverage: 2.2, baselineSessions: 4 },
+  };
+  const report = await generateReport("NVDA", { provider: { async getSymbolMetrics() { return metrics; } } });
+  assert.equal(report.dataQuality.eodAnomalyEligible, true);
+  assert.equal(report.signalEligible, false);
+  assert.match(report.dataQuality.blockers.join(" "), /confidence/i);
 });
 
 test("emptyMetrics-driven report and a directly-constructed empty report are shape-consistent", async () => {

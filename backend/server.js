@@ -5,6 +5,8 @@ const schedulerService = require("./services/schedulerService");
 const themeSnapshotScheduler = require("./services/themeSnapshotScheduler");
 const providerScheduler = require("./services/providerScheduler");
 const alertScheduler = require("./services/alertScheduler");
+const weeklyFibonacciMarketScheduler = require("./services/weeklyFibonacciMarketScheduler");
+const strategyLabTraderScheduler = require("./services/strategyLabTraderScheduler");
 const { getPrismaClient } = require("./db/prismaClient");
 const redisClient = require("./services/redisCache/redisClient");
 const { createShutdownHandler } = require("./shutdown");
@@ -26,6 +28,8 @@ const server = app.listen(PORT, () => {
   themeSnapshotScheduler.start();
   providerScheduler.start();
   alertScheduler.start();
+  weeklyFibonacciMarketScheduler.start();
+  strategyLabTraderScheduler.start();
 });
 
 // Phase PRODUCTION-DEPLOYMENT-001 — graceful shutdown. Stops accepting
@@ -37,7 +41,7 @@ const server = app.listen(PORT, () => {
 // testable); this is just the real wiring.
 const shutdown = createShutdownHandler({
   server,
-  schedulers: [schedulerService, themeSnapshotScheduler, providerScheduler, alertScheduler],
+  schedulers: [schedulerService, themeSnapshotScheduler, providerScheduler, alertScheduler, weeklyFibonacciMarketScheduler, strategyLabTraderScheduler],
   disconnectDatabase: () => getPrismaClient().$disconnect(),
   disconnectRedis: () => redisClient._resetForTests(),
   shutdownTimeoutMs: SHUTDOWN_TIMEOUT_MS,

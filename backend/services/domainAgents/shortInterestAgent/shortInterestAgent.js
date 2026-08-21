@@ -22,12 +22,36 @@ const { generateAiSummary } = require("./aiSummary");
 
 const defaultProvider = createFinraShortVolumeDataProvider();
 
+function assessDataQuality(metrics, lookbackTradingDays = DEFAULT_LOOKBACK_TRADING_DAYS) {
+  const rows = metrics?.dailyShortVolume || [];
+  const latestDate = rows.at(-1)?.date || null;
+  const parsedLatest = latestDate ? Date.parse(`${latestDate.slice(0, 4)}-${latestDate.slice(4, 6)}-${latestDate.slice(6, 8)}T00:00:00Z`) : NaN;
+  const ageDays = Number.isFinite(parsedLatest) ? Math.floor((Date.now() - parsedLatest) / 86400000) : null;
+  const blockers = [
+    ...(rows.length < Math.min(5, lookbackTradingDays) ? [`Only ${rows.length} FINRA session(s) were verified.`] : []),
+    ...(ageDays == null ? ["Latest FINRA session date is unknown."] : ageDays > 7 ? [`Latest FINRA session is ${ageDays} days old.`] : []),
+  ];
+  return {
+    source: "FINRA Reg SHO daily short-volume files",
+    metricDefinition: "short-selling trade volume, not open short interest and not trader count",
+    sessionCount: rows.length,
+    requestedSessionCount: lookbackTradingDays,
+    latestSessionDate: latestDate,
+    ageDays,
+    blockers,
+    signalEligible: Boolean(metrics?.dataAvailable) && blockers.length === 0,
+  };
+}
+
 function buildUnavailableReport(symbol, asOf, reason, inputs) {
+  const dataQuality = assessDataQuality(inputs);
   const borrowStress = analyzeBorrowStress();
   const report = {
     symbol,
     generatedAt: asOf,
     dataAvailable: false,
+    signalEligible: false,
+    dataQuality,
     unavailableReason: reason,
     shortInterestBias: "NEUTRAL",
     shortInterestScore: 0,
@@ -88,6 +112,7 @@ async function generateReport(symbol, { provider = defaultProvider, lookbackTrad
     trendKnown: shortInterestTrend.trend !== "UNKNOWN",
     priceDataUsed,
   });
+  const dataQuality = assessDataQuality(metrics, lookbackTradingDays);
 
   const opportunities = buildOpportunities({ shortInterestBias, shortInterestScore, squeezeProbability, coveringActivity, crowdednessScore });
   const risks = buildRisks({ shortInterestBias, borrowStress, daysCount: dailyShortVolume.length, lookbackTradingDays });
@@ -96,6 +121,8 @@ async function generateReport(symbol, { provider = defaultProvider, lookbackTrad
     symbol: metrics.symbol,
     generatedAt: metrics.asOf,
     dataAvailable: true,
+    signalEligible: dataQuality.signalEligible,
+    dataQuality,
     unavailableReason: null,
     shortInterestBias,
     shortInterestScore,
@@ -115,4 +142,4 @@ async function generateReport(symbol, { provider = defaultProvider, lookbackTrad
   return report;
 }
 
-module.exports = { generateReport, createFinraShortVolumeDataProvider };
+module.exports = { generateReport, createFinraShortVolumeDataProvider, assessDataQuality };

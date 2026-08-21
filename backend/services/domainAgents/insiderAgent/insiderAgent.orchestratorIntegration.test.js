@@ -32,7 +32,7 @@ test("running the full orchestrator surfaces the rich insider report via the sta
   const [insiderResult] = report.agents;
 
   assert.equal(insiderResult.agentId, "insider");
-  assert.ok(["fulfilled", "error", "timeout"].includes(insiderResult.status), "a real network call may succeed, gracefully degrade, or (rarely) time out in this environment");
+  assert.ok(["fulfilled", "unavailable", "error", "timeout"].includes(insiderResult.status), "a real provider call may succeed, report verified data unavailable, fail, or time out");
   if (insiderResult.status === "fulfilled") {
     assert.equal(typeof insiderResult.result.summary, "string");
     assert.ok(Array.isArray(insiderResult.result.evidence));

@@ -23,6 +23,49 @@ const { buildBullishFactors, buildBearishFactors, buildRisks } = require("./fact
 const { generateAiSummary } = require("./aiSummary");
 
 const defaultProvider = createMacroDataProvider();
+const CRITICAL_MACRO_KEYS = ["interestRates", "inflation", "employment", "yieldCurve", "creditSpread", "liquidity"];
+
+function ageDays(dateValue, asOf) {
+  const timestamp = Date.parse(dateValue);
+  const reference = Date.parse(asOf);
+  if (!Number.isFinite(timestamp) || !Number.isFinite(reference)) return null;
+  return Math.max(0, Math.floor((reference - timestamp) / 86400000));
+}
+
+function assessDataQuality(metrics, confidenceResult) {
+  const sources = [...CRITICAL_MACRO_KEYS, "gdp", "vix", "oil", "gold", "usdStrength"].map((key) => {
+    const item = metrics[key] || {};
+    const latestDate = item.latest?.date || item.latestDate || null;
+    return { key, available: Boolean(item.dataAvailable), latestDate, ageDays: ageDays(latestDate, metrics.asOf) };
+  });
+  const criticalAvailable = sources.filter((source) => CRITICAL_MACRO_KEYS.includes(source.key) && source.available).length;
+  const staleCritical = sources.filter((source) => CRITICAL_MACRO_KEYS.includes(source.key) && source.available && source.ageDays !== null && source.ageDays > 180);
+  const signalEligible = confidenceResult.confidence >= 70 && criticalAvailable >= 5 && staleCritical.length === 0;
+  return {
+    sources,
+    availableSourceCount: confidenceResult.availableSourceCount,
+    totalSourceCount: confidenceResult.totalSourceCount,
+    criticalAvailable,
+    staleCritical: staleCritical.map((source) => source.key),
+    signalEligible,
+    blockers: [
+      ...(confidenceResult.confidence < 70 ? [`Macro source confidence is only ${confidenceResult.confidence}/100.`] : []),
+      ...(criticalAvailable < 5 ? [`Only ${criticalAvailable}/6 critical macro series are available.`] : []),
+      ...(staleCritical.length ? [`Stale critical series: ${staleCritical.map((source) => source.key).join(", ")}.`] : []),
+    ],
+  };
+}
+
+function buildContrarianWatch({ macroBias, marketStress, recessionRisk, vix }) {
+  const vixLevel = Number(vix?.latestClose);
+  if (macroBias === "BEARISH" && (marketStress === "HIGH" || vixLevel >= 30)) {
+    return { active: true, type: "PANIC_REVERSAL_WATCH", meaning: "Fear is extreme. Do not chase the crowd; wait for verified price confirmation before considering a reversal." };
+  }
+  if (macroBias === "BULLISH" && marketStress === "LOW" && Number.isFinite(vixLevel) && vixLevel <= 13) {
+    return { active: true, type: "COMPLACENCY_RISK_WATCH", meaning: "Confidence is unusually high. Tighten evidence requirements instead of assuming the trend must continue." };
+  }
+  return { active: false, type: null, meaning: "No extreme crowd condition is verified." };
+}
 
 function buildUnavailableReport(asOf, reason, inputs) {
   const report = {
@@ -42,6 +85,9 @@ function buildUnavailableReport(asOf, reason, inputs) {
     bullishFactors: [],
     bearishFactors: [],
     risks: [],
+    signalEligible: false,
+    dataQuality: { signalEligible: false, blockers: [reason] },
+    contrarianWatch: { active: false, type: null, meaning: "No reliable macro picture is available." },
     inputs,
   };
   report.aiSummary = generateAiSummary(report);
@@ -95,6 +141,8 @@ async function generateReport({ provider = defaultProvider } = {}) {
     usdStrength: metrics.usdStrength,
   };
   const confidenceResult = computeConfidence(fredSeriesMap, marketProxyMap);
+  const dataQuality = assessDataQuality(metrics, confidenceResult);
+  const contrarianWatch = buildContrarianWatch({ macroBias, marketStress: marketStressResult.marketStress, recessionRisk: recessionRiskResult.recessionRisk, vix: metrics.vix });
 
   const bullishFactors = buildBullishFactors({ yieldCurveResult, marketStressResult, policyDirectionResult, inflationResult, employmentResult, liquidityResult });
   const bearishFactors = buildBearishFactors({ yieldCurveResult, marketStressResult, policyDirectionResult, inflationResult, employmentResult, liquidityResult });
@@ -114,6 +162,9 @@ async function generateReport({ provider = defaultProvider } = {}) {
     marketStress: marketStressResult.marketStress,
     employmentTrend: employmentResult.trend,
     confidence: confidenceResult.confidence,
+    signalEligible: dataQuality.signalEligible,
+    dataQuality,
+    contrarianWatch,
     bullishFactors,
     bearishFactors,
     risks,
@@ -138,4 +189,4 @@ async function generateReport({ provider = defaultProvider } = {}) {
   return report;
 }
 
-module.exports = { generateReport, createMacroDataProvider };
+module.exports = { generateReport, createMacroDataProvider, assessDataQuality, buildContrarianWatch };

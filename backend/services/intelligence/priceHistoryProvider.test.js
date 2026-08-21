@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { getDailyBars, rangeToYahooRange, fetchYahooDailyBars } = require("./priceHistoryProvider");
+const { getDailyBars, rangeToYahooRange, fetchYahooDailyBars, fetchYahooIntradayBars, isRegularUsEquity } = require("./priceHistoryProvider");
 const { sharedProviderCache } = require("../redisCache/providerCache");
 const redisClient = require("../redisCache/redisClient");
 
@@ -30,8 +30,9 @@ function fakeRedisClientForTest() {
   };
 }
 
-test.beforeEach(() => {
+test.beforeEach(async () => {
   sharedProviderCache.resetStats();
+  await sharedProviderCache.invalidatePrefix("priceHistory:");
 });
 
 test("getDailyBars: returns the exact same real bar shape as before this phase — no change to business logic", async () => {
@@ -114,6 +115,22 @@ test("fetchYahooDailyBars keeps only verified Yahoo OHLCV rows", async () => {
     assert.equal(bars.length, 1);
     assert.equal(bars[0].close, 102);
     assert.equal(bars[0].volume, 2000);
+  } finally {
+    require("axios").get = originalGet;
+  }
+});
+
+test("intraday session filtering applies to US equities but preserves continuous assets", async () => {
+  assert.equal(isRegularUsEquity("AAPL"), true);
+  assert.equal(isRegularUsEquity("BTC-USD"), false);
+  const originalGet = require("axios").get;
+  const saturday = Math.floor(new Date("2026-08-15T12:00:00Z").getTime() / 1000);
+  require("axios").get = async () => ({
+    data: { chart: { result: [{ timestamp: [saturday], indicators: { quote: [{ open: [100], high: [102], low: [99], close: [101], volume: [500] }] } }] } },
+  });
+  try {
+    assert.equal((await fetchYahooIntradayBars("AAPL", "15m")).length, 0);
+    assert.equal((await fetchYahooIntradayBars("BTC-USD", "15m")).length, 1);
   } finally {
     require("axios").get = originalGet;
   }

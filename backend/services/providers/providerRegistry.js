@@ -24,6 +24,8 @@ const cftcCotProvider = require("./definitions/cftcCotProvider");
 const coinglassProvider = require("./definitions/coinglassProvider");
 const optionsFlowProvider = require("./definitions/optionsFlowProvider");
 const finraShortVolumeProvider = require("./definitions/finraShortVolumeProvider");
+const federalRegisterProvider = require("./definitions/federalRegisterProvider");
+const doeNewsProvider = require("./definitions/doeNewsProvider");
 
 const PROVIDERS = [
   reutersBloombergWireProvider,
@@ -49,6 +51,8 @@ const PROVIDERS = [
   coinglassProvider,
   optionsFlowProvider,
   finraShortVolumeProvider,
+  federalRegisterProvider,
+  doeNewsProvider,
 ];
 
 // Startup-time self-check: every provider built by createProvider() already

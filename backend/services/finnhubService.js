@@ -9,6 +9,7 @@ const symbolSentimentAgent = require("./domainAgents/sentimentAgent/sentimentAge
 
 const finraShortVolumeProvider = createFinraShortVolumeDataProvider({ lookbackTradingDays: 20 });
 const oneYearInsiderProvider = createInsiderDataProvider({ lookbackDays: 365 });
+const inFlightQuotes = new Map();
 
 function buildError(message, statusCode = 502) {
   const error = new Error(message);
@@ -73,6 +74,50 @@ function resolveRecommendation(data, quotePayload) {
     reason,
     details: data ? `${buy} Buy / ${hold} Hold / ${sell} Sell` : "Recommendation data unavailable",
     counts: data ? { buy, hold, sell } : null,
+  };
+}
+
+function finiteMetric(metrics, ...keys) {
+  for (const key of keys) {
+    const value = Number(metrics?.[key]);
+    if (Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
+function buildFundamentals(metrics, priceTarget, quote) {
+  const targetMean = finiteMetric(priceTarget, "targetMean");
+  const price = finiteMetric(quote, "c");
+  return {
+    valuation: {
+      peTtm: finiteMetric(metrics, "peTTM", "peAnnual"),
+      forwardPe: finiteMetric(metrics, "forwardPE"),
+      priceToSales: finiteMetric(metrics, "psTTM", "psAnnual"),
+      priceToBook: finiteMetric(metrics, "pbAnnual", "pbQuarterly"),
+      targetMean,
+      targetUpsidePct: price && targetMean ? ((targetMean - price) / price) * 100 : null,
+    },
+    growth: {
+      revenueGrowthYoy: finiteMetric(metrics, "revenueGrowthTTMYoy", "revenueGrowth3Y"),
+      epsGrowthYoy: finiteMetric(metrics, "epsGrowthTTMYoy", "epsGrowth3Y"),
+    },
+    quality: {
+      grossMargin: finiteMetric(metrics, "grossMarginTTM", "grossMarginAnnual"),
+      operatingMargin: finiteMetric(metrics, "operatingMarginTTM", "operatingMarginAnnual"),
+      roe: finiteMetric(metrics, "roeTTM", "roeAnnual"),
+      currentRatio: finiteMetric(metrics, "currentRatioAnnual", "currentRatioQuarterly"),
+      debtToEquity: finiteMetric(metrics, "totalDebt/totalEquityAnnual", "totalDebt/totalEquityQuarterly"),
+    },
+    market: {
+      beta: finiteMetric(metrics, "beta"),
+      rsi14: finiteMetric(metrics, "rsi14"),
+      averageVolume10d: finiteMetric(metrics, "10DayAverageTradingVolume"),
+      performanceWeek: finiteMetric(metrics, "5DayPriceReturnDaily"),
+      performanceMonth: finiteMetric(metrics, "monthToDatePriceReturnDaily", "13WeekPriceReturnDaily"),
+      performanceYtd: finiteMetric(metrics, "yearToDatePriceReturnDaily"),
+      performanceYear: finiteMetric(metrics, "52WeekPriceReturnDaily"),
+    },
+    source: "Finnhub company metrics and analyst targets",
   };
 }
 
@@ -343,18 +388,99 @@ async function getCompanyNews(symbol, companyName) {
       return haystack.includes(companyName.toLowerCase()) || haystack.includes(symbol.toLowerCase());
     });
 
-    return (items.length ? items : response.data || []).slice(0, 5).map((item) => ({
+    return (items.length ? items : response.data || []).slice(0, 12).map((item) => ({
       headline: item.headline,
       summary: item.summary,
       url: item.url,
       datetime: item.datetime,
+      source: item.source || null,
+      category: item.category || null,
+      image: item.image || null,
     }));
   } catch (error) {
     return [];
   }
 }
 
-async function getQuote(symbol) {
+async function getVerifiedMarketFallback(normalizedSymbol) {
+  const bars = await getDailyBars(normalizedSymbol, { range: "1y" });
+  if (!Array.isArray(bars) || !bars.length) return null;
+
+  const latest = bars.at(-1);
+  const previous = bars.at(-2) || latest;
+  const price = Number(latest.close);
+  const previousClose = Number(previous.close);
+  if (!Number.isFinite(price) || price <= 0) return null;
+
+  const change = price - previousClose;
+  const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
+  const dailyHistory = bars.slice(-20).map((bar) => ({
+    date: bar.date,
+    shortVolume: null,
+    nonShortVolume: null,
+    totalVolume: Number(bar.volume) || 0,
+  }));
+  const [snapshotSignals, chartData] = await Promise.all([
+    getSnapshotSignals(normalizedSymbol).catch(() => null),
+    getHistoricalSeries(normalizedSymbol).catch(() => []),
+  ]);
+
+  const volume = Number(latest.volume) || 0;
+  return {
+    quote: {
+      symbol: normalizedSymbol,
+      price,
+      change,
+      changePercent,
+      trend: change >= 0 ? "Positive" : "Negative",
+      marketCap: "--",
+      pe: "--",
+      analystPriceFit: { available: false, score: null, reason: "Analyst target data is unavailable from the fallback provider." },
+      volume: formatVolume(volume),
+      volumeActivity: buildVolumeActivity(dailyHistory),
+      weekHigh: "--",
+      weekLow: "--",
+      companyLogo: "",
+      companyDescription: normalizedSymbol + " is shown from verified Yahoo Finance OHLCV history; company profile data is currently unavailable.",
+      source: "Yahoo Finance",
+      sourceRole: "verified-fallback",
+    },
+    company: {
+      name: normalizedSymbol,
+      exchange: "Unavailable",
+      industry: "Unavailable",
+      country: "US",
+      currency: "USD",
+      website: "",
+      marketCap: "--",
+      ipo: "",
+      employees: "",
+      source: "Yahoo Finance OHLCV fallback",
+    },
+    recommendation: {
+      label: "Unavailable",
+      reason: "Analyst consensus is unavailable from the active fallback source.",
+      details: "Recommendation data unavailable",
+      counts: null,
+    },
+    recommendationTrend: buildRecommendationTrend([]),
+    fundamentals: {
+      ...buildFundamentals({}, {}, { c: price }),
+      source: "Unavailable — Yahoo Finance fallback supplies OHLCV only",
+    },
+    news: [],
+    chart: chartData,
+    fearGreed: null,
+    snapshotSignals: snapshotSignals || {
+      shortLongVolume: { available: false, reason: "FINRA short-volume data is unavailable." },
+      insiderBuying: { available: false, reason: "SEC insider data is unavailable." },
+      sentiment: { available: false, reason: "Symbol news sentiment is unavailable." },
+      newsScore: { available: false, reason: "Verified symbol news is unavailable." },
+    },
+  };
+}
+
+async function loadQuote(symbol) {
   const normalizedSymbol = (symbol || "NVDA").toUpperCase();
   const cached = getCachedQuote(normalizedSymbol);
   if (cached) {
@@ -362,7 +488,12 @@ async function getQuote(symbol) {
   }
 
   if (!FINNHUB_API_KEY) {
-    throw buildError("FINNHUB_API_KEY is missing. Add it to the workspace .env file to enable live stock data.");
+    const fallback = await getVerifiedMarketFallback(normalizedSymbol);
+    if (fallback) {
+      setCachedQuote(normalizedSymbol, fallback);
+      return fallback;
+    }
+    throw buildError("No verified market data is currently available for this symbol.");
   }
 
   try {
@@ -401,6 +532,8 @@ async function getQuote(symbol) {
 
     const baseQuote = {
       symbol: normalizedSymbol,
+      source: "Finnhub",
+      sourceRole: "primary",
       price: quoteData.c || 0,
       change: quoteData.d || 0,
       // Finnhub's `d` is the absolute dollar change; `change` above is kept
@@ -456,6 +589,7 @@ async function getQuote(symbol) {
       },
       recommendation: resolveRecommendation(recommendationData, baseQuote),
       recommendationTrend: buildRecommendationTrend(recommendationSeries),
+      fundamentals: buildFundamentals(metricsData, priceTargetData, quoteData),
       news: companyNews,
       chart: chartData,
       fearGreed: fearGreedData ? {
@@ -470,14 +604,28 @@ async function getQuote(symbol) {
     return payload;
   } catch (error) {
     const status = error.response?.status;
-    if (error.statusCode) {
+    if (error.statusCode === 404) {
       throw error;
     }
+    const fallback = await getVerifiedMarketFallback(normalizedSymbol).catch(() => null);
+    if (fallback) {
+      setCachedQuote(normalizedSymbol, fallback);
+      return fallback;
+    }
+    if (error.statusCode) throw error;
     const message = status === 401 || status === 403
       ? "FINNHUB_API_KEY is invalid or expired. Update the key in the workspace .env file."
       : "Finnhub quote request failed. Please try again shortly.";
     throw buildError(message);
   }
+}
+
+async function getQuote(symbol) {
+  const normalizedSymbol = (symbol || "NVDA").toUpperCase();
+  if (inFlightQuotes.has(normalizedSymbol)) return inFlightQuotes.get(normalizedSymbol);
+  const pending = loadQuote(normalizedSymbol).finally(() => inFlightQuotes.delete(normalizedSymbol));
+  inFlightQuotes.set(normalizedSymbol, pending);
+  return pending;
 }
 
 module.exports = { getQuote, getPeerSymbols, getShortVolumeRange };

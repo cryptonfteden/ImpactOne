@@ -1,6 +1,8 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
+import "./company-logos.css";
+import "./styles/strategy-polish.css";
 // Phase X12B — NOVA Foundation. Loaded after styles.css so its token-
 // driven utility classes are available, but nothing in styles.css or any
 // existing screen references a --nova-* token or .nova-* class yet — this
@@ -11,6 +13,7 @@ import "./styles/typography.css";
 import "./styles/motion.css";
 import "./styles/layout.css";
 import "./styles/accessibility.css";
+import "./styles/interface-quality.css";
 // Phase X12C.0 — NOVA Showcase. The real, reusable NOVA component
 // library's styles — consumed only by the dev-only Showcase this phase,
 // not by any existing screen.

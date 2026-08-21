@@ -4,6 +4,9 @@ const axios = require('axios');
 
 process.env.OPENAI_API_KEY = 'test-key';
 const { askImpactOne } = require('./chatService');
+const { resetOpenAiGateway } = require('./openAiGateway');
+
+test.beforeEach(() => resetOpenAiGateway());
 
 test('rejects an empty question', async () => {
   await assert.rejects(() => askImpactOne({ question: '   ' }), (error) => {

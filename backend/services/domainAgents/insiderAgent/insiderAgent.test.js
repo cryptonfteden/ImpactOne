@@ -54,11 +54,34 @@ test("generateReport: composes every mission-required output field from real, av
   assert.ok(Array.isArray(report.risks));
   assert.ok(typeof report.aiSummary === "string" && report.aiSummary.length > 0);
   assert.ok(report.inputs);
+  assert.equal(report.verifiedOpenMarketPurchases.count, 3);
+  assert.equal(report.signalEligible, true);
+  assert.equal(report.dataQuality.source, "SEC EDGAR Form 4");
 
   // Real, deliberate scenario check: 3 distinct insiders bought => cluster buy, bullish activity.
   assert.equal(report.insiderActivity, "BULLISH");
   assert.equal(report.clusterActivity.clusterBuy, true);
   assert.equal(report.executiveActivity.hasCeoActivity, true);
+});
+
+test("generateReport: grants, disposals and unpriced rows never become an actionable purchase signal", async () => {
+  const metrics = {
+    symbol: "FAKE",
+    asOf: "2026-04-01T00:00:00.000Z",
+    dataAvailable: true,
+    unavailableReason: null,
+    cik: "0000320193",
+    companyTitle: "Fake Inc.",
+    filingsFetched: 1,
+    transactions: [
+      txn({ transactionCode: "A", transactionDate: "2026-03-31", shares: 1000, pricePerShare: 0 }),
+      txn({ transactionCode: "P", acquiredDisposedCode: "D", transactionDate: "2026-03-31", shares: 100, pricePerShare: 20 }),
+      txn({ transactionCode: "P", acquiredDisposedCode: "A", transactionDate: "2026-03-31", shares: 100, pricePerShare: null }),
+    ],
+  };
+  const report = await generateReport("FAKE", { provider: fakeProvider(metrics) });
+  assert.equal(report.verifiedOpenMarketPurchases.count, 0);
+  assert.equal(report.signalEligible, false);
 });
 
 test("generateReport: retains the real underlying metrics as `inputs` for auditability", async () => {

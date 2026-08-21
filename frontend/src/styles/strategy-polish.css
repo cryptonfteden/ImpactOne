@@ -1,0 +1,4 @@
+/* Shared strategy card polish for the mobile/desktop app. */
+.strategy-lab-card .section-card-title{background:linear-gradient(92deg,#f4fbff,#76ddff 52%,#aa8cff);-webkit-background-clip:text;background-clip:text;color:transparent;text-wrap:balance}
+.strategy-lab-plans header b{display:flex;align-items:center;gap:7px;min-width:0}.strategy-lab-plans header em{flex:0 0 auto;white-space:nowrap}.strategy-lab-plans footer>span{display:grid;gap:2px;min-width:0}.strategy-lab-plans footer em{color:#617895;font-size:.5rem;font-style:normal;overflow-wrap:anywhere}.strategy-lab-plans footer strong{align-self:end}
+.strategy-lab-card,.strategy-lab-card *{min-width:0}.strategy-lab-card p,.strategy-lab-card small{overflow-wrap:anywhere}

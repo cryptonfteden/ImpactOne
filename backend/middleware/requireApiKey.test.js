@@ -27,6 +27,23 @@ test("passes every real request through unchanged when ADMIN_API_KEY is not conf
   }
 });
 
+test("production fails closed when ADMIN_API_KEY is missing", () => {
+  const originalKey = env.ADMIN_API_KEY;
+  const originalNodeEnv = env.NODE_ENV;
+  env.ADMIN_API_KEY = "";
+  env.NODE_ENV = "production";
+  try {
+    let nextCalled = false;
+    const res = fakeRes();
+    requireApiKey(fakeReq(undefined), res, () => { nextCalled = true; });
+    assert.equal(nextCalled, false);
+    assert.equal(res.statusCode, 503);
+  } finally {
+    env.ADMIN_API_KEY = originalKey;
+    env.NODE_ENV = originalNodeEnv;
+  }
+});
+
 test("rejects with a real 401 when ADMIN_API_KEY is configured and no header is present", () => {
   const original = env.ADMIN_API_KEY;
   env.ADMIN_API_KEY = "real-secret";

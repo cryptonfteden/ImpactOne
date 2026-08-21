@@ -3,14 +3,16 @@
 // feature's own file (not the features/index.js barrel) specifically to
 // avoid a circular import, since features/index.js itself exports
 // Workspace3DFeature.
-import MarketIntelligenceWorkspaceFeature from "../marketIntelligenceWorkspace/MarketIntelligenceWorkspaceFeature";
-import NewsIntelligenceFeature from "../newsIntelligence/NewsIntelligenceFeature";
-import AiAnalysisWorkspaceFeature from "../aiAnalysisWorkspace/AiAnalysisWorkspaceFeature";
-import PortfolioWorkspaceFeature from "../portfolioWorkspace/PortfolioWorkspaceFeature";
-import WatchlistWorkspaceFeature from "../watchlistWorkspace/WatchlistWorkspaceFeature";
-import PersonalIntelligenceWorkspaceFeature from "../personalIntelligenceWorkspace/PersonalIntelligenceWorkspaceFeature";
-import AlertsFeature from "../alerts/AlertsFeature";
-import MissionControlHomeFeature from "../missionControlHome/MissionControlHomeFeature";
+import { lazy } from "react";
+
+const MarketIntelligenceWorkspaceFeature = lazy(() => import("../marketIntelligenceWorkspace/MarketIntelligenceWorkspaceFeature"));
+const NewsIntelligenceFeature = lazy(() => import("../newsIntelligence/NewsIntelligenceFeature"));
+const AiAnalysisWorkspaceFeature = lazy(() => import("../aiAnalysisWorkspace/AiAnalysisWorkspaceFeature"));
+const PortfolioWorkspaceFeature = lazy(() => import("../portfolioWorkspace/PortfolioWorkspaceFeature"));
+const WatchlistWorkspaceFeature = lazy(() => import("../watchlistWorkspace/WatchlistWorkspaceFeature"));
+const PersonalIntelligenceWorkspaceFeature = lazy(() => import("../personalIntelligenceWorkspace/PersonalIntelligenceWorkspaceFeature"));
+const AlertsFeature = lazy(() => import("../alerts/AlertsFeature"));
+const MissionControlHomeFeature = lazy(() => import("../missionControlHome/MissionControlHomeFeature"));
 
 export const MODULE_SCREENS = {
   "Market Intelligence Workspace": MarketIntelligenceWorkspaceFeature,

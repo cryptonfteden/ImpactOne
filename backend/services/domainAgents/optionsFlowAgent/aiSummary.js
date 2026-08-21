@@ -23,6 +23,20 @@ function describeBias(bias) {
   return `Options flow leans toward ${direction} bias, with ${bias.confidence}% confidence based on volume, skew, and block-trade evidence.`;
 }
 
+function describeEodContext(metrics) {
+  const context = metrics.historicalContext;
+  if (!context || !Number.isFinite(context.volumeVsAverage)) return null;
+  const multiple = context.volumeVsAverage.toFixed(1);
+  const label = context.activityLevel === "UNUSUALLY_HIGH"
+    ? "unusually high"
+    : context.activityLevel === "ELEVATED"
+      ? "elevated"
+      : context.activityLevel === "LOW"
+        ? "below normal"
+        : "near its recent norm";
+  return `Official end-of-day volume was ${multiple}x its ${context.baselineSessions}-session baseline (${label}); this does not identify real-time sweeps or trade direction.`;
+}
+
 function describeInstitutional(signals) {
   if (!signals.institutionalActivity.detected) return null;
   const count = signals.institutionalActivity.contractCount;
@@ -31,16 +45,19 @@ function describeInstitutional(signals) {
 
 function describeRisk(risk) {
   if (risk.dataConfidence === "NONE") return "No options-flow data is currently available for this symbol.";
-  if (risk.dataConfidence === "LOW") return "Overall data depth this window is limited, so this read should be treated as directional context, not a firm signal.";
+  if (risk.dataConfidence === "LOW") return "Overall data depth this window is limited, so this read should be treated as market context, not a firm signal.";
   return null;
 }
 
-function buildAiSummary({ metrics, bias, signals, risk }) {
+function buildAiSummary({ metrics, bias, signals, risk, dataQuality = null }) {
   if (!metrics.dataAvailable) {
     return "No options-flow data source is currently connected for this symbol, so no market-bias read is available. This will resolve automatically once a real options-flow provider is configured.";
   }
 
-  const sentences = [describeVolume(metrics), describeBias(bias), describeInstitutional(signals), describeRisk(risk)].filter(Boolean);
+  const eligibilitySentence = dataQuality && !dataQuality.signalEligible
+    ? "No verified unusual options activity cleared the baseline and confidence gates, so this mix is context only—not a directional signal."
+    : describeBias(bias);
+  const sentences = [describeVolume(metrics), describeEodContext(metrics), eligibilitySentence, describeInstitutional(signals), describeRisk(risk)].filter(Boolean);
 
   // Keep to the mission's 2-4 sentence spec even if every clause fired.
   return sentences.slice(0, 4).join(" ");

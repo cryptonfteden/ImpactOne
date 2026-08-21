@@ -16,6 +16,35 @@ const SHORT_VOLUME_RANGES = [
   { id: "1Y", label: "Year", sessions: 252 },
 ];
 
+const AGENT_PRESENTATION = {
+  technical: { label: "Technical", source: "Verified price history", scope: "This symbol" },
+  fibonacci: { label: "Fibonacci", source: "Completed weekly candles", scope: "Weekly 0.886 strategy" },
+  "short-interest": { label: "Short volume", source: "FINRA Reg SHO", scope: "This symbol" },
+  insider: { label: "Insider activity", source: "SEC EDGAR Form 4", scope: "This symbol" },
+  institutional: { label: "Institutional holdings", source: "SEC EDGAR 13F", scope: "This symbol" },
+  earnings: { label: "Earnings", source: "Finnhub · SEC Company Facts fallback", scope: "This symbol" },
+  valuation: { label: "Valuation", source: "Finnhub · SEC Company Facts + verified price fallback", scope: "This symbol" },
+  "analyst-consensus": { label: "Analyst consensus", source: "Finnhub recommendations", scope: "This symbol" },
+  news: { label: "News impact", source: "NewsAPI · Finnhub · GDELT fallback", scope: "This symbol" },
+  "symbol-sentiment": { label: "News sentiment", source: "NewsAPI · Finnhub · GDELT fallback", scope: "This symbol" },
+  "etf-flow": { label: "Sector flow proxy", source: "Verified ETF price / volume", scope: "Sector proxy" },
+  options: { label: "Options activity", source: "OCC EOD or licensed live provider", scope: "This symbol" },
+  macro: { label: "Macro regime", source: "FRED · Fed · Treasury", scope: "Market-wide" },
+  sentiment: { label: "Market sentiment", source: "ImpactOne market inputs", scope: "Market-wide" },
+};
+
+function agentDisplayStatus(agent) {
+  if (agent?.status === "fulfilled" && agent?.result?.raw?.dataAvailable !== false) return "live";
+  if (agent?.status === "fulfilled") return "limited";
+  return "unavailable";
+}
+
+function agentDirectionLabel(direction, status) {
+  if (status === "unavailable") return "Unavailable";
+  if (!direction || direction === "UNKNOWN" || direction === "INSUFFICIENT_HISTORY") return "No clear signal";
+  return String(direction).replaceAll("_", " ");
+}
+
 function formatSignalVolume(value) {
   return Number.isFinite(Number(value)) ? new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(Number(value)) : "--";
 }
@@ -46,9 +75,18 @@ function getShortVolumeRange(signal, rangeId) {
   };
 }
 
+function initialTicker() {
+  try {
+    const stored = String(window.sessionStorage.getItem("impactone:selected-ticker") || "").trim().toUpperCase();
+    return /^[A-Z.\-]{1,12}$/.test(stored) ? stored : "NVDA";
+  } catch {
+    return "NVDA";
+  }
+}
+
 export default function AiAnalysisScreen() {
-  const [searchTicker, setSearchTicker] = useState("NVDA");
-  const [ticker, setTicker] = useState("NVDA");
+  const [searchTicker, setSearchTicker] = useState(initialTicker);
+  const [ticker, setTicker] = useState(initialTicker);
   const [quote, setQuote] = useState(null);
   const [company, setCompany] = useState(null);
   const [recommendation, setRecommendation] = useState(null);
@@ -96,6 +134,7 @@ export default function AiAnalysisScreen() {
     const handleTickerSelection = (event) => {
       const nextTicker = event.detail?.toUpperCase();
       if (nextTicker) {
+        window.sessionStorage.setItem("impactone:selected-ticker", nextTicker);
         setSearchTicker(nextTicker);
         setTicker(nextTicker);
       }
@@ -432,11 +471,18 @@ export default function AiAnalysisScreen() {
   const agentResult = (id) => agentIntelligence?.agents?.find((agent) => agent.agentId === id)?.result?.raw || null;
   const earningsReport = agentResult("earnings");
   const valuationReport = agentResult("valuation");
+  const optionsReport = agentResult("options");
   const fibonacciReport = agentResult("fibonacci");
+  const priceEarnings = agentIntelligence?.decisionSynthesis?.priceAndEarnings || null;
+  const contrarianRegime = agentIntelligence?.decisionSynthesis?.contrarianRegime || null;
   const moneyFormat = (value) => Number.isFinite(Number(value)) ? `$${Number(value).toFixed(2)}` : "--";
   const cotAvailable = cotReport && !cotReport.unavailable;
+  const agentRows = agentIntelligence?.agents || [];
+  const agentSummary = agentIntelligence?.summary || {};
+  const agentCoverage = Number(agentSummary.total || 0) ? Math.round((Number(agentSummary.fulfilled || 0) / Number(agentSummary.total || 1)) * 100) : 0;
   const sectionTabs = [
     { id: "ai-overview", label: "Overview" },
+    { id: "ai-agents", label: "Agent network" },
     { id: "ai-fundamentals", label: "Financials" },
     { id: "ai-positioning", label: "COT" },
     { id: "ai-report", label: "AI Report" },
@@ -480,6 +526,7 @@ export default function AiAnalysisScreen() {
               }
             }}
             placeholder="Enter ticker"
+            aria-label="Enter ticker"
           />
           <Button type="button" onClick={handleSearch}>Analyze</Button>
         </div>
@@ -501,12 +548,15 @@ export default function AiAnalysisScreen() {
               <span className="quote-card__sector">{company?.industry || "Sector unavailable"}</span>
             </div>
             <div className="quote-card__price">${Number(quote?.price || 0).toFixed(2)}</div>
-            <div className={`quote-card__change ${quote?.change >= 0 ? "positive" : "negative"}`}>
-              {quote?.change >= 0 ? "+" : ""}{Number(quote?.change || 0).toFixed(2)}%
+            <div className={`quote-card__change ${Number(quote?.changePercent || 0) >= 0 ? "positive" : "negative"}`}>
+              {Number(quote?.changePercent || 0) >= 0 ? "+" : ""}{Number(quote?.changePercent || 0).toFixed(2)}%
+            </div>
+            <div className="status-pill" role="status">
+              Data source: {quote?.source || "Finnhub"}{quote?.sourceRole === "verified-fallback" ? " · verified fallback" : ""}
             </div>
             <div className="quote-metrics">
               <div><span>Market Cap</span><strong>{quote?.marketCap || "--"}</strong></div>
-              <div className="quote-metrics__valuation"><span>P/E</span><strong>{quote?.pe || "--"}</strong>{quote?.analystPriceFit?.available ? <><div className="quote-metrics__fit" title="This score uses the live analyst mean price target when available. Otherwise it is a P/E-only context score, not an intrinsic-value estimate."><i style={{ width: `${Math.max(0, Math.min(10, Number(quote.analystPriceFit.score || 0))) * 10}%` }} /></div><small>{quote.analystPriceFit.source === "analyst-target" ? `${quote.analystPriceFit.score}/10 price fit` : `${quote.analystPriceFit.score}/10 P/E context`}</small></> : <small className="quote-metrics__pending">Valuation signal loading</small>}</div>
+              <div className="quote-metrics__valuation"><span>P/E · price for $1 of earnings</span><strong>{valuationReport?.valuationExplanation?.trailingPe ? `${Number(valuationReport.valuationExplanation.trailingPe).toFixed(1)}×` : quote?.pe || "--"}</strong>{Number.isFinite(Number(valuationReport?.valuationExplanation?.priceFitScore)) ? <><div className="quote-metrics__fit" title={valuationReport.valuationExplanation.priceFitMeaning}><i style={{ width: `${Math.max(0, Math.min(10, Number(valuationReport.valuationExplanation.priceFitScore))) * 10}%` }} /></div><small>{valuationReport.valuationExplanation.priceFitScore}/10 versus verified sector peers</small></> : <small className="quote-metrics__pending">Verified peer comparison loading</small>}</div>
               <div className="quote-metrics__volume"><span>Volume</span><strong>{quote?.volume || "--"}</strong>{quote?.volumeActivity?.available ? <><div className="quote-metrics__volume-track"><i style={{ width: `${Math.max(8, Math.min(100, Number(quote.volumeActivity.ratio) * 50))}%` }} /></div><small><b>{quote.volumeActivity.state}</b> · {quote.volumeActivity.ratio.toFixed(2)}× avg {formatSignalVolume(quote.volumeActivity.averageVolume)}</small></> : <small className="quote-metrics__pending">Volume baseline loading</small>}</div>
             </div>
             <div className="market-snapshot-card__signals" aria-label="Stock intelligence signals">
@@ -581,36 +631,95 @@ export default function AiAnalysisScreen() {
         </SectionCard>
       </div>
 
+      <div id="ai-agents" className="analysis-section-block">
+        <SectionCard title="Agent network" subtitle={`Transparent research coverage for ${ticker} · not an automated trading decision`} icon="◌" className="screen-card agent-network-card">
+          <div className="agent-network-card__summary">
+            <div><span>Coverage</span><strong>{agentRows.length ? `${agentSummary.fulfilled || 0}/${agentSummary.total || agentRows.length} · ${agentCoverage}%` : "—"}</strong><small>agents returned a result</small></div>
+            <div><span>Confidence</span><strong>{agentRows.length ? `${agentIntelligence?.overallConfidence ?? 0}/100` : "—"}</strong><small>transparent weighted coverage score</small></div>
+            <div><span>Disagreement</span><strong>{agentRows.length ? agentIntelligence?.conflicts?.length || 0 : "—"}</strong><small>signals are shown, never hidden</small></div>
+            <div><span>Updated</span><strong>{agentIntelligence?.generatedAt ? new Date(agentIntelligence.generatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}</strong><small>{agentIntelligence?.tookMs ? `${Math.round(agentIntelligence.tookMs / 1000)}s analysis run` : "Awaiting analysis"}</small></div>
+          </div>
+          {!agentRows.length ? <p className="company-description">Agent results are loading. If a source is unavailable, it will be identified here instead of being estimated.</p> : (
+            <div className="agent-network-card__grid">
+              {agentRows.map((agent) => {
+                const presentation = AGENT_PRESENTATION[agent.agentId] || { label: agent.agentName, source: "Verified provider status", scope: "Research" };
+                const status = agentDisplayStatus(agent);
+                const reason = agent?.result?.raw?.unavailableReason || agent?.health?.reason || agent?.error;
+                const liveSource = agent?.result?.raw?.inputs?.sourceProvider;
+                const confidence = Number.isFinite(Number(agent.confidence)) ? Math.round(Number(agent.confidence)) : null;
+                return (
+                  <article key={agent.agentId} className={`agent-network-card__agent is-${status}`}>
+                    <div className="agent-network-card__agent-top"><span>{presentation.label}</span><em>{agentDirectionLabel(agent.direction, status)}</em></div>
+                    <div className="agent-network-card__agent-score"><b>{confidence === null ? "—" : confidence}</b><small>/100 confidence</small><i><u style={{ width: `${confidence || 0}%` }} /></i></div>
+                    <p>{status === "unavailable" ? (reason || "No verified data is available from this source right now.") : (agent.result?.summary || "Verified analysis returned without a summary.")}</p>
+                    <footer><span>{liveSource || presentation.source}</span><small>{presentation.scope}</small></footer>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+          <p className="agent-network-card__note">Green means a source returned a verified result. Amber means the analysis is limited. Grey means the source did not return verified data. A high score is a research priority, not a buy order.</p>
+        </SectionCard>
+      </div>
+
       <div id="ai-fundamentals" className="analysis-section-block analysis-section-block--split">
-        <SectionCard title="Quarterly earnings & value" subtitle="Live company fundamentals · not investment advice" icon="◈" className="screen-card intelligence-card">
+        <SectionCard title="Does the business support the price?" subtitle="Valuation and earnings read together · verified inputs only" icon="◈" className="screen-card intelligence-card">
           {valuationReport?.dataAvailable ? (
             <div className="fundamentals-card">
               <div className="fundamentals-card__verdict">
-                <span>Fair-value view</span><strong>{String(valuationReport.valuationStatus || "Unknown").replaceAll("_", " ")}</strong>
-                <div className="fundamentals-card__score"><i style={{ width: `${Math.max(0, Math.min(10, Number(valuationReport.confidence || 0))) * 10}%` }} /></div>
-                <small>Estimate confidence {Number(valuationReport.confidence || 0)}/10</small>
+                <span>Plain-language assessment</span><strong>{String(priceEarnings?.assessment || valuationReport.valuationStatus || "Unknown").replaceAll("_", " ")}</strong>
+                <div className="fundamentals-card__score"><i style={{ width: `${Math.max(0, Math.min(100, Number(valuationReport.confidence || 0)))}%` }} /></div>
+                <small>Estimate confidence {Number(valuationReport.confidence || 0)}/100</small>
               </div>
               <div className="fundamentals-card__facts">
                 <div><span>Estimated fair value</span><strong>{moneyFormat(valuationReport.estimatedFairValue)}</strong></div>
-                <div><span>Price vs fair value</span><strong className={Number(valuationReport.discountToFairValue) >= 0 ? "positive" : "negative"}>{Number.isFinite(Number(valuationReport.discountToFairValue)) ? `${Number(valuationReport.discountToFairValue).toFixed(1)}%` : "--"}</strong></div>
+                <div><span>Price vs fair value</span><strong className={Number(valuationReport.discountToFairValue) >= 0 ? "positive" : "negative"}>{Number.isFinite(Number(valuationReport.discountToFairValue)) ? `${(Number(valuationReport.discountToFairValue) * 100).toFixed(1)}%` : "--"}</strong></div>
+                <div><span>P/E in plain English</span><strong>{Number.isFinite(Number(valuationReport.valuationExplanation?.trailingPe)) ? `$${Number(valuationReport.valuationExplanation.trailingPe).toFixed(1)} paid per $1 earned` : "Unavailable"}</strong></div>
+                <div><span>Sector comparison</span><strong>{valuationReport.dataQuality?.peerGroupSize ? `${valuationReport.dataQuality.peerGroupSize} verified peers` : "Unavailable"}</strong></div>
                 <div><span>Latest earnings health</span><strong>{earningsReport?.earningsHealth || "Loading"}</strong></div>
                 <div><span>Forward outlook</span><strong>{earningsReport?.forwardOutlook || "Loading"}</strong></div>
               </div>
-              <p className="company-description subtle">{valuationReport.aiSummary}</p>
+              <p className="company-description">{priceEarnings?.plainLanguage || valuationReport.aiSummary}</p>
+              <p className="company-description subtle">Sources: {priceEarnings?.valuation?.source || valuationReport.sourceProvider || "Unavailable"} · <a href={valuationReport.dataQuality?.peerSourceUrl} target="_blank" rel="noreferrer">{valuationReport.dataQuality?.peerSourceProvider || "sector benchmark unavailable"}</a>{valuationReport.dataQuality?.peerSourceAsOf ? ` · ${valuationReport.dataQuality.peerSourceAsOf}` : ""} · Earnings: {priceEarnings?.earnings?.source || earningsReport?.sourceProvider || "Unavailable"}</p>
             </div>
           ) : <p className="company-description">{valuationReport?.unavailableReason || "Financial valuation is loading from the connected live provider."}</p>}
         </SectionCard>
 
-        <SectionCard title="Fibonacci map" subtitle="Daily / monthly swing levels from verified price history" icon="⌁" className="screen-card intelligence-card">
+        <SectionCard title="Weekly 0.886 gate" subtitle="Completed weekly candles only · low first, later high" icon="⌁" className="screen-card intelligence-card">
           {fibonacciReport?.dataAvailable ? (
             <div className="fib-map-card">
-              <div className="fib-map-card__headline"><span>{fibonacciReport.primarySwing?.trend || "Current swing"}</span><strong>{fibonacciReport.entryZone?.label || "Watch zone"}</strong></div>
+              <div className="fib-map-card__headline"><span>{fibonacciReport.signalEligible ? "ENTRY ALERT" : "WATCHING"}</span><strong>{fibonacciReport.entryZone?.label || "Weekly watch point"}</strong></div>
               <div className="fib-map-card__levels">{(fibonacciReport.retracementLevels || []).slice(0, 5).map((level) => <div key={level.ratio}><span>{Number(level.ratio) * 100}%</span><i /><strong>{moneyFormat(level.price)}</strong></div>)}</div>
               <p className="company-description subtle">{fibonacciReport.aiSummary}</p>
+              <p className="company-description subtle">Source: {fibonacciReport.dataQuality?.source || "Verified OHLCV provider"} · {fibonacciReport.dataQuality?.barsUsed || 0} closed weekly bars · latest {fibonacciReport.dataQuality?.latestCompletedWeek || "unavailable"}</p>
             </div>
           ) : <p className="company-description">{fibonacciReport?.unavailableReason || "Fibonacci levels are loading from real historical candles."}</p>}
         </SectionCard>
       </div>
+
+      <div className="analysis-section-block">
+        <SectionCard title="Options activity, explained" subtitle="Official end-of-day contracts · compared with recent published sessions" icon="◎" className="screen-card intelligence-card options-context-card">
+          {optionsReport?.dataAvailable ? (
+            <div className="options-context">
+              <div className="options-context__pulse"><span>Activity vs recent baseline</span><strong>{Number.isFinite(Number(optionsReport.inputs?.historicalContext?.volumeVsAverage)) ? `${Number(optionsReport.inputs.historicalContext.volumeVsAverage).toFixed(2)}×` : "—"}</strong><em>{String(optionsReport.inputs?.historicalContext?.activityLevel || "NO BASELINE").replaceAll("_", " ")}</em></div>
+              <div className="options-context__split"><div className="is-call"><span>Calls</span><strong>{Number(optionsReport.inputs?.optionVolume?.call || 0).toLocaleString()}</strong><small>{Math.round(Number(optionsReport.signals?.callAccumulation?.share || 0) * 100)}% of reported contracts</small></div><div className="is-put"><span>Puts</span><strong>{Number(optionsReport.inputs?.optionVolume?.put || 0).toLocaleString()}</strong><small>{Math.round(Number(optionsReport.signals?.putAccumulation?.share || 0) * 100)}% of reported contracts</small></div></div>
+              <p className="company-description">{optionsReport.aiSummary}</p>
+              <p className="company-description subtle"><a href={optionsReport.dataQuality?.sourceUrl} target="_blank" rel="noreferrer">Source: {optionsReport.dataQuality?.source || optionsReport.inputs?.sourceProvider}</a> · report {optionsReport.inputs?.reportDate || "date unavailable"} · {optionsReport.dataQuality?.baselineSessions || 0} prior sessions in baseline. This is end-of-day volume; it does not identify live sweeps, trade aggressor, or buyer/seller direction.</p>
+            </div>
+          ) : <p className="company-description">{optionsReport?.unavailableReason || "Verified options activity is loading."}</p>}
+        </SectionCard>
+      </div>
+
+      {contrarianRegime ? <div className="analysis-section-block">
+        <SectionCard title="Crowd extremes, verified" subtitle="Market-wide contrarian watch · never an automatic trade" icon="◐" className="screen-card intelligence-card">
+          <div className={`fundamentals-card contrarian-card is-${contrarianRegime.actionable ? "watch" : "quiet"}`}>
+            <div className="fundamentals-card__verdict"><span>Current regime</span><strong>{String(contrarianRegime.state).replaceAll("_", " ")}</strong><div className="fundamentals-card__score"><i style={{ width: `${Math.max(0, Math.min(100, Number(contrarianRegime.inputs?.sentimentScore || 0)))}%` }} /></div><small>Market sentiment {contrarianRegime.inputs?.sentimentScore ?? "—"}/100</small></div>
+            <div className="fundamentals-card__facts"><div><span>Liquidity</span><strong>{contrarianRegime.inputs?.liquidityScore ?? "—"}/100</strong></div><div><span>Daily confirmation</span><strong>{contrarianRegime.inputs?.dailyTrend || "UNKNOWN"}</strong></div></div>
+            <p className="company-description">{contrarianRegime.plainLanguage}</p>
+            {contrarianRegime.blockers?.length ? <p className="company-description subtle">Waiting for: {contrarianRegime.blockers.join(" · ")}</p> : null}
+          </div>
+        </SectionCard>
+      </div> : null}
 
       <div id="ai-positioning" className="analysis-section-block">
         <SectionCard title="Weekly COT positioning" subtitle="CFTC futures positioning · market proxy, not individual-stock ownership" icon="◌" className="screen-card cot-card">

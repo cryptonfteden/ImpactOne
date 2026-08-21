@@ -30,7 +30,8 @@ async function execute(symbol) {
     // The orchestrator only compares this string for equality with other
     // agents' directions (structural conflict detection) — it never
     // interprets it. NEUTRAL insider activity reports no opinion.
-    direction: report.insiderActivity === "NEUTRAL" ? null : report.insiderActivity,
+    direction: report.signalEligible ? "BULLISH" : null,
+    signalEligible: report.signalEligible,
     evidence: [
       { observedFact: `Insider Activity: ${report.insiderActivity} (net insider score ${report.netInsiderScore}).` },
       ...(report.clusterActivity.clusterBuy ? [{ observedFact: `Cluster buying: ${report.clusterActivity.distinctBuyers} distinct insiders within ${report.clusterActivity.windowDays} days.` }] : []),
@@ -38,6 +39,8 @@ async function execute(symbol) {
       ...(report.executiveActivity.hasCeoActivity ? [{ observedFact: "The CEO transacted in this window." }] : []),
       ...(report.executiveActivity.hasCfoActivity ? [{ observedFact: "The CFO transacted in this window." }] : []),
       { observedFact: `Ownership trend: ${report.ownershipTrend.trend}.` },
+      { observedFact: `${report.verifiedOpenMarketPurchases.count} verified SEC Form 4 open-market purchase(s); latest ${report.verifiedOpenMarketPurchases.latestDate || "none"}.` },
+      { observedFact: `Source quality: ${report.dataQuality.filingsFetched} filing(s) parsed from SEC EDGAR; actionable freshness ${report.dataQuality.actionableFreshness ? "passed" : "not passed"}.` },
     ],
     raw: report,
   };
@@ -53,7 +56,7 @@ async function health() {
 }
 
 module.exports = {
-  metadata: { id: "insider", name: "Insider Trading Intelligence Agent", category: "INSIDER", priority: 6 },
+  metadata: { id: "insider", name: "Insider Trading Intelligence Agent", category: "INSIDER", priority: 10 },
   execute,
   confidence,
   health,

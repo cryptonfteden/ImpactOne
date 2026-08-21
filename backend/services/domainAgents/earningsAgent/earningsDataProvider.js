@@ -35,6 +35,7 @@
 //                       null today: no analyst-revision feed is connected.
 const axios = require("axios");
 const { FINNHUB_API_KEY } = require("../../../config/env");
+const { createSecCompanyFactsProvider } = require("./secCompanyFactsProvider");
 
 const DEFAULT_TIMEOUT_MS = 8000;
 const EARNINGS_QUARTERS_LIMIT = 4;
@@ -59,6 +60,17 @@ function isConfigured() {
   return Boolean(FINNHUB_API_KEY);
 }
 
+function hasUsableEarningsData(metrics) {
+  const numericFundamentals = [
+    metrics.revenue?.growthYoY,
+    metrics.eps?.growthYoY,
+    metrics.margins?.netProfitMargin,
+    metrics.margins?.grossMargin,
+  ].filter(Number.isFinite).length;
+  const usableEpsRows = (metrics.epsHistory || []).filter((row) => Number.isFinite(row.actual)).length;
+  return numericFundamentals > 0 || usableEpsRows > 0;
+}
+
 /**
  * The default, real implementation: Finnhub's free-tier `/stock/earnings`
  * (quarterly actual/estimate/surprise EPS) and `/stock/metric` (real
@@ -69,9 +81,10 @@ function isConfigured() {
  * for the rest of this platform's live data.
  */
 function createFinnhubEarningsDataProvider({ timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+  const secFallback = createSecCompanyFactsProvider({ timeoutMs });
   async function getSymbolEarnings(symbol) {
     if (!isConfigured()) {
-      return emptyMetrics(symbol, "No Finnhub API key is configured — set FINNHUB_API_KEY.");
+      return secFallback.getSymbolEarnings(symbol);
     }
 
     let earningsRows;
@@ -84,7 +97,12 @@ function createFinnhubEarningsDataProvider({ timeoutMs = DEFAULT_TIMEOUT_MS } = 
       earningsRows = Array.isArray(earningsResponse.data) ? earningsResponse.data : [];
       metric = metricResponse.data?.metric || {};
     } catch (error) {
-      return emptyMetrics(symbol, error?.message || "Failed to fetch real earnings data.");
+      const sec = await secFallback.getSymbolEarnings(symbol);
+      if (sec.dataAvailable) {
+        sec.primaryUnavailableReason = `Finnhub request failed: ${error?.message || "unknown error"}`;
+        return sec;
+      }
+      return emptyMetrics(symbol, `Finnhub request failed: ${error?.message || "unknown error"}. SEC fallback unavailable: ${sec.unavailableReason}`);
     }
 
     const epsHistory = earningsRows
@@ -97,9 +115,10 @@ function createFinnhubEarningsDataProvider({ timeoutMs = DEFAULT_TIMEOUT_MS } = 
         surprisePercent: Number.isFinite(row.surprisePercent) ? row.surprisePercent : null,
       }));
 
-    return {
+    const result = {
       symbol,
       asOf: new Date().toISOString(),
+      sourceProvider: "Finnhub",
       dataAvailable: true,
       unavailableReason: null,
       epsHistory,
@@ -118,9 +137,18 @@ function createFinnhubEarningsDataProvider({ timeoutMs = DEFAULT_TIMEOUT_MS } = 
       guidance: { changed: null, direction: null },
       analystRevisions: { direction: null, count: null },
     };
+    if (!hasUsableEarningsData(result)) {
+      const sec = await secFallback.getSymbolEarnings(symbol);
+      if (sec.dataAvailable) {
+        sec.primaryUnavailableReason = "Finnhub returned no usable earnings or fundamental observations.";
+        return sec;
+      }
+      return emptyMetrics(symbol, `Finnhub returned no usable earnings observations. SEC fallback unavailable: ${sec.unavailableReason}`);
+    }
+    return result;
   }
 
   return { getSymbolEarnings };
 }
 
-module.exports = { createFinnhubEarningsDataProvider, emptyMetrics, isConfigured, EARNINGS_QUARTERS_LIMIT };
+module.exports = { createFinnhubEarningsDataProvider, emptyMetrics, isConfigured, hasUsableEarningsData, EARNINGS_QUARTERS_LIMIT };

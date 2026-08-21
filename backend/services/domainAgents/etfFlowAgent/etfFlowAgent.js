@@ -24,11 +24,33 @@ const { generateAiSummary } = require("./aiSummary");
 
 const defaultProvider = createEtfFlowDataProvider();
 
+function assessDataQuality(metrics, confidence = 0) {
+  const barCount = metrics?.etfBars?.length || 0;
+  const blockers = [
+    ...(barCount < 40 ? [`Only ${barCount} ETF price/volume bars were verified.`] : []),
+    ...(!metrics?.targetEtf ? ["No sector ETF could be mapped to the symbol."] : []),
+    ...(confidence < 40 ? [`ETF proxy confidence is ${Math.round(confidence)}/100.`] : []),
+  ];
+  return {
+    source: "verified ETF price/volume proxy",
+    targetEtf: metrics?.targetEtf || null,
+    sector: metrics?.sector || null,
+    directEtf: Boolean(metrics?.isDirectEtf),
+    barCount,
+    limitation: "This measures ETF trading activity, not fund creation/redemption cash flow or stock-level ETF ownership.",
+    blockers,
+    signalEligible: Boolean(metrics?.dataAvailable) && blockers.length === 0,
+  };
+}
+
 function buildUnavailableReport(symbol, asOf, reason, inputs) {
+  const dataQuality = assessDataQuality(inputs);
   const report = {
     symbol,
     generatedAt: asOf,
     dataAvailable: false,
+    signalEligible: false,
+    dataQuality,
     unavailableReason: reason,
     targetEtf: null,
     isDirectEtf: false,
@@ -81,6 +103,7 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
     barsCount: metrics.etfBars.length,
     persistenceClassification: flowPersistence.classification,
   });
+  const dataQuality = assessDataQuality(metrics, confidence.confidence);
 
   const opportunities = buildOpportunities({ etfFlowBias, netFlowScore, sectorRotation, flowAcceleration, flowPersistence });
   const risks = buildRisks({ etfFlowBias, sectorRotation, flowAcceleration, flowPersistence, isDirectEtf: metrics.isDirectEtf, barsCount: metrics.etfBars.length });
@@ -89,6 +112,8 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
     symbol: metrics.symbol,
     generatedAt: metrics.asOf,
     dataAvailable: true,
+    signalEligible: dataQuality.signalEligible,
+    dataQuality,
     unavailableReason: null,
     targetEtf: metrics.targetEtf,
     isDirectEtf: metrics.isDirectEtf,
@@ -112,4 +137,4 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
   return report;
 }
 
-module.exports = { generateReport, createEtfFlowDataProvider };
+module.exports = { generateReport, createEtfFlowDataProvider, assessDataQuality };

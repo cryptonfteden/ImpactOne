@@ -10,6 +10,7 @@
 // discipline every other real agent here follows.
 const valuationAgentEngine = require("../../domainAgents/valuationAgent/valuationAgent");
 const { isConfigured } = require("../../domainAgents/valuationAgent/valuationDataProvider");
+const { isSecConfigured } = require("../../domainAgents/earningsAgent/secCompanyFactsProvider");
 
 async function execute(symbol) {
   const report = await valuationAgentEngine.generateReport(symbol);
@@ -19,8 +20,10 @@ async function execute(symbol) {
     // The orchestrator only compares this string for equality with other
     // agents' directions (structural conflict detection) — it never
     // interprets it. FAIRLY_VALUED/UNKNOWN reports no opinion.
-    direction: report.valuationStatus === "UNKNOWN" || report.valuationStatus === "FAIRLY_VALUED" ? null : report.valuationStatus,
+    direction: report.signalEligible === false || report.valuationStatus === "UNKNOWN" || report.valuationStatus === "FAIRLY_VALUED" ? null : report.valuationStatus,
     evidence: [
+      ...(report.valuationExplanation ? [{ observedFact: report.valuationExplanation.pePlainLanguage }] : []),
+      ...(report.dataQuality ? [{ observedFact: `Valuation evidence: ${report.dataQuality.contributingMethodCount} methods, peer source ${report.dataQuality.peerSource}, ${report.dataQuality.peerGroupSize} peers.` }] : []),
       ...report.supportingMetrics.map((entry) => ({ observedFact: `${entry.method.replace(/_/g, "/")}-implied price: $${entry.impliedPrice.toFixed(2)} (${entry.contributionPercent}% weight).` })),
       ...report.excludedMethods.map((entry) => ({ observedFact: `${entry.method.replace(/_/g, "/")} excluded: ${entry.reason}` })),
     ],
@@ -34,14 +37,14 @@ function confidence(result) {
 }
 
 async function health() {
-  if (!isConfigured()) {
-    return { status: "unavailable", reason: "No Finnhub API key is configured — set FINNHUB_API_KEY." };
+  if (!isConfigured() && !isSecConfigured()) {
+    return { status: "unavailable", reason: "Neither Finnhub nor an identified SEC EDGAR connection is configured." };
   }
   return { status: "healthy", reason: null };
 }
 
 module.exports = {
-  metadata: { id: "valuation", name: "Valuation Intelligence Agent", category: "VALUATION", priority: 7 },
+  metadata: { id: "valuation", name: "Valuation Intelligence Agent", category: "VALUATION", priority: 9 },
   execute,
   confidence,
   health,

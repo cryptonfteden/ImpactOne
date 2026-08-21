@@ -7,8 +7,8 @@
 // per process (this file rarely changes and is ~1000s of tickers) so
 // repeated calls for different symbols in the same process don't each
 // re-fetch it.
-const axios = require("axios");
-const env = require("../../../config/env");
+const { getSec } = require("../../secEdgarClient");
+const { getPublicCompanyReference } = require("../../publicCompanyReference");
 
 const COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json";
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h — this file is updated by the SEC infrequently
@@ -18,8 +18,23 @@ let cache = null; // { builtAt, byTicker: Map<string, {cik, title}> }
 function buildIndex(rawData) {
   const byTicker = new Map();
   for (const entry of Object.values(rawData)) {
-    if (!entry || !entry.ticker || !Number.isFinite(entry.cik_str)) continue;
+    if (!entry || !entry.ticker || !Number.isFinite(Number(entry.cik_str))) continue;
     byTicker.set(entry.ticker.toUpperCase(), { cik: String(entry.cik_str).padStart(10, "0"), title: entry.title || null });
+  }
+  return byTicker;
+}
+
+function buildExchangeIndex(rawData) {
+  const fields = Array.isArray(rawData?.fields) ? rawData.fields : [];
+  const tickerIndex = fields.indexOf("ticker");
+  const cikIndex = fields.indexOf("cik");
+  const nameIndex = fields.indexOf("name");
+  const byTicker = new Map();
+  for (const row of rawData?.data || []) {
+    const ticker = row?.[tickerIndex];
+    const cik = Number(row?.[cikIndex]);
+    if (!ticker || !Number.isFinite(cik)) continue;
+    byTicker.set(String(ticker).toUpperCase(), { cik: String(cik).padStart(10, "0"), title: row?.[nameIndex] || null });
   }
   return byTicker;
 }
@@ -31,11 +46,14 @@ function isCacheFresh(now) {
 async function fetchTickerIndex({ timeoutMs = 10000, now = Date.now() } = {}) {
   if (isCacheFresh(now)) return cache.byTicker;
 
-  const response = await axios.get(COMPANY_TICKERS_URL, {
-    headers: { "User-Agent": env.SEC_EDGAR_USER_AGENT },
-    timeout: timeoutMs,
-  });
-  const byTicker = buildIndex(response.data || {});
+  let byTicker;
+  try {
+    const response = await getSec(COMPANY_TICKERS_URL, { timeout: timeoutMs });
+    byTicker = buildIndex(response.data || {});
+  } catch {
+    const response = await getSec("https://www.sec.gov/files/company_tickers_exchange.json", { timeout: timeoutMs });
+    byTicker = buildExchangeIndex(response.data || {});
+  }
   cache = { builtAt: now, byTicker };
   return byTicker;
 }
@@ -47,16 +65,19 @@ async function fetchTickerIndex({ timeoutMs = 10000, now = Date.now() } = {}) {
  *   real index has no entry for this symbol or the fetch itself fails.
  */
 async function resolveCik(symbol) {
+  const normalized = symbol.toUpperCase();
+  const secLookup = fetchTickerIndex().then((index) => index.get(normalized) || null).catch(() => null);
+  const massiveLookup = getPublicCompanyReference(normalized).then((reference) => {
+    const cik = Number(reference?.cik);
+    return Number.isFinite(cik) ? { cik: String(cik).padStart(10, "0"), title: reference?.name || null } : null;
+  }).catch(() => null);
   try {
-    const byTicker = await fetchTickerIndex();
-    return byTicker.get(symbol.toUpperCase()) || null;
-  } catch {
-    return null;
-  }
+    return await Promise.any([secLookup, massiveLookup].map((lookup) => lookup.then((value) => value || Promise.reject(new Error("not-found")))));
+  } catch { return null; }
 }
 
 function clearCache() {
   cache = null;
 }
 
-module.exports = { resolveCik, clearCache };
+module.exports = { resolveCik, clearCache, buildIndex, buildExchangeIndex };

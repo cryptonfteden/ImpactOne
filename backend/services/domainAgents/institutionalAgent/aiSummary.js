@@ -8,7 +8,7 @@ function describeBias(report) {
 }
 
 function describeAccumulation(report) {
-  return `Accumulation score ${report.accumulationScore}/100, distribution score ${report.distributionScore}/100.`;
+  return `Reported-share accumulation is ${report.accumulationScore}/100 versus distribution at ${report.distributionScore}/100; price changes are excluded from this measure.`;
 }
 
 function describePositions(report) {

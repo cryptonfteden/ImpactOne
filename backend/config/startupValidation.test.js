@@ -62,15 +62,15 @@ test("validateEnvironment: production still using the known insecure dev JWT def
   assert.ok(result.errors.some((e) => e.includes("JWT_SECRET")));
 });
 
-test("validateEnvironment: production with a real, non-default JWT_SECRET and no other blockers is valid", () => {
-  const result = validateEnvironment(baseEnv({ NODE_ENV: "production", JWT_SECRET: "a-real-random-production-secret" }));
+test("validateEnvironment: production with real JWT and admin secrets has no security blocker", () => {
+  const result = validateEnvironment(baseEnv({ NODE_ENV: "production", JWT_SECRET: "a-real-random-production-secret", ADMIN_API_KEY: "a-real-random-admin-secret" }));
   assert.equal(result.valid, true);
 });
 
-test("validateEnvironment: production without ADMIN_API_KEY/REDIS_URL/CORS_ALLOWED_ORIGINS is still valid, but honestly warns about each", () => {
+test("validateEnvironment: production without ADMIN_API_KEY is blocked; Redis and CORS remain explicit warnings", () => {
   const result = validateEnvironment(baseEnv({ NODE_ENV: "production", JWT_SECRET: "a-real-random-production-secret" }));
-  assert.equal(result.valid, true);
-  assert.ok(result.warnings.some((w) => w.includes("ADMIN_API_KEY")));
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((w) => w.includes("ADMIN_API_KEY")));
   assert.ok(result.warnings.some((w) => w.includes("REDIS_URL")));
   assert.ok(result.warnings.some((w) => w.includes("CORS_ALLOWED_ORIGINS")));
 });

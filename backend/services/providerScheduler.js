@@ -21,7 +21,7 @@ let lastRunResult = null;
 // history. Registered placeholders remain discoverable as FIXTURE or
 // UNCONFIGURED, but are never scheduled and can no longer generate
 // misleading zero-item SUCCESS rows.
-const ACTIVE_PROVIDER_IDS = new Set(["reutersBloombergWire", "cftcCot", "usTreasury", "fda", "nasa", "majorEarnings", "fed", "fomc", "ecb", "finraShortVolume", "spdr", "coinglass"]);
+const ACTIVE_PROVIDER_IDS = new Set(["reutersBloombergWire", "telegram", "cftcCot", "usTreasury", "fda", "nasa", "majorEarnings", "fed", "fomc", "ecb", "finraShortVolume", "spdr", "coinglass", "federalRegister", "doeNews"]);
 
 function listScheduledProviders() {
   return providerRegistry.listProviders().filter((provider) => ACTIVE_PROVIDER_IDS.has(provider.providerId));

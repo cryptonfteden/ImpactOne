@@ -8,8 +8,7 @@
 // named file, e.g. `53405.xml`) — so this fetches the accession's own
 // real `index.json` directory listing and picks the one real `.xml`
 // file that isn't the cover page, never guessing a filename.
-const axios = require("axios");
-const env = require("../../../config/env");
+const { getSec } = require("../../secEdgarClient");
 
 const DEFAULT_TIMEOUT_MS = 10000;
 const EXCLUDED_NAMES = new Set(["primary_doc.xml"]);
@@ -28,7 +27,7 @@ function buildAccessionBaseUrl(cik, accessionNumber) {
 async function locateInfoTableUrl(cik, accessionNumber, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
   const baseUrl = buildAccessionBaseUrl(cik, accessionNumber);
   try {
-    const response = await axios.get(`${baseUrl}/index.json`, { headers: { "User-Agent": env.SEC_EDGAR_USER_AGENT }, timeout: timeoutMs });
+    const response = await getSec(`${baseUrl}/index.json`, { timeout: timeoutMs });
     const items = response.data?.directory?.item || [];
     const infoTableItem = items.find((item) => item.name.toLowerCase().endsWith(".xml") && !EXCLUDED_NAMES.has(item.name.toLowerCase()));
     return infoTableItem ? `${baseUrl}/${infoTableItem.name}` : null;

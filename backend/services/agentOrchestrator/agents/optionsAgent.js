@@ -19,10 +19,13 @@ async function execute(symbol) {
     // agents' directions (structural conflict detection) — it never
     // interprets it. NEUTRAL (or no data) reports no opinion, exactly
     // like this agent's own prior, thinner implementation.
-    direction: report.marketBias === "NEUTRAL" ? null : report.marketBias,
-    evidence: report.signals.mostUnusualContracts.map((contract) => ({
+    direction: report.signalEligible === false || report.marketBias === "NEUTRAL" ? null : report.marketBias,
+    evidence: report.available ? [
+      { observedFact: `Options source: ${report.dataQuality.source}; ${report.dataQuality.scope}; ${report.dataQuality.totalVolume} contracts.` },
+      ...report.signals.mostUnusualContracts.map((contract) => ({
       observedFact: contract.explanation || `${contract.optionType} ${contract.strike} (${contract.signalType}), anomaly score ${contract.anomalyScore}.`,
-    })),
+      })),
+    ] : [],
     raw: report,
   };
 }
@@ -47,7 +50,7 @@ async function health() {
 }
 
 module.exports = {
-  metadata: { id: "options", name: "Options Flow Agent", category: "OPTIONS", priority: 7 },
+  metadata: { id: "options", name: "Options Flow Agent", category: "OPTIONS", priority: 6 },
   execute,
   confidence,
   health,

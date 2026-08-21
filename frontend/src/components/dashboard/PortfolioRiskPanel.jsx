@@ -1,6 +1,7 @@
 import SectionCard from "../SectionCard";
 import { Skeleton } from "../ui";
 import { riskLevelLabel } from "../../utils/dashboardMetrics";
+import CompanyLogo from "../CompanyLogo";
 
 /**
  * Spec §4.5 Portfolio Risk Panel — what the user's holdings are exposed to
@@ -81,7 +82,7 @@ export default function PortfolioRiskPanel({
           <div className="widget-list">
             {topRiskPositions.map((position) => (
               <div key={position.symbol} className="widget-list-item">
-                <strong>{position.symbol}</strong>
+                <strong><CompanyLogo symbol={position.symbol} size="small" />{position.symbol}</strong>
                 <span>${Number(position.marketValue || 0).toLocaleString()}</span>
               </div>
             ))}

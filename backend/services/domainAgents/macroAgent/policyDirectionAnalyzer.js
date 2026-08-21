@@ -6,15 +6,15 @@
 const DIRECTION_THRESHOLD = 0.25;
 
 /**
- * @param {{ dataAvailable: boolean, changeYoY: number|null, latest: {value:number}|null }} interestRateSeries - from fredSeriesProvider (FEDFUNDS)
+ * @param {{ dataAvailable: boolean, changeYoYPercentagePoints: number|null, latest: {value:number}|null }} interestRateSeries - from fredSeriesProvider (FEDFUNDS)
  * @returns {{ direction: "TIGHTENING"|"EASING"|"HOLDING"|"UNKNOWN", fedFundsRate: number|null, fedFundsChangeYoY: number|null }}
  */
 function analyzePolicyDirection(interestRateSeries) {
-  if (!interestRateSeries.dataAvailable || !Number.isFinite(interestRateSeries.changeYoY)) {
+  if (!interestRateSeries.dataAvailable || !Number.isFinite(interestRateSeries.changeYoYPercentagePoints)) {
     return { direction: "UNKNOWN", fedFundsRate: null, fedFundsChangeYoY: null };
   }
 
-  const fedFundsChangeYoY = interestRateSeries.changeYoY;
+  const fedFundsChangeYoY = interestRateSeries.changeYoYPercentagePoints;
   let direction = "HOLDING";
   if (fedFundsChangeYoY > DIRECTION_THRESHOLD) direction = "TIGHTENING";
   else if (fedFundsChangeYoY < -DIRECTION_THRESHOLD) direction = "EASING";

@@ -26,9 +26,12 @@ const EXPECTED_AGENT_IDS = [
   // agent above. This list is intentionally updated here, not silently
   // outgrown, since it's the closed set this test guards.
   "symbol-sentiment",
+  // Public, no-auth context: CFTC, Polymarket, SEC and disclosed
+  // congressional transactions. Kept separate from proprietary scores.
+  "alternative-data",
 ];
 
-test("every one of the 14 named agent domains has exactly one registration", () => {
+test("every named agent domain has exactly one registration", () => {
   assert.deepEqual(ALL_AGENTS.map((agent) => agent.metadata.id).sort(), [...EXPECTED_AGENT_IDS].sort());
 });
 

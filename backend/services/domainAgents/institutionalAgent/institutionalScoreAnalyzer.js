@@ -1,7 +1,7 @@
 // Phase INSTITUTIONAL-AGENT-001 — "Institutional Bias" (Bullish/
 // Neutral/Bearish) and "Institutional Score" (-100..100). A disclosed,
 // hand-set weighted formula (never a naive average): the real net
-// dollar-value direction (accumulation vs. distribution, weighted
+// reported-share direction (accumulation vs. distribution, weighted
 // 60%) combined with the real net count of new vs. closed positions
 // (weighted 40%, each real event worth a disclosed 20 points, capped
 // at ±100 before weighting) — two genuinely different real signals
@@ -15,14 +15,14 @@ const BULLISH_THRESHOLD = 20;
 const BEARISH_THRESHOLD = -20;
 
 /**
- * @param {{ totalIncreaseValue: number, totalDecreaseValue: number }} accumulationDistribution
+ * @param {{ totalIncreaseShares: number, totalDecreaseShares: number }} accumulationDistribution
  * @param {{ newPositions: Array, closedPositions: Array }} newClosedPositions
  * @returns {{ institutionalBias: "BULLISH"|"NEUTRAL"|"BEARISH", institutionalScore: number }}
  */
 function analyzeInstitutionalScore(accumulationDistribution, newClosedPositions) {
-  const { totalIncreaseValue, totalDecreaseValue } = accumulationDistribution;
-  const totalActivity = totalIncreaseValue + totalDecreaseValue;
-  const netValueScore = totalActivity > 0 ? ((totalIncreaseValue - totalDecreaseValue) / totalActivity) * 100 : 0;
+  const { totalIncreaseShares = 0, totalDecreaseShares = 0 } = accumulationDistribution;
+  const totalActivity = totalIncreaseShares + totalDecreaseShares;
+  const netValueScore = totalActivity > 0 ? ((totalIncreaseShares - totalDecreaseShares) / totalActivity) * 100 : 0;
 
   const netPositionCount = newClosedPositions.newPositions.length - newClosedPositions.closedPositions.length;
   const netPositionScore = Math.max(-100, Math.min(100, netPositionCount * POINTS_PER_NET_POSITION));

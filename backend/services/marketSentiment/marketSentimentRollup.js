@@ -69,7 +69,10 @@ function capAndRedistributeWeights(rawWeights, maxWeight) {
 function computeRollup({ dimensionReadings = [] } = {}) {
   const sorted = [...dimensionReadings].sort((readingA, readingB) => readingA.dimension.localeCompare(readingB.dimension));
   const available = sorted.filter((reading) => !reading.unavailable && Number.isFinite(reading.score) && Number.isFinite(reading.confidence));
-  const missingInputs = sorted.filter((reading) => reading.unavailable).map((reading) => `${reading.dimension}: ${reading.reason}`);
+  const missingInputs = sorted.flatMap((reading) => [
+    ...(reading.unavailable ? [`${reading.dimension}: ${reading.reason}`] : []),
+    ...((reading.missingInputs || []).map((input) => `${reading.dimension}: ${input}`)),
+  ]);
 
   if (available.length < MIN_CONTRIBUTOR_BREADTH) {
     return {

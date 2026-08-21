@@ -7,6 +7,7 @@ const { analyze } = require("../controllers/aiController");
 const { getComparison } = require("../controllers/comparisonController");
 const { getPortfolio } = require("../controllers/portfolioController");
 const { getQuoteController, getShortVolumeRangeController } = require("../controllers/quoteController");
+const { getQuote } = require("../services/finnhubService");
 const { getHomeSummary } = require("../controllers/homeSummaryController");
 const {
 	getCot,
@@ -74,6 +75,11 @@ const methodologyVersioningRoutes = require("./methodologyVersioningRoutes");
 const outcomeFeedbackRoutes = require("./outcomeFeedbackRoutes");
 const dynamicSourceScoringRoutes = require("./dynamicSourceScoringRoutes");
 const calibrationAnalysisRoutes = require("./calibrationAnalysisRoutes");
+const insiderOpportunityRoutes = require("./insiderOpportunityRoutes");
+const weeklyFibonacciOpportunityRoutes = require("./weeklyFibonacciOpportunityRoutes");
+const strategyLabTraderRoutes = require("./strategyLabTraderRoutes");
+const tradingViewIntegrationRoutes = require("./tradingViewIntegrationRoutes");
+const dailyAgentPicksRoutes = require("./dailyAgentPicksRoutes");
 
 const router = express.Router();
 
@@ -86,6 +92,19 @@ router.get("/compare", getComparison);
 router.get("/portfolio", getPortfolio);
 router.get("/quote", getQuoteController);
 router.get("/quote/short-volume", getShortVolumeRangeController);
+router.get("/company-logo/:symbol", async (req, res) => {
+	const symbol = String(req.params.symbol || "").trim().toUpperCase();
+	if (!/^[A-Z0-9.\-]{1,15}$/.test(symbol)) return res.status(400).end();
+	try {
+		const payload = await getQuote(symbol);
+		const logoUrl = String(payload?.quote?.companyLogo || "").trim();
+		res.set("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
+		return res.redirect(302, /^https:\/\//i.test(logoUrl) ? logoUrl : `https://images.financialmodelingprep.com/symbol/${encodeURIComponent(symbol)}.png`);
+	} catch {
+		res.set("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
+		return res.redirect(302, `https://images.financialmodelingprep.com/symbol/${encodeURIComponent(symbol)}.png`);
+	}
+});
 router.get("/alt-data/cot", getCot);
 router.get("/alt-data/polymarket", getPolymarket);
 router.get("/alt-data/macro", getMacro);
@@ -225,6 +244,13 @@ router.use("/v2/dynamic-source-scoring", dynamicSourceScoringRoutes);
 // per-family calibration report with a new confidence-distribution
 // reliability breakdown and calibration-drift signal.
 router.use("/v2/calibration-analysis", calibrationAnalysisRoutes);
+// Daily closed-loop screen: verified SEC Form 4 purchases first, then the
+// existing multi-agent committee. Read-only and advisory-only.
+router.use("/v2/insider-opportunities", insiderOpportunityRoutes);
+router.use("/v2/weekly-fibonacci-opportunities", weeklyFibonacciOpportunityRoutes);
+router.use("/v2/strategy-lab", strategyLabTraderRoutes);
+router.use("/v2/daily-agent-picks", dailyAgentPicksRoutes);
+router.use("/v2/integrations/tradingview", tradingViewIntegrationRoutes);
 router.use("/chat", chatRoutes);
 
 // Phase UI-INTEGRATION-001 — the first real HTTP surface for three

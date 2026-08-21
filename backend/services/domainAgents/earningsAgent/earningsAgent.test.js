@@ -88,3 +88,35 @@ test("generateReport retains the full raw inputs for auditability", async () => 
   assert.ok(report.inputs);
   assert.equal(report.inputs.symbol, "NVDA");
 });
+
+test("strong historical earnings without forward evidence remain context and cannot vote directionally", async () => {
+  const provider = {
+    async getSymbolEarnings(symbol) {
+      return {
+        symbol,
+        asOf: new Date().toISOString(),
+        dataAvailable: true,
+        unavailableReason: null,
+        sourceProvider: "Verified test feed",
+        epsHistory: [
+          { period: new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10), actual: 1.2, estimate: 1.0, surprisePercent: 20 },
+          { period: new Date(Date.now() - 120 * 86400000).toISOString().slice(0, 10), actual: 1.1, estimate: 1.0, surprisePercent: 10 },
+        ],
+        revenue: { growthYoY: 30 },
+        eps: { growthYoY: 35 },
+        margins: { netProfitMargin: 25, grossMargin: 60 },
+        cashFlow: { freeCashFlowGrowthYoY: null },
+        guidance: { changed: null, direction: null },
+        analystRevisions: { direction: null, count: null },
+      };
+    },
+  };
+
+  const report = await generateReport("HIST", { provider });
+  assert.equal(report.earningsHealth, "STRONG");
+  assert.equal(report.forwardOutlook, "UNKNOWN");
+  assert.equal(report.signalEligible, false);
+  assert.equal(report.dataQuality.forwardEvidenceCount, 0);
+  assert.match(report.dataQuality.blockers.join(" "), /historical results cannot be used as a forecast/i);
+  assert.match(report.aiSummary, /cannot be assessed/i);
+});

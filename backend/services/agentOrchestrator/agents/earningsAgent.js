@@ -10,6 +10,7 @@
 // every other real agent here follows.
 const earningsAgentEngine = require("../../domainAgents/earningsAgent/earningsAgent");
 const { isConfigured } = require("../../domainAgents/earningsAgent/earningsDataProvider");
+const { isSecConfigured } = require("../../domainAgents/earningsAgent/secCompanyFactsProvider");
 
 async function execute(symbol) {
   const report = await earningsAgentEngine.generateReport(symbol);
@@ -19,8 +20,11 @@ async function execute(symbol) {
     // The orchestrator only compares this string for equality with other
     // agents' directions (structural conflict detection) — it never
     // interprets it. UNKNOWN/NEUTRAL reports no opinion.
-    direction: report.forwardOutlook === "UNKNOWN" || report.forwardOutlook === "NEUTRAL" ? null : report.forwardOutlook,
-    evidence: [...report.risks, ...report.opportunities].map((observedFact) => ({ observedFact })),
+    direction: report.signalEligible === false || report.forwardOutlook === "UNKNOWN" || report.forwardOutlook === "NEUTRAL" ? null : report.forwardOutlook,
+    evidence: [
+      { observedFact: `Source: ${report.dataQuality.source}; ${report.dataQuality.usableEpsQuarters} reported EPS quarters and ${report.dataQuality.observedFundamentals} verified fundamental measures.` },
+      ...[...report.risks, ...report.opportunities].map((observedFact) => ({ observedFact })),
+    ],
     raw: report,
   };
 }
@@ -31,8 +35,8 @@ function confidence(result) {
 }
 
 async function health() {
-  if (!isConfigured()) {
-    return { status: "unavailable", reason: "No Finnhub API key is configured — set FINNHUB_API_KEY." };
+  if (!isConfigured() && !isSecConfigured()) {
+    return { status: "unavailable", reason: "Neither Finnhub nor an identified SEC EDGAR connection is configured." };
   }
   return { status: "healthy", reason: null };
 }

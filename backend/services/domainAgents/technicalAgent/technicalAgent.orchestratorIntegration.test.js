@@ -33,7 +33,7 @@ test("running the full orchestrator surfaces the rich technical report via the s
   const [technicalResult] = report.agents;
 
   assert.equal(technicalResult.agentId, "technical");
-  assert.ok(["fulfilled", "error", "timeout"].includes(technicalResult.status), "a real network call may succeed, gracefully degrade, or (rarely) time out in this environment");
+  assert.ok(["fulfilled", "unavailable", "error", "timeout"].includes(technicalResult.status), "a real provider call may succeed, report verified data unavailable, fail, or time out");
   if (technicalResult.status === "fulfilled") {
     assert.equal(typeof technicalResult.result.summary, "string");
     assert.ok(Array.isArray(technicalResult.result.evidence));

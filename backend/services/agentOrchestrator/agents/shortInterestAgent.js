@@ -34,10 +34,11 @@ async function execute(symbol) {
     // The orchestrator only compares this string for equality with other
     // agents' directions (structural conflict detection) — it never
     // interprets it. NEUTRAL short interest bias reports no opinion.
-    direction: report.shortInterestBias === "NEUTRAL" ? null : report.shortInterestBias,
+    direction: report.signalEligible === false || report.shortInterestBias === "NEUTRAL" ? null : report.shortInterestBias,
     evidence: [
       { observedFact: `Short Interest Bias: ${report.shortInterestBias} (score ${report.shortInterestScore}), trend ${report.shortInterestTrend.trend}.` },
       { observedFact: `Squeeze probability ${report.squeezeProbability}/100, crowdedness ${report.crowdednessScore}/100, covering activity ${report.coveringActivity.classification}.` },
+      { observedFact: `${report.dataQuality.sessionCount} verified FINRA sessions through ${report.dataQuality.latestSessionDate || "unknown"}; this is trade volume, not open short interest.` },
     ],
     raw: report,
   };
@@ -53,7 +54,7 @@ async function health() {
 }
 
 module.exports = {
-  metadata: { id: "short-interest", name: "Short Interest Intelligence Agent", category: "SHORT_INTEREST", priority: 5 },
+  metadata: { id: "short-interest", name: "Short Interest Intelligence Agent", category: "SHORT_INTEREST", priority: 6 },
   execute,
   confidence,
   health,

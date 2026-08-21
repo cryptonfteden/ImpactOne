@@ -31,6 +31,8 @@ const EXPECTED_PROVIDER_IDS = [
   "coinglass",
   "optionsFlow",
   "finraShortVolume",
+  "federalRegister",
+  "doeNews",
 ];
 
 test("listProviders registers all named sources", () => {

@@ -14,8 +14,11 @@ beforeEach(() => {
 describe("FeedbackWidget", () => {
   it("is closed by default and opens on toggle", async () => {
     render(<FeedbackWidget currentScreen="Home" />);
+    expect(screen.getByLabelText("Give feedback")).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByPlaceholderText(/Tell us what's on your mind/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Give feedback"));
+    expect(screen.getByLabelText("Close feedback")).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("dialog", { name: "Send feedback" })).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Tell us what's on your mind/)).toBeInTheDocument();
   });
 

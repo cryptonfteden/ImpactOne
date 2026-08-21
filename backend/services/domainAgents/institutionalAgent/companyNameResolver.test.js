@@ -26,7 +26,7 @@ test("resolveCompanyName: honestly reports unavailable when Finnhub returns no r
   try {
     const result = await resolveCompanyName("AAPL");
     assert.equal(result.dataAvailable, false);
-    assert.match(result.unavailableReason, /no real company name/);
+    assert.match(result.unavailableReason, /no verified company name/);
   } finally {
     require("axios").get = originalGet;
   }
@@ -39,7 +39,7 @@ test("resolveCompanyName: honestly reports unavailable on a real network failure
   try {
     const result = await resolveCompanyName("AAPL");
     assert.equal(result.dataAvailable, false);
-    assert.match(result.unavailableReason, /simulated network failure/);
+    assert.match(result.unavailableReason, /no verified company name/);
   } finally {
     require("axios").get = originalGet;
   }

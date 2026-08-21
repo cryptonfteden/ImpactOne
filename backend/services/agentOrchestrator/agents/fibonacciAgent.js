@@ -28,15 +28,14 @@ async function execute(symbol) {
 
   return {
     summary: report.aiSummary,
-    // The orchestrator only compares this string for equality with other
-    // agents' directions (structural conflict detection) — it never
-    // interprets it. NEUTRAL trend context reports no opinion.
-    direction: report.trendContext === "NEUTRAL" ? null : report.trendContext,
+    // Fibonacci has authority to vote only when the completed weekly close
+    // is inside the approved 0-5% band above the weekly 0.886 point.
+    direction: report.signalEligible ? "BULLISH" : null,
     evidence: [
-      ...(report.primarySwing ? [{ observedFact: `Primary swing: ${report.primarySwing.direction} from ${report.primarySwing.swingLow.toFixed(2)} to ${report.primarySwing.swingHigh.toFixed(2)}.` }] : []),
-      ...(report.entryZone ? [{ observedFact: `Entry zone: ${report.entryZone.centerPrice.toFixed(2)} (confluence score ${report.entryZone.confluenceScore}).` }] : []),
-      ...(report.riskZone ? [{ observedFact: `Risk zone: ${report.riskZone.centerPrice.toFixed(2)}.` }] : []),
-      { observedFact: `Multi-timeframe agreement: ${report.timeframeAgreement}.` },
+      ...(report.primarySwing ? [{ observedFact: `Completed-week swing: low ${report.primarySwing.swingLow.toFixed(2)} (${report.primarySwing.swingLowDate}) to later high ${report.primarySwing.swingHigh.toFixed(2)} (${report.primarySwing.swingHighDate}).` }] : []),
+      ...(report.weeklyStrategy ? [{ observedFact: `Weekly 0.886 point: ${report.weeklyStrategy.targetPrice.toFixed(2)}; completed weekly close: ${report.weeklyStrategy.currentPrice.toFixed(2)}; distance: ${report.weeklyStrategy.distancePct.toFixed(2)}%.` }] : []),
+      { observedFact: `Data quality: ${report.dataQuality.status}; ${report.dataQuality.barsUsed} completed weekly candles; latest ${report.dataQuality.latestCompletedWeek || "unknown"}.` },
+      { observedFact: report.signalEligible ? "Weekly entry-alert gate is open." : "Weekly entry-alert gate is closed; Fibonacci casts no directional vote." },
     ],
     raw: report,
   };
@@ -52,7 +51,7 @@ async function health() {
 }
 
 module.exports = {
-  metadata: { id: "fibonacci", name: "Fibonacci Intelligence Agent", category: "TECHNICAL", priority: 4 },
+  metadata: { id: "fibonacci", name: "Fibonacci Intelligence Agent", category: "TECHNICAL", priority: 10, strategyScope: "WEEKLY_0.886_ONLY" },
   execute,
   confidence,
   health,

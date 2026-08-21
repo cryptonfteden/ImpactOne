@@ -32,7 +32,7 @@ test("running the full orchestrator surfaces the rich fibonacci report via the s
   const [fibonacciResult] = report.agents;
 
   assert.equal(fibonacciResult.agentId, "fibonacci");
-  assert.ok(["fulfilled", "error", "timeout"].includes(fibonacciResult.status), "a real network call may succeed, gracefully degrade, or (rarely) time out in this environment");
+  assert.ok(["fulfilled", "unavailable", "error", "timeout"].includes(fibonacciResult.status), "a real provider call may succeed, report verified data unavailable, fail, or time out");
   if (fibonacciResult.status === "fulfilled") {
     assert.equal(typeof fibonacciResult.result.summary, "string");
     assert.ok(Array.isArray(fibonacciResult.result.evidence));

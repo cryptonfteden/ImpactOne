@@ -2,12 +2,14 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import DecisionTimelineScreen from "./DecisionTimelineScreen";
 import { decisionTimelineApi } from "../services/api";
+import { hasStoredBetaIdentity } from "../hooks/useBetaIdentity";
 
 vi.mock("../services/api", () => ({
   decisionTimelineApi: { get: vi.fn() },
 }));
 
 vi.mock("../utils/symbolPanel", () => ({ openSymbolPanel: vi.fn() }));
+vi.mock("../hooks/useBetaIdentity", () => ({ hasStoredBetaIdentity: vi.fn(() => true) }));
 
 const FIXTURE = {
   unavailableSources: [{ source: "marketPositioningChanges", reason: "no history" }, { source: "opportunityScoreChanges", reason: "no history" }],
@@ -20,9 +22,17 @@ const FIXTURE = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  hasStoredBetaIdentity.mockReturnValue(true);
 });
 
 describe("DecisionTimelineScreen", () => {
+  it("shows a valid empty state for a guest without calling a private endpoint", async () => {
+    hasStoredBetaIdentity.mockReturnValue(false);
+    render(<DecisionTimelineScreen />);
+    await waitFor(() => expect(screen.getByText(/No events yet/)).toBeInTheDocument());
+    expect(decisionTimelineApi.get).not.toHaveBeenCalled();
+  });
+
   it("renders real merged events from every real source", async () => {
     decisionTimelineApi.get.mockResolvedValue(FIXTURE);
     render(<DecisionTimelineScreen />);

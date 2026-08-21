@@ -4,9 +4,8 @@
 // pretends a data source exists that doesn't.
 
 // All 8 dimensions the approved architecture names, plus the OVERALL
-// rollup row — the full intended model. Only 5 are implemented this
-// phase (IMPLEMENTED_DIMENSIONS below); the other 3 have no real data
-// source anywhere in this codebase and are never fabricated.
+// rollup row — the full intended model. Six are implemented from
+// identified real inputs; the remaining two are never fabricated.
 const ALL_DIMENSIONS = [
   "NEWS_SENTIMENT",
   "AI_RECOMMENDATION_DISTRIBUTION",
@@ -18,13 +17,12 @@ const ALL_DIMENSIONS = [
   "EARNINGS_TREND",
 ];
 
-const IMPLEMENTED_DIMENSIONS = ["NEWS_SENTIMENT", "AI_RECOMMENDATION_DISTRIBUTION", "FEAR_GREED", "VOLATILITY", "MACRO_EVENTS"];
+const IMPLEMENTED_DIMENSIONS = ["NEWS_SENTIMENT", "AI_RECOMMENDATION_DISTRIBUTION", "MARKET_BREADTH", "FEAR_GREED", "VOLATILITY", "MACRO_EVENTS"];
 
 // Reasons are permanent, disclosed gaps (MARKET_SENTIMENT_ENGINE.md §3),
-// not transient errors — these three dimensions always report
+// not transient errors — these dimensions always report
 // unavailable in this phase, by design.
 const NOT_YET_IMPLEMENTED_REASONS = {
-  MARKET_BREADTH: "No advance/decline or % above moving average computation exists anywhere in this codebase yet — architecture §5a not yet implemented.",
   SECTOR_ROTATION: "No relative-strength/rotation computation exists — only per-event sector tagging (autonomousMarketService.js's sectorPropagation), which is a different, unrelated concept per architecture §3/§5d.",
   EARNINGS_TREND: "No live earnings-beat/miss data source is connected — earningsProvider.js is an honest stub.",
 };
@@ -42,7 +40,7 @@ const MARKETS = ["US", "EUROPE", "CHINA", "JAPAN", "INDIA", "CRYPTO", "COMMODITI
 // bounded-universe discipline the rest of this platform already applies
 // (never a second hardcoded "all US equities"-style universe).
 const MARKET_REGISTRY = {
-  US: { proxySymbols: ["SPY", "QQQ", "DIA"], regionTags: ["united states", "u.s.", "usa", "america"], cotMarketQuery: "NASDAQ MINI", macroRelevant: true, recommendationEligible: true },
+  US: { proxySymbols: ["SPY", "QQQ", "DIA", "IWM", "RSP"], regionTags: ["united states", "u.s.", "usa", "america"], cotMarketQuery: "NASDAQ MINI", macroRelevant: true, recommendationEligible: true },
   EUROPE: { proxySymbols: ["VGK"], regionTags: ["europe", "eu", "eurozone", "germany", "france", "uk", "britain"], cotMarketQuery: null, macroRelevant: false, recommendationEligible: false },
   CHINA: { proxySymbols: ["FXI"], regionTags: ["china"], cotMarketQuery: null, macroRelevant: false, recommendationEligible: false },
   JAPAN: { proxySymbols: ["EWJ"], regionTags: ["japan"], cotMarketQuery: null, macroRelevant: false, recommendationEligible: false },

@@ -1,4 +1,5 @@
 const axios = require("axios");
+const { requestChatCompletion } = require("./openAiGateway");
 const { OPENAI_API_KEY } = require("../config/env");
 const { getQuote } = require("./finnhubService");
 const { getAltDataSummary } = require("./altDataService");
@@ -111,9 +112,7 @@ async function generateAiSummary(payload, fallback) {
   }
 
   try {
-    const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
+    const response = await requestChatCompletion({
         model: "gpt-4o-mini",
         response_format: { type: "json_object" },
         messages: [
@@ -127,15 +126,7 @@ async function generateAiSummary(payload, fallback) {
           },
         ],
         temperature: 0.2,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        timeout: 20000,
-      }
-    );
+      });
 
     const parsed = JSON.parse(response.data?.choices?.[0]?.message?.content || "{}");
     return {

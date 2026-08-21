@@ -14,7 +14,7 @@ test.beforeEach(async () => {
 
 test("with no options-flow provider configured, getSymbolMetrics honestly reports dataAvailable: false and every field empty/null", async () => {
   assert.equal(optionsFlowProvider.isConfigured(), false, "test assumes no OPTIONS_FLOW_PROVIDER_API_KEY is set");
-  const provider = createInternalOptionsDataProvider();
+  const provider = createInternalOptionsDataProvider({ occProvider: async () => ({ dataAvailable: false, unavailableReason: "No OCC data in test." }) });
   const metrics = await provider.getSymbolMetrics("NVDA");
 
   assert.equal(metrics.dataAvailable, false);
@@ -25,6 +25,19 @@ test("with no options-flow provider configured, getSymbolMetrics honestly report
   assert.deepEqual(metrics.largeBlockTrades, []);
   assert.deepEqual(metrics.unusualContracts, []);
   assert.deepEqual(metrics.greeks, { iv: null, ivRank: null, ivPercentile: null, delta: null, gammaExposure: null });
+});
+
+test("uses official OCC end-of-day Call/Put volume when no paid flow provider is configured", async () => {
+  const provider = createInternalOptionsDataProvider({
+    occProvider: async () => ({ dataAvailable: true, symbol: "NVDA", asOf: "2026-08-17T00:00:00.000Z", reportDate: "2026-08-17", callVolume: 1200, putVolume: 600, totalVolume: 1800, putCallRatio: 0.5, source: "OCC Volume Query", sourceUrl: "https://www.theocc.com/example", freshness: "end-of-day", limitations: ["Not real-time."] }),
+  });
+  const metrics = await provider.getSymbolMetrics("NVDA");
+  assert.equal(metrics.dataAvailable, true);
+  assert.deepEqual(metrics.optionVolume, { call: 1200, put: 600, total: 1800 });
+  assert.equal(metrics.putCallRatio, 0.5);
+  assert.equal(metrics.sourceProvider, "OCC Volume Query");
+  assert.equal(metrics.dataFreshness, "end-of-day");
+  assert.equal(metrics.greeks.gammaExposure, null);
 });
 
 test("emptyMetrics() matches the exact shape getSymbolMetrics returns in the unconfigured case", () => {

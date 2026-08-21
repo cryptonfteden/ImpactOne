@@ -30,8 +30,12 @@ module.exports = {
   NODE_ENV: process.env.NODE_ENV || "development",
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
   FINNHUB_API_KEY: process.env.FINNHUB_API_KEY || "",
+  FINNHUB_QUOTE_CACHE_TTL_MS: Number(process.env.FINNHUB_QUOTE_CACHE_TTL_MS) || 5 * 60 * 1000,
   POLYGON_API_KEY: process.env.POLYGON_API_KEY || "",
   NEWS_API_KEY: process.env.NEWS_API_KEY || "",
+  // Public, no-key global-news fallback. It is explicitly switchable so an
+  // operator can disable external aggregation without changing code.
+  GDELT_NEWS_ENABLED: process.env.GDELT_NEWS_ENABLED !== "false",
   ALPHA_VANTAGE_API_KEY: process.env.ALPHA_VANTAGE_API_KEY || "",
   NASA_API_KEY: process.env.NASA_API_KEY || "",
   // Phase INSIDER-AGENT-001 — SEC EDGAR requires every requester to send
@@ -53,8 +57,8 @@ module.exports = {
   // Phase REDIS-CACHE-001 — honestly empty in every environment this
   // codebase runs in today (confirmed via a dedicated research pass —
   // no Redis instance is configured anywhere). The provider cache
-  // (services/redisCache/) gracefully falls back to always-miss/
-  // real-call-through whenever this is unset — see redisClient.js.
+  // (services/redisCache/) falls back to a bounded in-process TTL/LRU
+  // cache whenever this is unset — see providerCache.js.
   REDIS_URL: process.env.REDIS_URL || "",
   REDIS_CACHE_DEFAULT_TTL_MS: Number(process.env.REDIS_CACHE_DEFAULT_TTL_MS) || 5 * 60 * 1000,
   // Phase COMMERCIAL-MVP-001 — Commercial Infrastructure.
@@ -72,6 +76,12 @@ module.exports = {
   BILLING_PROVIDER: process.env.BILLING_PROVIDER || "manual",
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || "",
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || "",
+  // TradingView does not expose a general retail-account market-data API.
+  // This secret authenticates Pine alert webhooks sent to ImpactOne. The
+  // chart-library access itself is granted separately by TradingView.
+  TRADINGVIEW_WEBHOOK_SECRET: process.env.TRADINGVIEW_WEBHOOK_SECRET || "",
+  TRADINGVIEW_CHART_LIBRARY_ENABLED: process.env.TRADINGVIEW_CHART_LIBRARY_ENABLED === "true",
+  TRADINGVIEW_CHART_LIBRARY_PATH: process.env.TRADINGVIEW_CHART_LIBRARY_PATH || "",
   // Phase PRODUCTION-DEPLOYMENT-001 — honestly empty by default, which
   // preserves every existing environment's current `cors()` allow-all
   // behavior (see app.js). A comma-separated list of real origins locks

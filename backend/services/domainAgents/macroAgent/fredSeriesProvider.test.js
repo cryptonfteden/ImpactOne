@@ -22,6 +22,7 @@ test("fetchFredSeries: parses a real successful response and computes a real YoY
     assert.equal(metrics.latest.value, 3.63);
     assert.equal(metrics.priorYearAgo.value, 4.33);
     assert.ok(metrics.changeYoY < 0, "a rate cut should be a negative YoY change");
+    assert.equal(metrics.changeYoYPercentagePoints, -0.7);
   } finally {
     require("axios").get = originalGet;
   }
@@ -59,6 +60,7 @@ test("fetchFredSeries: changeYoY is null when no real year-ago observation is wi
     assert.equal(metrics.dataAvailable, true);
     assert.equal(metrics.priorYearAgo, null);
     assert.equal(metrics.changeYoY, null);
+    assert.equal(metrics.changeYoYPercentagePoints, null);
   } finally {
     require("axios").get = originalGet;
   }

@@ -78,10 +78,10 @@ export default function PortfolioEngineScreen() {
     <div className="screen-page">
       <section className="screen-hero">
         <div>
-          <p className="eyebrow">Portfolio — Engine Preview</p>
-          <h1>Persistent paper-trading engine</h1>
+          <p className="eyebrow">Portfolio · Paper trading</p>
+          <h1>Your simulated portfolio</h1>
           <p className="subtext">
-            Server-owned portfolio backed by Postgres — positions, orders, and P/L survive a restart. Orders are placed manually here; automated execution from AI signals is a later sprint.
+            Practice with persistent virtual capital. Review live position values and place manual demo orders—no broker and no real-money execution.
           </p>
         </div>
         <ConfirmButton label="Reset virtual portfolio" onConfirm={reset} />
@@ -133,6 +133,7 @@ export default function PortfolioEngineScreen() {
       <SectionCard title="Place Order" subtitle="Manual paper trade" className="screen-card">
         <form className="order-form" onSubmit={handlePlaceOrder}>
           <Input
+            aria-label="Order symbol"
             value={orderSymbol}
             onChange={(event) => setOrderSymbol(event.target.value.toUpperCase())}
             placeholder="Symbol (e.g. AAPL)"
@@ -152,6 +153,7 @@ export default function PortfolioEngineScreen() {
             Sell
           </Button>
           <Input
+            aria-label="Order quantity"
             type="number"
             min="1"
             step="1"

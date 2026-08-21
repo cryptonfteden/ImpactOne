@@ -9,6 +9,9 @@ const SEVERITY_KEYWORDS = [
   "bankruptcy", "lawsuit", "recall", "acquisition", "merger", "guidance cut",
   "earnings miss", "investigation", "downgrade", "fraud", "restatement",
   "resign", "ceo", "sec probe", "data breach", "hack",
+  "government contract", "federal funding", "executive order", "export control",
+  "defense contract", "department of energy", "nuclear", "uranium", "quantum",
+  "artificial intelligence", "power grid", "satellite", "nasa", "pentagon",
 ];
 
 const FRESHNESS_WEIGHT = 0.3;

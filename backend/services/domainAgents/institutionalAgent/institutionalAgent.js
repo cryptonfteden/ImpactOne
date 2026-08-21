@@ -22,6 +22,47 @@ const { generateAiSummary } = require("./aiSummary");
 
 const defaultProvider = createInstitutionalDataProvider();
 
+const MAX_13F_AGE_DAYS = 180;
+
+function ageInDays(dateValue, asOf) {
+  const timestamp = Date.parse(dateValue);
+  const reference = Date.parse(asOf);
+  if (!Number.isFinite(timestamp) || !Number.isFinite(reference)) return null;
+  return Math.max(0, Math.floor((reference - timestamp) / 86400000));
+}
+
+function assessDataQuality(metrics, checkedCount, comparableManagerCount) {
+  const reportDates = metrics.managerPositions
+    .flatMap((position) => [position.currentQuarter?.reportDate, position.priorQuarter?.reportDate])
+    .filter(Boolean)
+    .sort();
+  const latestReportDate = reportDates.at(-1) || null;
+  const ageDays = ageInDays(latestReportDate, metrics.asOf);
+  const totalManagers = metrics.managerPositions.length || INSTITUTIONAL_MANAGERS.length;
+  const requiredCoverage = Math.max(2, Math.ceil(totalManagers * 0.5));
+  const stale = ageDays !== null && ageDays > MAX_13F_AGE_DAYS;
+  const signalEligible = checkedCount >= requiredCoverage && comparableManagerCount >= 2 && !stale;
+
+  return {
+    source: "SEC EDGAR 13F-HR",
+    scope: "Disclosed major-manager cohort; not the full institutional market",
+    issuerMatchMethod: "SEC 13F issuer-name match",
+    totalManagers,
+    checkedManagers: checkedCount,
+    comparableManagers: comparableManagerCount,
+    coveragePercent: totalManagers ? Math.round((checkedCount / totalManagers) * 100) : 0,
+    latestReportDate,
+    ageDays,
+    stale,
+    signalEligible,
+    blockers: [
+      ...(checkedCount < requiredCoverage ? [`Only ${checkedCount}/${totalManagers} managers were verifiably checked.`] : []),
+      ...(comparableManagerCount < 2 ? ["Fewer than two managers had comparable consecutive 13F quarters."] : []),
+      ...(stale ? [`Latest verified 13F period is ${ageDays} days old.`] : []),
+    ],
+  };
+}
+
 function buildUnavailableReport(symbol, asOf, reason, inputs) {
   const report = {
     symbol,
@@ -41,6 +82,8 @@ function buildUnavailableReport(symbol, asOf, reason, inputs) {
     risks: [],
     opportunities: [],
     confidence: { confidence: 0, components: { base: 0, coverageBonus: 0, comparableBonus: 0, convictionBonus: 0, structuralPenalty: 0 } },
+    signalEligible: false,
+    dataQuality: { source: "SEC EDGAR 13F-HR", signalEligible: false, blockers: [reason] },
     inputs,
   };
   report.aiSummary = generateAiSummary(report);
@@ -78,6 +121,7 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
     comparableManagerCount: ownershipTrend.comparableManagerCount,
     convictionScore: convictionAnalysis.convictionScore,
   });
+  const dataQuality = assessDataQuality(metrics, checkedCount, ownershipTrend.comparableManagerCount);
 
   const opportunities = buildOpportunities({ institutionalBias, institutionalScore, accumulationDistribution, newClosedPositions, convictionAnalysis });
   const risks = buildRisks({ institutionalBias, accumulationDistribution, newClosedPositions, checkedCount, totalManagers: INSTITUTIONAL_MANAGERS.length });
@@ -100,6 +144,8 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
     risks,
     opportunities,
     confidence,
+    signalEligible: dataQuality.signalEligible,
+    dataQuality,
     // Retained for auditability/debugging — every number above traces
     // back to these real, already-fetched inputs.
     inputs: metrics,
@@ -108,4 +154,4 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
   return report;
 }
 
-module.exports = { generateReport, createInstitutionalDataProvider };
+module.exports = { generateReport, createInstitutionalDataProvider, assessDataQuality, MAX_13F_AGE_DAYS };

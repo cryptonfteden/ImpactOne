@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import AiAnalysisScreen from "./AiAnalysisScreen";
 import { marketApi, analysisApi, altDataApi, intelligenceApi, claimsApi, agentOrchestratorApi } from "../services/api";
@@ -93,6 +93,22 @@ function mockSuccessfulLoad() {
   claimsApi.listBySymbol.mockResolvedValue({ claims: [] });
   agentOrchestratorApi.getStockIntelligence.mockResolvedValue({ agents: [] });
 }
+
+afterEach(() => {
+  window.sessionStorage.removeItem("impactone:selected-ticker");
+});
+
+describe("AiAnalysisScreen — global ticker handoff", () => {
+  it("opens the symbol selected by the global search instead of the default ticker", async () => {
+    window.sessionStorage.setItem("impactone:selected-ticker", "AAPL");
+    mockSuccessfulLoad();
+
+    render(<AiAnalysisScreen />);
+
+    expect(screen.getByRole("textbox", { name: "Enter ticker" })).toHaveValue("AAPL");
+    await waitFor(() => expect(marketApi.getQuote).toHaveBeenCalledWith("AAPL"));
+  });
+});
 
 describe("AiAnalysisScreen — Investment Committee panel (Sprint 18A, unified Sprint 41)", () => {
   it("Sprint 41 — renders the unified committee's real debate (members, agreement/disagreement, CIO thesis) without a standalone verdict pill", async () => {

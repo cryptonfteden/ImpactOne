@@ -2,8 +2,8 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { analyzeInstitutionalScore } = require("./institutionalScoreAnalyzer");
 
-function accDist(totalIncreaseValue, totalDecreaseValue) {
-  return { totalIncreaseValue, totalDecreaseValue };
+function accDist(totalIncreaseShares, totalDecreaseShares) {
+  return { totalIncreaseShares, totalDecreaseShares };
 }
 function newClosed(newCount, closedCount) {
   return { newPositions: Array(newCount).fill({}), closedPositions: Array(closedCount).fill({}) };
@@ -32,7 +32,7 @@ test("analyzeInstitutionalScore is always clamped to [-100, 100]", () => {
   assert.ok(result.institutionalScore <= 100 && result.institutionalScore >= -100);
 });
 
-test("analyzeInstitutionalScore weights real dollar-value direction and real net position count, never a naive average of unrelated scales", () => {
+test("analyzeInstitutionalScore weights reported-share direction and real net position count", () => {
   // Pure value accumulation (weight 0.6) alone should not reach the full 100.
   const result = analyzeInstitutionalScore(accDist(1000, 0), newClosed(0, 0));
   assert.equal(result.institutionalScore, 60); // 100 * 0.6 + 0 * 0.4

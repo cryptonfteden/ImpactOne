@@ -28,6 +28,8 @@ function createNewsDataProvider({ newsProvider = defaultNewsSentimentDataProvide
       asOf: news.asOf,
       dataAvailable: news.dataAvailable,
       unavailableReason: news.dataAvailable ? null : news.unavailableReason,
+      sourceProvider: news.sourceProvider || null,
+      primaryUnavailableReason: news.primaryUnavailableReason || null,
       articles: news.articles,
       profile,
     };

@@ -68,11 +68,22 @@ function FeedbackWidget({ currentScreen }) {
 
   return (
     <div className={`feedback-widget${isOpen ? " is-open" : ""}`}>
-      <Button type="button" className="feedback-widget__toggle" onClick={() => setIsOpen((value) => !value)} aria-label="Give feedback">
-        <span className="feedback-widget__live-dot" aria-hidden="true" />Feedback
+      <Button
+        type="button"
+        className="feedback-widget__toggle"
+        onClick={() => setIsOpen((value) => !value)}
+        aria-label={isOpen ? "Close feedback" : "Give feedback"}
+        aria-expanded={isOpen}
+        aria-controls="impactone-feedback-panel"
+      >
+        <span className="feedback-widget__beacon" aria-hidden="true">
+          <span className="feedback-widget__beacon-core" />
+        </span>
+        <span className="feedback-widget__label">Feedback</span>
+        <span className="feedback-widget__arrow" aria-hidden="true">↗</span>
       </Button>
       {isOpen ? (
-        <div className="panel-card feedback-widget__panel">
+        <div id="impactone-feedback-panel" className="panel-card feedback-widget__panel" role="dialog" aria-label="Send feedback">
           {submitted ? (
             <>
               <p className="company-description">Thank you — your {type.toLowerCase()} was sent.</p>

@@ -6,6 +6,7 @@ import { startVisibilityAwarePolling } from "../utils/pollWhileVisible";
 import { openSymbolPanel } from "../utils/symbolPanel";
 import { navigateToWorkspace, navigateToDecisionCenter } from "../utils/navigation";
 import { trackEvent } from "../utils/analytics";
+import { hasStoredBetaIdentity } from "../hooks/useBetaIdentity";
 
 const GROUP_MODES = [
   { key: "", label: "All" },
@@ -88,6 +89,7 @@ function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState("");
   const [groupBy, setGroupBy] = useState("");
+  const identityAvailable = hasStoredBetaIdentity();
 
   useEffect(() => {
     function closeWhenAnotherOverlayOpens(event) {
@@ -118,6 +120,15 @@ function NotificationCenter() {
   }
 
   useEffect(() => {
+    if (!identityAvailable) {
+      setNotifications([]);
+      setGrouped(null);
+      setUnreadCount(0);
+      setPinnedCount(0);
+      setError("");
+      return undefined;
+    }
+
     let cancelled = false;
 
     async function load() {
@@ -142,7 +153,7 @@ function NotificationCenter() {
       cancelled = true;
       stopPolling();
     };
-  }, [groupBy]);
+  }, [groupBy, identityAvailable]);
 
   async function handleMarkRead(id) {
     try {
@@ -229,7 +240,11 @@ function NotificationCenter() {
               notifications.map((notification) => <NotificationRow key={notification.id} notification={notification} {...rowProps} />)
             )
           ) : (
-            <p className="company-description subtle">No notifications yet — alerts you set on watchlist folders will appear here once triggered.</p>
+            <p className="company-description subtle">
+              {identityAvailable
+                ? "No notifications yet — alerts you set on watchlist folders will appear here once triggered."
+                : "Private notifications become available after you enter your beta workspace."}
+            </p>
           )}
         </div>
       ) : null}

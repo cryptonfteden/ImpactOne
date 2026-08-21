@@ -32,11 +32,12 @@ async function execute(symbol) {
     // The orchestrator only compares this string for equality with other
     // agents' directions (structural conflict detection) — it never
     // interprets it. NEUTRAL ETF flow bias reports no opinion.
-    direction: report.etfFlowBias === "NEUTRAL" ? null : report.etfFlowBias,
+    direction: report.signalEligible === false || report.etfFlowBias === "NEUTRAL" ? null : report.etfFlowBias,
     evidence: [
-      { observedFact: `ETF Flow Bias: ${report.etfFlowBias} (net flow score ${report.netFlowScore}) via ${report.targetEtf}${report.isDirectEtf ? "" : ` (${report.sector} sector proxy)`}.` },
-      { observedFact: `Flow strength: ${report.flowStrength.classification}, persistence: ${report.flowPersistence.classification}.` },
+      { observedFact: `Sector ETF price/volume proxy: ${report.etfFlowBias} (proxy score ${report.netFlowScore}) via ${report.targetEtf}${report.isDirectEtf ? "" : ` (${report.sector} sector proxy)`}.` },
+      { observedFact: `Trading-activity strength: ${report.flowStrength.classification}, persistence: ${report.flowPersistence.classification}.` },
       ...(report.sectorRotation.classification !== "UNKNOWN" ? [{ observedFact: `Sector rotation: ${report.sectorRotation.classification}.` }] : []),
+      { observedFact: `${report.dataQuality.targetEtf || "No ETF"} proxy uses ${report.dataQuality.barCount} verified bars. ${report.dataQuality.limitation}` },
     ],
     raw: report,
   };
@@ -52,7 +53,7 @@ async function health() {
 }
 
 module.exports = {
-  metadata: { id: "etf-flow", name: "ETF Flow Intelligence Agent", category: "ETF_FLOW", priority: 4 },
+  metadata: { id: "etf-flow", name: "Sector ETF Momentum Agent", category: "ETF_FLOW", priority: 4 },
   execute,
   confidence,
   health,

@@ -4,6 +4,7 @@ import { EmptyState, ErrorState, LoadingSpinner } from "../components/ui";
 import { decisionTimelineApi } from "../services/api";
 import { openSymbolPanel } from "../utils/symbolPanel";
 import { logError } from "../utils/errorHandling";
+import { hasStoredBetaIdentity } from "../hooks/useBetaIdentity";
 
 const TYPE_LABELS = {
   NEWS: "News",
@@ -37,8 +38,15 @@ export default function DecisionTimelineScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const identityAvailable = hasStoredBetaIdentity();
 
   function load() {
+    if (!identityAvailable) {
+      setData({ unavailableSources: [], events: [], counts: {} });
+      setError("");
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     decisionTimelineApi
       .get()
@@ -55,7 +63,7 @@ export default function DecisionTimelineScreen() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [identityAvailable]);
 
   if (isLoading && !data) {
     return (

@@ -45,7 +45,7 @@ export default function StockScannerScreen() {
   return (
     <div className="screen-page stock-scanner-screen">
       <section className="screen-hero screen-hero--orbital">
-        <div><p className="eyebrow">Stock scanner</p><h1>Live Fibonacci opportunity map</h1><p className="subtext">Runs the connected domain agents for each symbol, then shows the verified swing levels and valuation context side by side.</p></div>
+        <div><p className="eyebrow">Stock scanner</p><h1>Weekly 0.886 opportunity map</h1><p className="subtext">Checks completed weekly candles, then sends eligible setups to the connected specialist agents.</p></div>
       </section>
       <SectionCard title="Scan symbols" subtitle="Up to 8 US tickers · each row is generated from live agent outputs" icon="⌁" className="screen-card">
         <div className="analysis-search"><input value={draft} onChange={(event) => setDraft(event.target.value.toUpperCase())} aria-label="Symbols to scan" /><Button type="button" onClick={scan} disabled={running}>{running ? "Scanning…" : "Run live scan"}</Button></div>
@@ -56,8 +56,8 @@ export default function StockScannerScreen() {
           <article className="scanner-result" key={row.symbol}>
             <header><div><span>Live agent confidence</span><h2>{row.symbol}</h2></div><strong>{Number(row.confidence || 0)}/100</strong></header>
             <div className="scanner-result__summary"><span>{row.valuation?.valuationStatus?.replaceAll("_", " ") || "Valuation unavailable"}</span><span>{row.earnings?.forwardOutlook || "Earnings outlook unavailable"}</span></div>
-            {row.fibonacci?.dataAvailable ? <div className="scanner-result__levels">{(row.fibonacci.monthlyScanLevels || []).map((level, index) => <div key={level.ratio}><b>{["Alert", "Alert", "Research", "Entry", "Entry"][index]} · {Number(level.ratio) * 100}%</b><i /><strong>{price(level.price)}</strong></div>)}</div> : <p className="company-description subtle">{row.fibonacci?.unavailableReason || "Fibonacci data is unavailable for this symbol."}</p>}
-            <footer>Five levels use real monthly candles from the swing low to high. “Entry” is a research zone, never an automated buy order.</footer>
+            {row.fibonacci?.dataAvailable ? <div className="scanner-result__levels">{(row.fibonacci.weeklyScanLevels || row.fibonacci.retracementLevels || []).map((level) => <div key={level.ratio}><b>{Number(level.ratio) === 0.886 ? "ENTRY POINT" : Number(level.ratio) === 0 ? "WEEKLY HIGH" : "WEEKLY LOW"} · {Number(level.ratio) * 100}%</b><i /><strong>{price(level.price)}</strong></div>)}</div> : <p className="company-description subtle">{row.fibonacci?.unavailableReason || "Verified weekly candles are unavailable for this symbol."}</p>}
+            <footer>Completed weekly candles only · chronological low → later high · alert only from 0% to 5% above the 0.886 point.</footer>
           </article>
         ))}
       </section>

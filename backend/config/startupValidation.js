@@ -47,10 +47,10 @@ function validateEnvironment(rawEnv = process.env) {
       errors.push("JWT_SECRET is not set (or is still the insecure development default). A real, random secret is required in production.");
     }
     if (!rawEnv.ADMIN_API_KEY) {
-      warnings.push("ADMIN_API_KEY is not set — admin-only routes are running without protection.");
+      errors.push("ADMIN_API_KEY is not set. A real, random admin key is required in production.");
     }
     if (!rawEnv.REDIS_URL) {
-      warnings.push("REDIS_URL is not set — the provider cache will run uncached (every provider call hits the real upstream API directly).");
+      warnings.push("REDIS_URL is not set — using the bounded in-process TTL cache. Configure Redis before horizontal scaling so cache state is shared across instances.");
     }
     if (!rawEnv.CORS_ALLOWED_ORIGINS) {
       warnings.push("CORS_ALLOWED_ORIGINS is not set — CORS currently allows every origin. Set this to your real frontend origin(s) before serving real production traffic.");

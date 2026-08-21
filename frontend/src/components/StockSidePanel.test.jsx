@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import StockSidePanel from "./StockSidePanel";
-import { marketApi, portfolioEngineApi, priceAlertsApi, watchlistFoldersApi, impactGraphApi, symbolIntelligenceApi, claimsApi, optionsAgentApi, marketSentimentApi } from "../services/api";
+import { marketApi, portfolioEngineApi, priceAlertsApi, watchlistFoldersApi, impactGraphApi, symbolIntelligenceApi, claimsApi, optionsAgentApi, marketSentimentApi, agentOrchestratorApi } from "../services/api";
 
 vi.mock("../services/api", () => ({
   marketApi: { getQuote: vi.fn() },
@@ -13,6 +13,7 @@ vi.mock("../services/api", () => ({
   claimsApi: { listBySymbol: vi.fn() },
   optionsAgentApi: { getSymbolView: vi.fn() },
   marketSentimentApi: { getOverview: vi.fn() },
+  agentOrchestratorApi: { getStockIntelligence: vi.fn() },
 }));
 
 vi.mock("./chart/AdvancedChart", () => ({ default: () => <div>Chart placeholder</div> }));
@@ -41,6 +42,7 @@ beforeEach(() => {
   claimsApi.listBySymbol.mockResolvedValue({ claims: [] });
   optionsAgentApi.getSymbolView.mockResolvedValue({ unavailable: true, reason: "Options flow provider is not connected yet.", recentSignals: [] });
   marketSentimentApi.getOverview.mockResolvedValue({ market: "US", score: null, confidence: null });
+  agentOrchestratorApi.getStockIntelligence.mockResolvedValue({ agents: [] });
 });
 
 describe("StockSidePanel", () => {

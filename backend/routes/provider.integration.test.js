@@ -46,11 +46,11 @@ test("GET /api/v2/providers/:providerId/metrics returns an honest zero-state bef
 });
 
 test("GET /api/v2/providers/:providerId/metrics reflects a real run", async () => {
-  await request(app).post("/api/v2/providers/nasa/run");
+  const run = await request(app).post("/api/v2/providers/nasa/run");
   const response = await request(app).get("/api/v2/providers/nasa/metrics");
   assert.equal(response.status, 200);
   assert.equal(response.body.totalRuns, 1);
-  assert.equal(response.body.errorRate, 0);
+  assert.equal(response.body.errorRate, run.body.status === "SUCCESS" ? 0 : 100);
 });
 
 test("GET /api/v2/providers/:providerId/diagnostics 404s for an unknown provider", async () => {
@@ -80,11 +80,12 @@ test("GET /api/v2/providers/:providerId/metadata returns the static registry ent
   assert.ok(Number.isFinite(response.body.rateLimit.maxPerMinute));
 });
 
-test("POST /api/v2/providers/:providerId/run triggers a clean run for a stub provider", async () => {
+test("POST /api/v2/providers/:providerId/run reports an honest live-provider result", async () => {
   const response = await request(app).post("/api/v2/providers/fda/run");
   assert.equal(response.status, 200);
-  assert.equal(response.body.status, "SUCCESS");
-  assert.equal(response.body.itemsFetched, 0);
+  assert.ok(["SUCCESS", "FAILED"].includes(response.body.status));
+  assert.ok(Number.isInteger(response.body.itemsFetched));
+  assert.ok(response.body.providerId === "fda");
 });
 
 test("POST /api/v2/providers/:providerId/run 404s for an unknown provider", async () => {

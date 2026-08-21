@@ -22,6 +22,11 @@
 const { assertValidAgent } = require("./agentInterface");
 const { sharedScheduler } = require("../agentScheduler/agentScheduler");
 const { DEFAULT_TIMEOUT_MS, DEFAULT_MAX_RETRIES } = require("../agentScheduler/schedulerConfig");
+const { applyStrategyPriority, policySnapshot } = require("./strategyPolicy");
+const { buildPriceEarningsSynthesis } = require("./priceEarningsSynthesis");
+const { buildContrarianRegimeSynthesis } = require("./contrarianRegimeSynthesis");
+const { isDecisionEligible } = require("./decisionEligibility");
+const { summarizeCommittee, normalizeDirection } = require("./committeeDecisionModel");
 
 const registry = new Map();
 
@@ -60,22 +65,23 @@ function mergeEvidence(agentResults) {
 }
 
 /**
- * Structural only: two agents "conflict" when both successfully reported
- * a non-null `direction` and those strings differ. The orchestrator has
- * no idea what "BULLISH" vs "a rising anomaly score" means — it only
- * compares the two opaque strings for equality.
+ * Compare normalized investment polarity, so BUY and BULLISH agree while an
+ * opaque or missing value casts no vote and creates no false conflict.
  */
 function detectConflicts(agentResults) {
-  const withDirection = agentResults.filter((result) => result.status === "fulfilled" && result.direction);
+  const withDirection = agentResults
+    .filter((result) => result.status === "fulfilled" && isDecisionEligible(result))
+    .map((result) => ({ ...result, normalizedDirection: normalizeDirection(result.direction) }))
+    .filter((result) => ["BULLISH", "BEARISH"].includes(result.normalizedDirection));
   const conflicts = [];
   for (let i = 0; i < withDirection.length; i += 1) {
     for (let j = i + 1; j < withDirection.length; j += 1) {
-      if (withDirection[i].direction !== withDirection[j].direction) {
+      if (withDirection[i].normalizedDirection !== withDirection[j].normalizedDirection) {
         conflicts.push({
           agentA: withDirection[i].agentId,
-          directionA: withDirection[i].direction,
+          directionA: withDirection[i].normalizedDirection,
           agentB: withDirection[j].agentId,
-          directionB: withDirection[j].direction,
+          directionB: withDirection[j].normalizedDirection,
         });
       }
     }
@@ -91,7 +97,7 @@ function detectConflicts(agentResults) {
  * only thing surfaced.
  */
 function computeOverallConfidence(agentResults) {
-  const fulfilled = agentResults.filter((result) => result.status === "fulfilled");
+  const fulfilled = agentResults.filter((result) => result.status === "fulfilled" && isDecisionEligible(result));
   if (!fulfilled.length) return 0;
   const totalWeight = fulfilled.reduce((sum, result) => sum + result.priority, 0);
   if (!totalWeight) return 0;
@@ -121,8 +127,13 @@ async function run(symbol, { agents = getRegisteredAgents(), timeoutMs = DEFAULT
   const normalizedSymbol = symbol.trim().toUpperCase();
   const startedAt = Date.now();
 
-  const agentResults = await sharedScheduler.runAll(agents, normalizedSymbol, { timeoutMs, maxRetries });
+  const policyAgents = agents.map(applyStrategyPriority);
+  const agentResults = await sharedScheduler.runAll(policyAgents, normalizedSymbol, { timeoutMs, maxRetries });
   const ranked = rankByConfidence(agentResults);
+  const strategyCommittee = summarizeCommittee(agentResults, { reportedTotal: policyAgents.length });
+  const decisionConfidence = strategyCommittee.direction === "NEUTRAL"
+    ? 0
+    : Math.round(Math.min(strategyCommittee.confidence, strategyCommittee.conviction) * strategyCommittee.coveragePct / 100);
 
   return {
     symbol: normalizedSymbol,
@@ -130,6 +141,15 @@ async function run(symbol, { agents = getRegisteredAgents(), timeoutMs = DEFAULT
     tookMs: Date.now() - startedAt,
     agents: ranked,
     overallConfidence: computeOverallConfidence(agentResults),
+    evidenceConfidence: computeOverallConfidence(agentResults),
+    decisionDirection: strategyCommittee.direction,
+    decisionConfidence,
+    strategyPolicy: policySnapshot(),
+    decisionSynthesis: {
+      committee: strategyCommittee,
+      priceAndEarnings: buildPriceEarningsSynthesis(agentResults),
+      contrarianRegime: buildContrarianRegimeSynthesis(agentResults),
+    },
     conflicts: detectConflicts(agentResults),
     evidence: mergeEvidence(agentResults),
     summary: {
@@ -137,6 +157,7 @@ async function run(symbol, { agents = getRegisteredAgents(), timeoutMs = DEFAULT
       fulfilled: agentResults.filter((result) => result.status === "fulfilled").length,
       unavailable: agentResults.filter((result) => result.status === "unavailable").length,
       failed: agentResults.filter((result) => result.status === "error" || result.status === "timeout").length,
+      decisionEligible: agentResults.filter(isDecisionEligible).length,
     },
   };
 }

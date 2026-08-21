@@ -17,6 +17,8 @@ const confidence = require("./optionsAnomalyConfidence");
 const { buildOptionsSignalExplanation } = require("./optionsSignalExplanation");
 const { sanitizeOptionsSignal } = require("./optionsSignalGovernance");
 const repository = require("./optionsFlowRepository");
+const { createInternalOptionsDataProvider } = require("../domainAgents/optionsFlowAgent/optionsDataProvider");
+const optionsActivityProvider = createInternalOptionsDataProvider();
 
 const NOT_CONNECTED_MESSAGE = "Options flow provider is not connected yet.";
 
@@ -30,6 +32,13 @@ async function getStatus() {
     connected,
     provider: connected ? optionsFlowProvider.providerId : "pending",
     message: connected ? null : NOT_CONNECTED_MESSAGE,
+    endOfDayFallback: {
+      available: true,
+      provider: "OCC Volume Query",
+      scope: "Official customer Call/Put contract volume by symbol",
+      freshness: "end-of-day",
+      excludes: ["sweeps", "blocks", "aggressor side", "IV", "Greeks", "gamma exposure"],
+    },
     trackedSymbolCount: 0, // real scan-universe wiring is a future phase per architecture §10 — honestly 0, never guessed
     lastIngestionRunAt: runs[0]?.startedAt || null,
     lastOiConfirmationRunAt: null, // no OI-confirmation scheduler exists yet this phase — see implementation report
@@ -188,9 +197,28 @@ async function getSignalById(signalId) {
 /**
  * GET /symbols/:symbol (API contract §3) — the composed per-symbol view.
  */
-async function getSymbolView(symbol) {
+async function getSymbolView(symbol, { activityProvider = optionsActivityProvider } = {}) {
   if (!optionsFlowProvider.isConfigured()) {
-    return { symbol, generatedAt: new Date().toISOString(), activeSignalCount: 0, highestAnomalyScore: null, recentSignals: [], unavailable: true, reason: NOT_CONNECTED_MESSAGE };
+    const metrics = await activityProvider.getSymbolMetrics(symbol);
+    return {
+      symbol,
+      generatedAt: metrics.asOf,
+      activeSignalCount: 0,
+      highestAnomalyScore: null,
+      recentSignals: [],
+      unavailable: !metrics.dataAvailable,
+      reason: metrics.dataAvailable ? null : metrics.unavailableReason,
+      optionsActivity: metrics.dataAvailable ? {
+        optionVolume: metrics.optionVolume,
+        putCallRatio: metrics.putCallRatio,
+        reportDate: metrics.reportDate,
+        source: metrics.sourceProvider,
+        sourceUrl: metrics.sourceUrl,
+        freshness: metrics.dataFreshness,
+        limitations: metrics.limitations,
+      } : null,
+      liveFlowUnavailableReason: NOT_CONNECTED_MESSAGE,
+    };
   }
   const rows = await repository.listSignals({ symbol, limit: 50 });
   const recentSignals = rows.map((row) => sanitizeOptionsSignal(row));

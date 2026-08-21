@@ -2,8 +2,8 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { analyzeEmployment } = require("./employmentAnalyzer");
 
-function series(changeYoY, value = 4.2, dataAvailable = true) {
-  return { dataAvailable, changeYoY, latest: { value } };
+function series(changeYoYPercentagePoints, value = 4.2, dataAvailable = true) {
+  return { dataAvailable, changeYoYPercentagePoints, latest: { value } };
 }
 
 test("classifies IMPROVING when unemployment rate falls YoY beyond the stable band", () => {
@@ -11,7 +11,8 @@ test("classifies IMPROVING when unemployment rate falls YoY beyond the stable ba
 });
 
 test("classifies WORSENING when unemployment rate rises YoY beyond the stable band", () => {
-  assert.equal(analyzeEmployment(series(2.44)).trend, "WORSENING");
+  const result = analyzeEmployment(series(0.3)).trend;
+  assert.equal(result, "WORSENING");
 });
 
 test("classifies STABLE within the noise band", () => {

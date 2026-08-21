@@ -42,6 +42,7 @@ const FIXTURE = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.localStorage.setItem("impactone-beta-user-id", "beta-user-1");
 });
 
 function renderScreen() {
@@ -49,6 +50,14 @@ function renderScreen() {
 }
 
 describe("DecisionCenterScreen", () => {
+  it("does not request private decisions for a guest workspace", async () => {
+    window.localStorage.removeItem("impactone-beta-user-id");
+    renderScreen();
+
+    expect(await screen.findByText("Enter your beta workspace to load private decisions.")).toBeInTheDocument();
+    expect(decisionCenterApi.getDecisions).not.toHaveBeenCalled();
+  });
+
   it("renders real decision items grouped by their real source, including X4's new fields", async () => {
     decisionCenterApi.getDecisions.mockResolvedValue(FIXTURE);
     renderScreen();

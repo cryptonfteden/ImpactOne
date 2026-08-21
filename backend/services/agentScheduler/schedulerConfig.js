@@ -25,7 +25,10 @@ module.exports = {
 
   // Unchanged from AGENT-ORCHESTRATOR-001's own defaults, so existing
   // callers of agentOrchestrator.run() see no behavior change.
-  DEFAULT_TIMEOUT_MS: envNumber("AGENT_SCHEDULER_TIMEOUT_MS", 5000),
+  // Public regulatory providers can legitimately take several seconds,
+  // especially when a rate-limited source falls through to a verified
+  // alternative. Five seconds made healthy agents appear disconnected.
+  DEFAULT_TIMEOUT_MS: envNumber("AGENT_SCHEDULER_TIMEOUT_MS", 12000),
   DEFAULT_MAX_RETRIES: envNumber("AGENT_SCHEDULER_MAX_RETRIES", 1),
 
   // Full-jitter exponential backoff between retries: delay = random(0, min(maxDelayMs, baseDelayMs * 2^attempt)).

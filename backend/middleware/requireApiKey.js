@@ -24,6 +24,9 @@ function requireApiKey(req, res, next) {
   const configuredKey = env.ADMIN_API_KEY;
 
   if (!configuredKey) {
+    if (env.NODE_ENV === "production") {
+      return res.status(503).json({ error: "Administrative API is disabled because ADMIN_API_KEY is not configured." });
+    }
     if (!hasWarnedMissingKey) {
       console.warn("[requireApiKey] ADMIN_API_KEY is not configured — admin routes are running WITHOUT auth protection. Set ADMIN_API_KEY before exposing this deployment beyond a trusted environment.");
       hasWarnedMissingKey = true;

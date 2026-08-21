@@ -19,6 +19,31 @@ function createProviderCache({ now = Date.now } = {}) {
   let hits = 0;
   let misses = 0;
   let bypassed = 0; // real Redis errors / unavailability — distinct from an honest cache miss
+  let localHits = 0;
+  const localStore = new Map();
+  const MAX_LOCAL_ENTRIES = 1000;
+
+  function getLocal(cacheKey) {
+    const entry = localStore.get(cacheKey);
+    if (!entry) return null;
+    if (entry.expiresAt <= now()) {
+      localStore.delete(cacheKey);
+      return null;
+    }
+    // Refresh insertion order so the bounded fallback behaves as an LRU.
+    localStore.delete(cacheKey);
+    localStore.set(cacheKey, entry);
+    localHits += 1;
+    return entry.value;
+  }
+
+  function setLocal(cacheKey, value, ttlMs) {
+    localStore.delete(cacheKey);
+    localStore.set(cacheKey, { value, expiresAt: now() + ttlMs });
+    while (localStore.size > MAX_LOCAL_ENTRIES) {
+      localStore.delete(localStore.keys().next().value);
+    }
+  }
 
   async function getOrCompute(cacheKey, computeFn, { ttlMs = 0, shouldCache = () => true } = {}) {
     if (!(ttlMs > 0)) {
@@ -35,7 +60,12 @@ function createProviderCache({ now = Date.now } = {}) {
 
     if (!client) {
       bypassed += 1;
-      return computeFn();
+      const local = getLocal(cacheKey);
+      if (local !== null) return local;
+      misses += 1;
+      const result = await computeFn();
+      if (shouldCache(result)) setLocal(cacheKey, result, ttlMs);
+      return result;
     }
 
     try {
@@ -46,7 +76,12 @@ function createProviderCache({ now = Date.now } = {}) {
       }
     } catch {
       bypassed += 1;
-      return computeFn();
+      const local = getLocal(cacheKey);
+      if (local !== null) return local;
+      misses += 1;
+      const result = await computeFn();
+      if (shouldCache(result)) setLocal(cacheKey, result, ttlMs);
+      return result;
     }
 
     misses += 1;
@@ -72,6 +107,7 @@ function createProviderCache({ now = Date.now } = {}) {
     } catch {
       client = null;
     }
+    localStore.delete(cacheKey);
     if (!client) return;
     try {
       await client.del(cacheKey);
@@ -89,6 +125,9 @@ function createProviderCache({ now = Date.now } = {}) {
     } catch {
       client = null;
     }
+    for (const key of localStore.keys()) {
+      if (key.startsWith(prefix)) localStore.delete(key);
+    }
     if (!client) return;
     try {
       const matchingKeys = await client.keys(`${prefix}*`);
@@ -101,13 +140,14 @@ function createProviderCache({ now = Date.now } = {}) {
   }
 
   function getStats() {
-    return { hits, misses, bypassed, generatedAt: new Date(now()).toISOString() };
+    return { hits, localHits, misses, bypassed, localEntries: localStore.size, generatedAt: new Date(now()).toISOString() };
   }
 
   function resetStats() {
     hits = 0;
     misses = 0;
     bypassed = 0;
+    localHits = 0;
   }
 
   return { getOrCompute, invalidate, invalidatePrefix, getStats, resetStats };

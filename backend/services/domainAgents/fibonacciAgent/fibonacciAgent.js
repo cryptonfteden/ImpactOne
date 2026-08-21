@@ -1,139 +1,116 @@
-// Phase FIBONACCI-AGENT-001 — "Build the Fibonacci Intelligence Agent."
-// This module is the reusable analysis engine, composing every piece
-// this mission requires (Trend Context, Primary Swing, Retracement
-// Levels, Extension Targets, Confluence Score, High Probability Zones,
-// Entry Zone, Risk Zone, Confidence, AI Summary) from real,
-// already-computed indicators.
-// backend/services/agentOrchestrator/agents/fibonacciAgent.js is the
-// thin adapter wiring it into the generic Agent interface — the same
-// engine-vs-adapter split every domain agent this session uses.
 const { createFibonacciDataProvider } = require("./fibonacciDataProvider");
-const { detectPrimarySwing } = require("./swingDetector");
 const { calculateRetracementLevels } = require("./retracementCalculator");
-const { calculateExtensionTargets } = require("./extensionCalculator");
-const { analyzeDynamicLevels } = require("./dynamicSupportResistanceAnalyzer");
-const { analyzePriceReactionHistory } = require("./priceReactionHistory");
-const { analyzeTimeframeAgreement } = require("./multiTimeframeAnalyzer");
-const { findConfluenceZones, selectHighProbabilityZones } = require("./confluenceZoneAnalyzer");
-const { determineZones } = require("./entryRiskZoneAnalyzer");
-const { analyzeTrendContext } = require("./trendContextAnalyzer");
-const { computeConfidence } = require("./confidenceModel");
-const { generateAiSummary } = require("./aiSummary");
+const { analyzeWeeklyBars } = require("./weeklyStrategyAnalyzer");
+const { IMPACTONE_FIBONACCI_PROFILE } = require("./impactOneFibonacciProfile");
 const { DEFAULT_DISPLAY_CONFIG } = require("./fibonacciDisplayConfig");
 
 const defaultProvider = createFibonacciDataProvider();
-const WEEKLY_SWING_LOOKBACK = 52;
 
-function buildUnavailableReport(symbol, asOf, reason, inputs) {
-  const report = {
+function buildDataQuality(metrics, weeklyStrategy, now = new Date()) {
+  const latest = weeklyStrategy?.latestWeek || metrics?.freshness?.lastBarDate || null;
+  const ageDays = latest ? Math.max(0, Math.floor((new Date(now).getTime() - new Date(`${latest}T00:00:00Z`).getTime()) / 86400000)) : null;
+  const stale = Number.isFinite(ageDays) ? ageDays > 14 : true;
+  return {
+    status: weeklyStrategy?.dataAvailable && !stale ? "VERIFIED" : weeklyStrategy?.dataAvailable ? "STALE" : "UNAVAILABLE",
+    source: "ImpactOne verified OHLCV price-history provider",
+    timeframe: "1W",
+    candleState: "COMPLETED_ONLY",
+    barsUsed: Number(weeklyStrategy?.weeklyBars || 0),
+    latestCompletedWeek: latest,
+    ageDays,
+    stale,
+    strategyVersion: IMPACTONE_FIBONACCI_PROFILE.strategyVersion,
+  };
+}
+
+function weeklySummary(symbol, setup) {
+  if (!setup?.dataAvailable) return `Weekly Fibonacci is unavailable for ${symbol}: ${setup?.reason || "verified weekly candles are unavailable"}`;
+  const distance = Math.abs(Number(setup.distancePct)).toFixed(2);
+  const point = Number(setup.targetPrice).toFixed(2);
+  const anchors = `weekly low ${setup.swing.swingLow.toFixed(2)} (${setup.swing.swingLowDate}) followed by weekly high ${setup.swing.swingHigh.toFixed(2)} (${setup.swing.swingHighDate})`;
+  if (setup.signalEligible) return `${symbol} is ${distance}% above the weekly 0.886 point at ${point}. The setup uses ${anchors}; the committee must still validate the evidence before any simulated entry.`;
+  if (setup.distancePct < 0) return `${symbol} is already ${distance}% below the weekly 0.886 point at ${point}. It is not a new ImpactOne entry alert.`;
+  return `${symbol} is ${distance}% above the weekly 0.886 point at ${point}, outside the 5% entry-alert zone. The setup uses ${anchors}.`;
+}
+
+function unavailableReport(symbol, metrics, weeklyStrategy, now = new Date()) {
+  const reason = weeklyStrategy?.reason || metrics?.unavailableReason || "Verified weekly data is unavailable.";
+  return {
     symbol,
-    generatedAt: asOf,
+    generatedAt: metrics?.asOf || new Date().toISOString(),
     dataAvailable: false,
     unavailableReason: reason,
+    signalEligible: false,
+    strategy: { ...IMPACTONE_FIBONACCI_PROFILE },
+    weeklyStrategy,
+    dataQuality: buildDataQuality(metrics, weeklyStrategy, now),
     trendContext: "NEUTRAL",
     primarySwing: null,
     retracementLevels: null,
+    weeklyScanLevels: null,
+    monthlyScanLevels: null,
     extensionTargets: null,
     confluenceZones: [],
     highProbabilityZones: [],
     entryZone: null,
     riskZone: null,
-    timeframeAgreement: "UNKNOWN",
-    confidence: { confidence: 0, components: { base: 0, confluenceBonus: 0, agreementDelta: 0, reactionBonus: 0 } },
-    // Static, disclosed display defaults (Phase FIBONACCI-DEFAULTS-001) —
-    // present even when data is unavailable, since it describes how a
-    // future chart UI would render levels, not a computed result.
+    timeframeAgreement: "WEEKLY_ONLY",
+    confidence: { confidence: 0, components: { dataQuality: 0, swingQuality: 0, proximity: 0 } },
     displayConfig: DEFAULT_DISPLAY_CONFIG,
-    inputs,
+    inputs: metrics,
+    aiSummary: `Weekly Fibonacci is unavailable for ${symbol}: ${reason}`,
   };
-  report.aiSummary = generateAiSummary(report);
-  return report;
 }
 
-function averageReactionStrength(reactions) {
-  const usable = reactions.filter((reaction) => Number.isFinite(reaction.reactionStrength));
-  if (!usable.length) return null;
-  return usable.reduce((sum, reaction) => sum + reaction.reactionStrength, 0) / usable.length;
-}
-
-/**
- * Generates the full normalized Fibonacci Intelligence report for one
- * symbol. `provider` defaults to the real, already-tested
- * priceHistoryProvider/technicalIntelligenceService-backed
- * implementation, but accepts any object implementing the documented
- * `getSymbolFibonacciData(symbol)` interface.
- */
-async function generateReport(symbol, { provider = defaultProvider } = {}) {
+async function generateReport(symbol, { provider = defaultProvider, now = new Date() } = {}) {
   const metrics = await provider.getSymbolFibonacciData(symbol);
+  if (!metrics?.dataAvailable) return unavailableReport(symbol, metrics, null, now);
 
-  if (!metrics.dataAvailable) {
-    return buildUnavailableReport(symbol, metrics.asOf, metrics.unavailableReason, metrics);
-  }
+  const weeklyStrategy = analyzeWeeklyBars(symbol, metrics.weeklyBars, { now });
+  if (!weeklyStrategy.dataAvailable) return unavailableReport(symbol, metrics, weeklyStrategy, now);
 
-  const trendContext = analyzeTrendContext(metrics.dailyTrendSignal);
-  const dailySwing = detectPrimarySwing(metrics.dailyBars);
-  const weeklySwing = detectPrimarySwing(metrics.weeklyBars, WEEKLY_SWING_LOOKBACK);
-  const monthlySwing = detectPrimarySwing(metrics.monthlyBars, metrics.monthlyBars.length);
+  const retracementLevels = calculateRetracementLevels(weeklyStrategy.swing);
+  const dataQuality = buildDataQuality(metrics, weeklyStrategy, now);
+  const dataQualityScore = dataQuality.stale ? 55 : 95;
+  const swingQualityScore = Math.min(100, Math.round(weeklyStrategy.swing.strengthPct * 2.5));
+  const confidenceScore = Math.round(dataQualityScore * 0.55 + swingQualityScore * 0.25 + weeklyStrategy.technicalScore * 0.2);
+  const entryZone = {
+    label: weeklyStrategy.signalEligible ? "Weekly 0.886 entry zone" : "Weekly 0.886 watch point",
+    centerPrice: weeklyStrategy.targetPrice,
+    low: weeklyStrategy.targetPrice,
+    high: weeklyStrategy.targetPrice * (1 + IMPACTONE_FIBONACCI_PROFILE.entryZone.maxDistancePct / 100),
+    confluenceScore: weeklyStrategy.technicalScore,
+  };
 
-  const timeframe = analyzeTimeframeAgreement(dailySwing, weeklySwing, metrics.dailyTrendSignal, metrics.weeklyTrendSignal);
-  const dynamicLevels = analyzeDynamicLevels(metrics.dailyBars);
-
-  const retracementLevels = calculateRetracementLevels(dailySwing);
-  const monthlyScanLevels = calculateRetracementLevels(monthlySwing, { activeRatios: [0.236, 0.382, 0.5, 0.618, 0.786] });
-  const extensionTargets = calculateExtensionTargets(dailySwing);
-
-  const allLevels = [
-    ...(retracementLevels || []).map((level) => ({ price: level.price, source: `Fibonacci ${level.ratio} retracement` })),
-    ...(extensionTargets || []).map((level) => ({ price: level.price, source: `Fibonacci ${level.ratio} extension` })),
-    ...dynamicLevels,
-  ];
-
-  const confluenceZones = findConfluenceZones(allLevels);
-  const highProbabilityZones = selectHighProbabilityZones(confluenceZones);
-  const reactions = analyzePriceReactionHistory(metrics.dailyBars, allLevels);
-  const avgReactionStrength = averageReactionStrength(reactions);
-
-  const { entryZone, riskZone } = determineZones({
-    zones: confluenceZones,
-    currentPrice: metrics.currentPrice,
-    direction: dailySwing?.direction || null,
-  });
-
-  const confidence = computeConfidence({
-    dataAvailable: true,
-    enoughDataStatus: metrics.enoughDataStatus,
-    entryZone,
-    timeframeAgreement: timeframe.agreement,
-    avgReactionStrength,
-  });
-
-  const report = {
-    symbol: metrics.symbol,
-    generatedAt: metrics.asOf,
+  return {
+    symbol: metrics.symbol || symbol,
+    generatedAt: metrics.asOf || new Date().toISOString(),
     dataAvailable: true,
     unavailableReason: null,
-    trendContext,
-    primarySwing: dailySwing,
+    signalEligible: weeklyStrategy.signalEligible,
+    alertStatus: weeklyStrategy.signalEligible ? "WEEKLY_ENTRY_ALERT" : "NO_WEEKLY_ENTRY_ALERT",
+    strategy: { ...IMPACTONE_FIBONACCI_PROFILE },
+    weeklyStrategy,
+    dataQuality,
+    trendContext: weeklyStrategy.signalEligible ? "BULLISH" : "NEUTRAL",
+    primarySwing: weeklyStrategy.swing,
     retracementLevels,
-    monthlyScanLevels,
-    monthlySwing,
-    extensionTargets,
-    confluenceZones,
-    highProbabilityZones,
+    weeklyScanLevels: retracementLevels,
+    monthlyScanLevels: null,
+    extensionTargets: null,
+    confluenceZones: [],
+    highProbabilityZones: [],
     entryZone,
-    riskZone,
-    timeframeAgreement: timeframe.agreement,
-    confidence,
-    // Static, disclosed display defaults (Phase FIBONACCI-DEFAULTS-001) —
-    // metadata only, never used in any scoring/confluence/confidence
-    // computation above.
+    riskZone: null,
+    timeframeAgreement: "WEEKLY_ONLY",
+    confidence: {
+      confidence: confidenceScore,
+      components: { dataQuality: dataQualityScore, swingQuality: swingQualityScore, proximity: weeklyStrategy.technicalScore },
+    },
     displayConfig: DEFAULT_DISPLAY_CONFIG,
-    // Retained for auditability/debugging — every number above traces
-    // back to these real, already-fetched inputs.
     inputs: metrics,
+    aiSummary: weeklySummary(symbol, weeklyStrategy),
   };
-  report.aiSummary = generateAiSummary(report);
-  return report;
 }
 
-module.exports = { generateReport, createFibonacciDataProvider };
+module.exports = { generateReport, createFibonacciDataProvider, buildDataQuality, weeklySummary };

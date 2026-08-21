@@ -13,6 +13,16 @@ const MACRO_KEYWORDS = [
   "recession", "tariff", "treasury", "jobs report", "cpi", "fomc", "monetary policy",
 ];
 
+const STRATEGIC_THEME_KEYWORDS = Object.freeze({
+  SPACE: ["space", "satellite", "launch", "nasa", "rocket", "orbit"],
+  QUANTUM: ["quantum computing", "quantum processor", "quantum network"],
+  AI: ["artificial intelligence", " ai ", "ai chip", "data center"],
+  ENERGY_INFRASTRUCTURE: ["power grid", "energy infrastructure", "transmission", "electricity demand"],
+  NUCLEAR: ["nuclear", "uranium", "small modular reactor", "smr"],
+  DEFENSE: ["defense contract", "pentagon", "weapon", "missile", "department of defense"],
+  US_POLICY: ["white house", "congress", "federal register", "department of energy", "department of commerce", "sec ", "government funding"],
+});
+
 function normalize(text) {
   return (text || "").toLowerCase();
 }
@@ -44,7 +54,13 @@ function classifyArticle(article, symbol, companyName) {
  * @returns {Array<object>} each article merged with its real `eventType` field
  */
 function classifyArticles(articles, symbol, companyName) {
-  return articles.map((article) => ({ ...article, eventType: classifyArticle(article, symbol, companyName) }));
+  return articles.map((article) => {
+    const text = ` ${normalize(article.title)} ${normalize(article.description)} `;
+    const themes = Object.entries(STRATEGIC_THEME_KEYWORDS)
+      .filter(([, keywords]) => keywords.some((keyword) => text.includes(keyword)))
+      .map(([theme]) => theme);
+    return { ...article, eventType: classifyArticle(article, symbol, companyName), strategicThemes: themes };
+  });
 }
 
-module.exports = { classifyArticle, classifyArticles, MACRO_KEYWORDS };
+module.exports = { classifyArticle, classifyArticles, MACRO_KEYWORDS, STRATEGIC_THEME_KEYWORDS };

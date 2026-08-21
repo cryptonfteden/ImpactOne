@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button, EmptyState, ErrorState, LoadingSpinner } from "./ui";
 import AdvancedChart from "./chart/AdvancedChart";
 import ImpactGraph from "./ImpactGraph";
-import { marketApi, portfolioEngineApi, priceAlertsApi, watchlistFoldersApi, symbolIntelligenceApi, claimsApi, optionsAgentApi, marketSentimentApi } from "../services/api";
+import { marketApi, portfolioEngineApi, priceAlertsApi, watchlistFoldersApi, symbolIntelligenceApi, claimsApi, optionsAgentApi, marketSentimentApi, agentOrchestratorApi } from "../services/api";
 import { logError } from "../utils/errorHandling";
 
 /**
@@ -25,6 +25,7 @@ export default function StockSidePanel({ symbol, onClose }) {
   const [claims, setClaims] = useState([]);
   const [claimsError, setClaimsError] = useState("");
   const [optionsView, setOptionsView] = useState(null);
+  const [optionsResearch, setOptionsResearch] = useState(null);
   const [sentimentOverview, setSentimentOverview] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -55,7 +56,8 @@ export default function StockSidePanel({ symbol, onClose }) {
       claimsApi.listBySymbol(symbol, { limit: 50 }),
       optionsAgentApi.getSymbolView(symbol),
       marketSentimentApi.getOverview("US"),
-    ]).then(([quoteResult, portfolioResult, intelligenceResult, alertsResult, foldersResult, claimsResult, optionsResult, sentimentResult]) => {
+      agentOrchestratorApi.getStockIntelligence(symbol),
+    ]).then(([quoteResult, portfolioResult, intelligenceResult, alertsResult, foldersResult, claimsResult, optionsResult, sentimentResult, orchestratorResult]) => {
       if (cancelled) return;
 
       if (quoteResult.status === "fulfilled") {
@@ -115,6 +117,12 @@ export default function StockSidePanel({ symbol, onClose }) {
 
       if (sentimentResult.status === "fulfilled") {
         setSentimentOverview(sentimentResult.value);
+      }
+
+      if (orchestratorResult.status === "fulfilled") {
+        setOptionsResearch(orchestratorResult.value?.agents?.find((agent) => agent.agentId === "options")?.result?.raw || null);
+      } else {
+        setOptionsResearch(null);
       }
 
       setIsLoading(false);
@@ -322,9 +330,13 @@ export default function StockSidePanel({ symbol, onClose }) {
                     </li>
                   ))}
                 </ul>
-              ) : (
-                <EmptyState message={optionsView?.reason || "No unusual options activity for this symbol right now."} />
-              )}
+              ) : optionsResearch?.dataAvailable ? (
+                <div className="side-panel-options-context">
+                  <div><span>Official EOD activity</span><strong>{Number.isFinite(Number(optionsResearch.inputs?.historicalContext?.volumeVsAverage)) ? `${Number(optionsResearch.inputs.historicalContext.volumeVsAverage).toFixed(2)}× recent average` : `${Number(optionsResearch.inputs?.optionVolume?.total || 0).toLocaleString()} contracts`}</strong></div>
+                  <div><span>Reported mix</span><strong>{Math.round(Number(optionsResearch.signals?.callAccumulation?.share || 0) * 100)}% calls · {Math.round(Number(optionsResearch.signals?.putAccumulation?.share || 0) * 100)}% puts</strong></div>
+                  <p>Source: {optionsResearch.dataQuality?.source || optionsResearch.inputs?.sourceProvider} · {optionsResearch.inputs?.reportDate || "date unavailable"}. End-of-day volume only; it does not identify live sweeps or buyer/seller direction.</p>
+                </div>
+              ) : <EmptyState message={optionsView?.reason || optionsResearch?.unavailableReason || "No verified options activity is available for this symbol right now."} />}
             </section>
 
             <section>

@@ -22,11 +22,33 @@ const { generateAiSummary } = require("./aiSummary");
 
 const defaultProvider = createAnalystDataProvider();
 
+function assessDataQuality(metrics, { totalAnalysts = 0, confidence = 0 } = {}) {
+  const periodCount = metrics?.periods?.length || 0;
+  const latestPeriod = metrics?.periods?.[0]?.period || null;
+  const blockers = [
+    ...(periodCount < 2 ? [`Only ${periodCount} analyst-consensus period(s) were available.`] : []),
+    ...(totalAnalysts < 5 ? [`Only ${totalAnalysts} analyst rating(s) support the latest consensus.`] : []),
+    ...(confidence < 40 ? [`Consensus confidence is ${Math.round(confidence)}/100.`] : []),
+  ];
+  return {
+    source: "Finnhub analyst recommendations",
+    periodCount,
+    latestPeriod,
+    totalAnalysts,
+    priceTargetsAvailable: Boolean(metrics?.priceTargets?.dataAvailable),
+    blockers,
+    signalEligible: Boolean(metrics?.dataAvailable) && blockers.length === 0,
+  };
+}
+
 function buildUnavailableReport(symbol, asOf, reason, inputs) {
+  const dataQuality = assessDataQuality(inputs);
   const report = {
     symbol,
     generatedAt: asOf,
     dataAvailable: false,
+    signalEligible: false,
+    dataQuality,
     unavailableReason: reason,
     analystBias: "UNKNOWN",
     consensusScore: null,
@@ -72,6 +94,7 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
     coverageQuality,
     priceTargetsAvailable: metrics.priceTargets.dataAvailable,
   });
+  const dataQuality = assessDataQuality(metrics, { totalAnalysts, confidence: confidenceResult.confidence });
 
   const opportunities = buildOpportunities({ analystBias, consensusScore, ratingTrend, convictionScore, coverageQuality });
   const risks = buildRisks({
@@ -88,6 +111,8 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
     symbol: metrics.symbol,
     generatedAt: metrics.asOf,
     dataAvailable: true,
+    signalEligible: dataQuality.signalEligible,
+    dataQuality,
     unavailableReason: null,
     analystBias,
     consensusScore,
@@ -110,4 +135,4 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
   return report;
 }
 
-module.exports = { generateReport, createAnalystDataProvider };
+module.exports = { generateReport, createAnalystDataProvider, assessDataQuality };

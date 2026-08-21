@@ -32,6 +32,7 @@ const KNOWN_ENGINES = {
   "short-interest": { label: "Short Interest Intelligence Agent", staleAfterMs: 24 * 60 * 60 * 1000 }, // this agent's own real FINRA daily short-volume proxy, refreshed daily (distinct from the bi-monthly `shortInterest` entry above)
   valuation: { label: "Valuation Intelligence Agent", staleAfterMs: 24 * 60 * 60 * 1000 },
   fibonacci: { label: "Fibonacci Intelligence Agent", staleAfterMs: 24 * 60 * 60 * 1000 },
+  "tradingview-fibonacci": { label: "TradingView Fibonacci Signal Bridge", staleAfterMs: 24 * 60 * 60 * 1000 },
   insider: { label: "Insider Intelligence Agent", staleAfterMs: 7 * 24 * 60 * 60 * 1000 }, // real SEC Form 4 filings lag and arrive irregularly
   "etf-flow": { label: "ETF Flow Intelligence Agent", staleAfterMs: 24 * 60 * 60 * 1000 },
   institutional: { label: "Institutional Intelligence Agent", staleAfterMs: 7 * 24 * 60 * 60 * 1000 }, // real SEC 13F-HR filings are quarterly

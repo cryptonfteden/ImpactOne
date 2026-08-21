@@ -24,8 +24,7 @@
 //     currentQuarter: { reportDate, shares, value } | null,
 //     priorQuarter: { reportDate, shares, value } | null,
 //   }>
-const axios = require("axios");
-const env = require("../../../config/env");
+const { getSec } = require("../../secEdgarClient");
 const companyNameResolver = require("./companyNameResolver");
 const { INSTITUTIONAL_MANAGERS } = require("./institutionalManagerReference");
 const { parseThirteenFFilings } = require("./thirteenFSubmissionsParser");
@@ -49,7 +48,7 @@ async function safeFetch(fetcher, fallbackValue) {
 
 async function fetchManagerPosition(manager, companyName) {
   const submissions = await safeFetch(
-    () => axios.get(`https://data.sec.gov/submissions/CIK${manager.cik}.json`, { headers: { "User-Agent": env.SEC_EDGAR_USER_AGENT }, timeout: REQUEST_TIMEOUT_MS }).then((response) => response.data),
+    () => getSec(`https://data.sec.gov/submissions/CIK${manager.cik}.json`, { timeout: REQUEST_TIMEOUT_MS }).then((response) => response.data),
     null
   );
   if (!submissions) {
@@ -69,7 +68,7 @@ async function fetchManagerPosition(manager, companyName) {
       continue;
     }
     const xml = await safeFetch(
-      () => axios.get(infoTableUrl, { headers: { "User-Agent": env.SEC_EDGAR_USER_AGENT }, timeout: REQUEST_TIMEOUT_MS }).then((response) => response.data),
+      () => getSec(infoTableUrl, { accept: "application/xml,text/xml,*/*", timeout: REQUEST_TIMEOUT_MS }).then((response) => response.data),
       null
     );
     if (!xml || typeof xml !== "string") {
@@ -80,11 +79,15 @@ async function fetchManagerPosition(manager, companyName) {
     quarters.push(result.matched ? { reportDate: filing.reportDate, shares: result.totalShares, value: result.totalValue } : { reportDate: filing.reportDate, shares: 0, value: 0 });
   }
 
+  const parsedQuarterCount = quarters.filter(Boolean).length;
+  const checked = parsedQuarterCount > 0;
+
   return {
     managerName: manager.name,
     cik: manager.cik,
-    checked: true,
-    unavailableReason: null,
+    checked,
+    unavailableReason: checked ? null : "The manager's 13F filing was found, but its Information Table could not be verified.",
+    parsedQuarterCount,
     currentQuarter: quarters[0] || null,
     priorQuarter: quarters[1] || null,
   };

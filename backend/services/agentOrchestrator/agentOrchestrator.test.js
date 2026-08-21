@@ -176,6 +176,26 @@ test("computeOverallConfidence is honestly 0 when every agent is unavailable or 
   assert.equal(report.overallConfidence, 0);
 });
 
+test("explicitly non-eligible fulfilled agents do not inflate committee confidence or conflicts", async () => {
+  agentOrchestrator.registerAgent(makeAgent({
+    id: "real",
+    priority: 2,
+    execute: () => ({ direction: "BULLISH", raw: { signalEligible: true } }),
+    confidence: () => 80,
+  }));
+  agentOrchestrator.registerAgent(makeAgent({
+    id: "empty-provider",
+    priority: 10,
+    execute: () => ({ direction: "BEARISH", raw: { signalEligible: false, dataAvailable: false } }),
+    confidence: () => 100,
+  }));
+
+  const report = await agentOrchestrator.run("NVDA");
+  assert.equal(report.overallConfidence, 80);
+  assert.equal(report.conflicts.length, 0);
+  assert.equal(report.summary.decisionEligible, 1);
+});
+
 test("conflict detection: two agents reporting different real directions are flagged, agreeing agents are not", async () => {
   agentOrchestrator.registerAgent(makeAgent({ id: "bull", execute: () => ({ direction: "BULLISH" }), confidence: () => 50 }));
   agentOrchestrator.registerAgent(makeAgent({ id: "bear", execute: () => ({ direction: "BEARISH" }), confidence: () => 50 }));

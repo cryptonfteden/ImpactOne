@@ -20,8 +20,60 @@ const { analyzeNewsBiasScore } = require("./newsBiasScoreAnalyzer");
 const { computeConfidence } = require("./confidenceModel");
 const { buildBullishFactors, buildBearishFactors, buildRisks } = require("./factorsRisksBuilder");
 const { generateAiSummary } = require("./aiSummary");
+const { buildEventClusters } = require("./eventClusterAnalyzer");
 
 const defaultProvider = createNewsDataProvider();
+const MIN_SIGNAL_IMPORTANCE = 60;
+const MIN_SIGNAL_CONFIRMATION = 40;
+const MIN_SIGNAL_CONFIDENCE = 60;
+
+function isCompanyRelevant(article, symbol, companyName) {
+  const titleAndDescription = `${article.title || ""} ${article.description || ""}`;
+  const normalized = titleAndDescription.toLowerCase();
+  const exactSymbol = String(symbol || "").replace(/[^A-Za-z0-9.-]/g, "");
+  const symbolRegex = exactSymbol ? new RegExp(`(^|[^A-Za-z0-9])${exactSymbol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^A-Za-z0-9]|$)`, "i") : null;
+  const companyTokens = String(companyName || "")
+    .toLowerCase()
+    .replace(/\b(inc|corp|corporation|company|ltd|plc|holdings?)\b/g, " ")
+    .split(/\s+/)
+    .filter((token) => token.length >= 4);
+  return Boolean((symbolRegex && symbolRegex.test(titleAndDescription)) || companyTokens.some((token) => normalized.includes(token)));
+}
+
+function assessDataQuality(metrics, classifiedArticles, companyArticles, confirmationScore, freshnessScore, importanceScore, confidence, eventClusters) {
+  const uniqueSources = new Set(companyArticles.map((article) => article.source).filter(Boolean)).size;
+  const sourceLinkedCount = companyArticles.filter((article) => /^https?:\/\//i.test(String(article.url || ""))).length;
+  const strategicThemeCount = classifiedArticles.filter((article) => article.strategicThemes?.length).length;
+  const confirmedClusters = eventClusters.filter((cluster) => cluster.sourceCount >= 2 && cluster.sourceLinkedCount >= 2);
+  const independentlyConfirmedEvent = confirmedClusters.length > 0;
+  const signalEligible = companyArticles.length >= 2
+    && independentlyConfirmedEvent
+    && freshnessScore >= 40
+    && confirmationScore >= MIN_SIGNAL_CONFIRMATION
+    && importanceScore >= MIN_SIGNAL_IMPORTANCE
+    && confidence >= MIN_SIGNAL_CONFIDENCE;
+  return {
+    source: metrics.sourceProvider || "Unknown",
+    fetchedArticleCount: metrics.articles.length,
+    companyRelevantCount: companyArticles.length,
+    uniqueCompanySources: uniqueSources,
+    sourceLinkedCount,
+    strategicThemeCount,
+    eventClusterCount: eventClusters.length,
+    independentlyConfirmedEventCount: confirmedClusters.length,
+    independentlyConfirmedEvent,
+    signalEligible,
+    blockers: [
+      ...(companyArticles.length < 2 ? ["Fewer than two company-relevant articles were verified."] : []),
+      ...(!independentlyConfirmedEvent ? ["No single company event was independently confirmed by two source-linked reports."] : []),
+      ...(sourceLinkedCount < 2 ? ["Fewer than two source links are available for evidence review."] : []),
+      ...(freshnessScore < 40 ? ["The verified company news is not fresh enough for a live signal."] : []),
+      ...(confirmationScore < MIN_SIGNAL_CONFIRMATION ? [`Cross-source confirmation is below ${MIN_SIGNAL_CONFIRMATION}/100.`] : []),
+      ...(importanceScore < MIN_SIGNAL_IMPORTANCE ? [`Market importance is below ${MIN_SIGNAL_IMPORTANCE}/100.`] : []),
+      ...(confidence < MIN_SIGNAL_CONFIDENCE ? [`Evidence confidence is below ${MIN_SIGNAL_CONFIDENCE}/100.`] : []),
+    ],
+  };
+}
 
 function buildUnavailableReport(symbol, asOf, reason, inputs) {
   const report = {
@@ -40,6 +92,8 @@ function buildUnavailableReport(symbol, asOf, reason, inputs) {
     bearishFactors: [],
     risks: buildRisks({ freshnessScore: null, dataAvailable: false, unavailableReason: reason, confidence: 0, persistenceClassification: "UNKNOWN" }),
     confidence: 0,
+    signalEligible: false,
+    dataQuality: { source: inputs?.sourceProvider || null, signalEligible: false, blockers: [reason] },
     inputs,
   };
   report.aiSummary = generateAiSummary(report);
@@ -60,18 +114,25 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
   }
 
   const classifiedArticles = classifyArticles(metrics.articles, metrics.symbol, metrics.profile.companyName);
+  const companyArticles = classifiedArticles.filter((article) => isCompanyRelevant(article, metrics.symbol, metrics.profile.companyName));
+  const scoringArticles = companyArticles;
 
-  const { freshnessScore, isBreaking } = analyzeFreshness(metrics.articles);
-  const { confirmationScore } = analyzeConfirmation(metrics.articles);
-  const { importanceScore } = analyzeImportance(freshnessScore, confirmationScore, metrics.articles);
-  const { persistenceClassification } = analyzePersistence(metrics.articles);
+  if (!scoringArticles.length) {
+    return buildUnavailableReport(metrics.symbol, metrics.asOf, "Articles were fetched, but none could be verified as company-specific.", metrics);
+  }
+
+  const { freshnessScore, isBreaking } = analyzeFreshness(scoringArticles);
+  const { confirmationScore } = analyzeConfirmation(scoringArticles);
+  const { importanceScore } = analyzeImportance(freshnessScore, confirmationScore, scoringArticles);
+  const { persistenceClassification } = analyzePersistence(scoringArticles);
   const impactHorizon = analyzeImpactHorizon(importanceScore, isBreaking, persistenceClassification);
   const affectedSectors = analyzeAffectedSectors(metrics.profile, classifiedArticles);
-  const { newsBias, newsScore, positiveCount, negativeCount } = analyzeNewsBiasScore(metrics.articles);
+  const { newsBias, newsScore, positiveCount, negativeCount } = analyzeNewsBiasScore(scoringArticles);
+  const eventClusters = buildEventClusters(scoringArticles);
 
   const confidenceResult = computeConfidence({
     dataAvailable: true,
-    articleCount: metrics.articles.length,
+    articleCount: scoringArticles.length,
     confirmationScore,
     profileAvailable: metrics.profile.dataAvailable,
   });
@@ -85,6 +146,7 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
     confidence: confidenceResult.confidence,
     persistenceClassification,
   });
+  const dataQuality = assessDataQuality(metrics, classifiedArticles, companyArticles, confirmationScore, freshnessScore, importanceScore, confidenceResult.confidence, eventClusters);
 
   const report = {
     symbol: metrics.symbol,
@@ -102,13 +164,31 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
     bearishFactors,
     risks,
     confidence: confidenceResult.confidence,
+    signalEligible: dataQuality.signalEligible,
+    dataQuality,
     // Retained for auditability/debugging — every field above traces
     // back to these real, already-fetched inputs.
     inputs: metrics,
-    details: { classifiedArticles, persistenceClassification, isBreaking, confidence: confidenceResult },
+    details: {
+      classifiedArticles,
+      companyArticles,
+      strategicThemeArticles: classifiedArticles.filter((article) => article.strategicThemes?.length),
+      eventClusters,
+      persistenceClassification,
+      isBreaking,
+      confidence: confidenceResult,
+    },
   };
   report.aiSummary = generateAiSummary(report);
   return report;
 }
 
-module.exports = { generateReport, createNewsDataProvider };
+module.exports = {
+  generateReport,
+  createNewsDataProvider,
+  isCompanyRelevant,
+  assessDataQuality,
+  MIN_SIGNAL_IMPORTANCE,
+  MIN_SIGNAL_CONFIRMATION,
+  MIN_SIGNAL_CONFIDENCE,
+};

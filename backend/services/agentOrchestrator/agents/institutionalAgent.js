@@ -33,8 +33,9 @@ async function execute(symbol) {
     // The orchestrator only compares this string for equality with other
     // agents' directions (structural conflict detection) — it never
     // interprets it. NEUTRAL institutional bias reports no opinion.
-    direction: report.institutionalBias === "NEUTRAL" ? null : report.institutionalBias,
+    direction: report.signalEligible === false || report.institutionalBias === "NEUTRAL" ? null : report.institutionalBias,
     evidence: [
+      { observedFact: `Source: ${report.dataQuality.source}; verified coverage ${report.dataQuality.checkedManagers}/${report.dataQuality.totalManagers}, latest period ${report.dataQuality.latestReportDate || "unavailable"}.` },
       { observedFact: `Institutional Bias: ${report.institutionalBias} (score ${report.institutionalScore}), ownership trend ${report.ownershipTrend.trend}.` },
       { observedFact: `Accumulation ${report.accumulationScore}/100, distribution ${report.distributionScore}/100, conviction ${report.convictionScore}/100.` },
       ...(report.newPositions.length ? [{ observedFact: `${report.newPositions.length} real new institutional position(s) opened.` }] : []),
@@ -54,7 +55,7 @@ async function health() {
 }
 
 module.exports = {
-  metadata: { id: "institutional", name: "Institutional Intelligence Agent", category: "INSTITUTIONAL", priority: 6 },
+  metadata: { id: "institutional", name: "Institutional Intelligence Agent", category: "INSTITUTIONAL", priority: 8 },
   execute,
   confidence,
   health,

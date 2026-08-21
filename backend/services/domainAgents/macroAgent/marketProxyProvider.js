@@ -9,7 +9,7 @@ const priceHistoryProvider = require("../../intelligence/priceHistoryProvider");
 const RECENT_WINDOW_TRADING_DAYS = 21; // roughly one real trading month
 
 function emptyProxyMetrics(symbol, reason) {
-  return { symbol, dataAvailable: false, unavailableReason: reason, latestClose: null, priorClose: null, changePercent: null };
+  return { symbol, dataAvailable: false, unavailableReason: reason, latestClose: null, priorClose: null, changePercent: null, latestDate: null };
 }
 
 /**
@@ -30,7 +30,7 @@ async function fetchMarketProxy(symbol) {
   }
 
   const changePercent = Math.round(((latestClose - priorClose) / priorClose) * 10000) / 100;
-  return { symbol, dataAvailable: true, unavailableReason: null, latestClose, priorClose, changePercent };
+  return { symbol, dataAvailable: true, unavailableReason: null, latestClose, priorClose, changePercent, latestDate: recentBars[recentBars.length - 1].date || null };
 }
 
 module.exports = { fetchMarketProxy, emptyProxyMetrics, RECENT_WINDOW_TRADING_DAYS };

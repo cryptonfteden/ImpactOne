@@ -15,11 +15,12 @@ function unavailable(dimension, reason) {
   return { dimension, score: null, confidence: null, contributors: [], missingInputs: [], unavailable: true, reason };
 }
 
-function freshnessFromTimestamp(timestamp, now) {
-  if (!timestamp) return { ageMs: null, asOf: null };
+function freshnessFromTimestamp(timestamp, now, maxAgeMs = null) {
+  if (!timestamp) return { ageMs: null, asOf: null, maxAgeMs, isStale: null };
   const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
-  if (Number.isNaN(date.getTime())) return { ageMs: null, asOf: null };
-  return { ageMs: now.getTime() - date.getTime(), asOf: date.toISOString() };
+  if (Number.isNaN(date.getTime())) return { ageMs: null, asOf: null, maxAgeMs, isStale: null };
+  const ageMs = now.getTime() - date.getTime();
+  return { ageMs, asOf: date.toISOString(), maxAgeMs, isStale: Number.isFinite(maxAgeMs) ? ageMs > maxAgeMs : null };
 }
 
 function matchesRegion(item, market) {
@@ -57,7 +58,7 @@ function scoreNewsSentiment({ feed = [], market, now = new Date() } = {}) {
     const published = item.publishedAt ? new Date(item.publishedAt) : null;
     return published && (!latest || published > latest) ? published : latest;
   }, null);
-  const freshness = freshnessFromTimestamp(mostRecentTimestamp, now);
+  const freshness = freshnessFromTimestamp(mostRecentTimestamp, now, 48 * 60 * 60 * 1000);
 
   return {
     dimension: "NEWS_SENTIMENT",
@@ -117,7 +118,7 @@ function scoreAiRecommendationDistribution({ recommendations = [], market, now =
     const created = rec.createdAt ? new Date(rec.createdAt) : null;
     return created && (!latest || created > latest) ? created : latest;
   }, null);
-  const freshness = freshnessFromTimestamp(mostRecentTimestamp, now);
+  const freshness = freshnessFromTimestamp(mostRecentTimestamp, now, 48 * 60 * 60 * 1000);
 
   return {
     dimension: "AI_RECOMMENDATION_DISTRIBUTION",
@@ -137,6 +138,62 @@ function scoreAiRecommendationDistribution({ recommendations = [], market, now =
         contributionToScore: score - 50,
       },
     ],
+  };
+}
+
+/**
+ * Market breadth proxy — a transparent cross-index participation read,
+ * not an exchange advance/decline statistic. It uses verified daily
+ * closes for the registered broad-market proxies and reports the share
+ * above their own 50- and 200-day averages. The contributor explicitly
+ * names this limitation so the UI cannot present it as full NYSE/Nasdaq
+ * constituent breadth.
+ */
+function scoreMarketBreadth({ analyses = [], market, now = new Date() } = {}) {
+  const usable = analyses.filter((analysis) => {
+    const inputs = analysis?.signals?.trend?.calculationInputs;
+    return analysis?.signals?.trend?.enoughDataStatus === "SUFFICIENT"
+      && Number.isFinite(inputs?.lastClose)
+      && Number.isFinite(inputs?.sma50);
+  });
+  if (!usable.length) {
+    return unavailable("MARKET_BREADTH", "No registered market proxy has sufficient verified daily price history for a participation reading.");
+  }
+
+  const above50Count = usable.filter((analysis) => analysis.signals.trend.calculationInputs.lastClose > analysis.signals.trend.calculationInputs.sma50).length;
+  const withSma200 = usable.filter((analysis) => Number.isFinite(analysis.signals.trend.calculationInputs.sma200));
+  const above200Count = withSma200.filter((analysis) => analysis.signals.trend.calculationInputs.lastClose > analysis.signals.trend.calculationInputs.sma200).length;
+  const above50Pct = (above50Count / usable.length) * 100;
+  const above200Pct = withSma200.length ? (above200Count / withSma200.length) * 100 : null;
+  const score = clamp(Math.round(above200Pct === null ? above50Pct : above50Pct * 0.6 + above200Pct * 0.4), 0, 100);
+  const registeredCount = MARKET_REGISTRY[market].proxySymbols.length;
+  const coverage = usable.length / Math.max(registeredCount, 1);
+  const confidence = clamp(Math.round(35 + coverage * 45 + Math.min(usable.length, 5) * 4), 0, 100);
+
+  const contributors = usable.map((analysis) => {
+    const inputs = analysis.signals.trend.calculationInputs;
+    const above50 = inputs.lastClose > inputs.sma50;
+    const above200 = Number.isFinite(inputs.sma200) ? inputs.lastClose > inputs.sma200 : null;
+    return {
+      source: `technicalIntelligenceService.analyzeSymbol(${analysis.symbol}) — broad-market price proxy`,
+      rawValue: { symbol: analysis.symbol, lastClose: inputs.lastClose, sma50: inputs.sma50, sma200: inputs.sma200, above50, above200 },
+      normalizedValue: above200 === null ? (above50 ? 100 : 0) : Math.round((above50 ? 60 : 0) + (above200 ? 40 : 0)),
+      weight: Math.round((1 / usable.length) * 10000) / 10000,
+      confidence,
+      freshness: freshnessFromTimestamp(analysis.signals.trend.freshness?.lastBarDate, now, 4 * 24 * 60 * 60 * 1000),
+      contributionToScore: null,
+    };
+  });
+
+  return {
+    dimension: "MARKET_BREADTH",
+    score,
+    confidence,
+    unavailable: false,
+    reason: null,
+    missingInputs: ["This is a broad-market ETF/index participation proxy, not an exchange-wide advance/decline count."],
+    contributors,
+    proxyCoverage: { usable: usable.length, registered: registeredCount, above50Pct: Math.round(above50Pct), above200Pct: above200Pct === null ? null : Math.round(above200Pct) },
   };
 }
 
@@ -179,7 +236,7 @@ function scoreFearGreed({ macroData, polymarketData = [], market, now = new Date
       normalizedValue: riskModeScore,
       weight: macroWeight,
       confidence: macroConfidence,
-      freshness: freshnessFromTimestamp(macroData.rates?.asOf === "n/a" ? null : macroData.rates?.asOf, now),
+      freshness: freshnessFromTimestamp(macroData.rates?.asOf === "n/a" ? null : macroData.rates?.asOf, now, 10 * 24 * 60 * 60 * 1000),
       contributionToScore: Math.round(riskModeScore * macroWeight * 100) / 100,
     },
   ];
@@ -190,7 +247,7 @@ function scoreFearGreed({ macroData, polymarketData = [], market, now = new Date
       normalizedValue: polyScore,
       weight: polyWeight,
       confidence: polyConfidence,
-      freshness: { ageMs: null, asOf: now.toISOString() }, // Polymarket entries carry no per-item timestamp field
+      freshness: { ageMs: null, asOf: now.toISOString(), maxAgeMs: null, isStale: null }, // Polymarket entries carry no per-item timestamp field
       contributionToScore: Math.round(polyScore * polyWeight * 100) / 100,
     });
   }
@@ -205,7 +262,7 @@ function scoreFearGreed({ macroData, polymarketData = [], market, now = new Date
  * based, never implied-vol/VIX — no such data source exists.
  */
 function scoreVolatility({ analyses = [], market, now = new Date() } = {}) {
-  const usable = analyses.filter((analysis) => analysis?.signals?.volatilityRegime?.enoughData);
+  const usable = analyses.filter((analysis) => analysis?.signals?.volatilityRegime?.enoughDataStatus === "SUFFICIENT");
   if (!usable.length) {
     return unavailable("VOLATILITY", "No symbol in this market's proxy universe has sufficient real price history yet.");
   }
@@ -222,7 +279,7 @@ function scoreVolatility({ analyses = [], market, now = new Date() } = {}) {
     normalizedValue: perSymbolScores[index],
     weight: Math.round(weight * 10000) / 10000,
     confidence,
-    freshness: freshnessFromTimestamp(analysis.signals.volatilityRegime.freshness?.lastBarDate, now),
+    freshness: freshnessFromTimestamp(analysis.signals.volatilityRegime.freshness?.lastBarDate, now, 4 * 24 * 60 * 60 * 1000),
     contributionToScore: Math.round(perSymbolScores[index] * weight * 100) / 100,
   }));
 
@@ -265,7 +322,7 @@ function scoreMacroEvents({ macroData, cotResult, market, now = new Date() } = {
       normalizedValue: macroBlend,
       weight: macroWeight,
       confidence: macroConfidence,
-      freshness: freshnessFromTimestamp(macroData.cpi?.asOf === "n/a" ? null : macroData.cpi?.asOf, now),
+      freshness: freshnessFromTimestamp(macroData.cpi?.asOf === "n/a" ? null : macroData.cpi?.asOf, now, 45 * 24 * 60 * 60 * 1000),
       contributionToScore: Math.round(macroBlend * macroWeight * 100) / 100,
     },
   ];
@@ -276,7 +333,7 @@ function scoreMacroEvents({ macroData, cotResult, market, now = new Date() } = {
       normalizedValue: cotScore,
       weight: cotWeight,
       confidence: 65,
-      freshness: freshnessFromTimestamp(cotResult.asOf, now),
+      freshness: freshnessFromTimestamp(cotResult.asOf, now, 10 * 24 * 60 * 60 * 1000),
       contributionToScore: Math.round((cotScore ?? 0) * cotWeight * 100) / 100,
     });
   }
@@ -298,6 +355,7 @@ function scoreMacroEvents({ macroData, cotResult, market, now = new Date() } = {
 module.exports = {
   scoreNewsSentiment,
   scoreAiRecommendationDistribution,
+  scoreMarketBreadth,
   scoreFearGreed,
   scoreVolatility,
   scoreMacroEvents,

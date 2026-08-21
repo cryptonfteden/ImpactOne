@@ -17,11 +17,16 @@ const FLAT_THRESHOLD_PERCENT = 0.1;
  * @returns {{ dollarVolume: number, priceChangePercent: number, direction: "INFLOW"|"OUTFLOW"|"FLAT", signedProxyValue: number } | null}
  */
 function computeFlowProxy(bars, windowSize) {
-  if (bars.length < windowSize) return null;
+  // A one-session return needs two closes: the prior close and today's
+  // close. The same boundary rule applies to 5- and 21-session windows.
+  // Dollar volume is summed only for the sessions inside the requested
+  // window; the extra bar is used solely as the return baseline.
+  if (bars.length < windowSize + 1) return null;
+  const baseline = bars[bars.length - windowSize - 1];
   const window = bars.slice(-windowSize);
 
   const dollarVolume = window.reduce((sum, bar) => sum + (Number.isFinite(bar.close) && Number.isFinite(bar.volume) ? bar.close * bar.volume : 0), 0);
-  const first = window[0].close;
+  const first = baseline.close;
   const last = window[window.length - 1].close;
   const priceChangePercent = Number.isFinite(first) && Number.isFinite(last) && first !== 0 ? ((last - first) / first) * 100 : 0;
 

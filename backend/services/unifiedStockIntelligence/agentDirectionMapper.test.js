@@ -137,6 +137,20 @@ test("mapAgentResult for a fulfilled agent with dataAvailable:false is honestly 
   assert.equal(mapped.unavailableReason, "no key configured");
 });
 
+test("mapAgentResult excludes a fulfilled row that failed its decision-quality gate", () => {
+  const mapped = mapAgentResult({
+    agentId: "options",
+    agentName: "Options",
+    status: "fulfilled",
+    confidence: 99,
+    priority: 6,
+    result: { raw: { dataAvailable: true, signalEligible: false, unavailableReason: "Insufficient verified coverage." } },
+  });
+  assert.equal(mapped.available, false);
+  assert.equal(mapped.direction, null);
+  assert.equal(mapped.confidence, 0);
+});
+
 test("mapAgentResult for a real fulfilled, data-available agent carries through its real direction/confidence/priority", () => {
   const agentResult = {
     agentId: "options",

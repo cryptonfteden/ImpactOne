@@ -26,7 +26,7 @@ test("resolveStockSector: honestly reports unavailable when Finnhub returns no r
   try {
     const result = await resolveStockSector("AAPL");
     assert.equal(result.dataAvailable, false);
-    assert.match(result.unavailableReason, /no real sector/);
+    assert.match(result.unavailableReason, /no verified sector/);
   } finally {
     require("axios").get = originalGet;
   }
@@ -39,7 +39,7 @@ test("resolveStockSector: honestly reports unavailable on a real network failure
   try {
     const result = await resolveStockSector("AAPL");
     assert.equal(result.dataAvailable, false);
-    assert.match(result.unavailableReason, /simulated network failure/);
+    assert.match(result.unavailableReason, /no verified sector/);
   } finally {
     require("axios").get = originalGet;
   }

@@ -4,37 +4,39 @@ import { BOTTOM_NAV_KEYS } from "./BottomNav";
 import { runStartupValidation } from "../startupValidation";
 import { logError } from "../utils/errorHandling";
 import { API_BASE_URL } from "../config/apiConfig";
-import {
-  AnalysisFeature,
-  NewsFeature,
-  WatchlistFeature,
-  AlertsFeature,
-  PortfolioFeature,
-  SettingsFeature,
-  RecommendationsFeature,
-  MyProfileFeature,
-  HomeFeature,
-  ThemesFeature,
-  IntelligenceConsoleFeature,
-  HealthDashboardFeature,
-  WatchlistFoldersFeature,
-  MarketPositioningFeature,
-  MarketChartFeature,
-  DecisionCenterFeature,
-  DecisionTimelineFeature,
-  ExecutiveDashboardFeature,
-  AdminDashboardFeature,
-  AiPerformanceDashboardFeature,
-  MissionControlHomeFeature,
-  IntelligenceWorkspaceFeature,
-  PortfolioWorkspaceFeature,
-  NewsIntelligenceFeature,
-  WatchlistWorkspaceFeature,
-  AiAnalysisWorkspaceFeature,
-  MarketIntelligenceWorkspaceFeature,
-  PersonalIntelligenceWorkspaceFeature,
-  StockScannerFeature,
-} from "../features";
+import HomeFeature from "../features/home/HomeFeature";
+
+// Every non-landing workspace is loaded only when it is opened. This keeps
+// charting, research and operator-only code out of the phone's first payload.
+const AnalysisFeature = lazy(() => import("../features/analysis/AnalysisFeature"));
+const NewsFeature = lazy(() => import("../features/news/NewsFeature"));
+const WatchlistFeature = lazy(() => import("../features/watchlist/WatchlistFeature"));
+const AlertsFeature = lazy(() => import("../features/alerts/AlertsFeature"));
+const PortfolioFeature = lazy(() => import("../features/portfolio/PortfolioFeature"));
+const SettingsFeature = lazy(() => import("../features/settings/SettingsFeature"));
+const RecommendationsFeature = lazy(() => import("../features/recommendations/RecommendationsFeature"));
+const MyProfileFeature = lazy(() => import("../features/profile/MyProfileFeature"));
+const ThemesFeature = lazy(() => import("../features/themes/ThemesFeature"));
+const IntelligenceConsoleFeature = lazy(() => import("../features/console/IntelligenceConsoleFeature"));
+const HealthDashboardFeature = lazy(() => import("../features/health/HealthDashboardFeature"));
+const WatchlistFoldersFeature = lazy(() => import("../features/watchlistFolders/WatchlistFoldersFeature"));
+const MarketPositioningFeature = lazy(() => import("../features/marketPositioning/MarketPositioningFeature"));
+const MarketChartFeature = lazy(() => import("../features/marketChart/MarketChartFeature"));
+const DecisionCenterFeature = lazy(() => import("../features/decisionCenter/DecisionCenterFeature"));
+const DecisionTimelineFeature = lazy(() => import("../features/decisionTimeline/DecisionTimelineFeature"));
+const ExecutiveDashboardFeature = lazy(() => import("../features/executiveDashboard/ExecutiveDashboardFeature"));
+const AdminDashboardFeature = lazy(() => import("../features/admin/AdminDashboardFeature"));
+const AiPerformanceDashboardFeature = lazy(() => import("../features/admin/AiPerformanceDashboardFeature"));
+const MissionControlHomeFeature = lazy(() => import("../features/missionControlHome/MissionControlHomeFeature"));
+const IntelligenceWorkspaceFeature = lazy(() => import("../features/intelligenceWorkspace/IntelligenceWorkspaceFeature"));
+const PortfolioWorkspaceFeature = lazy(() => import("../features/portfolioWorkspace/PortfolioWorkspaceFeature"));
+const NewsIntelligenceFeature = lazy(() => import("../features/newsIntelligence/NewsIntelligenceFeature"));
+const WatchlistWorkspaceFeature = lazy(() => import("../features/watchlistWorkspace/WatchlistWorkspaceFeature"));
+const AiAnalysisWorkspaceFeature = lazy(() => import("../features/aiAnalysisWorkspace/AiAnalysisWorkspaceFeature"));
+const MarketIntelligenceWorkspaceFeature = lazy(() => import("../features/marketIntelligenceWorkspace/MarketIntelligenceWorkspaceFeature"));
+const PersonalIntelligenceWorkspaceFeature = lazy(() => import("../features/personalIntelligenceWorkspace/PersonalIntelligenceWorkspaceFeature"));
+const StockScannerFeature = lazy(() => import("../features/stockScanner/StockScannerFeature"));
+const SourceStatusFeature = lazy(() => import("../features/sourceStatus/SourceStatusFeature"));
 
 // Phase X6 — Part 1/4. Extracted from MainLayout.jsx into its own module
 // specifically so HealthDashboardScreen.jsx (which MainLayout renders via
@@ -87,6 +89,7 @@ export const screenMap = {
   Recommendations: RecommendationsFeature,
   "My Profile": MyProfileFeature,
   Settings: SettingsFeature,
+  "Source Status": SourceStatusFeature,
 };
 
 // Sprint 23A / Phase X6 Part 4 — developer-only, same VITE_DEV_CONSOLE

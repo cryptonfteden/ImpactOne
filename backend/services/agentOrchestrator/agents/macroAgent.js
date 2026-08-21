@@ -16,8 +16,10 @@ async function execute() {
 
   return {
     summary: `Macro Intelligence (market-wide, not symbol-specific) — ${report.aiSummary}`,
-    direction: report.macroBias === "UNKNOWN" ? null : report.macroBias,
+    direction: report.signalEligible === false || report.macroBias === "UNKNOWN" ? null : report.macroBias,
     evidence: [
+      { observedFact: `Macro coverage: ${report.dataQuality.availableSourceCount}/${report.dataQuality.totalSourceCount} identified sources; ${report.dataQuality.criticalAvailable}/6 critical series.` },
+      ...(report.contrarianWatch.active ? [{ observedFact: report.contrarianWatch.meaning }] : []),
       ...report.bullishFactors.map((factor) => ({ observedFact: factor })),
       ...report.bearishFactors.map((factor) => ({ observedFact: factor })),
       ...report.risks.map((risk) => ({ observedFact: risk })),
@@ -35,7 +37,7 @@ async function health() {
 }
 
 module.exports = {
-  metadata: { id: "macro", name: "Macro Intelligence Agent", category: "MACRO", priority: 5 },
+  metadata: { id: "macro", name: "Macro Intelligence Agent", category: "MACRO", priority: 6 },
   execute,
   confidence,
   health,

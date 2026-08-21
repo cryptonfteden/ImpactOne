@@ -5,6 +5,11 @@ import { useI18n } from "../i18n/I18nProvider";
 
 const DEFAULT_SYMBOL = "SPY";
 
+function initialSymbol() {
+  const stored = String(window.sessionStorage.getItem("impactone:selected-ticker") || "").trim().toUpperCase();
+  return /^[A-Z.\-]{1,12}$/.test(stored) ? stored : DEFAULT_SYMBOL;
+}
+
 /**
  * A dedicated, mobile-reachable home for the app's existing professional
  * chart. AdvancedChart renders only genuine OHLCV bars from the configured
@@ -12,11 +17,24 @@ const DEFAULT_SYMBOL = "SPY";
  */
 export default function MarketChartScreen() {
   const { t } = useI18n();
-  const [symbol, setSymbol] = useState(DEFAULT_SYMBOL);
-  const [draftSymbol, setDraftSymbol] = useState(DEFAULT_SYMBOL);
+  const [symbol, setSymbol] = useState(initialSymbol);
+  const [draftSymbol, setDraftSymbol] = useState(initialSymbol);
   const [chartHeight, setChartHeight] = useState(640);
-  // Chart is the primary workspace, so it opens in terminal mode by default.
-  const [isExpanded, setIsExpanded] = useState(true);
+  // Preserve application navigation by default. Full-screen terminal mode is
+  // an explicit user action and can still be exited with Escape.
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    const handleTickerSelection = (event) => {
+      const next = String(event.detail || "").trim().toUpperCase();
+      if (!/^[A-Z.\-]{1,12}$/.test(next)) return;
+      window.sessionStorage.setItem("impactone:selected-ticker", next);
+      setDraftSymbol(next);
+      setSymbol(next);
+    };
+    window.addEventListener("impactone:select-ticker", handleTickerSelection);
+    return () => window.removeEventListener("impactone:select-ticker", handleTickerSelection);
+  }, []);
 
   useEffect(() => {
     // The canvas gets the viewport remainder after the symbol bar, quote row
@@ -40,10 +58,12 @@ export default function MarketChartScreen() {
     event.preventDefault();
     const normalized = String(draftSymbol || "").trim().toUpperCase();
     if (!/^[A-Z.\-]{1,12}$/.test(normalized)) return;
+    window.sessionStorage.setItem("impactone:selected-ticker", normalized);
     setSymbol(normalized);
   }
 
   function selectSymbol(nextSymbol) {
+    window.sessionStorage.setItem("impactone:selected-ticker", nextSymbol);
     setDraftSymbol(nextSymbol);
     setSymbol(nextSymbol);
   }

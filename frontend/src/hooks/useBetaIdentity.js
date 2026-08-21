@@ -40,6 +40,10 @@ function readStoredIdentity() {
   }
 }
 
+export function hasStoredBetaIdentity() {
+  return Boolean(readStoredIdentity());
+}
+
 function persistIdentity(identity) {
   try {
     window.localStorage.setItem(BETA_USER_ID_STORAGE_KEY, identity.betaUserId);

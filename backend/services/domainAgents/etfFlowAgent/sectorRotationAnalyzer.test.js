@@ -12,20 +12,20 @@ test("analyzeSectorRotation honestly reports UNKNOWN with no real ETF monthly fl
 });
 
 test("analyzeSectorRotation: real ETF outperformance beyond the disclosed threshold reports ROTATING_IN", () => {
-  const marketBars = Array.from({ length: 21 }, () => ({ close: 100, volume: 1000 })); // flat market, 0% change
+  const marketBars = Array.from({ length: 22 }, () => ({ close: 100, volume: 1000 })); // prior close + 21 flat sessions
   const result = analyzeSectorRotation({ priceChangePercent: 10 }, marketBars);
   assert.equal(result.classification, "ROTATING_IN");
   assert.equal(result.relativeStrengthPercent, 10);
 });
 
 test("analyzeSectorRotation: real ETF underperformance beyond the disclosed threshold reports ROTATING_OUT", () => {
-  const marketBars = Array.from({ length: 21 }, () => ({ close: 100, volume: 1000 }));
+  const marketBars = Array.from({ length: 22 }, () => ({ close: 100, volume: 1000 }));
   const result = analyzeSectorRotation({ priceChangePercent: -10 }, marketBars);
   assert.equal(result.classification, "ROTATING_OUT");
 });
 
 test("analyzeSectorRotation: real relative performance within the disclosed threshold reports NEUTRAL", () => {
-  const marketBars = Array.from({ length: 21 }, () => ({ close: 100, volume: 1000 }));
+  const marketBars = Array.from({ length: 22 }, () => ({ close: 100, volume: 1000 }));
   const result = analyzeSectorRotation({ priceChangePercent: 1 }, marketBars);
   assert.equal(result.classification, "NEUTRAL");
 });

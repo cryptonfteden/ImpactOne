@@ -24,7 +24,7 @@ test.beforeEach(() => {
 test("the etf-flow agent is automatically registered in the Agent Registry, running the upgraded engine", () => {
   const registered = agentOrchestrator.getRegisteredAgents().find((agent) => agent.metadata.id === "etf-flow");
   assert.ok(registered, "the etf-flow agent must be registered without any manual step");
-  assert.equal(registered.metadata.name, "ETF Flow Intelligence Agent");
+  assert.equal(registered.metadata.name, "Sector ETF Momentum Agent");
 });
 
 test("running the full orchestrator surfaces the rich ETF flow report via the standard per-agent result fields", async () => {
@@ -32,7 +32,7 @@ test("running the full orchestrator surfaces the rich ETF flow report via the st
   const [etfFlowResult] = report.agents;
 
   assert.equal(etfFlowResult.agentId, "etf-flow");
-  assert.ok(["fulfilled", "error", "timeout"].includes(etfFlowResult.status), "a real network call may succeed, gracefully degrade, or (rarely) time out in this environment");
+  assert.ok(["fulfilled", "unavailable", "error", "timeout"].includes(etfFlowResult.status), "a real provider call may succeed, report verified data unavailable, fail, or time out");
   if (etfFlowResult.status === "fulfilled") {
     assert.equal(typeof etfFlowResult.result.summary, "string");
     assert.ok(Array.isArray(etfFlowResult.result.evidence));

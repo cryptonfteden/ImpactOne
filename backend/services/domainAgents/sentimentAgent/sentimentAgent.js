@@ -26,15 +26,38 @@ const { generateAiSummary } = require("./aiSummary");
 
 const defaultProvider = createSentimentDataProvider();
 
+function assessDataQuality(metrics, sourceQuality = emptySourceQuality(), confidence = 0) {
+  const articleCount = metrics?.articles?.length || 0;
+  const blockers = [
+    ...(articleCount < 3 ? [`Only ${articleCount} symbol-linked article(s) were verified.`] : []),
+    ...(sourceQuality.distinctSourceCount < 2 ? [`Only ${sourceQuality.distinctSourceCount} distinct news source(s) were verified.`] : []),
+    ...(confidence < 40 ? [`Sentiment confidence is ${Math.round(confidence)}/100.`] : []),
+  ];
+  return {
+    source: metrics?.sourceProvider || "verified symbol news",
+    queryIdentity: metrics?.queryIdentity || null,
+    articleCount,
+    distinctSourceCount: sourceQuality.distinctSourceCount,
+    tier1ArticleCount: sourceQuality.tier1ArticleCount,
+    socialDataAvailable: Boolean(metrics?.socialAvailable),
+    priceBarsAvailable: metrics?.priceBars?.length || 0,
+    blockers,
+    signalEligible: Boolean(metrics?.dataAvailable) && blockers.length === 0,
+  };
+}
+
 function emptySourceQuality() {
   return { distinctSourceCount: 0, sources: [], tier1ArticleCount: 0, totalArticleCount: 0, credibilityScore: 0 };
 }
 
 function buildUnavailableReport(symbol, asOf, reason, inputs) {
+  const dataQuality = assessDataQuality(inputs);
   const report = {
     symbol,
     generatedAt: asOf,
     dataAvailable: false,
+    signalEligible: false,
+    dataQuality,
     unavailableReason: reason,
     sentimentState: "NEUTRAL",
     sentimentTrend: "STABLE",
@@ -95,11 +118,14 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
     socialAvailable: metrics.socialAvailable,
     hasAbnormalActivity: abnormalActivity.hasAbnormalActivity,
   });
+  const dataQuality = assessDataQuality(metrics, sourceQuality, confidence.confidence);
 
   const report = {
     symbol: metrics.symbol,
     generatedAt: metrics.asOf,
     dataAvailable: true,
+    signalEligible: dataQuality.signalEligible,
+    dataQuality,
     unavailableReason: null,
     sentimentState,
     sentimentTrend,
@@ -121,4 +147,4 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
   return report;
 }
 
-module.exports = { generateReport, createSentimentDataProvider };
+module.exports = { generateReport, createSentimentDataProvider, assessDataQuality };

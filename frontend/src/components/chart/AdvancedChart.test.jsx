@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import AdvancedChart from "./AdvancedChart";
+import AdvancedChart, { FIBONACCI_LEVELS, findFibonacciAnchors } from "./AdvancedChart";
 import { marketPositioningApi } from "../../services/api";
 
 vi.mock("../../services/api", () => ({
@@ -59,17 +59,57 @@ describe("AdvancedChart", () => {
     expect(container.querySelector(".advanced-chart__layer--drawing")).toBeInTheDocument();
   });
 
-  it("reserves the Fibonacci UI location, disabled, with no calculation or rendering (Phase X6 Part 7)", async () => {
+  it("uses only the approved 0/0.886/1 Fibonacci levels in the active context", async () => {
     marketPositioningApi.getChart.mockResolvedValue({ symbol: "AAPL", range: "3mo", bars: BARS });
     render(<AdvancedChart symbol="AAPL" />);
-    const button = screen.getByText("Fibonacci on");
-    expect(button).toBeEnabled();
+    expect(FIBONACCI_LEVELS).toEqual([0, 0.886, 1]);
+    fireEvent.click(screen.getByText("Fibonacci"));
+    await waitFor(() => expect(marketPositioningApi.getChart).toHaveBeenCalledWith("AAPL", "3mo"));
+    expect(marketPositioningApi.getChart).not.toHaveBeenCalledWith("AAPL", "1y");
+    expect(screen.getByText("Fibonacci on")).toBeEnabled();
+  });
+
+  it("anchors Fibonacci only from an earlier low to a later high", () => {
+    const anchors = findFibonacciAnchors([
+      { date: "2026-01-10", low: 90, high: 110 },
+      { date: "2026-02-10", low: 70, high: 80 },
+      { date: "2026-03-10", low: 75, high: 120 },
+    ]);
+    expect(anchors).toMatchObject({ startIndex: 1, endIndex: 2, from: 70, to: 120 });
+  });
+
+  it("builds intraday Fibonacci from an earlier low to a later high", () => {
+    expect(findFibonacciAnchors([
+      { date: "2026-01-05", low: 70, high: 75 },
+      { date: "2026-01-20", low: 72, high: 120 },
+    ])).toMatchObject({ startIndex: 0, endIndex: 1, from: 70, to: 120 });
   });
 
   it("shows an honest empty message when the real API returns zero bars — never fabricates data", async () => {
     marketPositioningApi.getChart.mockResolvedValue({ symbol: "NODATA", range: "3mo", bars: [] });
     render(<AdvancedChart symbol="NODATA" />);
     await waitFor(() => expect(screen.getByText(/No chart data available for NODATA/)).toBeInTheDocument());
+  });
+
+  it("renders verified partial history instead of incorrectly claiming that a newer stock has no data", async () => {
+    marketPositioningApi.getChart.mockResolvedValue({
+      symbol: "CDNL",
+      range: "1y",
+      bars: BARS,
+      source: "Yahoo Finance",
+      sourceRole: "verified-fallback",
+      timeframe: {
+        label: "1 year",
+        candleInterval: "1 week",
+        barCount: BARS.length,
+        complete: false,
+        reason: "Only 40 verified bars are available; 1 year requires a longer span.",
+      },
+    });
+    const { container } = render(<AdvancedChart symbol="CDNL" initialRange="1y" />);
+    await waitFor(() => expect(screen.getByText("Partial 1 year history")).toBeInTheDocument());
+    expect(container.querySelector(".advanced-chart__canvas-stack")).toBeInTheDocument();
+    expect(screen.queryByText(/No chart data available for CDNL/)).not.toBeInTheDocument();
   });
 
   it("shows a friendly error state when the chart request fails — never a raw error message", async () => {
@@ -86,6 +126,20 @@ describe("AdvancedChart", () => {
 
     screen.getByText("1Y").click();
     await waitFor(() => expect(marketPositioningApi.getChart).toHaveBeenCalledWith("AAPL", "1y"));
+  });
+
+  it("keeps Fibonacci active and recalculates it when the timeframe changes", async () => {
+    marketPositioningApi.getChart.mockResolvedValue({ symbol: "AAPL", range: "3mo", bars: BARS });
+    render(<AdvancedChart symbol="AAPL" />);
+    await waitFor(() => expect(screen.getByText("Fibonacci")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Fibonacci"));
+    expect(screen.getByText("Fibonacci on")).toBeInTheDocument();
+    expect(marketPositioningApi.getChart).not.toHaveBeenCalledWith("AAPL", "1y");
+
+    fireEvent.click(screen.getByText("4H"));
+    await waitFor(() => expect(marketPositioningApi.getChart).toHaveBeenCalledWith("AAPL", "4h"));
+    expect(screen.getByText("Fibonacci on")).toBeInTheDocument();
   });
 
   it("Phase X3 — moving the pointer over the chart shows a real OHLC + volume tooltip for the hovered bar", async () => {

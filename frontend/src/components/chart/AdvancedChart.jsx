@@ -28,14 +28,13 @@ const CHART_TYPES = [
   { key: "columns", label: "Columns" },
 ];
 
-const FIBONACCI_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+// ImpactOne strategy uses only the monthly swing high, 0.886 entry point,
+// and monthly swing low. Extra generic retracement levels are intentionally
+// excluded because they are not part of the approved setup.
+const FIBONACCI_LEVELS = [0, 0.886, 1];
 const FIBONACCI_STYLE = {
   0: { color: "#8aa8ff", label: "0.000" },
-  0.236: { color: "#66d7ff", label: "0.236" },
-  0.382: { color: "#57e7cc", label: "0.382" },
-  0.5: { color: "#f5c968", label: "0.500" },
-  0.618: { color: "#ff9f70", label: "0.618" },
-  0.786: { color: "#e68bff", label: "0.786" },
+  0.886: { color: "#57e7cc", label: "0.886" },
   1: { color: "#fa7185", label: "1.000" },
 };
 
@@ -58,18 +57,24 @@ function fastMinMax(values) {
 }
 
 function findFibonacciAnchors(bars) {
-  let lowIndex = 0;
-  let highIndex = 0;
-  bars.forEach((bar, index) => {
-    if (Number(bar.low) < Number(bars[lowIndex].low)) lowIndex = index;
-    if (Number(bar.high) > Number(bars[highIndex].high)) highIndex = index;
-  });
-  // The older pivot is the start point; this preserves a readable diagonal
-  // direction whether the real visible swing is rising or falling.
-  return lowIndex < highIndex
-    ? { startIndex: lowIndex, endIndex: highIndex, from: Number(bars[lowIndex].low), to: Number(bars[highIndex].high) }
-    : { startIndex: highIndex, endIndex: lowIndex, from: Number(bars[highIndex].high), to: Number(bars[lowIndex].low) };
+  // The backend already supplies candles aggregated for the selected range
+  // (weekly for 1Y, daily for 1M/3M, intraday for 1D/4H/15m). Work directly
+  // from those verified candles so the overlay always matches what is visible.
+  let best = null;
+  for (let lowIndex = 0; lowIndex < bars.length - 1; lowIndex += 1) {
+    const low = Number(bars[lowIndex]?.low);
+    if (!(low > 0)) continue;
+    for (let highIndex = lowIndex + 1; highIndex < bars.length; highIndex += 1) {
+      const high = Number(bars[highIndex]?.high);
+      if (!(high > low)) continue;
+      const strength = (high - low) / low;
+      if (!best || strength > best.strength) best = { startIndex: lowIndex, endIndex: highIndex, from: low, to: high, strength };
+    }
+  }
+  return best;
 }
+
+export { FIBONACCI_LEVELS, findFibonacciAnchors };
 
 /**
  * Phase X2/X3 — Advanced Market Chart. Real OHLCV data only (the
@@ -81,9 +86,8 @@ function findFibonacciAnchors(bars) {
  * keyboard shortcuts, auto-fit, double-click reset, and a layered
  * overlay/drawing-layer architecture (see overlayRegistry.js /
  * CHART_EXTENSION_API.md) so future indicators/tools attach without
- * touching this file's render loop. Fibonacci and every other named
- * overlay remain deliberately NOT implemented — the layers exist and are
- * empty by design, pending CEO approval.
+ * touching this file's render loop. Fibonacci implements the approved
+ * ImpactOne monthly low → later high strategy with only 0/0.886/1.
  */
 export default function AdvancedChart({ symbol, height = 420, initialRange = "3mo" }) {
   const containerRef = useRef(null);
@@ -104,12 +108,14 @@ export default function AdvancedChart({ symbol, height = 420, initialRange = "3m
 
   const [range, setRange] = useState(initialRange);
   const [bars, setBars] = useState([]);
+  const [dataSource, setDataSource] = useState({ name: "", role: "loading" });
+  const [timeframeMeta, setTimeframeMeta] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
   const [crosshair, setCrosshair] = useState(null); // { index, x, y } or null
-  const [showFibonacci, setShowFibonacci] = useState(true);
+  const [showFibonacci, setShowFibonacci] = useState(false);
   const [showVolume, setShowVolume] = useState(true);
   const [chartType, setChartType] = useState("candles");
   const [isDrawingFibonacci, setIsDrawingFibonacci] = useState(false);
@@ -129,6 +135,7 @@ export default function AdvancedChart({ symbol, height = 420, initialRange = "3m
     let cancelled = false;
     setIsLoading(true);
     setError("");
+    setDataSource({ name: "", role: "loading" });
     // Phase X9 — Part 6, Performance Monitoring. Real elapsed time from
     // "start loading this chart" to "real bars are set" — reported
     // fire-and-forget, never blocking the chart itself.
@@ -139,12 +146,17 @@ export default function AdvancedChart({ symbol, height = 420, initialRange = "3m
         if (cancelled) return;
         const realBars = result.bars || [];
         setBars(realBars);
+        setDataSource({ name: String(result.source || ""), role: String(result.sourceRole || (result.source ? "provider" : "unavailable")) });
+        setTimeframeMeta(result.timeframe || null);
         setView(defaultView(realBars.length));
         performanceMetricsApi.recordClientTiming("chartRender", performance.now() - loadStart).catch(() => {});
       })
       .catch((loadError) => {
         logError("chart data load failed", loadError);
-        if (!cancelled) setError("Couldn't load chart data.");
+        if (!cancelled) {
+          setDataSource({ name: "", role: "unavailable" });
+          setError("Couldn't load chart data.");
+        }
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
@@ -181,6 +193,10 @@ export default function AdvancedChart({ symbol, height = 420, initialRange = "3m
   }, [isLoading, error, bars.length]);
 
   const visibleBars = useMemo(() => bars.slice(view.start, view.end), [bars, view]);
+
+  useEffect(() => {
+    if (showFibonacci && bars.length) setView({ start: 0, end: bars.length });
+  }, [showFibonacci, range, bars.length]);
 
   const geometry = useMemo(() => {
     if (!visibleBars.length || !containerWidth) return null;
@@ -315,8 +331,9 @@ export default function AdvancedChart({ symbol, height = 420, initialRange = "3m
       ctx.restore();
     }
 
-    if (showFibonacci) {
-      const anchors = fibonacciAnchors || findFibonacciAnchors(visibleBars);
+    const resolvedFibonacciAnchors = showFibonacci ? (fibonacciAnchors || findFibonacciAnchors(visibleBars)) : null;
+    if (resolvedFibonacciAnchors) {
+      const anchors = resolvedFibonacciAnchors;
       const swingRange = anchors.to - anchors.from || 1;
       const startX = anchors.startIndex * barWidth + barWidth / 2;
       const endX = anchors.endIndex * barWidth + barWidth / 2;
@@ -336,7 +353,7 @@ export default function AdvancedChart({ symbol, height = 420, initialRange = "3m
         const price = priceForRatio(ratio);
         const y = yFor(price);
         const style = FIBONACCI_STYLE[ratio];
-        const keyLevel = ratio === 0.382 || ratio === 0.5 || ratio === 0.618;
+        const keyLevel = ratio === 0.886;
         ctx.strokeStyle = style.color;
         ctx.globalAlpha = keyLevel ? 0.9 : 0.58;
         ctx.lineWidth = keyLevel ? 1.25 : 1;
@@ -423,6 +440,8 @@ export default function AdvancedChart({ symbol, height = 420, initialRange = "3m
         if (!current || current.complete) {
           return { startIndex: index, endIndex: index, from: price, to: price, complete: false };
         }
+        // The approved tool is always chronological low → later high.
+        if (index <= current.startIndex || price <= current.from) return current;
         setIsDrawingFibonacci(false);
         return { ...current, endIndex: index, to: price, complete: true };
       });
@@ -519,6 +538,25 @@ export default function AdvancedChart({ symbol, height = 420, initialRange = "3m
     setFibonacciAnchors(null);
   }
 
+  function selectTimeframe(nextRange) {
+    setIsDrawingFibonacci(false);
+    setFibonacciAnchors(null);
+    setRange(nextRange);
+  }
+
+  function toggleStrategyFibonacci() {
+    if (showFibonacci) {
+      setShowFibonacci(false);
+      setIsDrawingFibonacci(false);
+      setFibonacciAnchors(null);
+      return;
+    }
+    setShowFibonacci(true);
+    setIsDrawingFibonacci(false);
+    setFibonacciAnchors(null);
+    autoFit();
+  }
+
   // Auto-fit — distinct from reset: fits the view to every real bar
   // currently loaded for this range, not just the default recent window.
   function autoFit() {
@@ -561,6 +599,17 @@ export default function AdvancedChart({ symbol, height = 420, initialRange = "3m
 
   return (
     <div className="advanced-chart">
+      <div className={`advanced-chart__source advanced-chart__source--${dataSource.role}`} role="status" aria-live="polite" title={dataSource.name ? `Displayed candles supplied by ${dataSource.name}.` : "Chart provider status"}>
+        <span />
+        {dataSource.role === "loading" ? "DATA SOURCE · CONNECTING" : dataSource.name ? `${dataSource.role === "verified-fallback" ? "VERIFIED FALLBACK" : "DATA SOURCE"} · ${dataSource.name.toUpperCase()}` : "DATA SOURCE · UNAVAILABLE"}
+        {timeframeMeta?.candleInterval ? <small>{` · ${timeframeMeta.label} · ${timeframeMeta.candleInterval} candles · ${timeframeMeta.barCount} verified bars`}</small> : null}
+      </div>
+      {timeframeMeta?.complete === false && bars.length ? (
+        <div className="advanced-chart__coverage-note" role="status">
+          <strong>Partial {timeframeMeta.label} history</strong>
+          <span>{timeframeMeta.reason} Showing every verified candle currently available for {symbol}; no missing period is simulated.</span>
+        </div>
+      ) : null}
       <div className="advanced-chart__toolbar">
         <div className="advanced-chart__timeframes" role="group" aria-label="Timeframe">
           {TIMEFRAMES.map((timeframe) => (
@@ -568,7 +617,8 @@ export default function AdvancedChart({ symbol, height = 420, initialRange = "3m
               key={timeframe.key}
               type="button"
               className={`ghost-button${range === timeframe.key ? " active" : ""}`}
-              onClick={() => setRange(timeframe.key)}
+              aria-pressed={range === timeframe.key}
+              onClick={() => selectTimeframe(timeframe.key)}
             >
               {timeframe.label}
             </button>
@@ -591,17 +641,13 @@ export default function AdvancedChart({ symbol, height = 420, initialRange = "3m
           </button>
           <button type="button" className="ghost-button" onClick={autoFit} title="Fit all loaded data (F)">Auto-fit</button>
           <button type="button" className="ghost-button" onClick={resetZoom} title="Reset to default view (R)">Reset</button>
-          {/* Phase X6 — Part 7, Fibonacci Placeholder. UI location
-              reserved only — no calculation, no rendering. Disabled by
-              design; real activation happens per FIBONACCI_INTEGRATION_PLAN.md
-              once CEO-approved. Registry-driven (overlayRegistry.js's
-              own FIBONACCI.implemented flag), so this label/state need
-              no further change when that flag flips. */}
+          {/* ImpactOne chronological low → later high strategy, recalculated
+              from the verified candles of whichever timeframe is active. */}
           <button
             type="button"
             className={`ghost-button${showFibonacci ? " active" : ""}`}
-            onClick={() => setShowFibonacci((value) => !value)}
-            title="Show or hide Fibonacci retracement levels."
+            onClick={toggleStrategyFibonacci}
+            title="ImpactOne strategy: selected-timeframe low to a later high."
           >
             {showFibonacci ? "Fibonacci on" : "Fibonacci"}
           </button>
@@ -652,10 +698,7 @@ export default function AdvancedChart({ symbol, height = 420, initialRange = "3m
               Earnings) render here via overlayRegistry.js without
               touching the price layer above. See CHART_EXTENSION_API.md. */}
           <canvas ref={overlayCanvasRef} className="advanced-chart__layer advanced-chart__layer--overlay" aria-hidden="true" />
-          {/* Phase X2/X3 architecture — user-drawing layer, present and
-              empty. Fibonacci (multi-profile, see CHART_EXTENSION_API.md)
-              and other interactive tools attach their pointer handlers
-              here once approved/implemented. */}
+          {/* User-drawing layer reserved for additional tools. */}
           <canvas ref={drawingCanvasRef} className="advanced-chart__layer advanced-chart__layer--drawing" aria-hidden="true" />
 
           {hoveredBar ? (

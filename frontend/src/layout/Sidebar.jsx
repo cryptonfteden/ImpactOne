@@ -82,6 +82,7 @@ if (import.meta.env.VITE_DEV_CONSOLE === "true") {
 }
 
 const ACCOUNT_ITEMS = [
+  { key: "Source Status", label: "Source Status" },
   { key: "My Profile", labelKey: "nav.myProfile" },
   { key: "Settings", labelKey: "nav.settings" },
 ];

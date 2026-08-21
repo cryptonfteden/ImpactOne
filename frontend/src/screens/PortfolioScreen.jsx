@@ -64,10 +64,12 @@ function buildAdvisorInsights(portfolio) {
 // Engine (Sprint 14) instead. Neither hook is called by this outer
 // component, so branching here doesn't violate the rules of hooks.
 export default function PortfolioScreen() {
-  if (import.meta.env.VITE_PORTFOLIO_ENGINE === "api") {
-    return <PortfolioEngineScreen />;
-  }
-  return <LegacyPortfolioScreen />;
+  // The server-owned engine is the canonical portfolio used by Home,
+  // Mission Control and paper trading. Keep the legacy implementation only
+  // as an explicit rollback path so a missing environment variable can never
+  // make the Portfolio page silently show a different account.
+  if (import.meta.env.VITE_PORTFOLIO_ENGINE === "legacy") return <LegacyPortfolioScreen />;
+  return <PortfolioEngineScreen />;
 }
 
 function LegacyPortfolioScreen() {

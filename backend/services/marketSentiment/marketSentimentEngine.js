@@ -26,6 +26,7 @@ function computeDimensionReadings({ market, dimensionInputs = {}, now = new Date
   const readings = [
     scorers.scoreNewsSentiment({ feed: dimensionInputs.feed || [], market, now }),
     scorers.scoreAiRecommendationDistribution({ recommendations: dimensionInputs.recommendations || [], market, now }),
+    scorers.scoreMarketBreadth({ analyses: dimensionInputs.analyses || [], market, now }),
     scorers.scoreFearGreed({ macroData: dimensionInputs.macroData, polymarketData: dimensionInputs.polymarketData || [], market, now }),
     scorers.scoreVolatility({ analyses: dimensionInputs.analyses || [], market, now }),
     scorers.scoreMacroEvents({ macroData: dimensionInputs.macroData, cotResult: dimensionInputs.cotResult, market, now }),

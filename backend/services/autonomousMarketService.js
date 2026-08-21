@@ -8,6 +8,7 @@ const canonicalEventRepository = require("./canonicalEventRepository");
 // the testability convention already used for finnhubService elsewhere in
 // this codebase (e.g. portfolioEngineService.js).
 const newsService = require("./newsService");
+const marketNewsIntelligence = require("./marketNewsIntelligence");
 
 const CORE_EVENT_TYPES = {
   macro: ["macro", "inflation", "jobs", "growth"],
@@ -750,8 +751,11 @@ function mapCanonicalEventToFeedItem(event, watchlist = []) {
   const credibility = Number.isFinite(event.credibilityScore) ? event.credibilityScore : sourceQualityScore(event.sourceName);
   const freshness = Number.isFinite(event.freshnessScore) ? event.freshnessScore : recencyScore(event.publishedAt);
   const sourceConfidence = Number.isFinite(event.confidence) ? event.confidence : 60;
-  const importanceScore = clamp(Math.round(sourceConfidence * 0.5 + credibility * 0.3 + freshness * 0.2 + (relatedTickers.length ? 10 : 0)), 0, 100);
+  const impactRanking = marketNewsIntelligence.scoreEvent(event, { directPortfolioMatch: relatedTickers.length > 0 });
+  const importanceScore = impactRanking.score;
   const urgency = mapUrgency(importanceScore);
+  const classification = marketNewsIntelligence.classifyThemes(event);
+  const whyItMatters = marketNewsIntelligence.marketImpactExplanation(event, classification);
 
   return {
     id: `canonical:${event.id}`,
@@ -769,19 +773,19 @@ function mapCanonicalEventToFeedItem(event, watchlist = []) {
     probability: clamp(Math.round((sourceConfidence + importanceScore) / 2), 0, 100),
     marketScope: mapScope(eventType),
     affectedRegions: Array.isArray(event.countries) && event.countries.length ? event.countries : ["Global"],
-    affectedSectors: Array.isArray(event.sectors) ? event.sectors : [],
+    affectedSectors: classification.sectors,
     affectedAssets: symbols,
     relatedTickers,
     timeHorizon: "Current provider update",
     expectedDuration: "Source update",
     reliability: mapReliability(sourceConfidence, [event.sourceName]),
-    whyItMatters: headline,
+    whyItMatters,
     supportingData: [],
     historicalAnalogue: "Unavailable",
     historicalAnalogs: [],
     bestHistoricalOutcome: null,
     worstHistoricalOutcome: null,
-    marketImpactPrediction: "Provider update; market impact has not been inferred.",
+    marketImpactPrediction: whyItMatters,
     portfolioImpactPrediction: relatedTickers.length ? `Watchlist overlap: ${relatedTickers.join(", ")}.` : "No direct watchlist overlap detected.",
     actionability: buildActionability(importanceScore, urgency, relatedTickers.length > 0),
     riskLevel: buildRiskLevel(eventType, importanceScore),
@@ -789,9 +793,11 @@ function mapCanonicalEventToFeedItem(event, watchlist = []) {
     impactType: "neutral",
     explainability: {
       evidence: [],
-      reasoning: "Direct provider event; no additional causal analysis was generated.",
+      reasoning: `Official/source fact: ${headline}; no additional causal analysis is asserted as fact. ImpactOne interpretation: ${whyItMatters}`,
       dataSources: [event.sourceName || "Provider"],
-      confidence: sourceConfidence,
+      confidence: impactRanking.score,
+      scoreBreakdown: impactRanking,
+      evidenceClass: marketNewsIntelligence.sourceAuthority(event) === 100 ? "PRIMARY_OFFICIAL" : "VERIFIED_REPORTING",
       counterarguments: ["This source update may not result in a material market move."],
       invalidationSignals: ["A newer provider update supersedes this item."],
     },

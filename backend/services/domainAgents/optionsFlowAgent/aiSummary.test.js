@@ -79,5 +79,5 @@ test("low data confidence is disclosed as a real caveat, never silently omitted"
     signals: { institutionalActivity: { detected: false } },
     risk: { dataConfidence: "LOW" },
   });
-  assert.match(summary, /directional context, not a firm signal/);
+  assert.match(summary, /market context, not a firm signal/);
 });

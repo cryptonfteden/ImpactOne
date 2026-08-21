@@ -35,8 +35,9 @@ async function execute(symbol) {
     // The orchestrator only compares this string for equality with other
     // agents' directions (structural conflict detection) — it never
     // interprets it. NEUTRAL news bias reports no opinion.
-    direction: report.newsBias === "NEUTRAL" ? null : report.newsBias,
+    direction: report.signalEligible === false || report.newsBias === "NEUTRAL" ? null : report.newsBias,
     evidence: [
+      { observedFact: `Source: ${report.dataQuality.source}; ${report.dataQuality.companyRelevantCount}/${report.dataQuality.fetchedArticleCount} articles were company-relevant across ${report.dataQuality.uniqueCompanySources} sources.` },
       { observedFact: `News Bias: ${report.newsBias} (News Score ${report.newsScore}), Importance ${report.importanceScore}/100, Impact Horizon ${report.impactHorizon}.` },
       { observedFact: `Freshness ${report.freshnessScore}/100, Confirmation ${report.confirmationScore}/100.` },
     ],
@@ -53,7 +54,7 @@ async function health() {
 }
 
 module.exports = {
-  metadata: { id: "news", name: "News Intelligence Agent", category: "NEWS", priority: 6 },
+  metadata: { id: "news", name: "News Intelligence Agent", category: "NEWS", priority: 7 },
   execute,
   confidence,
   health,

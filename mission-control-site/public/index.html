@@ -5,20 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#050914" />
     <title>ImpactOne Mission Control</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/styles.css?v=20260819-3" />
+    <link rel="stylesheet" href="/company-logos.css?v=20260819-3" />
+    <link rel="stylesheet" href="/workspace-router.css?v=20260819-4" />
+    <link rel="stylesheet" href="/workspace-polish.css?v=20260819-5" />
+    <link rel="stylesheet" href="/interface-quality.css?v=20260820-1" />
   </head>
   <body>
+    <script>
+      if (new URLSearchParams(window.location.search).has("embed")) {
+        document.documentElement.classList.add("is-embedded");
+      }
+    </script>
     <div class="stars" aria-hidden="true"></div>
     <div class="app-shell">
       <aside class="sidebar">
-        <a class="brand" href="#top" aria-label="ImpactOne Mission Control home"><span class="brand-mark">✦</span><span>IMPACT<span>ONE</span></span></a>
+        <a class="brand" href="?view=mission" data-workspace-link="mission" aria-label="ImpactOne Mission Control home"><img src="/brand/impactone-app-icon.png" alt="" /><span>IMPACT<span>ONE</span></span></a>
         <nav aria-label="Main navigation">
-          <a class="active" href="#top"><i>◈</i>Mission Control</a>
-          <a href="#portfolio"><i>▣</i>Portfolio</a>
-          <a href="#intelligence"><i>◉</i>News Intelligence</a>
-          <a href="#markets"><i>⌁</i>Market Intelligence</a>
-          <a href="#watchlist"><i>☆</i>Watchlist</a>
-          <a href="#recommendations"><i>✦</i>AI Analysis</a>
+          <a class="active nav-mission" href="?view=mission" data-workspace-link="mission"><i>◈</i><span>Mission Control</span></a>
+          <a class="nav-portfolio" href="?view=portfolio" data-workspace-link="portfolio"><i>▣</i><span>Portfolio</span></a>
+          <a class="nav-news" href="?view=news" data-workspace-link="news"><i>◉</i><span>Signal Wire</span></a>
+          <a class="nav-market" href="?view=market" data-workspace-link="market"><i>⌁</i><span>Market Lab</span></a>
+          <a class="nav-chart" href="?view=chart" data-workspace-link="chart"><i class="nav-candles" aria-hidden="true"><b></b><b></b><b></b></i><span>Chart Studio</span></a>
+          <a class="nav-watchlist" href="?view=watchlist" data-workspace-link="watchlist"><i>☆</i><span>Watchlist</span></a>
+          <a class="nav-ai" href="?view=ai" data-workspace-link="ai"><i>✦</i><span>Agent Council</span></a>
         </nav>
         <div class="private-card"><span class="status-dot"></span><div><b>Private workspace</b><small>Local access only</small></div></div>
       </aside>
@@ -27,51 +37,95 @@
         <header>
           <div class="crumb">MISSION CONTROL <span>/ LIVE SYSTEM VIEW</span></div>
           <div class="header-actions">
-            <form id="symbol-search" class="search"><span>⌕</span><input id="search" autocomplete="off" placeholder="Search symbol or company…" aria-label="Search symbol or company" /><button type="submit" aria-label="Open symbol">↵</button></form>
-            <button id="assistant-button" class="ghost">✦ AI Assistant</button><button id="refresh-button" class="icon" aria-label="Refresh live data">↻</button>
+            <form id="symbol-search" class="search command-search"><span class="command-search__icon">⌕</span><label><small>LIVE LOOKUP</small><input id="search" autocomplete="off" placeholder="Ticker or company — NVDA" aria-label="Search symbol or company" /></label><button type="submit" aria-label="Open symbol">Open ↗</button></form>
+            <button id="assistant-button" class="ghost" type="button">✦ AI Assistant</button><button id="refresh-button" class="icon" type="button" aria-label="Refresh live data">↻</button>
           </div>
         </header>
-        <section class="intro"><div><p class="eyebrow">MISSION CONTROL</p><h1>Market Pulse</h1><p>Real-time intelligence for smarter decisions.</p></div><div class="clock"><b id="time">--:--</b><span>LOCAL TIME</span></div></section>
-        <section id="markets" class="market-strip" aria-label="Market overview"></section>
+        <section class="intro"><div class="title-lockup"><span class="title-earth" aria-hidden="true"><i></i></span><div><p class="eyebrow">MISSION CONTROL · LIVE</p><h1>Market <em>Pulse</em></h1><p>Global markets, portfolio exposure and agent intelligence—one live view.</p></div></div><div class="market-session-wrap" aria-label="Live market status"><div id="market-tone-dial" class="market-tone-dial is-balanced" style="--market-score:0" title="Shows how many tracked key markets are rising. A higher score means more markets are moving up."><span>MARKET DIRECTION ⓘ</span><div class="market-tone-dial__score"><b id="sentiment-score">—</b><small>/100</small></div><strong id="sentiment-label">NOT ENOUGH DATA</strong><small id="tone-detail">HIGHER = MORE MARKETS RISING</small></div><div id="cot-dial" class="cot-dial is-unavailable"><span>WEEKLY COT</span><div class="cot-dial__split"><i id="cot-long-fill"></i><i id="cot-short-fill"></i></div><div class="cot-dial__values"><b><em id="cot-long-value">—</em><small>LONG</small></b><b><em id="cot-short-value">—</em><small>SHORT</small></b></div><strong id="cot-direction">NO VERIFIED REPORT</strong><small id="cot-report-date">CFTC · WEEKLY</small></div><div id="fear-greed-dial" class="fear-greed-dial is-neutral" style="--fear-score:50"><span>FEAR &amp; GREED</span><div class="fear-greed-dial__gauge"><i></i><b id="fear-greed-value">—</b></div><div class="fear-greed-dial__scale" aria-hidden="true"><span>FEAR</span><span>GREED</span></div><strong id="fear-greed-state">AWAITING DATA</strong><small>LIVE MARKET SENTIMENT</small></div><div id="market-session" class="market-session is-closed"><span><i></i><b id="market-state">Market: Closed</b></span><strong id="market-countdown">Opens in --:--:--</strong><small>NYSE · 09:30–16:00 ET</small></div><div class="clock"><b id="time">--:--</b><span>LOCAL TIME</span></div></div></section>
+        <div class="integration-status-row" aria-live="polite"><span class="integration-chip is-ready" title="ImpactOne renders verified provider candles without embedding TradingView"><i></i><b>ImpactOne Chart</b><small>Independent engine · verified sources</small></span><button id="source-status-button" type="button" class="source-status-button"><i></i><span><b>Source Status</b><small>Availability · freshness · origin</small></span></button></div>
+        <section id="tradingview-signal-strip" class="tradingview-signal-strip" aria-label="Recent verified TradingView signals" hidden></section>
+        <section class="market-deck"><div class="market-deck__head"><div><span class="live-pill">LIVE</span><b>Your market ribbon</b><small id="market-selection-copy">8 assets selected</small></div><button id="market-customize" type="button">⚙ Edit assets</button></div><section id="markets" class="market-strip" aria-label="Market overview"></section></section>
 
         <section class="dashboard-stage">
           <div class="earth-stage" id="analysis">
+            <canvas id="earth-webgl" class="earth-webgl" aria-hidden="true"></canvas>
             <span class="data-flare data-flare--one"></span><span class="data-flare data-flare--two"></span>
-            <article class="card sentiment-card"><p class="card-title">Market Sentiment</p><div class="ring"><div><b id="sentiment-score">—</b><small>/100</small></div></div><strong id="sentiment-label">Awaiting live data</strong><div class="mini-facts"><span>Momentum <b>Live</b></span><span>Confidence <b id="sentiment-confidence">—</b></span><span>Agent network <b id="agent-live">—</b></span></div></article>
-            <article class="signal-float"><div><p class="card-title">MARKET SIGNAL</p><b id="network-title">Connecting sources</b><span id="network-copy">Requesting verified data from ImpactOne.</span></div><strong>⌁</strong></article>
-            <article class="card events-card"><div class="section-heading"><p class="card-title">Global Events</p><span class="live-pill">LIVE</span></div><ul id="events"><li class="empty">No verified market event is available yet.</li></ul><a href="#intelligence">View all events</a></article>
+            <div id="earth-opportunities" class="earth-opportunities" aria-label="High-scoring strategy candidates">
+              <div class="earth-opportunities__empty"><b>Scanning the horizon</b><span>Verified strategy candidates will appear around the globe.</span></div>
+            </div>
+            <article class="signal-float agent-consensus"><div class="agent-consensus__head"><div><p class="card-title">AGENT CONSENSUS</p><b id="network-title">Connecting verified sources</b></div><strong id="consensus-score">—</strong></div><span id="network-copy">Building a live, confidence-weighted market view.</span><div class="agent-consensus__meter"><i id="consensus-meter"></i></div><div class="agent-consensus__facts"><small id="consensus-direction">AWAITING DIRECTION</small><small id="consensus-coverage">SOURCE COVERAGE —</small></div></article>
           </div>
-          <aside id="intelligence" class="card intelligence"><div class="section-heading"><div><p class="card-title">Top Intelligence</p><h2>Signals worth your attention</h2></div></div><div id="signals" class="signals"><p class="empty">Loading verified signals…</p></div><a class="view-all" href="#recommendations">View full analysis</a></aside>
+        </section>
+
+        <section class="decision-rail" aria-label="Your next decisions and portfolio exposure">
+          <article id="intelligence" class="card priority-intelligence decision-rail__priority market-stories"><div class="section-heading"><div><p class="card-title">MARKET STORIES</p><h2>What matters now</h2><small id="events-context">Three verified events, ranked for you</small></div><span class="live-pill">LIVE</span></div><ul id="events"><li class="empty">No verified high-priority intelligence is available yet.</li></ul><a class="view-all" href="#recommendations">Open the full intelligence feed →</a></article>
+          <aside class="card intelligence portfolio-radar decision-rail__portfolio"><div class="section-heading"><div><p class="card-title">PORTFOLIO EXPOSURE</p><h2>Where risk is concentrated now</h2><small id="portfolio-radar-meta">Loading live positions…</small></div><span class="system-badge">LIVE POSITIONS</span></div><div id="signals" class="signals"><p class="empty">Loading portfolio exposure…</p></div><a class="view-all" href="#portfolio">Open portfolio details</a></aside>
         </section>
 
         <section class="action-row">
           <a href="#intelligence"><i class="purple">✣</i><span><small>Today’s priority</small><b id="priority-count">0 verified signals</b></span></a>
           <a href="#portfolio"><i class="green">⌁</i><span><small>Portfolio</small><b id="portfolio-action-copy">Loading positions…</b></span></a>
-          <button id="scanner-button"><i class="gold">◫</i><span><small>Smart scanner</small><b>Analyze a symbol now</b></span></button>
-          <button id="analysis-button" class="primary-action">✦ Ask ImpactOne</button>
+          <button id="scanner-button" type="button"><i class="gold">◫</i><span><small>Smart scanner</small><b>Analyze a symbol now</b></span></button>
+          <button id="analysis-button" class="primary-action" type="button">✦ Ask ImpactOne</button>
+        </section>
+        <section id="daily-agent-picks" class="card daily-agent-picks">
+          <div class="section-heading daily-agent-picks__heading"><div><p class="card-title">AGENT SIGNALS</p><h2><span>Today’s</span> Signal Radar</h2><small id="daily-agent-picks-meta">Building today's source-separated shortlist…</small></div><span class="system-badge">1–3 per agent</span></div>
+          <div id="gold-picks" class="gold-picks" aria-label="Gold multi-agent stocks"></div>
+          <div id="daily-agent-picks-list" class="daily-agent-picks__grid"><div class="insider-loading"><i></i><span>Reading the latest verified agent outputs…</span></div></div>
+          <footer class="insider-method insider-method--private"><button id="daily-agent-picks-refresh" type="button">Refresh daily board</button></footer>
+        </section>
+        <section id="strategy-lab" class="card strategy-lab">
+          <div class="section-heading strategy-lab__heading"><div><p class="card-title">WEEKLY PAPER LAB</p><h2><span class="strategy-lab__heading-orb" aria-hidden="true">0.886</span><strong>Entry Flight Deck</strong></h2><small>Five paper entries. The first can activate only after a verified weekly 0.886 touch.</small></div><span class="system-badge strategy-lab__mode"><i></i> DEMO</span></div>
+          <div id="strategy-lab-summary" class="strategy-lab__summary"><div class="insider-loading"><i></i><span>Opening the experiment journal…</span></div></div>
+          <div id="strategy-lab-plans" class="strategy-lab__plans"></div>
+          <footer class="insider-method"><span id="strategy-lab-report">A simple Sunday report will appear here.</span><a href="#portfolio">Open demo portfolio</a></footer>
+        </section>
+        <section id="insider-opportunities" class="card insider-opportunities">
+          <div class="section-heading insider-opportunities__heading opportunity-heading opportunity-heading--insider"><div><p class="card-title">INSIDER PULSE</p><h2><span class="opportunity-heading__orb" aria-hidden="true">◎</span><strong>Notable Insider Buys</strong></h2><small id="insider-scan-meta">Verifying today’s open-market purchases with SEC Form 4…</small></div><span class="system-badge opportunity-heading__badge">SEC verified</span></div>
+          <div id="insider-stats" class="insider-stats" aria-label="Daily insider scan status"></div>
+          <div id="insider-opportunity-list" class="insider-opportunity-list"><div class="insider-loading"><i></i><span>Closing the evidence loop across the agent committee…</span></div></div>
+          <footer class="insider-method"><span id="insider-method-copy">Finviz discovers recent buys; SEC EDGAR is the authority. Recommendations remain separate from unusual activity.</span><button id="insider-refresh" type="button">Refresh daily scan</button></footer>
+        </section>
+        <section id="weekly-fibonacci-opportunities" class="card weekly-fibonacci-opportunities">
+          <div class="section-heading insider-opportunities__heading opportunity-heading opportunity-heading--fib"><div><p class="card-title">WEEKLY 0.886 RADAR</p><h2><span class="opportunity-heading__orb" aria-hidden="true">⌁</span><strong>Verified Strategy Setups</strong></h2><small id="weekly-fib-meta">Scanning Wall Street for weekly 0.886 setups approved by the committee…</small></div><span class="system-badge opportunity-heading__badge">Committee checked</span></div>
+          <div id="weekly-fib-list" class="weekly-fib-list"><div class="insider-loading"><i></i><span>Scanning weekly low-to-high structures before committee review…</span></div></div>
+          <footer class="insider-method"><span id="weekly-fib-method">Weekly candles · chronological low → high · 0.886 entry watch</span><button id="weekly-fib-refresh" type="button">Refresh scan</button></footer>
         </section>
         <section id="live-chart" class="card live-chart-panel">
           <div class="chart-toolbar">
-            <div><p class="card-title">LIVE MARKET CHART</p><h2><span id="chart-symbol">SPY</span> <small id="chart-price">Loading…</small></h2></div>
-            <div id="chart-ranges" class="chart-ranges" aria-label="Chart time range">
-              <button data-range="1d">1D</button><button data-range="5d">1W</button><button data-range="1mo">1M</button><button class="active" data-range="3mo">3M</button><button data-range="1y">1Y</button>
-            </div>
+            <div><p class="card-title">LIVE MARKET CHART</p><h2><span id="chart-symbol">DXY</span> <small id="chart-price">Loading…</small></h2></div>
+            <form id="chart-search" class="chart-search"><span>⌕</span><input id="chart-search-input" autocomplete="off" placeholder="Symbol, e.g. NVDA" aria-label="Chart symbol" /><button type="submit">Open</button></form>
           </div>
-          <div class="chart-meta"><span><i></i> Live OHLCV</span><span id="chart-change">—</span><span id="chart-updated">Connecting…</span></div>
-          <div id="main-chart" class="main-chart"><div class="symbol-loading"><span></span>Loading live SPY chart…</div></div>
-          <div class="chart-legend"><span><i class="candle-up"></i> Price up</span><span><i class="candle-down"></i> Price down</span><span><i class="volume-key"></i> Volume</span><small>Click a market card above to change the chart.</small></div>
+          <div class="chart-controls">
+            <div class="chart-periods"><span>CANDLE INTERVAL</span><div id="chart-ranges" class="chart-ranges" aria-label="Chart candle interval"><button type="button" data-range="1y">1Y</button><button type="button" class="active" data-range="3mo">3M</button><button type="button" data-range="1mo">1M</button><button type="button" data-range="1w">1W</button><button type="button" data-range="1d">1D</button><button type="button" data-range="4h">4H</button><button type="button" data-range="15m">15m</button></div></div>
+            <div class="chart-tools" aria-label="Chart tools"><label class="chart-select"><span>CHART</span><select id="chart-type" aria-label="Chart type"><option value="candles">Candles</option><option value="line">Line</option><option value="area">Area</option></select></label><div class="study-menu"><button id="study-menu-button" type="button" aria-expanded="false">⌁ Indicators</button><div id="study-menu" class="study-menu__panel" hidden><label><input type="checkbox" data-study="sma20"/> SMA 20</label><label><input type="checkbox" data-study="sma50"/> SMA 50</label><label><input type="checkbox" data-study="sma200"/> SMA 200</label><label><input type="checkbox" data-study="volume" checked/> Volume</label></div></div><button id="measure-tool" type="button" aria-pressed="false">↗ Measure %</button><button id="fibonacci-toggle" type="button" aria-pressed="false" aria-describedby="chart-updated" title="ImpactOne strategy: monthly low to a later monthly high; opens the 1Y context">◫ Fibonacci</button><button class="paper-long" data-paper-direction="LONG" type="button">↗ Long</button><button class="paper-short" data-paper-direction="SHORT" type="button">↘ Short</button><button id="chart-autofit" type="button">◎ Auto-fit</button><button id="chart-fullscreen" type="button">⛶ Full screen</button></div>
+          </div>
+          <div class="chart-meta"><span><i></i> Live OHLCV</span><span id="chart-change">—</span><span id="chart-data-source" class="chart-data-source is-loading" aria-live="polite" title="The verified provider currently supplying the displayed candles">DATA SOURCE · CONNECTING</span><span id="chart-updated" aria-live="polite">Connecting…</span></div>
+          <div id="positioning-bar" class="positioning-bar"><div><span>SHORT VOLUME</span><b id="short-percent">—</b></div><div class="positioning-track"><i id="short-fill"></i><i id="other-fill"></i></div><div><span>OTHER REPORTED VOLUME</span><b id="other-percent">—</b></div><small id="positioning-source">FINRA data loads for eligible US equities.</small></div>
+          <div id="chart-hover-readout" class="chart-hover-readout" aria-live="polite"><b>DXY</b><span>Move over the chart for OHLCV</span></div>
+          <div id="main-chart" class="main-chart" aria-live="polite"><div class="symbol-loading"><span></span>Loading live DXY chart…</div></div>
+          <div class="chart-legend"><span><i class="candle-up"></i> Price up</span><span><i class="candle-down"></i> Price down</span><span><i class="volume-key"></i> Volume</span><small>Wheel to zoom · drag to move · cursor shows live price.</small></div>
+          <section class="symbol-research" aria-label="Stock research summary">
+            <article class="broker-brief"><div class="research-heading"><div><p class="card-title">IMPACTONE BROKER BRIEF</p><h2 id="brief-company">Select a stock for a professional brief</h2><small id="brief-context">Verified fundamentals, positioning and agent evidence only.</small></div><strong id="brief-verdict" class="brief-verdict">—</strong></div><div id="brief-thesis" class="brief-thesis"><p>Open a US equity to load its investment case.</p></div><div id="brief-metrics" class="brief-metrics"></div><div class="brief-foot"><span id="brief-source">No equity selected</span><button id="brief-open-analysis" type="button">Open full analysis ↗</button></div></article>
+            <aside class="symbol-news"><div class="research-heading"><div><p class="card-title">PRIORITY NEWS</p><h2>What can move this stock</h2><small id="news-context">Ranked and deduplicated by the ImpactOne news logic.</small></div><span class="live-pill">LIVE</span></div><div id="symbol-news-list" class="symbol-news-list"><p class="empty">Open a US equity to load its highest-priority news.</p></div></aside>
+          </section>
         </section>
         <section id="portfolio" class="workspace-grid">
           <article class="card portfolio-panel"><div class="section-heading"><div><p class="card-title">YOUR PORTFOLIO</p><h2>Live positions</h2></div><strong id="portfolio-total">—</strong></div><div id="portfolio-kpis" class="portfolio-kpis"></div><div id="positions" class="positions"></div></article>
-          <article id="watchlist" class="card watchlist-panel"><div class="section-heading"><div><p class="card-title">WATCHLIST</p><h2>Markets you follow</h2></div><span class="live-pill">LIVE</span></div><div id="watchlist-items" class="watchlist-items"></div></article>
+          <article id="watchlist" class="card watchlist-panel strategy-watchlist"><div class="section-heading"><div><p class="card-title">WEEKLY STRATEGY WATCH</p><h2>Track the 0.886 entry zone</h2><small>Every symbol gets verified weekly Fibonacci monitoring and an automatic ±5% entry-zone alert.</small></div><span class="live-pill">AUTO</span></div><form id="strategy-watchlist-form" class="strategy-watchlist__form"><label><span>ADD A US STOCK</span><input id="strategy-watchlist-symbol" autocomplete="off" maxlength="12" placeholder="NVDA" aria-label="Add a stock to weekly strategy watchlist" /></label><button type="submit">＋ Start monitoring</button></form><p id="strategy-watchlist-message" class="strategy-watchlist__message" role="status"></p><div id="watchlist-items" class="watchlist-items strategy-watchlist__items"><div class="watchlist-empty"><b>Loading weekly monitors…</b></div></div><footer class="strategy-watchlist__method"><span>Verified weekly candles only · chronological low → later high · 0.886 target</span><button id="strategy-watchlist-refresh" type="button">Refresh checks</button></footer></article>
         </section>
-        <section id="recommendations" class="card recommendations-panel"><div class="section-heading"><div><p class="card-title">AGENT COMMITTEE</p><h2>Current portfolio decisions</h2></div><span class="system-badge">Advisory only</span></div><div id="recommendation-items" class="recommendation-items"></div></section>
-        <footer><span id="source-status">Checking sources…</span><span id="updated">—</span></footer>
+        <section id="recommendations" class="card recommendations-panel"><div class="section-heading portfolio-actions__heading"><div><p class="card-title">PORTFOLIO ACTIONS</p><h2><span aria-hidden="true">✦</span> What needs your attention</h2><small>Clear next steps from the agent committee—nothing is traded automatically.</small></div><span class="system-badge">Review only</span></div><div id="recommendation-items" class="recommendation-items"></div></section>
+        <footer aria-live="polite"><span id="source-status">Checking sources…</span><span id="updated">—</span></footer>
       </main>
     </div>
 
     <dialog id="symbol-dialog" class="symbol-dialog"><button id="dialog-close" class="dialog-close" aria-label="Close">×</button><div id="symbol-content" class="symbol-content"><p class="empty">Search a symbol to load live analysis.</p></div></dialog>
-    <dialog id="assistant-dialog" class="assistant-dialog"><button id="assistant-close" class="dialog-close" aria-label="Close">×</button><div class="assistant-head"><span>✦</span><div><p class="card-title">IMPACTONE ASSISTANT</p><h2>Ask your market system</h2><small>Answers use the live portfolio and intelligence context shown here.</small></div></div><div id="assistant-answer" class="assistant-answer">Ask about your portfolio, a market event, risk, or a ticker.</div><form id="assistant-form"><input id="assistant-question" autocomplete="off" placeholder="What deserves my attention today?" required /><button type="submit">Ask</button></form></dialog>
-    <script src="/app.js"></script>
+    <dialog id="assistant-dialog" class="assistant-dialog"><button id="assistant-close" class="dialog-close" aria-label="Close">×</button><div class="assistant-head"><span>✦</span><div><p class="card-title">IMPACTONE ASSISTANT</p><h2>Ask your market system</h2><small>Answers use the live portfolio and intelligence context shown here.</small></div></div><div id="assistant-answer" class="assistant-answer">Ask about your portfolio, a market event, risk, or a ticker.</div><form id="assistant-form"><input id="assistant-question" aria-label="Ask ImpactOne a market question" autocomplete="off" placeholder="What deserves my attention today?" required /><button type="submit">Ask</button></form></dialog>
+    <dialog id="market-editor" class="market-editor"><button id="market-editor-close" class="dialog-close" aria-label="Close">×</button><div class="market-editor__head"><span>⚙</span><div><p class="card-title">PERSONAL MARKET RIBBON</p><h2>Choose and arrange your assets</h2><small>Select at least three. Use the arrows to control their order.</small></div></div><div id="market-editor-items" class="market-editor__items"></div><p id="market-editor-error" class="market-editor__error" role="alert"></p><div class="market-editor__actions"><button id="market-editor-reset" type="button">Reset default</button><span id="market-editor-count">8 selected</span><button id="market-editor-save" class="primary" type="button">Save ribbon</button></div></dialog>
+    <dialog id="paper-position-dialog" class="paper-position-dialog"><button id="paper-position-close" class="dialog-close" aria-label="Close">×</button><header><span id="paper-direction-orb">↗</span><div><p class="card-title">PAPER TRADING · NO BROKER</p><h2><b id="paper-direction-title">Long</b> <span id="paper-symbol">—</span></h2><small>Simulated market execution in your virtual portfolio.</small></div></header><form id="paper-position-form"><div class="paper-price-strip"><span>LIVE ENTRY</span><strong id="paper-entry">—</strong><small id="paper-price-source">Latest verified market price</small></div><div class="paper-fields"><label>Quantity<input id="paper-quantity" type="number" min="1" step="1" value="10" required /></label><label>Stop Loss<input id="paper-stop" aria-label="Stop loss price" type="number" min="0.01" step="0.01" required /></label><label>Take Profit<input id="paper-target" aria-label="Take profit price" type="number" min="0.01" step="0.01" required /></label></div><div class="paper-risk-grid"><div><span>Position value</span><b id="paper-notional">—</b></div><div><span>Risk</span><b id="paper-risk">—</b></div><div><span>Reward</span><b id="paper-reward">—</b></div><div><span>Risk / Reward</span><b id="paper-rr">—</b></div></div><p id="paper-position-error" class="paper-position-error" role="alert"></p><footer><a href="#portfolio" id="paper-portfolio-link">Open virtual portfolio</a><button id="paper-position-submit" type="submit">Open paper position</button></footer></form></dialog>
+    <dialog id="source-status-dialog" class="source-status-dialog"><button id="source-status-close" type="button" class="dialog-close" aria-label="Close source status">×</button><header><p class="card-title">DATA TRANSPARENCY</p><h2>Live Source Status</h2><small>Unavailable sources remain explicit—missing data is never invented.</small></header><div id="source-status-content" class="source-status-content"><div class="insider-loading"><i></i><span>Checking live sources…</span></div></div><footer><span id="source-status-time">Not checked yet</span><button id="source-status-refresh" type="button">↻ Check again</button></footer></dialog>
+    <script src="/tradingViewDatafeed.js?v=20260819-3"></script>
+    <script src="/earthScene.js?v=20260819-3"></script>
+    <script src="/app.js?v=20260820-7"></script>
   </body>
 </html>

@@ -5,5 +5,7 @@ build/
 .env.local
 .env.*.local
 *.log
+.cache/
 backups/data-cleanup/
+artifacts/runtime/
 .DS_Store

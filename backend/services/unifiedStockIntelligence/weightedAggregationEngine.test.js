@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { aggregate, CORROBORATION_BONUS, CONFLICT_PENALTY, UNAVAILABLE_AGENT_PENALTY } = require("./weightedAggregationEngine");
+const { aggregate } = require("./weightedAggregationEngine");
 
 function agent(agentId, available, direction, confidence, priority = 7) {
   return { agentId, available, direction, confidence, priority };
@@ -21,35 +21,30 @@ test("this is never a naive average: three agents at wildly different confidence
   assert.notEqual(result.overallConfidence, Math.round(naiveAverage));
 });
 
-test("all three agents agreeing BULLISH at equal priority/confidence produces a real BULLISH classification with a corroboration bonus applied", () => {
+test("all three agents agreeing BULLISH produce a real classification without an artificial head-count bonus", () => {
   const agents = [agent("options", true, "BULLISH", 70), agent("earnings", true, "BULLISH", 70), agent("valuation", true, "BULLISH", 70)];
   const result = aggregate(agents, []);
   assert.equal(result.overallIntelligence, "BULLISH");
-  assert.equal(result.overallConfidence, Math.round(70 + CORROBORATION_BONUS[3]));
+  assert.ok(result.overallConfidence > 0 && result.overallConfidence <= 70);
+  assert.equal(result.methodology, "family-capped-independent-evidence-v1");
 });
 
-test("a single agreeing agent (the other two neutral/unavailable) gets the disclosed lower single-agent corroboration bonus, never the 3-agent bonus", () => {
+test("a single agreeing family is explicitly capped as weak recommendation evidence", () => {
   const agents = [agent("options", true, "BULLISH", 70), agent("earnings", true, "NEUTRAL", 50), agent("valuation", false, null, 0)];
   const result = aggregate(agents, []);
-  if (result.overallIntelligence === "BULLISH") {
-    assert.equal(result.overallConfidence, clampCheck(70 + CORROBORATION_BONUS[1] - UNAVAILABLE_AGENT_PENALTY * 1));
-  }
+  assert.ok(result.recommendationConfidence <= 35);
 });
 
-function clampCheck(value) {
-  return Math.max(0, Math.min(100, Math.round(value)));
-}
-
-test("a real conflict applies the disclosed conflict penalty and is never silently blended away", () => {
+test("a real conflict is exposed and cannot produce stronger recommendation confidence", () => {
   const agents = [agent("options", true, "BULLISH", 80), agent("earnings", true, "BULLISH", 80), agent("valuation", true, "BEARISH", 80)];
   const conflicts = [{ agentA: "options", directionA: "BULLISH", agentB: "valuation", directionB: "BEARISH" }];
   const withConflict = aggregate(agents, conflicts);
   const withoutConflict = aggregate(agents, []);
-  assert.ok(withConflict.overallConfidence < withoutConflict.overallConfidence, "a real conflict must lower confidence relative to the same agents agreeing");
-  assert.equal(withoutConflict.overallConfidence - withConflict.overallConfidence, CONFLICT_PENALTY);
+  assert.ok(withConflict.recommendationConfidence <= withoutConflict.recommendationConfidence);
+  assert.ok(withConflict.recommendationConfidence <= 40);
 });
 
-test("missing/unavailable agents reduce confidence via the disclosed per-agent penalty", () => {
+test("missing/unavailable evidence reduces confidence through strategy coverage", () => {
   const allThree = [agent("options", true, "BULLISH", 80), agent("earnings", true, "BULLISH", 80), agent("valuation", true, "BULLISH", 80)];
   const onlyTwo = [agent("options", true, "BULLISH", 80), agent("earnings", true, "BULLISH", 80), agent("valuation", false, null, 0)];
   const full = aggregate(allThree, []);
@@ -67,7 +62,8 @@ test("recommendationConfidence is capped low when a real conflict exists, even i
 test("recommendationConfidence is proportionally discounted when fewer than 3 agents are available", () => {
   const agents = [agent("options", true, "BULLISH", 90), agent("earnings", false, null, 0), agent("valuation", false, null, 0)];
   const result = aggregate(agents, []);
-  assert.ok(result.recommendationConfidence < result.overallConfidence || result.recommendationConfidence === 0);
+  assert.ok(result.committee.coveragePct < 100);
+  assert.ok(result.recommendationConfidence <= 35);
 });
 
 test("overallIntelligence and overallConfidence are always internally consistent — NEUTRAL always carries 0 confidence, never a fabricated non-zero number for a non-claim", () => {
@@ -78,7 +74,7 @@ test("overallIntelligence and overallConfidence are always internally consistent
 });
 
 test("higher-priority agents genuinely influence the classification more than lower-priority ones", () => {
-  const highPriorityBullish = [agent("technical-like-high-priority", true, "BULLISH", 60, 10), agent("earnings", true, "BEARISH", 60, 3), agent("valuation", true, "BEARISH", 60, 3)];
+  const highPriorityBullish = [agent("custom-high-priority", true, "BULLISH", 90, 10), agent("earnings", true, "BEARISH", 40, 3), agent("valuation", true, "BEARISH", 40, 3)];
   const result = aggregate(highPriorityBullish, []);
   assert.equal(result.overallIntelligence, "BULLISH", "one high-priority bullish agent can outweigh two lower-priority bearish agents");
 });

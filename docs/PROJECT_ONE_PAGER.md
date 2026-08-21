@@ -2,7 +2,7 @@
 
 > Living overview of the product, backend modules, stored data, and frontend surfaces. Update this document when a major screen, API domain, database model, provider, or product workflow changes.
 
-**Last reviewed:** 2026-08-09  
+**Last reviewed:** 2026-08-15
 **System:** React frontend + Express backend + PostgreSQL/Prisma + optional Redis + external market-data providers
 
 ## What ImpactOne does
@@ -24,7 +24,7 @@ Investor ← React screens ← Express API ← PostgreSQL outcomes and history
 | Watchlists & workspaces | Organizes monitored symbols and research notes | Watchlist folders/items, workspace notes and flags | Workspaces, Watchlist Workspace |
 | Alerts & decisions | Tells users what needs attention and tracks handling | Price alerts, notifications, decision states | Alerts, Notification Center, Decision Center, Decision Timeline |
 | Market data | Fetches quotes, charts, news, filings, macro and alternative data | Normalized events, provider runs and source-quality snapshots; many live responses are only fetched/cached | Daily Feed (merges saved provider events and shows each event's source and data type), Market Positioning, charts, stock side panel |
-| Intelligence agents | Runs technical, news, sentiment, earnings, valuation, analyst, ETF, insider, institutional, macro, short-interest and options analysis | Durable results flow into events, claims, traces and recommendations | AI Analysis, Intelligence Workspace, Mission Control |
+| Intelligence agents | Runs 15 registered domains: technical, Fibonacci, news, symbol sentiment, market sentiment, earnings, valuation, analyst, ETF, insider, institutional, macro, short-interest, options and public alternative-data analysis | Durable results flow into events, claims, traces and recommendations | AI Analysis, Intelligence Workspace, Mission Control |
 | Intelligence Bus | Normalizes agent output and preserves provenance | Intelligence bus events and canonical events | Normally consumed indirectly by claims and recommendations |
 | Claims | Maintains testable investment theses with evidence and invalidation rules | Claims, evidence ledger, transitions and claim outcomes | Stock panel, Morning Brief, intelligence views |
 | Recommendations | Produces the canonical actionable view | Recommendations, feedback, lifecycle events, decision traces and run logs | Recommendations, Today, Decision Center |
@@ -56,8 +56,10 @@ Investor ← React screens ← Express API ← PostgreSQL outcomes and history
 ## Current live data sources
 
 - **Markets and company data:** Finnhub (quotes, company data and upcoming US earnings); Massive/Polygon (end-of-day price history); NewsAPI (development/testing news); State Street SPDR sector-ETF holdings (XLK, XLF, XLE and XLV — holdings, not real-time fund flows); Binance Futures funding rate and open interest for BTC, ETH and SOL (single exchange, not market-wide).
+- **Market-wide weekly strategy scan:** Nasdaq Trader's official Nasdaq/other-exchange directories define the daily US operating-company universe (5,220 symbols in the 2026-08-15 verification). A batched weekly-close prefilter covers every symbol; only possible candidates receive full OHLC Fibonacci validation and the registered-agent committee gate. Scan progress persists locally under `.cache/`, while only committee-approved setups appear as recommendations.
 - **Official public sources:** SEC EDGAR filings, FRED macro data, U.S. Treasury yield curve, Federal Reserve Board press releases and FOMC communications, European Central Bank monetary-policy decisions, CFTC Commitments of Traders, FINRA daily short-selling volume, openFDA drug recalls and NASA space-weather alerts.
-- **Other public source:** Polymarket market data.
+- **Other public sources:** Polymarket public market probabilities and the available public congressional-disclosure mirror. The alternative-data agent combines these with CFTC COT and SEC evidence; a valid empty response remains explicitly empty.
+- **Free resilience fallbacks:** company name, CIK and sector resolution first use configured live sources and then SEC/Massive reference data. Shared 24-hour reference caching prevents duplicate quota use across the insider, institutional and ETF agents.
 - **Deferred integrations:** Patent monitoring (USPTO requires ID.me verification; EPO OPS is not connected), Telegram (requires a bot in authorised channels), Reddit (requires explicit API approval), and X, TipRanks, Zacks, Finviz and equity-options flow (paid access or licence). The product must show unavailable/deferred data as such until an authorised source is connected.
 - **Source transparency:** the internal Provider Inventory labels connected providers as live, paid/unlicensed sources as unconfigured, and stubs as fixtures. It also identifies sources that rely on locally configured keys.
 
@@ -85,6 +87,7 @@ Calibration, source scoring and learning
 - Desktop navigation: [`frontend/src/layout/Sidebar.jsx`](../frontend/src/layout/Sidebar.jsx)
 - Mobile navigation: [`frontend/src/layout/BottomNav.jsx`](../frontend/src/layout/BottomNav.jsx)
 - Full documentation index: [`docs/README.md`](README.md)
+- Agent information map: [`docs/product/AGENT_INFORMATION_MAP.md`](product/AGENT_INFORMATION_MAP.md)
 - Master specification: [`docs/specification/README.md`](specification/README.md)
 
 ## Maintenance rule

@@ -2,7 +2,7 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
 import { screenMap, GlobalIntelligenceFeature } from "./screenRegistry";
-import { HomeFeature } from "../features";
+import HomeFeature from "../features/home/HomeFeature";
 import Header from "../components/Header";
 import OfflineBanner from "../components/OfflineBanner";
 import UpdateBanner from "../components/UpdateBanner";
@@ -16,6 +16,7 @@ import { trackEvent } from "../utils/analytics";
 import FeedbackWidget from "../components/FeedbackWidget";
 import { performanceMetricsApi } from "../services/api";
 import { PlatformProvider } from "../context/PlatformContext";
+import { Skeleton } from "../components/ui";
 
 // Phase X9 — Part 1, Product Analytics. Every screen this app actually
 // navigates to fires the generic `screen_viewed` event (real, closed
@@ -44,6 +45,21 @@ const SPACE_STARS = [
   ["37%", "95%", "2px", "-3s", "24s", "33px", "-28px"], ["52%", "39%", "4px", "-9s", "16s", "-27px", "36px"],
   ["66%", "91%", "2px", "-6s", "22s", "39px", "-22px"], ["79%", "68%", "3px", "-12s", "18s", "-35px", "24px"],
 ];
+
+function ScreenLoadingState() {
+  return (
+    <main className="screen-page screen-loading-state" aria-busy="true" aria-label="Loading workspace">
+      <section className="screen-loading-state__hero">
+        <Skeleton className="screen-loading-state__eyebrow" />
+        <Skeleton className="screen-loading-state__title" />
+        <Skeleton className="screen-loading-state__copy" />
+      </section>
+      <section className="screen-loading-state__grid">
+        {[0, 1, 2].map((item) => <Skeleton key={item} variant="card" className="screen-loading-state__card" />)}
+      </section>
+    </main>
+  );
+}
 
 export default function MainLayout() {
   // Sprint 20 — Home is now the default landing screen (four questions
@@ -103,8 +119,11 @@ export default function MainLayout() {
   }, []);
 
   const handleSelectFavorite = useCallback((ticker) => {
+    window.sessionStorage.setItem("impactone:selected-ticker", ticker);
     setActiveView("AI Analysis");
-    window.dispatchEvent(new CustomEvent("impactone:select-ticker", { detail: ticker }));
+    window.requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent("impactone:select-ticker", { detail: ticker }));
+    });
   }, []);
 
   const handleQuickSearch = useCallback((ticker) => {
@@ -113,8 +132,13 @@ export default function MainLayout() {
       return;
     }
 
+    window.sessionStorage.setItem("impactone:selected-ticker", normalized);
     setActiveView("AI Analysis");
-    window.dispatchEvent(new CustomEvent("impactone:select-ticker", { detail: normalized }));
+    // The analysis screen mounts as a result of the navigation above. Dispatch
+    // after that render so the new screen receives the selected symbol.
+    window.requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent("impactone:select-ticker", { detail: normalized }));
+    });
   }, []);
 
   return (
@@ -131,7 +155,7 @@ export default function MainLayout() {
       </div>
       <WelcomeOverlay />
       <Sidebar activeView={activeView} onNavigate={setActiveView} favorites={watchlist} onSelectFavorite={handleSelectFavorite} />
-      <div className="main-panel">
+      <div className={`main-panel${activeView === "Home" ? " main-panel--unified-home" : ""}`}>
         <Header watchlist={watchlist} onQuickSearch={handleQuickSearch} onNavigate={setActiveView} />
         <OfflineBanner />
         <UpdateBanner />
@@ -145,23 +169,11 @@ export default function MainLayout() {
             );
           }
 
-          if (activeView === "Global Intelligence") {
-            return (
-              <Suspense fallback={<div className="screen-page"><p className="company-description">Loading global intelligence...</p></div>}>
-                <ActiveScreen onNavigate={setActiveView} />
-              </Suspense>
-            );
-          }
-
-          if (activeView === "3D Workspace" || activeView === "Flagship") {
-            return (
-              <Suspense fallback={<div className="screen-page"><p className="company-description">Loading...</p></div>}>
-                <ActiveScreen />
-              </Suspense>
-            );
-          }
-
-          return <ActiveScreen onNavigate={setActiveView} />;
+          return (
+            <Suspense fallback={<ScreenLoadingState />}>
+              <ActiveScreen onNavigate={setActiveView} />
+            </Suspense>
+          );
         })()}
       </div>
       <BottomNav activeView={activeView} onNavigate={setActiveView} />

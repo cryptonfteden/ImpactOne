@@ -6,8 +6,8 @@ function buildOpportunities({ institutionalBias, institutionalScore, accumulatio
   if (institutionalBias === "BULLISH") {
     opportunities.push(`Institutional bias is bullish (score ${institutionalScore}).`);
   }
-  if (accumulationDistribution.accumulationScore > accumulationDistribution.distributionScore && accumulationDistribution.totalIncreaseValue > 0) {
-    opportunities.push(`Real accumulation (${accumulationDistribution.accumulationScore}/100) outweighs real distribution among the disclosed manager cohort.`);
+  if (accumulationDistribution.accumulationScore > accumulationDistribution.distributionScore && accumulationDistribution.totalIncreaseShares > 0) {
+    opportunities.push(`Reported share accumulation (${accumulationDistribution.accumulationScore}/100) outweighs reported share distribution among the disclosed manager cohort.`);
   }
   if (newClosedPositions.newPositions.length > newClosedPositions.closedPositions.length) {
     opportunities.push(`${newClosedPositions.newPositions.length} real new institutional position(s) opened vs. ${newClosedPositions.closedPositions.length} closed.`);
@@ -23,8 +23,8 @@ function buildRisks({ institutionalBias, accumulationDistribution, newClosedPosi
   if (institutionalBias === "BEARISH") {
     risks.push("Institutional bias is bearish.");
   }
-  if (accumulationDistribution.distributionScore > accumulationDistribution.accumulationScore && accumulationDistribution.totalDecreaseValue > 0) {
-    risks.push(`Real distribution (${accumulationDistribution.distributionScore}/100) outweighs real accumulation among the disclosed manager cohort.`);
+  if (accumulationDistribution.distributionScore > accumulationDistribution.accumulationScore && accumulationDistribution.totalDecreaseShares > 0) {
+    risks.push(`Reported share distribution (${accumulationDistribution.distributionScore}/100) outweighs reported share accumulation among the disclosed manager cohort.`);
   }
   if (newClosedPositions.closedPositions.length > newClosedPositions.newPositions.length) {
     risks.push(`${newClosedPositions.closedPositions.length} real institutional position(s) closed vs. ${newClosedPositions.newPositions.length} opened.`);

@@ -1,15 +1,10 @@
 const axios = require("axios");
+const { requestChatCompletion } = require("./openAiGateway");
 const { OPENAI_API_KEY, SEC_EDGAR_USER_AGENT } = require("../config/env");
 const { getCached, setCached } = require("./altDataCache");
+const { getSec } = require("./secEdgarClient");
 
 const SEC_USER_AGENT = SEC_EDGAR_USER_AGENT;
-
-const SECTOR_TICKER_MAP = {
-  technology: ["AAPL", "MSFT", "NVDA", "TSLA"],
-  energy: ["XOM", "CVX", "SLB"],
-  crypto: ["COIN", "MSTR", "RIOT"],
-  rates: ["JPM", "TLT"],
-};
 
 const SYMBOL_SECTOR_MAP = {
   AAPL: "technology",
@@ -37,11 +32,20 @@ function classifyPositioning(net, weeklyChange) {
 }
 
 function inferSectorFromSymbol(symbol = "") {
-  return SYMBOL_SECTOR_MAP[String(symbol || "").toUpperCase()] || "technology";
+  // Never guess a sector. An incorrect sector silently contaminates
+  // downstream thematic, event and congressional-trade context.
+  return SYMBOL_SECTOR_MAP[String(symbol || "").toUpperCase()] || null;
+}
+
+function selectCotRow(rows = [], marketHint = "") {
+  const normalizedHint = String(marketHint || "").trim().toUpperCase();
+  if (!normalizedHint) return null;
+  return rows.find((row) => String(row.market_and_exchange_names || "").toUpperCase().includes(normalizedHint)) || null;
 }
 
 function inferAssetFromSymbol(symbol = "") {
   const normalized = String(symbol || "").toUpperCase();
+  if (["DXY", "DX", "DX-Y.NYB"].includes(normalized)) return "currencies";
   if (["BTC", "ETH", "COIN", "MSTR", "RIOT"].includes(normalized)) return "crypto";
   if (["XOM", "CVX", "SLB", "CL"].includes(normalized)) return "energy";
   return "equities";
@@ -59,6 +63,7 @@ function unavailableCot(symbol = "AAPL") {
     weeklyChange: null,
     signal: null,
     source: "unavailable",
+    asOf: null,
     unavailable: true,
     reason: "CFTC COT data could not be retrieved.",
   };
@@ -73,7 +78,7 @@ async function getCotData({ symbol = "AAPL" } = {}) {
 
   try {
     const asset = inferAssetFromSymbol(symbol);
-    const marketHint = asset === "energy" ? "CRUDE" : asset === "crypto" ? "BITCOIN" : "S&P";
+    const marketHint = asset === "currencies" ? "U.S. DOLLAR INDEX" : asset === "energy" ? "CRUDE" : asset === "crypto" ? "BITCOIN" : "S&P";
     // TFF (Traders in Financial Futures) is the CFTC report that covers
     // equity-index and financial futures. The prior disaggregated report
     // covers physical commodities, which made an S&P proxy unreliable.
@@ -86,7 +91,7 @@ async function getCotData({ symbol = "AAPL" } = {}) {
     });
 
     const rows = Array.isArray(response.data) ? response.data : [];
-    const picked = rows.find((row) => String(row.market_and_exchange_names || "").toUpperCase().includes(marketHint)) || rows[0];
+    const picked = selectCotRow(rows, marketHint);
     if (!picked) {
       throw new Error("COT dataset returned no rows");
     }
@@ -109,6 +114,7 @@ async function getCotData({ symbol = "AAPL" } = {}) {
       weeklyChange,
       signal: classifyPositioning(netPositioning, weeklyChange),
       source: "cftc",
+      asOf: picked.report_date_as_yyyy_mm_dd || picked.report_date || null,
     };
 
     setCached("alt", cacheKey, normalized, 6 * 60 * 60 * 1000);
@@ -122,8 +128,12 @@ function inferPolymarketTickers(event = "") {
   const text = String(event || "").toLowerCase();
   if (text.includes("bitcoin") || text.includes("crypto")) return ["BTC", "COIN", "MSTR"];
   if (text.includes("oil") || text.includes("opec") || text.includes("energy")) return ["XOM", "CVX"];
-  if (text.includes("fed") || text.includes("rate")) return ["JPM", "TLT"];
-  return ["AAPL", "NVDA", "SPY"];
+  if (text.includes("fed") || text.includes("interest rate") || text.includes("inflation")) return ["SPY", "JPM", "TLT"];
+  if (text.includes("nvidia") || text.includes("semiconductor") || text.includes(" ai ")) return ["NVDA"];
+  if (text.includes("apple") || text.includes("iphone")) return ["AAPL"];
+  // No generic technology fallback: a political prediction is not AAPL/NVDA
+  // evidence merely because technology may be affected indirectly.
+  return [];
 }
 
 function inferPolymarketSectors(event = "") {
@@ -167,7 +177,8 @@ async function getPolymarketData({ symbol = "AAPL" } = {}) {
       };
     });
 
-    const result = normalized;
+    const requested = String(symbol || "").toUpperCase();
+    const result = normalized.filter((item) => item.relatedTickers.includes(requested));
     setCached("alt", cacheKey, result, 20 * 60 * 1000);
     return result;
   } catch (error) {
@@ -283,13 +294,7 @@ async function getSecTickerMap() {
     return cached;
   }
 
-  const response = await axios.get("https://www.sec.gov/files/company_tickers.json", {
-    timeout: 12000,
-    headers: {
-      "User-Agent": SEC_USER_AGENT,
-      Accept: "application/json",
-    },
-  });
+  const response = await getSec("https://www.sec.gov/files/company_tickers.json", { timeout: 12000 });
 
   const body = response.data || {};
   const map = new Map();
@@ -324,9 +329,7 @@ async function summarizeFilingsWithAi(symbol, filings) {
   }
 
   try {
-    const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
+    const response = await requestChatCompletion({
         model: "gpt-4o-mini",
         messages: [
           {
@@ -339,15 +342,7 @@ async function summarizeFilingsWithAi(symbol, filings) {
           },
         ],
         temperature: 0.2,
-      },
-      {
-        timeout: 15000,
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+      });
 
     return response.data?.choices?.[0]?.message?.content || `${symbol} filings reviewed.`;
   } catch (error) {
@@ -370,13 +365,7 @@ async function getSecData({ symbol = "AAPL" } = {}) {
       throw new Error(`No SEC CIK mapping found for ${normalized}`);
     }
 
-    const response = await axios.get(`https://data.sec.gov/submissions/CIK${cik}.json`, {
-      timeout: 12000,
-      headers: {
-        "User-Agent": SEC_USER_AGENT,
-        Accept: "application/json",
-      },
-    });
+    const response = await getSec(`https://data.sec.gov/submissions/CIK${cik}.json`, { timeout: 12000 });
 
     const recent = response.data?.filings?.recent || {};
     const forms = recent.form || [];
@@ -454,6 +443,7 @@ async function getCongressData({ symbol = "AAPL" } = {}) {
     const result = {
       symbol: normalized,
       trades: focused.length ? focused : mapped.slice(0, 6),
+      directMatch: focused.length > 0,
       signal: focused.length
         ? `${focused.length} recent disclosed congress trades mention ${normalized}.`
         : "No recent direct ticker match; showing latest broad congressional disclosures.",
@@ -469,6 +459,7 @@ async function getCongressData({ symbol = "AAPL" } = {}) {
       signal: "Congress trading feed unavailable. Monitoring remains active.",
       source: "unavailable",
       unavailable: true,
+      directMatch: false,
     };
     setCached("alt", cacheKey, fallback, 45 * 60 * 1000);
     return fallback;
@@ -662,4 +653,6 @@ module.exports = {
   getCongressData,
   getEconomicEvents,
   getAltDataSummary,
+  inferSectorFromSymbol,
+  selectCotRow,
 };

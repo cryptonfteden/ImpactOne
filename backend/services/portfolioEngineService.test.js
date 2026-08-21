@@ -138,6 +138,42 @@ test("placeOrder SELL (full) closes the position", async () => {
   assert.equal(summary.cashBalance, 100000 - 100 + 125); // buy 5*20, sell 5*25
 });
 
+test("openPaperPosition SHORT persists a negative position and profits when price falls", async () => {
+  await withMockedQuote(100, async () => {
+    const result = await portfolioEngineService.openPaperPosition({ symbol: "ORCL", direction: "SHORT", quantity: 10 });
+    assert.equal(result.paperTrading, true);
+    assert.equal(Number(result.position.quantity), -10);
+  });
+
+  const summary = await withMockedQuote(80, () => portfolioEngineService.getPortfolioSummary());
+  const position = summary.positions.find((item) => item.symbol === "ORCL");
+  assert.equal(position.direction, "SHORT");
+  assert.equal(position.quantity, -10);
+  assert.equal(position.unrealizedPnl, 200);
+  assert.equal(position.unrealizedPnlPct, 20);
+  assert.equal(summary.totalValue, 100200);
+});
+
+test("openPaperPosition blocks a LONG while a SHORT for the same symbol is open", async () => {
+  await withMockedQuote(100, async () => {
+    await portfolioEngineService.openPaperPosition({ symbol: "ORCL", direction: "SHORT", quantity: 2 });
+    await assert.rejects(
+      () => portfolioEngineService.openPaperPosition({ symbol: "ORCL", direction: "LONG", quantity: 2 }),
+      /Close the existing ORCL short position/
+    );
+  });
+});
+
+test("closePaperPosition covers a SHORT and realizes profit", async () => {
+  await withMockedQuote(100, () => portfolioEngineService.openPaperPosition({ symbol: "ORCL", direction: "SHORT", quantity: 10 }));
+  const result = await withMockedQuote(80, () => portfolioEngineService.closePaperPosition({ symbol: "ORCL" }));
+  assert.equal(result.closed, true);
+  assert.equal(Number(result.trade.realizedPnl), 200);
+  const summary = await withMockedQuote(80, () => portfolioEngineService.getPortfolioSummary());
+  assert.equal(summary.positions.find((item) => item.symbol === "ORCL"), undefined);
+  assert.equal(summary.totalValue, 100200);
+});
+
 test("capturePerformanceSnapshot and getPerformanceTimeline record a point-in-time snapshot", async () => {
   await withMockedQuote(100, async () => {
     await portfolioEngineService.placeOrder({ symbol: "AMZN", side: "BUY", quantity: 5 });

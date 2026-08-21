@@ -34,7 +34,7 @@ test("running the full orchestrator (which now schedules through the real AgentS
   const [optionsResult] = report.agents;
 
   assert.equal(optionsResult.agentId, "options");
-  assert.equal(optionsResult.status, "fulfilled", "the options agent must fulfill even with no provider configured — that's an honest empty report, not a failure");
+  assert.ok(["fulfilled", "unavailable"].includes(optionsResult.status), "the options agent must either return verified options data or explicitly report that the paid-grade feed is unavailable");
   assert.equal(typeof optionsResult.result.summary, "string");
   assert.ok(optionsResult.result.summary.length > 0);
   assert.deepEqual(optionsResult.result.evidence, []);

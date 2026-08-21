@@ -34,6 +34,8 @@ test("createSentimentDataProvider: scores real articles and reports real social 
         symbol: "AAPL",
         dataAvailable: true,
         unavailableReason: null,
+        sourceProvider: "NewsAPI",
+        queryIdentity: "Apple Inc",
         articles: [{ title: "Company beats expectations", description: null, source: "Reuters", publishedAt: "2026-01-01T00:00:00Z", url: "https://x" }],
       }),
       socialProvider: fakeSocialProvider({ symbol: "AAPL", dataAvailable: false, unavailableReason: "no real social source", posts: [] }),
@@ -44,6 +46,7 @@ test("createSentimentDataProvider: scores real articles and reports real social 
     assert.equal(metrics.articles[0].classification, "POSITIVE");
     assert.equal(metrics.socialAvailable, false);
     assert.equal(metrics.socialUnavailableReason, "no real social source");
+    assert.equal(metrics.queryIdentity, "Apple Inc");
     assert.ok(Array.isArray(metrics.priceBars));
   } finally {
     originalModule.getDailyBars = original;

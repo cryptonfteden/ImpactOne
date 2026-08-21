@@ -77,16 +77,20 @@ test("getOrCompute: ttlMs <= 0 always bypasses the cache — never even attempts
   });
 });
 
-test("getOrCompute: gracefully falls back to computeFn when Redis is unavailable, never throwing", async () => {
+test("getOrCompute: uses a bounded local TTL cache when Redis is unavailable", async () => {
   const original = redisClient.getClient;
   redisClient.getClient = async () => null;
   try {
     const cache = createProviderCache();
     let computeCalls = 0;
-    const result = await cache.getOrCompute("key1", async () => { computeCalls += 1; return "real-value"; }, { ttlMs: 60000 });
+    const compute = async () => { computeCalls += 1; return "real-value"; };
+    const result = await cache.getOrCompute("key1", compute, { ttlMs: 60000 });
+    const second = await cache.getOrCompute("key1", compute, { ttlMs: 60000 });
     assert.equal(result, "real-value");
+    assert.equal(second, "real-value");
     assert.equal(computeCalls, 1);
-    assert.equal(cache.getStats().bypassed, 1);
+    assert.equal(cache.getStats().localHits, 1);
+    assert.equal(cache.getStats().localEntries, 1);
   } finally {
     redisClient.getClient = original;
   }
@@ -149,6 +153,7 @@ test("resetStats: zeroes every real counter", async () => {
     assert.deepEqual(cache.getStats().hits, 0);
     assert.deepEqual(cache.getStats().misses, 0);
     assert.deepEqual(cache.getStats().bypassed, 0);
+    assert.deepEqual(cache.getStats().localHits, 0);
   });
 });
 

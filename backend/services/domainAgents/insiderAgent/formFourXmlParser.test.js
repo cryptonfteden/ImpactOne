@@ -5,6 +5,7 @@ const { parseFormFourXml } = require("./formFourXmlParser");
 function sampleXml({ isDirector = "0", isOfficer = "1", officerTitle = "Chief Executive Officer" } = {}) {
   return `<?xml version="1.0"?>
 <ownershipDocument>
+  <issuer><issuerCik>0000320193</issuerCik><issuerName>Apple Inc.</issuerName><issuerTradingSymbol>AAPL</issuerTradingSymbol></issuer>
   <reportingOwner>
     <reportingOwnerId>
       <rptOwnerCik>0001214156</rptOwnerCik>
@@ -77,6 +78,9 @@ function sampleXml({ isDirector = "0", isOfficer = "1", officerTitle = "Chief Ex
 
 test("parseFormFourXml extracts the real reporting owner identity and relationship flags", () => {
   const result = parseFormFourXml(sampleXml());
+  assert.equal(result.issuerTradingSymbol, "AAPL");
+  assert.equal(result.issuerCik, "0000320193");
+  assert.equal(result.issuerName, "Apple Inc.");
   assert.equal(result.ownerName, "COOK TIMOTHY D");
   assert.equal(result.ownerCik, "0001214156");
   assert.equal(result.isDirector, false);

@@ -1,4 +1,5 @@
 const axios = require("axios");
+const { requestChatCompletion } = require("./openAiGateway");
 const { OPENAI_API_KEY } = require("../config/env");
 
 const aiCache = new Map();
@@ -90,9 +91,7 @@ async function analyzeTicker(symbol, context = {}) {
   }
 
   try {
-    const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
+    const response = await requestChatCompletion({
         model: "gpt-4o-mini",
         response_format: { type: "json_object" },
         messages: [
@@ -105,14 +104,7 @@ async function analyzeTicker(symbol, context = {}) {
             content: `Analyze ${normalizedSymbol} using the following market context. Return strict JSON only. Context: ${JSON.stringify(context)}`,
           },
         ],
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+      });
 
     const payload = JSON.parse(response.data.choices?.[0]?.message?.content || "{}");
     const result = normalizeAnalysis({ symbol: normalizedSymbol, ...payload });

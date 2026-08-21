@@ -33,9 +33,9 @@ test("getSymbolEarnings never throws, and always returns the full documented sha
   assert.ok("growthYoY" in metrics.revenue);
   assert.ok("growthYoY" in metrics.eps);
   assert.ok("netProfitMargin" in metrics.margins);
-  // Honestly unavailable regardless of live-call outcome — no data source
-  // for these is connected in this environment (see EARNINGS_AGENT.md).
-  assert.equal(metrics.cashFlow.freeCashFlowGrowthYoY, null);
+  // SEC Company Facts may now supply a real FCF growth fallback. It must
+  // remain either a finite real value or an honest null.
+  assert.ok(metrics.cashFlow.freeCashFlowGrowthYoY === null || Number.isFinite(metrics.cashFlow.freeCashFlowGrowthYoY));
   assert.equal(metrics.guidance.direction, null);
   assert.equal(metrics.analystRevisions.direction, null);
 

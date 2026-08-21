@@ -12,7 +12,7 @@ function fakePeerProvider(reference) {
   return { async getSectorReference() { return reference; } };
 }
 
-const REFERENCE = { industry: "Software", source: "broad-market-reference", peerGroupSize: 0, multiples: { pe: 20, forwardPe: 18, peg: 1.5, evEbitda: 12, ps: 3, pb: 3, fcfYield: 4 }, wacc: 8 };
+const REFERENCE = { industry: "Software", source: "sector-peer-group", peerGroupSize: 12, multiples: { pe: 20, forwardPe: 18, peg: 1.5, evEbitda: 12, ps: 3, pb: 3, fcfYield: 4 }, wacc: 8 };
 
 test("no data available => the full honest-empty report shape", async () => {
   const provider = fakeMetricsProvider(emptyMetrics("NVDA", "not connected"));
@@ -66,6 +66,37 @@ test("a healthy, profitable company produces a real, complete composite Fair Val
   assert.ok(report.confidence >= 0 && report.confidence <= 100);
   assert.equal(report.supportingMetrics.length, 7, "all 7 methods are applicable and usable for this fully healthy company");
   assert.equal(typeof report.aiSummary, "string");
+});
+
+test("widely conflicting valuation methods never produce a user-facing fair-value label", async () => {
+  const metrics = emptyMetrics("HYPERGROWTH", null);
+  metrics.dataAvailable = true;
+  metrics.price = 100;
+  metrics.industry = "Semiconductors";
+  metrics.eps = { trailing: 5, forward: null };
+  metrics.epsGrowthYoY = 110;
+  metrics.revenuePerShare = 10;
+  metrics.bookValuePerShare = 5;
+
+  const divergentReference = {
+    industry: "Semiconductors",
+    source: "sector-peer-group",
+    sourceProvider: "verified fixture",
+    peerGroupSize: 20,
+    multiples: { pe: 100, forwardPe: null, peg: 2.2, evEbitda: null, ps: 3, pb: 2, fcfYield: null },
+    wacc: 8,
+  };
+  const report = await generateReport("HYPERGROWTH", {
+    provider: fakeMetricsProvider(metrics),
+    peerProvider: fakePeerProvider(divergentReference),
+  });
+
+  assert.equal(report.signalEligible, false);
+  assert.equal(report.valuationStatus, "UNKNOWN");
+  assert.equal(report.estimatedFairValue, null);
+  assert.match(report.unavailableForFairValueReason, /disagree too widely/i);
+  assert.ok(Number.isFinite(report.indicativeCompositeForAudit.estimate));
+  assert.match(report.aiSummary, /could not be honestly computed/i);
 });
 
 test("negative earnings automatically switches to FCF/EV-EBITDA/P-S/P-B — P/E and PEG never contribute, never a meaningless value", async () => {

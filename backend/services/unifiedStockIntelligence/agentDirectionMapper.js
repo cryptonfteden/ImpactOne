@@ -1,3 +1,5 @@
+const { isDecisionEligible } = require("../agentOrchestrator/decisionEligibility");
+
 // Phase UNIFIED-STOCK-INTELLIGENCE-001 — normalizes each domain agent's
 // own real, rich report (options/earnings/valuation each use their own
 // vocabulary — marketBias, forwardOutlook, valuationStatus) onto ONE
@@ -189,7 +191,12 @@ function extractRisksAndOpportunities(agentId, raw) {
  * }}
  */
 function mapAgentResult(agentResult) {
-  const available = agentResult.status === "fulfilled" && agentResult.result?.raw?.dataAvailable === true;
+  // A provider can return a technically successful response that failed its
+  // freshness/coverage/evidence gate.  Such a row is useful diagnostics, but
+  // must never become a vote in the investment committee.
+  const available = agentResult.status === "fulfilled"
+    && agentResult.result?.raw?.dataAvailable === true
+    && isDecisionEligible(agentResult);
 
   const priority = Number.isFinite(agentResult.priority) ? agentResult.priority : 1;
 

@@ -10,12 +10,21 @@ const { parseFredCsv, findObservationNear } = require("./fredCsvParser");
 const REQUEST_TIMEOUT_MS = 10000;
 
 function emptySeriesMetrics(seriesId, reason) {
-  return { seriesId, dataAvailable: false, unavailableReason: reason, latest: null, priorYearAgo: null, changeYoY: null, observations: [] };
+  return {
+    seriesId,
+    dataAvailable: false,
+    unavailableReason: reason,
+    latest: null,
+    priorYearAgo: null,
+    changeYoY: null,
+    changeYoYPercentagePoints: null,
+    observations: [],
+  };
 }
 
 /**
  * @param {string} seriesId - a real FRED series id (e.g. "FEDFUNDS", "CPIAUCSL")
- * @returns {Promise<{ seriesId: string, dataAvailable: boolean, unavailableReason: string|null, latest: {date,value}|null, priorYearAgo: {date,value}|null, changeYoY: number|null, observations: Array }>}
+ * @returns {Promise<{ seriesId: string, dataAvailable: boolean, unavailableReason: string|null, latest: {date,value}|null, priorYearAgo: {date,value}|null, changeYoY: number|null, changeYoYPercentagePoints: number|null, observations: Array }>}
  */
 async function fetchFredSeries(seriesId) {
   try {
@@ -36,8 +45,24 @@ async function fetchFredSeries(seriesId) {
       priorYearAgo && priorYearAgo.value !== 0
         ? Math.round(((latest.value - priorYearAgo.value) / Math.abs(priorYearAgo.value)) * 10000) / 100
         : null;
+    // Rate series (FEDFUNDS, UNRATE, yields) are measured in percent.
+    // Their economically meaningful movement is the direct difference in
+    // percentage points, not the relative percentage change above. Both are
+    // retained so every downstream analyzer can use the correct unit.
+    const changeYoYPercentagePoints = priorYearAgo
+      ? Math.round((latest.value - priorYearAgo.value) * 100) / 100
+      : null;
 
-    return { seriesId, dataAvailable: true, unavailableReason: null, latest, priorYearAgo, changeYoY, observations: withValues };
+    return {
+      seriesId,
+      dataAvailable: true,
+      unavailableReason: null,
+      latest,
+      priorYearAgo,
+      changeYoY,
+      changeYoYPercentagePoints,
+      observations: withValues,
+    };
   } catch (error) {
     return emptySeriesMetrics(seriesId, `FRED request failed for "${seriesId}": ${error.message}`);
   }

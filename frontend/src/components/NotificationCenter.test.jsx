@@ -21,6 +21,7 @@ const NOTIFICATION_FIXTURE = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.localStorage.setItem("impactone-beta-user-id", "beta-user-1");
 });
 
 async function openPanel(unreadLabel = "Open notifications, 1 unread") {
@@ -29,6 +30,15 @@ async function openPanel(unreadLabel = "Open notifications, 1 unread") {
 }
 
 describe("NotificationCenter", () => {
+  it("does not poll the private notifications API for a guest workspace", () => {
+    window.localStorage.removeItem("impactone-beta-user-id");
+    render(<NotificationCenter />);
+
+    fireEvent.click(screen.getByLabelText("Open notifications"));
+    expect(screen.getByText(/Private notifications become available/)).toBeInTheDocument();
+    expect(notificationsApi.list).not.toHaveBeenCalled();
+  });
+
   it("shows an unread badge with the real unread count", async () => {
     notificationsApi.list.mockResolvedValue({ notifications: [NOTIFICATION_FIXTURE], unreadCount: 1, pinnedCount: 0, grouped: null });
     render(<NotificationCenter />);

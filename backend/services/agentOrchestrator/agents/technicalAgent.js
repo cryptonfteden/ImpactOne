@@ -30,13 +30,14 @@ async function execute(symbol) {
     // The orchestrator only compares this string for equality with other
     // agents' directions (structural conflict detection) — it never
     // interprets it. NEUTRAL trend reports no opinion.
-    direction: report.trend === "NEUTRAL" ? null : report.trend,
+    direction: report.signalEligible === false || report.trend === "NEUTRAL" ? null : report.trend,
     evidence: [
       { observedFact: `Trend: ${report.trend} (trend strength ${report.trendStrength}/100, ${report.trendStrengthSource}).` },
       { observedFact: `Momentum: ${report.momentum.state}.` },
       ...(report.levels.supportLevels[0] ? [{ observedFact: `Nearest support: ${report.levels.supportLevels[0].price.toFixed(2)} (${report.levels.supportLevels[0].source}).` }] : []),
       ...(report.levels.resistanceLevels[0] ? [{ observedFact: `Nearest resistance: ${report.levels.resistanceLevels[0].price.toFixed(2)} (${report.levels.resistanceLevels[0].source}).` }] : []),
       { observedFact: `Risk level: ${report.risk.riskLevel} (${report.risk.reason})` },
+      { observedFact: `Technical data: ${report.dataQuality.barsUsed} verified bars; latest ${report.dataQuality.latestBarDate || "unknown"}.` },
     ],
     raw: report,
   };
@@ -52,7 +53,7 @@ async function health() {
 }
 
 module.exports = {
-  metadata: { id: "technical", name: "Technical Analysis Agent", category: "TECHNICAL", priority: 8 },
+  metadata: { id: "technical", name: "Technical Analysis Agent", category: "TECHNICAL", priority: 3 },
   execute,
   confidence,
   health,

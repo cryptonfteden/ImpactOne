@@ -1,5 +1,6 @@
 import SectionCard from "../SectionCard";
 import { Button, Skeleton } from "../ui";
+import CompanyLogo from "../CompanyLogo";
 
 const STARTER_SYMBOLS = ["AAPL", "NVDA", "TSLA"];
 
@@ -43,7 +44,7 @@ export default function WatchlistPriorityPanel({ isLoading, error, rows = [], on
         {rows.map((row) => (
           <button type="button" key={row.symbol} className="watchlist-priority-row" onClick={() => onOpenTicker?.(row.symbol)}>
             <div className="watchlist-priority-row__top">
-              <strong>{row.symbol}</strong>
+              <strong><CompanyLogo symbol={row.symbol} size="small" />{row.symbol}</strong>
               <span className={Number(row.change || 0) >= 0 ? "positive" : "negative"}>
                 {Number(row.change || 0) >= 0 ? "+" : ""}{Number(row.change || 0).toFixed(2)}%
               </span>

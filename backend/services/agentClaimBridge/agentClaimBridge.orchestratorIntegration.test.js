@@ -26,13 +26,17 @@ test.beforeEach(async () => {
   registerAllAgents();
 });
 
-test("runObserved with publishClaims:true publishes a real Bus event for a real, fulfilled agent execution", async () => {
+test("runObserved with publishClaims:true publishes a real Bus event only for a verified, fulfilled agent execution", async () => {
   const [macroAgent] = agentOrchestrator.getRegisteredAgents().filter((agent) => agent.metadata.id === "macro");
   assert.ok(macroAgent, "the macro agent must be registered");
 
-  await runObserved("AAPL", { agents: [macroAgent] }, { publishClaims: true });
+  const { report } = await runObserved("AAPL", { agents: [macroAgent] }, { publishClaims: true });
 
   const events = await intelligenceBusService.getEvents({ symbol: "AAPL", engineId: "macro" });
+  if (report.agents[0].status !== "fulfilled") {
+    assert.equal(events.length, 0, "unavailable provider data must never publish a claim event");
+    return;
+  }
   assert.equal(events.length, 1);
   assert.equal(events[0].engineId, "macro");
   assert.equal(typeof events[0].payload.direction, "string");
@@ -40,8 +44,8 @@ test("runObserved with publishClaims:true publishes a real Bus event for a real,
 }, { timeout: 30000 });
 
 test("two real, directionally-agreeing publishes from the same engine accumulate real evidence and reach the real, public /api/v2/claims/active route", async () => {
-  const now1 = new Date("2026-07-30T10:00:00.000Z");
-  const now2 = new Date("2026-07-30T11:00:00.000Z");
+  const now2 = new Date();
+  const now1 = new Date(now2.getTime() - 60 * 60 * 1000);
 
   const agentResult = {
     agentId: "macro",

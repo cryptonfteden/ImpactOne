@@ -30,6 +30,7 @@ const etfFlowAgent = require("./agents/etfFlowAgent");
 const institutionalAgent = require("./agents/institutionalAgent");
 const macroAgent = require("./agents/macroAgent");
 const analystConsensusAgent = require("./agents/analystConsensusAgent");
+const alternativeDataAgent = require("./agents/alternativeDataAgent");
 
 const ALL_AGENTS = [
   technicalAgent,
@@ -46,6 +47,7 @@ const ALL_AGENTS = [
   institutionalAgent,
   macroAgent,
   analystConsensusAgent,
+  alternativeDataAgent,
 ];
 
 /**

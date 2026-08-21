@@ -5,15 +5,15 @@
 const STABLE_BAND = 0.2;
 
 /**
- * @param {{ dataAvailable: boolean, changeYoY: number|null, latest: {value:number}|null }} employmentSeries - from fredSeriesProvider (UNRATE)
+ * @param {{ dataAvailable: boolean, changeYoYPercentagePoints: number|null, latest: {value:number}|null }} employmentSeries - from fredSeriesProvider (UNRATE)
  * @returns {{ trend: "IMPROVING"|"WORSENING"|"STABLE"|"UNKNOWN", unemploymentRate: number|null, unemploymentChangeYoY: number|null }}
  */
 function analyzeEmployment(employmentSeries) {
-  if (!employmentSeries.dataAvailable || !Number.isFinite(employmentSeries.changeYoY)) {
+  if (!employmentSeries.dataAvailable || !Number.isFinite(employmentSeries.changeYoYPercentagePoints)) {
     return { trend: "UNKNOWN", unemploymentRate: null, unemploymentChangeYoY: null };
   }
 
-  const unemploymentChangeYoY = employmentSeries.changeYoY;
+  const unemploymentChangeYoY = employmentSeries.changeYoYPercentagePoints;
   let trend = "STABLE";
   if (unemploymentChangeYoY > STABLE_BAND) trend = "WORSENING";
   else if (unemploymentChangeYoY < -STABLE_BAND) trend = "IMPROVING";

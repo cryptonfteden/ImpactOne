@@ -6,7 +6,7 @@ function baseInputs(overrides = {}) {
   return {
     institutionalBias: "NEUTRAL",
     institutionalScore: 0,
-    accumulationDistribution: { accumulationScore: 0, distributionScore: 0, totalIncreaseValue: 0, totalDecreaseValue: 0 },
+    accumulationDistribution: { accumulationScore: 0, distributionScore: 0, totalIncreaseShares: 0, totalDecreaseShares: 0 },
     newClosedPositions: { newPositions: [], closedPositions: [] },
     convictionAnalysis: { convictionScore: 0, participationRate: 0 },
     checkedCount: 7,
@@ -21,8 +21,8 @@ test("buildOpportunities includes a real bullish-bias clause", () => {
 });
 
 test("buildOpportunities includes a real accumulation-outweighs-distribution clause", () => {
-  const opportunities = buildOpportunities(baseInputs({ accumulationDistribution: { accumulationScore: 80, distributionScore: 20, totalIncreaseValue: 800, totalDecreaseValue: 200 } }));
-  assert.ok(opportunities.some((o) => o.includes("Real accumulation")));
+  const opportunities = buildOpportunities(baseInputs({ accumulationDistribution: { accumulationScore: 80, distributionScore: 20, totalIncreaseShares: 800, totalDecreaseShares: 200 } }));
+  assert.ok(opportunities.some((o) => o.includes("Reported share accumulation")));
 });
 
 test("buildOpportunities includes a real net-new-positions clause", () => {
@@ -45,8 +45,8 @@ test("buildRisks includes a real bearish-bias clause", () => {
 });
 
 test("buildRisks includes a real distribution-outweighs-accumulation clause", () => {
-  const risks = buildRisks(baseInputs({ accumulationDistribution: { accumulationScore: 20, distributionScore: 80, totalIncreaseValue: 200, totalDecreaseValue: 800 } }));
-  assert.ok(risks.some((r) => r.includes("Real distribution")));
+  const risks = buildRisks(baseInputs({ accumulationDistribution: { accumulationScore: 20, distributionScore: 80, totalIncreaseShares: 200, totalDecreaseShares: 800 } }));
+  assert.ok(risks.some((r) => r.includes("Reported share distribution")));
 });
 
 test("buildRisks includes a real net-closed-positions clause", () => {

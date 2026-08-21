@@ -1,6 +1,16 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { SUPPORTED_RETRACEMENT_RATIOS, DEFAULT_ACTIVE_RETRACEMENT_RATIOS, isRatioActiveByDefault } = require("./fibonacciLevelConfig");
+const { IMPACTONE_FIBONACCI_PROFILE } = require("./impactOneFibonacciProfile");
+
+test("the strategy approach zone is exactly 0% through 5% above 0.886", () => {
+  assert.deepEqual(IMPACTONE_FIBONACCI_PROFILE.entryZone, {
+    targetRatio: 0.886,
+    minDistancePct: 0,
+    maxDistancePct: 5,
+    approachDirection: "FROM_ABOVE",
+  });
+});
 
 test("the approved default active ratios are exactly 0, 0.886, 1", () => {
   assert.deepEqual([...DEFAULT_ACTIVE_RETRACEMENT_RATIOS].sort((a, b) => a - b), [0, 0.886, 1]);

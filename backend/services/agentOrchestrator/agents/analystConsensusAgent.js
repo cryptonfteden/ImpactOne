@@ -37,10 +37,11 @@ async function execute(symbol) {
     // The orchestrator only compares this string for equality with other
     // agents' directions (structural conflict detection) — it never
     // interprets it. NEUTRAL analyst bias reports no opinion.
-    direction: report.analystBias === "NEUTRAL" ? null : report.analystBias,
+    direction: report.signalEligible === false || report.analystBias === "NEUTRAL" ? null : report.analystBias,
     evidence: [
       { observedFact: `Analyst Bias: ${report.analystBias} (Consensus Score ${report.consensusScore}), Rating Trend ${report.ratingTrend}.` },
       { observedFact: `Coverage Quality ${report.coverageQuality} (${report.totalAnalysts} analysts), Conviction Score ${report.convictionScore}/100.` },
+      { observedFact: `Analyst evidence: ${report.dataQuality.periodCount} periods; latest ${report.dataQuality.latestPeriod || "unknown"}; price targets ${report.dataQuality.priceTargetsAvailable ? "available" : "unavailable"}.` },
     ],
     raw: report,
   };
@@ -55,7 +56,7 @@ async function health() {
 }
 
 module.exports = {
-  metadata: { id: "analyst-consensus", name: "Analyst Consensus Intelligence Agent", category: "ANALYST_CONSENSUS", priority: 6 },
+  metadata: { id: "analyst-consensus", name: "Analyst Consensus Intelligence Agent", category: "ANALYST_CONSENSUS", priority: 3 },
   execute,
   confidence,
   health,

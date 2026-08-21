@@ -16,7 +16,7 @@
 // else) rather than a redesign.
 const { createProvider, honestStubFetch } = require("../providerFactory");
 
-const CONFIGURATION_REQUIREMENT = "Equity options flow vendor (e.g. a specialized unusual-activity data provider, or a direct OPRA feed license) — paid, no free equivalent for sweep/block/gamma data.";
+const CONFIGURATION_REQUIREMENT = "Real-time sweep/block/gamma analytics require a licensed options-flow vendor. ImpactOne falls back to official OCC end-of-day customer Call/Put volume without inventing unavailable fields.";
 
 // A real credential/env-var check, not a hardcoded false — mirrors every
 // other "is this provider actually usable" check in this codebase

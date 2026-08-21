@@ -6,6 +6,7 @@ import { openSymbolPanel } from "../utils/symbolPanel";
 import { logError } from "../utils/errorHandling";
 import OrbitVisual from "../components/OrbitVisual";
 import { useI18n } from "../i18n/I18nProvider";
+import { hasStoredBetaIdentity } from "../hooks/useBetaIdentity";
 
 const SOURCE_LABELS = {
   priceAlert: "Price Alert",
@@ -82,8 +83,15 @@ export default function DecisionCenterScreen() {
   const [sourceFilter, setSourceFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
   const [sortBy, setSortBy] = useState("urgency");
+  const identityAvailable = hasStoredBetaIdentity();
 
   const load = useCallback(() => {
+    if (!identityAvailable) {
+      setData({ unavailableSources: [], items: [], grouped: {}, counts: { total: 0, high: 0, medium: 0, low: 0 } });
+      setError("");
+      setIsLoading(false);
+      return Promise.resolve();
+    }
     setIsLoading(true);
     return decisionCenterApi
       .getDecisions({ source: sourceFilter || undefined, priority: priorityFilter || undefined, sortBy })
@@ -99,7 +107,7 @@ export default function DecisionCenterScreen() {
         setError("Couldn't load the Decision Center right now. Try again in a moment.");
       })
       .finally(() => setIsLoading(false));
-  }, [sourceFilter, priorityFilter, sortBy]);
+  }, [sourceFilter, priorityFilter, sortBy, identityAvailable]);
 
   useEffect(() => {
     let cancelled = false;
@@ -202,7 +210,7 @@ export default function DecisionCenterScreen() {
           </SectionCard>
         ))
       ) : (
-        <EmptyState message="No decisions need your attention right now." />
+        <EmptyState message={identityAvailable ? "No decisions need your attention right now." : "Enter your beta workspace to load private decisions."} />
       )}
     </div>
   );

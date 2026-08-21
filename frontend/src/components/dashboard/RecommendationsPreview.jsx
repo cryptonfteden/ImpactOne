@@ -1,5 +1,6 @@
 import SectionCard from "../SectionCard";
 import { Button, EmptyState, Skeleton } from "../ui";
+import CompanyLogo from "../CompanyLogo";
 
 const ACTION_PILL_CLASS = {
   BUY: "pill opportunity",
@@ -58,7 +59,7 @@ export default function RecommendationsPreview({ isLoading, error, recommendatio
             return (
               <article key={recommendation.id} className="opportunity-item">
                 <div className="opportunity-item__top">
-                  <strong>{recommendation.symbol}</strong>
+                  <strong><CompanyLogo symbol={recommendation.symbol} />{recommendation.symbol}</strong>
                   <span className={ACTION_PILL_CLASS[recommendation.action] || "pill"}>
                     {ACTION_LABEL[recommendation.action] || recommendation.action}
                   </span>

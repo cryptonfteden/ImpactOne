@@ -33,7 +33,7 @@ test("running the full orchestrator surfaces the real news report via the standa
   const [newsResult] = report.agents;
 
   assert.equal(newsResult.agentId, "news");
-  assert.ok(["fulfilled", "error", "timeout"].includes(newsResult.status), "a real network call may succeed, gracefully degrade, or (rarely) time out in this environment");
+  assert.ok(["fulfilled", "unavailable", "error", "timeout"].includes(newsResult.status), "a real provider call may succeed, report verified data unavailable, fail, or time out");
   if (newsResult.status === "fulfilled") {
     assert.equal(typeof newsResult.result.summary, "string");
     assert.ok(Array.isArray(newsResult.result.evidence));

@@ -1,0 +1,114 @@
+/* Resolution-independent workspace polish: readable titles and resilient card layout. */
+.strategy-lab{position:relative;padding-top:20px;background:radial-gradient(circle at 86% 0,rgba(104,67,232,.14),transparent 32%),radial-gradient(ellipse at 8% 100%,rgba(66,224,185,.09),transparent 38%),linear-gradient(145deg,rgba(3,15,32,.88),rgba(17,10,43,.76))}
+.strategy-lab__heading{padding:0 10px 14px}
+.strategy-lab__summary{grid-template-columns:repeat(5,minmax(0,1fr));padding-inline:10px}
+.strategy-lab__freshness{position:relative}.strategy-lab__freshness>span{position:absolute;inset:12px 12px auto auto;width:6px;height:6px;border-radius:50%;background:#62e5b1;box-shadow:0 0 12px #62e5b1}.strategy-lab__freshness b{font-size:.7rem}
+.strategy-lab__plans{padding-inline:10px}.strategy-lab__plans header b{display:flex;align-items:center;gap:8px;min-width:0}.strategy-lab__plans header b>span:last-child{overflow:hidden;text-overflow:ellipsis}.strategy-lab__plans header>em{flex:0 0 auto;white-space:nowrap}.strategy-lab__plans footer>span{display:grid;gap:3px;min-width:0}.strategy-lab__plans footer em{color:#617895;font-size:.45rem;font-style:normal;overflow-wrap:anywhere}.strategy-lab__plans footer strong{align-self:end}
+.section-heading h2,.section-heading h2 strong{max-width:100%;overflow-wrap:anywhere;text-wrap:balance}.section-heading h2 strong,.workspace-grid h2,.portfolio-panel>.section-heading>strong{background:linear-gradient(92deg,#f4fbff,var(--workspace-accent-2,#75ddff) 52%,var(--workspace-accent,#a58cff));-webkit-background-clip:text;background-clip:text;color:transparent}
+.card-title{display:inline-flex;align-items:center;gap:7px;max-width:100%;color:var(--workspace-accent-2,#7edfff);text-shadow:0 0 14px color-mix(in srgb,var(--workspace-accent,#7568ff) 34%,transparent)}.card-title::before{content:"";width:14px;height:2px;border-radius:9px;background:linear-gradient(90deg,var(--workspace-accent,#796bff),var(--workspace-accent-2,#65e5ff));box-shadow:0 0 10px var(--workspace-accent-2,#65e5ff)}
+@media(max-width:900px){.strategy-lab__summary{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:520px){.strategy-lab{padding-top:16px}.strategy-lab__heading{padding-inline:5px}.strategy-lab__summary,.strategy-lab__plans{padding-inline:4px}.strategy-lab__summary{grid-template-columns:1fr 1fr}}
+
+/* News workspace: a clearer signal-room hierarchy with larger readable type. */
+body[data-workspace="news"] .workspace-view-heading{border-color:rgba(231,91,255,.48);background:radial-gradient(ellipse at 88% 12%,rgba(231,91,255,.24),transparent 34%),radial-gradient(ellipse at 12% 110%,rgba(74,207,255,.12),transparent 38%),linear-gradient(135deg,rgba(7,17,38,.96),rgba(31,13,57,.84))}
+body[data-workspace="news"] .workspace-view-heading::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.22;background-image:linear-gradient(115deg,transparent 0 47%,rgba(255,130,226,.22) 48%,transparent 49%),radial-gradient(circle at 72% 46%,rgba(255,255,255,.55) 0 1px,transparent 2px);background-size:100% 100%,48px 48px}
+body[data-workspace="news"] .workspace-view-heading h1{max-width:none;font-size:clamp(28px,3vw,42px);background-image:linear-gradient(90deg,#f6fbff 0%,#ff92d8 45%,#9d8cff 76%,#69dfff);position:relative;z-index:1}
+body[data-workspace="news"] .workspace-view-heading p{position:relative;z-index:1;font-size:clamp(.76rem,1.05vw,.94rem);color:#afbad0}
+body[data-workspace="news"] .priority-intelligence,body[data-workspace="news"] .insider-opportunities{position:relative;overflow:hidden;background:radial-gradient(ellipse at 90% 5%,rgba(220,75,255,.11),transparent 34%),radial-gradient(ellipse at 8% 96%,rgba(65,217,255,.08),transparent 38%),linear-gradient(145deg,rgba(4,17,37,.9),rgba(10,9,32,.8));backdrop-filter:blur(18px)}
+body[data-workspace="news"] .priority-intelligence::before,body[data-workspace="news"] .insider-opportunities::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.12;background-image:linear-gradient(rgba(120,184,255,.18) 1px,transparent 1px),linear-gradient(90deg,rgba(120,184,255,.18) 1px,transparent 1px);background-size:42px 42px;mask-image:linear-gradient(to bottom,#000,transparent 72%)}
+body[data-workspace="news"] .priority-intelligence>* ,body[data-workspace="news"] .insider-opportunities>*{position:relative;z-index:1}
+body[data-workspace="news"] .priority-intelligence .section-heading h2{font:800 clamp(1.05rem,1.65vw,1.4rem)/1.18 "Space Grotesk";background:linear-gradient(90deg,#f5fbff,#84dfff 52%,#ca92ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+body[data-workspace="news"] .priority-intelligence .section-heading small{margin-top:7px;font-size:.64rem;line-height:1.4}
+body[data-workspace="news"] .priority-intelligence ul{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}
+body[data-workspace="news"] .priority-event{min-height:112px;padding:14px;gap:10px;background:linear-gradient(145deg,rgba(8,25,51,.78),rgba(5,11,30,.7))}
+body[data-workspace="news"] .priority-event b{font-size:.76rem;line-height:1.35;-webkit-line-clamp:3}
+body[data-workspace="news"] .priority-event small{font-size:.6rem;line-height:1.35}
+body[data-workspace="news"] .priority-event em{font-size:.56rem;line-height:1.35;white-space:normal}
+body[data-workspace="news"] .priority-event>strong{font-size:.88rem}
+body[data-workspace="news"] .insider-opportunities{border-color:rgba(84,226,178,.34)}
+body[data-workspace="news"] .insider-stats>div{padding:16px;background:linear-gradient(145deg,rgba(8,29,49,.82),rgba(5,13,31,.72))}
+body[data-workspace="news"] .insider-stats b{font-size:1.25rem}
+body[data-workspace="news"] .insider-stats small{font-size:.58rem;line-height:1.35}
+body[data-workspace="news"] .insider-empty{font-size:.7rem;line-height:1.5}
+body[data-workspace="news"] .insider-empty b{font-size:.78rem}
+@media(max-width:900px){body[data-workspace="news"] .priority-intelligence ul{grid-template-columns:1fr}body[data-workspace="news"] .priority-event{min-height:0}}
+
+/* Market Lab: strategy radar without an embedded chart, with resilient readable cards. */
+body[data-workspace="market"] .workspace-view-heading{border-color:rgba(65,211,244,.46);background:radial-gradient(ellipse at 88% 8%,rgba(42,211,244,.2),transparent 34%),radial-gradient(ellipse at 8% 110%,rgba(86,238,201,.12),transparent 38%),linear-gradient(135deg,rgba(5,20,39,.96),rgba(5,32,48,.82))}
+body[data-workspace="market"] .workspace-view-heading h1{font-size:clamp(28px,3vw,42px);background-image:linear-gradient(90deg,#f3fbff 0%,#66e8ff 48%,#73f0c4 82%)}
+body[data-workspace="market"] .workspace-view-heading p{font-size:clamp(.76rem,1vw,.93rem);line-height:1.5;color:#aebdd1}
+body[data-workspace="market"] .market-deck,body[data-workspace="market"] .weekly-fibonacci-opportunities{background:radial-gradient(ellipse at 88% 0,rgba(45,197,238,.12),transparent 36%),radial-gradient(ellipse at 8% 100%,rgba(72,232,190,.08),transparent 38%),linear-gradient(145deg,rgba(4,17,36,.91),rgba(6,13,34,.82));backdrop-filter:blur(18px)}
+body[data-workspace="market"] .weekly-fibonacci-opportunities{overflow:hidden;padding:24px 22px 22px;border-color:rgba(73,218,239,.34)}
+body[data-workspace="market"] .weekly-fibonacci-opportunities>.opportunity-heading{margin:0 0 17px;padding:0 2px 16px;overflow:visible}
+body[data-workspace="market"] .opportunity-heading .card-title{font-size:.68rem;line-height:1.25}
+body[data-workspace="market"] .opportunity-heading h2{margin-top:8px;font-size:clamp(1.25rem,2vw,1.7rem);line-height:1.16}
+body[data-workspace="market"] .opportunity-heading>div>small{display:block;margin-top:8px;font-size:.66rem;line-height:1.45;color:#8fa7c4}
+body[data-workspace="market"] .weekly-fib-card{min-height:154px;padding:16px;background:linear-gradient(145deg,rgba(6,26,48,.88),rgba(5,13,34,.82))}
+body[data-workspace="market"] .weekly-fib-card__title b{font-size:1rem}
+body[data-workspace="market"] .weekly-fib-card__title small{font-size:.54rem;line-height:1.35}
+body[data-workspace="market"] .weekly-fib-card__title em{max-width:45%;font-size:.49rem;line-height:1.25;white-space:normal;text-align:center}
+body[data-workspace="market"] .weekly-fib-card__prices small{font-size:.47rem;line-height:1.25}
+body[data-workspace="market"] .weekly-fib-card__prices b{font-size:.72rem}
+body[data-workspace="market"] .weekly-fib-card__votes{font-size:.52rem;line-height:1.35}
+
+/* Chart Studio: the chart owns the page and no longer competes with the market radar. */
+body[data-workspace="chart"] .workspace-view-heading{border-color:rgba(104,135,255,.5);background:radial-gradient(ellipse at 88% 10%,rgba(92,113,255,.23),transparent 34%),radial-gradient(ellipse at 10% 110%,rgba(70,226,255,.12),transparent 38%),linear-gradient(135deg,rgba(7,15,38,.97),rgba(16,15,56,.84))}
+body[data-workspace="chart"] .workspace-view-heading h1{font-size:clamp(28px,3vw,42px);background-image:linear-gradient(90deg,#f5f8ff,#7ee7ff 46%,#9e8cff)}
+body[data-workspace="chart"] .live-chart-panel{margin-top:0;min-height:calc(100vh - 250px);padding:20px;background:linear-gradient(150deg,rgba(3,12,29,.94),rgba(7,10,31,.9));border-color:rgba(92,136,236,.4);backdrop-filter:blur(20px)}
+body[data-workspace="chart"] .main-chart{min-height:clamp(520px,68vh,900px)}
+body[data-workspace="chart"] .chart-toolbar h2{font-size:clamp(1.35rem,2vw,1.8rem)}
+body[data-workspace="chart"] .card-title{font-size:.68rem;line-height:1.25}
+@media(max-width:760px){body[data-workspace="market"] .weekly-fibonacci-opportunities{padding:18px 14px}body[data-workspace="chart"] .live-chart-panel{padding:12px}body[data-workspace="chart"] .main-chart{min-height:58vh}}
+
+/* Watchlist: every saved symbol is an explicit weekly 0.886 monitor. */
+body[data-workspace="watchlist"] .workspace-view-heading{border-color:rgba(248,194,77,.5);background:radial-gradient(ellipse at 88% 10%,rgba(250,184,53,.2),transparent 34%),radial-gradient(ellipse at 10% 110%,rgba(139,103,255,.12),transparent 38%),linear-gradient(135deg,rgba(8,18,38,.97),rgba(45,34,21,.8))}
+body[data-workspace="watchlist"] .workspace-view-heading h1{font-size:clamp(28px,3vw,42px);background-image:linear-gradient(90deg,#fffaf0,#ffd86b 48%,#a98cff)}
+body[data-workspace="watchlist"] #portfolio.workspace-single{display:block}
+body[data-workspace="watchlist"] .strategy-watchlist{padding:22px;border-color:rgba(246,190,69,.34);background:radial-gradient(ellipse at 90% 2%,rgba(246,183,65,.1),transparent 34%),radial-gradient(ellipse at 8% 100%,rgba(127,98,255,.09),transparent 38%),linear-gradient(145deg,rgba(5,17,37,.92),rgba(11,12,34,.84));backdrop-filter:blur(18px)}
+body[data-workspace="watchlist"] .strategy-watchlist .section-heading h2{font-size:clamp(1.15rem,1.8vw,1.55rem);background:linear-gradient(90deg,#fff9ed,#ffd466 52%,#b797ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+body[data-workspace="watchlist"] .strategy-watchlist .section-heading small{display:block;margin-top:7px;max-width:720px;font-size:.7rem;line-height:1.45;color:#9cacbf}
+.strategy-watchlist__form{display:flex;align-items:end;gap:10px;margin:18px 0 8px;padding:12px;border:1px solid rgba(242,192,78,.2);border-radius:14px;background:rgba(4,13,31,.62)}
+.strategy-watchlist__form label{display:grid;flex:1;gap:6px}.strategy-watchlist__form label span{color:#f6d16e;font-size:.55rem;font-weight:800;letter-spacing:.13em}.strategy-watchlist__form input{width:100%;padding:11px 13px;border:1px solid rgba(111,152,222,.26);border-radius:10px;color:#eff7ff;background:#050f24;outline:none;text-transform:uppercase}.strategy-watchlist__form input:focus{border-color:#f5c34e;box-shadow:0 0 0 3px rgba(245,195,78,.1)}
+.strategy-watchlist__form button,.strategy-watchlist__method button{padding:11px 15px;border:1px solid rgba(246,195,77,.38);border-radius:10px;color:#fff0b6;background:linear-gradient(135deg,rgba(154,102,27,.46),rgba(87,58,198,.42));cursor:pointer;font-weight:800}.strategy-watchlist__form button:disabled{opacity:.55}
+.strategy-watchlist__message{min-height:20px;margin:0 2px 10px;color:#9fb2ca;font-size:.65rem;line-height:1.4}
+.strategy-watchlist__items{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.strategy-watch-card{overflow:hidden;border:1px solid rgba(106,148,216,.25);border-radius:16px;background:linear-gradient(145deg,rgba(7,22,46,.9),rgba(5,12,30,.84));box-shadow:inset 0 1px rgba(255,255,255,.025)}
+.strategy-watch-card.is-triggered{border-color:rgba(91,231,175,.58);box-shadow:0 0 24px rgba(64,218,166,.1),inset 0 1px rgba(255,255,255,.04)}.strategy-watch-card.is-unavailable{border-style:dashed;opacity:.82}
+.strategy-watch-card__open{display:flex!important;justify-content:flex-start!important;gap:10px!important;padding:14px!important;border:0!important;border-bottom:1px solid rgba(105,150,220,.14)!important;border-radius:0!important;background:transparent!important}.strategy-watch-card__open .company-logo{flex:0 0 auto}.strategy-watch-card__identity{flex:1;min-width:0}.strategy-watch-card__identity b{font-size:.9rem}.strategy-watch-card__identity small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.strategy-watch-card__open em{align-self:center;padding:5px 8px;border-radius:999px;color:#f5d576;background:rgba(174,121,29,.16);font-size:.5rem;font-style:normal;font-weight:900;white-space:nowrap}.strategy-watch-card.is-triggered .strategy-watch-card__open em{color:#70e6b8;background:rgba(40,151,111,.2);box-shadow:0 0 14px rgba(67,222,166,.16)}
+.strategy-watch-card__numbers{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;padding:12px}.strategy-watch-card__numbers span{min-width:0;padding:8px;border-radius:9px;background:rgba(5,17,38,.72)}.strategy-watch-card__numbers small,.strategy-watch-card__numbers b{display:block}.strategy-watch-card__numbers small{color:#788dac;font-size:.47rem;letter-spacing:.08em}.strategy-watch-card__numbers b{margin-top:4px;overflow:hidden;color:#eaf4ff;font-size:.68rem;text-overflow:ellipsis;white-space:nowrap}
+.strategy-watch-card__foot,.strategy-watchlist__method{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 12px 12px;color:#7187a8;font-size:.54rem;line-height:1.4}.strategy-watch-card__foot button{padding:4px 7px;border:0;color:#9aacc4;background:transparent;cursor:pointer}.strategy-watch-card__foot button:hover{color:#f58097}.strategy-watchlist__method{margin-top:14px;padding:13px 2px 0;border-top:1px solid rgba(111,154,219,.13)}
+@media(max-width:880px){.strategy-watchlist__items{grid-template-columns:1fr}}@media(max-width:600px){body[data-workspace="watchlist"] .strategy-watchlist{padding:15px}.strategy-watchlist__form{align-items:stretch;flex-direction:column}.strategy-watch-card__numbers{grid-template-columns:1fr 1fr}.strategy-watch-card__open em{max-width:34%;white-space:normal;text-align:center}}
+
+/* Agent Council: decisions first; inactive sources remain visible without empty dashboards. */
+body[data-workspace="ai"] .workspace-view-heading{overflow:hidden;border-color:rgba(157,108,255,.5);background:radial-gradient(ellipse at 88% 8%,rgba(153,91,255,.25),transparent 34%),radial-gradient(ellipse at 10% 110%,rgba(76,224,255,.13),transparent 38%),linear-gradient(135deg,rgba(7,15,38,.97),rgba(34,16,67,.86))}
+body[data-workspace="ai"] .workspace-view-heading::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.22;background-image:radial-gradient(circle at 80% 32%,rgba(255,255,255,.72) 0 1px,transparent 2px),radial-gradient(circle at 68% 70%,rgba(94,231,255,.75) 0 1px,transparent 2px),linear-gradient(116deg,transparent 0 67%,rgba(164,113,255,.24) 68%,transparent 69%);background-size:52px 52px,76px 76px,100% 100%}
+body[data-workspace="ai"] .workspace-view-heading h1{position:relative;z-index:1;font-size:clamp(28px,3vw,42px);background-image:linear-gradient(90deg,#f7f8ff,#76e7ff 46%,#b58aff)}
+body[data-workspace="ai"] .workspace-view-heading p{position:relative;z-index:1;max-width:760px;font-size:clamp(.76rem,1.02vw,.94rem);line-height:1.5;color:#adb9d0}
+body[data-workspace="ai"] .daily-agent-picks{overflow:hidden;padding:24px;border-color:rgba(146,105,244,.42);background:radial-gradient(ellipse at 92% 0,rgba(125,72,238,.17),transparent 38%),radial-gradient(ellipse at 6% 100%,rgba(63,218,239,.1),transparent 38%),linear-gradient(145deg,rgba(5,17,38,.93),rgba(17,10,47,.84));backdrop-filter:blur(20px)}
+body[data-workspace="ai"] .daily-agent-picks::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.11;background-image:linear-gradient(rgba(118,162,230,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(118,162,230,.16) 1px,transparent 1px);background-size:52px 52px;mask-image:linear-gradient(to bottom,#000,transparent 68%)}
+body[data-workspace="ai"] .daily-agent-picks>*{position:relative;z-index:1}
+body[data-workspace="ai"] .daily-agent-picks__heading h2{font-size:clamp(1.35rem,2.2vw,1.9rem);line-height:1.12;background:linear-gradient(90deg,#f4f8ff,#6de4ff 44%,#ac82ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+body[data-workspace="ai"] .daily-agent-picks__heading small{display:block;margin-top:7px;color:#91a5c0;font-size:.68rem;line-height:1.45}
+body[data-workspace="ai"] .gold-picks{overflow-x:auto;padding-bottom:5px;scrollbar-width:thin}
+.gold-picks{align-items:flex-start}
+.gold-picks>button{display:flex;box-sizing:border-box;min-width:142px;height:126px;align-items:center;justify-content:flex-start;flex-direction:column;gap:2px;padding:10px;text-align:center}
+.gold-picks>button>.company-symbol-logo{display:inline-grid;flex:0 0 38px;width:38px;height:38px;margin:0 auto 5px;place-items:center;grid-row:auto}
+.gold-picks>button>.company-symbol-logo img{box-sizing:border-box}
+.gold-picks>button>span,.gold-picks>button>b,.gold-picks>button>strong{display:block;width:100%;grid-column:auto;line-height:1.08;text-align:center}
+.gold-picks>button>span{min-height:9px;font-size:.44rem}
+.gold-picks>button>b{min-height:15px;font-size:.86rem}
+.gold-picks>button>strong{min-height:13px;font-size:.68rem}
+body[data-workspace="ai"] .daily-agent-picks__grid{grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px}
+body[data-workspace="ai"] .agent-pick-group{min-height:0;padding:16px;border-color:rgba(102,157,224,.25);background:linear-gradient(145deg,rgba(7,24,48,.88),rgba(6,12,31,.84))}
+body[data-workspace="ai"] .agent-pick-group>header span{font-size:.76rem;line-height:1.3}
+body[data-workspace="ai"] .agent-pick-group>header small{font-size:.54rem;line-height:1.4}
+body[data-workspace="ai"] .agent-pick-group>header>b{font-size:.54rem}
+body[data-workspace="ai"] .agent-pick-group__list button{grid-template-columns:34px minmax(0,1fr) 42px;padding:11px}
+body[data-workspace="ai"] .agent-pick-group__list span b{font-size:.75rem;line-height:1.25}
+body[data-workspace="ai"] .agent-pick-group__list span small{font-size:.53rem;line-height:1.35}
+body[data-workspace="ai"] .agent-pick-group__list strong{font-size:.82rem}
+body[data-workspace="ai"] .agent-pick-group>footer{font-size:.5rem;line-height:1.45}
+.agent-board-empty{display:grid;min-height:150px;place-content:center;gap:7px;padding:24px;border:1px dashed rgba(121,159,216,.25);border-radius:16px;text-align:center;background:rgba(5,15,35,.55)}.agent-board-empty b{color:#dce9fb;font-size:.78rem}.agent-board-empty span{color:#7f94b2;font-size:.59rem;line-height:1.45}
+.daily-agent-source-status{margin-top:14px;padding:12px 14px;border:1px solid rgba(114,151,211,.18);border-radius:15px;background:rgba(3,12,29,.66)}.daily-agent-source-status:empty{display:none}.daily-agent-source-status>header{display:flex;align-items:center;justify-content:space-between;gap:12px}.daily-agent-source-status>header b{color:#d9e6f8;font-size:.68rem}.daily-agent-source-status>header span{color:#7187a6;font-size:.52rem}.daily-agent-source-status>div{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.daily-agent-source-status>div>span{display:flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid rgba(106,148,209,.16);border-radius:999px;background:rgba(9,24,47,.68)}.daily-agent-source-status>div i{width:6px;height:6px;border-radius:50%;background:#62e5b1;box-shadow:0 0 9px rgba(98,229,177,.7)}.daily-agent-source-status>div b{color:#bfd0e6;font-size:.54rem}.daily-agent-source-status>div small{color:#7086a4;font-size:.48rem}.daily-agent-source-status>div .is-offline i{background:#f5bd57;box-shadow:0 0 9px rgba(245,189,87,.65)}
+body[data-workspace="ai"] .recommendations-panel{border-color:rgba(94,218,238,.27);background:radial-gradient(ellipse at 86% 0,rgba(98,78,225,.12),transparent 38%),linear-gradient(145deg,rgba(5,18,38,.91),rgba(8,12,33,.83));backdrop-filter:blur(18px)}
+body[data-workspace="ai"] .recommendations-panel .section-heading h2{font-size:clamp(1.15rem,1.8vw,1.55rem)}
+@media(max-width:760px){body[data-workspace="ai"] .daily-agent-picks{padding:17px 13px}body[data-workspace="ai"] .daily-agent-picks__grid{grid-template-columns:1fr}.daily-agent-source-status>header{align-items:flex-start;flex-direction:column}.daily-agent-source-status>header span{line-height:1.4}}

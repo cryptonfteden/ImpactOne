@@ -3,6 +3,7 @@
 // axios.post — a destructured reference wouldn't see the patch.
 const finnhubService = require("./finnhubService");
 const portfolioRepository = require("./portfolioRepository");
+const priceHistoryProvider = require("./intelligence/priceHistoryProvider");
 
 function badRequest(message, extra = {}) {
   const error = new Error(message);
@@ -40,7 +41,7 @@ async function markPositions(positions) {
     const avgEntryPrice = Number(position.avgEntryPrice);
     const marketValue = markPrice * quantity;
     const unrealizedPnl = (markPrice - avgEntryPrice) * quantity;
-    const unrealizedPnlPct = avgEntryPrice > 0 ? ((markPrice - avgEntryPrice) / avgEntryPrice) * 100 : 0;
+    const unrealizedPnlPct = avgEntryPrice > 0 ? (unrealizedPnl / (Math.abs(quantity) * avgEntryPrice)) * 100 : 0;
     // Today's mark-to-market contribution, derived from the position's
     // current value and its live day % change — not the same as
     // unrealizedPnl, which is measured from the entry price.
@@ -52,6 +53,7 @@ async function markPositions(positions) {
       sector: position.sector,
       assetType: position.assetType,
       quantity,
+      direction: quantity < 0 ? "SHORT" : "LONG",
       avgEntryPrice: round2(avgEntryPrice),
       currentPrice: round2(markPrice),
       marketValue: round2(marketValue),
@@ -82,8 +84,7 @@ function computeAllocation(markedPositions, totalValue) {
   return { bySector: toRows(bySector), byAssetType: toRows(byAssetType) };
 }
 
-async function getPortfolioSummary(betaUserId) {
-  const portfolio = await getOrCreateDefaultPortfolio(betaUserId);
+async function summarizePortfolio(portfolio) {
   const openPositions = await portfolioRepository.getOpenPositions(portfolio.id);
   const markedPositions = await markPositions(openPositions);
 
@@ -117,12 +118,40 @@ async function getPortfolioSummary(betaUserId) {
   };
 }
 
+async function resolvePaperTradePrice(symbol) {
+  try {
+    const payload = await finnhubService.getQuote(symbol);
+    const price = Number(payload.quote?.price);
+    if (Number.isFinite(price) && price > 0) return { price, source: payload.quote?.source || "Finnhub live quote" };
+  } catch {
+    // The verified daily-close fallback below keeps paper trading testable
+    // when the free live-quote allowance is exhausted. It is disclosed on
+    // every returned order and is never presented as a live execution.
+  }
+  const bars = await priceHistoryProvider.getDailyBars(symbol, { range: "1mo" });
+  const latest = bars.at(-1);
+  const price = Number(latest?.close);
+  if (!Number.isFinite(price) || price <= 0) throw badRequest(`No verified market price available for ${symbol}.`);
+  const metadata = priceHistoryProvider.getChartSource(symbol, "1mo");
+  return { price, source: `${metadata.source} · latest verified daily close ${latest.date}`, delayed: true };
+}
+
+async function getPortfolioSummary(betaUserId) {
+  return summarizePortfolio(await getOrCreateDefaultPortfolio(betaUserId));
+}
+
+async function getPortfolioSummaryById(portfolioId) {
+  const portfolio = await portfolioRepository.findPortfolioById(portfolioId);
+  if (!portfolio) throw badRequest("Portfolio not found.");
+  return summarizePortfolio(portfolio);
+}
+
 /**
  * Places a paper-trading market order. Whole shares only for now (matches
  * today's product behavior) — the schema already supports fractional
  * quantities for when that becomes a requirement.
  */
-async function placeOrder({ symbol, side, quantity, sector, assetType, betaUserId }) {
+async function placeOrder({ symbol, side, quantity, sector, assetType, betaUserId, portfolioId, verifiedPaperPrice, verifiedPaperPriceSource }) {
   const normalizedSymbol = String(symbol || "").trim().toUpperCase();
   const normalizedSide = String(side || "").trim().toUpperCase();
   const normalizedQuantity = Number(quantity);
@@ -137,12 +166,15 @@ async function placeOrder({ symbol, side, quantity, sector, assetType, betaUserI
     throw badRequest("quantity must be a positive whole number of shares.");
   }
 
-  const portfolio = await getOrCreateDefaultPortfolio(betaUserId);
-  const quotePayload = await finnhubService.getQuote(normalizedSymbol);
-  const price = Number(quotePayload.quote?.price);
-  if (!Number.isFinite(price) || price <= 0) {
-    throw badRequest(`No live price available for ${normalizedSymbol}.`);
-  }
+  const portfolio = portfolioId
+    ? await portfolioRepository.findPortfolioById(portfolioId)
+    : await getOrCreateDefaultPortfolio(betaUserId);
+  if (!portfolio) throw badRequest("Portfolio not found.");
+  const suppliedPrice = Number(verifiedPaperPrice);
+  const execution = Number.isFinite(suppliedPrice) && suppliedPrice > 0 && verifiedPaperPriceSource
+    ? { price: suppliedPrice, source: String(verifiedPaperPriceSource), delayed: true }
+    : await resolvePaperTradePrice(normalizedSymbol);
+  const price = execution.price;
 
   return portfolioRepository.runOrderTransaction(portfolio.id, async (tx, lockedPortfolio) => {
     const existingPosition = await portfolioRepository.findOpenPositionTx(tx, portfolio.id, normalizedSymbol);
@@ -205,7 +237,7 @@ async function placeOrder({ symbol, side, quantity, sector, assetType, betaUserI
         description: `Bought ${normalizedQuantity} ${normalizedSymbol} @ $${price.toFixed(2)}`,
       });
 
-      return { order, trade, position };
+      return { order, trade, position, marketData: execution };
     }
 
     // SELL
@@ -275,7 +307,68 @@ async function placeOrder({ symbol, side, quantity, sector, assetType, betaUserI
       });
     }
 
-    return { order, trade, position };
+    return { order, trade, position, marketData: execution };
+  });
+}
+
+async function openPaperPosition({ symbol, direction, quantity, sector, assetType, betaUserId }) {
+  const normalizedSymbol = String(symbol || "").trim().toUpperCase();
+  const normalizedDirection = String(direction || "").trim().toUpperCase();
+  const normalizedQuantity = Number(quantity);
+  if (!/^[A-Z]{1,6}(?:\.[A-Z])?$/.test(normalizedSymbol)) throw badRequest("Paper positions currently support US-listed equities only.");
+  if (!["LONG", "SHORT"].includes(normalizedDirection)) throw badRequest("direction must be LONG or SHORT.");
+  if (!Number.isInteger(normalizedQuantity) || normalizedQuantity <= 0) throw badRequest("quantity must be a positive whole number of shares.");
+
+  const portfolio = await getOrCreateDefaultPortfolio(betaUserId);
+  if (normalizedDirection === "LONG") {
+    const existing = (await portfolioRepository.getOpenPositions(portfolio.id)).find((position) => position.symbol === normalizedSymbol);
+    if (existing && Number(existing.quantity) < 0) throw badRequest(`Close the existing ${normalizedSymbol} short position before opening a long position.`);
+    return placeOrder({ symbol: normalizedSymbol, side: "BUY", quantity: normalizedQuantity, sector, assetType, betaUserId });
+  }
+
+  const quotePayload = await finnhubService.getQuote(normalizedSymbol);
+  const price = Number(quotePayload.quote?.price);
+  if (!Number.isFinite(price) || price <= 0) throw badRequest(`No live price available for ${normalizedSymbol}.`);
+  const notional = price * normalizedQuantity;
+
+  return portfolioRepository.runOrderTransaction(portfolio.id, async (tx, lockedPortfolio) => {
+    const existingPosition = await portfolioRepository.findOpenPositionTx(tx, portfolio.id, normalizedSymbol);
+    if (existingPosition) throw badRequest(`Close the existing ${normalizedSymbol} position before opening a short position.`);
+    if (notional > Number(lockedPortfolio.cashBalance)) throw badRequest(`Insufficient paper-trading collateral for a $${notional.toFixed(2)} short position.`);
+    const order = await portfolioRepository.createOrderTx(tx, { portfolioId: portfolio.id, symbol: normalizedSymbol, side: "SELL", quantity: normalizedQuantity, requestedPrice: price, status: "FILLED", filledAt: new Date() });
+    const position = await portfolioRepository.openShortPositionTx(tx, { portfolioId: portfolio.id, symbol: normalizedSymbol, sector, assetType, quantity: normalizedQuantity, price });
+    const trade = await portfolioRepository.createTradeTx(tx, { orderId: order.id, portfolioId: portfolio.id, positionId: position.id, symbol: normalizedSymbol, side: "SELL", quantity: normalizedQuantity, price });
+    const newCashBalance = Number(lockedPortfolio.cashBalance) + notional;
+    await portfolioRepository.setCashBalanceTx(tx, portfolio.id, newCashBalance);
+    await portfolioRepository.createLedgerEntryTx(tx, { portfolioId: portfolio.id, type: "TRADE_CREDIT", amount: notional, balanceAfter: newCashBalance, relatedTradeId: trade.id, description: `Opened paper SHORT ${normalizedQuantity} ${normalizedSymbol} @ $${price.toFixed(2)}` });
+    return { order, trade, position, direction: "SHORT", paperTrading: true };
+  });
+}
+
+async function closePaperPosition({ symbol, betaUserId }) {
+  const normalizedSymbol = String(symbol || "").trim().toUpperCase();
+  const portfolio = await getOrCreateDefaultPortfolio(betaUserId);
+  const current = (await portfolioRepository.getOpenPositions(portfolio.id)).find((position) => position.symbol === normalizedSymbol);
+  if (!current) throw badRequest(`No open ${normalizedSymbol} paper position exists.`);
+  const quantity = Math.abs(Number(current.quantity));
+  if (Number(current.quantity) > 0) return placeOrder({ symbol: normalizedSymbol, side: "SELL", quantity, betaUserId });
+
+  const quotePayload = await finnhubService.getQuote(normalizedSymbol);
+  const price = Number(quotePayload.quote?.price);
+  if (!Number.isFinite(price) || price <= 0) throw badRequest(`No live price available for ${normalizedSymbol}.`);
+  return portfolioRepository.runOrderTransaction(portfolio.id, async (tx, lockedPortfolio) => {
+    const existing = await portfolioRepository.findOpenPositionTx(tx, portfolio.id, normalizedSymbol);
+    if (!existing || Number(existing.quantity) >= 0) throw badRequest(`No open ${normalizedSymbol} short position exists.`);
+    const coverCost = price * quantity;
+    if (coverCost > Number(lockedPortfolio.cashBalance)) throw badRequest("Insufficient paper cash to cover this short position.");
+    const realizedPnl = (Number(existing.avgEntryPrice) - price) * quantity;
+    const order = await portfolioRepository.createOrderTx(tx, { portfolioId: portfolio.id, symbol: normalizedSymbol, side: "BUY", quantity, requestedPrice: price, status: "FILLED", filledAt: new Date() });
+    const position = await portfolioRepository.closePositionTx(tx, existing, price);
+    const trade = await portfolioRepository.createTradeTx(tx, { orderId: order.id, portfolioId: portfolio.id, positionId: position.id, symbol: normalizedSymbol, side: "BUY", quantity, price, realizedPnl });
+    const newCashBalance = Number(lockedPortfolio.cashBalance) - coverCost;
+    await portfolioRepository.setCashBalanceTx(tx, portfolio.id, newCashBalance);
+    await portfolioRepository.createLedgerEntryTx(tx, { portfolioId: portfolio.id, type: "TRADE_DEBIT", amount: -coverCost, balanceAfter: newCashBalance, relatedTradeId: trade.id, description: `Covered paper SHORT ${quantity} ${normalizedSymbol} @ $${price.toFixed(2)}` });
+    return { order, trade, position, direction: "SHORT", closed: true, paperTrading: true };
   });
 }
 
@@ -439,7 +532,10 @@ async function resetPortfolio(betaUserId) {
 module.exports = {
   getOrCreateDefaultPortfolio,
   getPortfolioSummary,
+  getPortfolioSummaryById,
   placeOrder,
+  openPaperPosition,
+  closePaperPosition,
   getTradeHistory,
   getTransactionLog,
   getPerformanceTimeline,

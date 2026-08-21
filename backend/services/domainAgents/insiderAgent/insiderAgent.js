@@ -17,6 +17,7 @@ const { analyzeOwnershipTrend } = require("./ownershipTrendAnalyzer");
 const { computeConfidence } = require("./confidenceModel");
 const { buildBullishFactors, buildBearishFactors, buildRisks } = require("./bullishBearishFactorsBuilder");
 const { generateAiSummary } = require("./aiSummary");
+const { summarizeVerifiedPurchases } = require("./openMarketPurchasePolicy");
 
 const defaultProvider = createInsiderDataProvider();
 
@@ -37,6 +38,9 @@ function buildUnavailableReport(symbol, asOf, reason, inputs) {
     bearishFactors: [],
     risks: [],
     confidence: { confidence: 0, components: { base: 0, sampleBonus: 0, filingsBonus: 0, clusterBonus: 0, recencyBonus: 0 } },
+    verifiedOpenMarketPurchases: summarizeVerifiedPurchases([]),
+    signalEligible: false,
+    dataQuality: { source: "SEC EDGAR Form 4", available: false, reason, filingsFetched: 0, verifiedPurchaseCount: 0 },
     inputs,
   };
   report.aiSummary = generateAiSummary(report);
@@ -78,6 +82,8 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
   const bullishFactors = buildBullishFactors({ netInsiderActivity, clusterActivity, executiveActivity, transactionSize });
   const bearishFactors = buildBearishFactors({ netInsiderActivity, clusterActivity, executiveActivity, transactionSize });
   const risks = buildRisks({ transactionCount: transactions.length, filingsFetched: metrics.filingsFetched, ownershipTrend });
+  const verifiedOpenMarketPurchases = summarizeVerifiedPurchases(transactions, { now: new Date(metrics.asOf) });
+  const signalEligible = verifiedOpenMarketPurchases.count > 0 && verifiedOpenMarketPurchases.actionableFreshness;
 
   const report = {
     symbol: metrics.symbol,
@@ -95,6 +101,20 @@ async function generateReport(symbol, { provider = defaultProvider } = {}) {
     bearishFactors,
     risks,
     confidence,
+    verifiedOpenMarketPurchases,
+    signalEligible,
+    dataQuality: {
+      source: "SEC EDGAR Form 4",
+      available: true,
+      cik: metrics.cik,
+      filingsFetched: metrics.filingsFetched,
+      transactionsParsed: transactions.length,
+      verifiedPurchaseCount: verifiedOpenMarketPurchases.count,
+      latestVerifiedPurchaseDate: verifiedOpenMarketPurchases.latestDate,
+      ageDays: verifiedOpenMarketPurchases.ageDays,
+      actionableFreshness: verifiedOpenMarketPurchases.actionableFreshness,
+      verificationRule: verifiedOpenMarketPurchases.verificationRule,
+    },
     // Retained for auditability/debugging — every number above traces
     // back to these real, already-fetched inputs.
     inputs: metrics,

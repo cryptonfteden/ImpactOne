@@ -3,6 +3,7 @@ const { getPrismaClient } = require("../db/prismaClient");
 const DEFAULT_PORTFOLIO_NAME = "Default Portfolio";
 const DEFAULT_STARTING_CAPITAL = 100000;
 const DEFAULT_BENCHMARK_SYMBOL = "SPY";
+const STRATEGY_LAB_PORTFOLIO_NAME = "ImpactOne Strategy Lab";
 
 // All raw Prisma access lives in this file. Service layers describe *what*
 // should happen; this file is the only place that knows *how* it's stored.
@@ -15,9 +16,19 @@ const DEFAULT_BENCHMARK_SYMBOL = "SPY";
 async function findDefaultPortfolio(betaUserId) {
   const prisma = getPrismaClient();
   if (betaUserId) {
-    return prisma.portfolio.findFirst({ where: { betaUserId } });
+    return prisma.portfolio.findFirst({
+      where: { betaUserId },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
   }
-  return prisma.portfolio.findFirst({ where: { name: DEFAULT_PORTFOLIO_NAME } });
+  // Historical local runs could create more than one unscoped default
+  // portfolio. An unordered findFirst() made the active demo account change
+  // nondeterministically between requests/restarts. The oldest portfolio is
+  // the original account and is now selected deterministically.
+  return prisma.portfolio.findFirst({
+    where: { name: DEFAULT_PORTFOLIO_NAME, betaUserId: null },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
 }
 
 async function createDefaultPortfolio(betaUserId) {
@@ -138,6 +149,43 @@ async function openOrIncreasePositionTx(tx, { portfolioId, symbol, sector, asset
   });
 }
 
+async function findPortfolioById(id) {
+  return getPrismaClient().portfolio.findUnique({ where: { id } });
+}
+
+async function findPortfolioByName(name) {
+  return getPrismaClient().portfolio.findFirst({
+    where: { name, betaUserId: null },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+}
+
+async function createNamedPortfolio(name, startingCapital = DEFAULT_STARTING_CAPITAL) {
+  return getPrismaClient().portfolio.create({
+    data: { name, cashBalance: startingCapital, startingCapital, benchmarkSymbol: DEFAULT_BENCHMARK_SYMBOL, betaUserId: null },
+  });
+}
+
+async function getOrCreateStrategyLabPortfolio() {
+  return (await findPortfolioByName(STRATEGY_LAB_PORTFOLIO_NAME))
+    || createNamedPortfolio(STRATEGY_LAB_PORTFOLIO_NAME);
+}
+
+async function openShortPositionTx(tx, { portfolioId, symbol, sector, assetType, quantity, price }) {
+  return tx.position.create({
+    data: {
+      portfolioId,
+      symbol,
+      sector: sector || "General",
+      assetType: assetType || "Equity",
+      quantity: -Math.abs(quantity),
+      avgEntryPrice: price,
+      lastMarkPrice: price,
+      unrealizedPnl: 0,
+    },
+  });
+}
+
 async function reduceOrClosePositionTx(tx, { existingPosition, quantity, price }) {
   const remaining = Number(existingPosition.quantity) - quantity;
 
@@ -156,6 +204,10 @@ async function reduceOrClosePositionTx(tx, { existingPosition, quantity, price }
     where: { id: existingPosition.id },
     data: { quantity: 0, lastMarkPrice: price, unrealizedPnl: 0, closedAt: new Date() },
   });
+}
+
+async function closePositionTx(tx, existingPosition, price) {
+  return tx.position.update({ where: { id: existingPosition.id }, data: { quantity: 0, lastMarkPrice: price, unrealizedPnl: 0, closedAt: new Date() } });
 }
 
 async function setCashBalanceTx(tx, portfolioId, newBalance) {
@@ -184,8 +236,13 @@ async function resetPortfolio(portfolioId) {
 
 module.exports = {
   DEFAULT_STARTING_CAPITAL,
+  STRATEGY_LAB_PORTFOLIO_NAME,
   findDefaultPortfolio,
   createDefaultPortfolio,
+  findPortfolioById,
+  findPortfolioByName,
+  createNamedPortfolio,
+  getOrCreateStrategyLabPortfolio,
   getOpenPositions,
   getTrades,
   sumRealizedPnl,
@@ -197,7 +254,9 @@ module.exports = {
   createOrderTx,
   createTradeTx,
   openOrIncreasePositionTx,
+  openShortPositionTx,
   reduceOrClosePositionTx,
+  closePositionTx,
   setCashBalanceTx,
   createLedgerEntryTx,
   resetPortfolio,

@@ -45,7 +45,8 @@ function buildAiSummary(report) {
     return `No real valuation data source is currently connected for this symbol (${report.unavailableReason || "reason unavailable"}), so no fair-value estimate is possible. This will resolve automatically once a real data source is configured.`;
   }
   if (report.estimatedFairValue === null) {
-    return `A composite fair-value estimate could not be honestly computed for this symbol — ${report.unavailableForFairValueReason || "insufficient usable valuation methods this window"}. A valuation signal, not a recommendation — evaluate this alongside your own research and the platform's other evidence.`;
+    const reason = String(report.unavailableForFairValueReason || "insufficient usable valuation methods this window").replace(/[.!?]+$/, "");
+    return `A composite fair-value estimate could not be honestly computed for this symbol — ${reason}. A valuation signal, not a recommendation — evaluate this alongside your own research and the platform's other evidence.`;
   }
 
   const sentences = [describeStatus(report), describeSupportingMetrics(report), describeZones(report), describeConfidence(report)].filter(Boolean);

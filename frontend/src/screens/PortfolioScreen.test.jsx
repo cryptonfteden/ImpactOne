@@ -60,9 +60,10 @@ function renderScreen() {
 }
 
 describe("PortfolioScreen feature flag", () => {
-  it("renders the legacy localStorage-driven screen by default", () => {
+  it("renders the canonical server-backed engine by default", () => {
     renderScreen();
-    expect(screen.getByText("Virtual agent portfolio and paper trading")).toBeInTheDocument();
+    expect(screen.getByText("Your simulated portfolio")).toBeInTheDocument();
+    expect(screen.queryByText("Virtual agent portfolio and paper trading")).not.toBeInTheDocument();
   });
 
   it("renders the legacy screen when the flag is explicitly \"legacy\"", () => {
@@ -74,13 +75,14 @@ describe("PortfolioScreen feature flag", () => {
   it("renders the new server-backed engine screen when the flag is \"api\"", () => {
     vi.stubEnv("VITE_PORTFOLIO_ENGINE", "api");
     renderScreen();
-    expect(screen.getByText("Persistent paper-trading engine")).toBeInTheDocument();
+    expect(screen.getByText("Your simulated portfolio")).toBeInTheDocument();
     expect(screen.queryByText("Virtual agent portfolio and paper trading")).not.toBeInTheDocument();
   });
 });
 
 describe("Sprint 40 — Portfolio AI Advisor Insights", () => {
   it("shows an honest empty state when there are no open positions or sector allocation", () => {
+    vi.stubEnv("VITE_PORTFOLIO_ENGINE", "legacy");
     renderScreen();
     expect(screen.getByText("AI Advisor Insights")).toBeInTheDocument();
     expect(screen.getByText("No open positions yet — no sector concentration to report.")).toBeInTheDocument();

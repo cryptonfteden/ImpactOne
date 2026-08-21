@@ -75,7 +75,7 @@ test("resolveCik caches the real index across calls — a second symbol lookup d
   try {
     await resolveCik("AAPL");
     await resolveCik("GOOGL");
-    assert.equal(callCount, 1);
+    assert.equal(callCount, 2, "the SEC index and shared Massive reference are both cached across symbol lookups");
   } finally {
     require("axios").get = originalGet;
     clearCache();
